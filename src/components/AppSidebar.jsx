@@ -20,7 +20,7 @@
  */
 
 import React from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import useUIStore from 'src/store/uiStore'
 
 import {
   CCloseButton,
@@ -53,9 +53,10 @@ import navigation from '../_nav'
  * @returns {React.ReactElement} Sidebar with navigation
  */
 const AppSidebar = () => {
-  const dispatch = useDispatch()
-  const unfoldable = useSelector((state) => state.sidebarUnfoldable)
-  const sidebarShow = useSelector((state) => state.sidebarShow)
+  const unfoldable = useUIStore((state) => state.sidebarUnfoldable)
+  const sidebarShow = useUIStore((state) => state.sidebarShow)
+  const setSidebarShow = useUIStore((state) => state.setSidebarShow)
+  const setSidebarUnfoldable = useUIStore((state) => state.setSidebarUnfoldable)
 
   return (
     <CSidebar
@@ -64,9 +65,7 @@ const AppSidebar = () => {
       position="fixed"
       unfoldable={unfoldable}
       visible={sidebarShow}
-      onVisibleChange={(visible) => {
-        dispatch({ type: 'set', sidebarShow: visible })
-      }}
+      onVisibleChange={(visible) => setSidebarShow(visible)}
     >
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand to="/">
@@ -76,13 +75,13 @@ const AppSidebar = () => {
         <CCloseButton
           className="d-lg-none"
           dark
-          onClick={() => dispatch({ type: 'set', sidebarShow: false })}
+          onClick={() => setSidebarShow(false)}
         />
       </CSidebarHeader>
       <AppSidebarNav items={navigation} />
       <CSidebarFooter className="border-top d-none d-lg-flex">
         <CSidebarToggler
-          onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
+          onClick={() => setSidebarUnfoldable(!unfoldable)}
         />
       </CSidebarFooter>
     </CSidebar>
