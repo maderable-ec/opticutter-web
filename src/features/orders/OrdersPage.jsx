@@ -1,0 +1,209 @@
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  CButton,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CCol,
+  CFormSelect,
+  CModal,
+  CModalHeader,
+  CModalTitle,
+  CRow,
+  CSpinner,
+  CTable,
+  CTableBody,
+  CTableDataCell,
+  CTableHead,
+  CTableHeaderCell,
+  CTableRow,
+} from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilPlus } from '@coreui/icons'
+
+import OrderStatusBadge from './OrderStatusBadge'
+import OrderForm from './OrderForm'
+import { useCreateOrder, useOrders } from './useOrders'
+
+const LIMIT = 20
+
+const STATUSES = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'draft', label: 'Borrador' },
+  { value: 'quoted', label: 'Cotizado' },
+  { value: 'confirmed', label: 'Confirmado' },
+  { value: 'approved', label: 'Aprobado' },
+  { value: 'in_production', label: 'En producción' },
+  { value: 'cut', label: 'Cortado' },
+  { value: 'completed', label: 'Completado' },
+  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'expired', label: 'Vencido' },
+]
+
+const TERMINAL_STATES = ['completed', 'cancelled', 'expired']
+
+const clientName = (c) => [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
+
+const fmtDate = (iso) =>
+  iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+
+const fmt = (n) =>
+  n != null
+    ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n)
+    : '—'
+
+const isExpiringSoon = (expiresAt, status) => {
+  if (!expiresAt || TERMINAL_STATES.includes(status)) return false
+  const diff = new Date(expiresAt) - new Date()
+  return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
+}
+
+const OrdersPage = () => {
+  const navigate = useNavigate()
+  const [status, setStatus] = useState('')
+  const [skip, setSkip] = useState(0)
+  const [createModal, setCreateModal] = useState(false)
+
+  const { data: orders = [], isLoading } = useOrders({ status: status || undefined, skip, limit: LIMIT })
+  const createMutation = useCreateOrder()
+
+  const handleStatusChange = (e) => {
+    setStatus(e.target.value)
+    setSkip(0)
+  }
+
+  const openCreate = () => {
+    createMutation.reset()
+    setCreateModal(true)
+  }
+  const closeCreate = () => setCreateModal(false)
+
+  const handleCreate = (data) => {
+    createMutation.mutate(data, {
+      onSuccess: (order) => {
+        closeCreate()
+        navigate(`/orders/${order.id}`)
+      },
+    })
+  }
+
+  const showPrev = skip > 0
+  const showNext = orders.length === LIMIT
+
+  return (
+    <>
+      <CCard>
+        <CCardHeader className="d-flex justify-content-between align-items-center">
+          <strong>Órdenes</strong>
+          <CButton color="primary" size="sm" onClick={openCreate}>
+            <CIcon icon={cilPlus} className="me-1" />
+            Nueva orden
+          </CButton>
+        </CCardHeader>
+        <CCardBody>
+          <CRow className="mb-3">
+            <CCol xs={12} sm={6} md={4}>
+              <CFormSelect value={status} onChange={handleStatusChange}>
+                {STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
+          </CRow>
+
+          {isLoading ? (
+            <div className="text-center py-5">
+              <CSpinner color="primary" />
+            </div>
+          ) : (
+            <CTable align="middle" hover responsive style={{ cursor: 'pointer' }}>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Cliente</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Creado</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Vence</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {orders.length === 0 ? (
+                  <CTableRow>
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                      Sin resultados
+                    </CTableDataCell>
+                  </CTableRow>
+                ) : (
+                  orders.map((o) => {
+                    const expiringSoon = isExpiringSoon(o.expiresAt, o.status)
+                    return (
+                      <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
+                        <CTableDataCell>
+                          <strong>{o.code ?? '—'}</strong>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <div>{clientName(o.client)}</div>
+                          <div className="text-body-secondary small">@{o.client?.identifier}</div>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <OrderStatusBadge status={o.status} />
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end text-nowrap">{fmt(o.total)}</CTableDataCell>
+                        <CTableDataCell className="text-nowrap">{fmtDate(o.createdAt)}</CTableDataCell>
+                        <CTableDataCell
+                          className={`text-nowrap ${expiringSoon ? 'text-danger fw-semibold' : ''}`}
+                        >
+                          {fmtDate(o.expiresAt)}
+                          {expiringSoon && ' ⚠'}
+                        </CTableDataCell>
+                      </CTableRow>
+                    )
+                  })
+                )}
+              </CTableBody>
+            </CTable>
+          )}
+
+          {(showPrev || showNext) && (
+            <div className="d-flex justify-content-end gap-2 mt-2">
+              <CButton
+                size="sm"
+                color="secondary"
+                disabled={!showPrev}
+                onClick={() => setSkip(Math.max(0, skip - LIMIT))}
+              >
+                Anterior
+              </CButton>
+              <CButton
+                size="sm"
+                color="secondary"
+                disabled={!showNext}
+                onClick={() => setSkip(skip + LIMIT)}
+              >
+                Siguiente
+              </CButton>
+            </div>
+          )}
+        </CCardBody>
+      </CCard>
+
+      <CModal size="xl" visible={createModal} onClose={closeCreate} backdrop="static">
+        <CModalHeader>
+          <CModalTitle>Nueva orden</CModalTitle>
+        </CModalHeader>
+        <OrderForm
+          onSubmit={handleCreate}
+          onCancel={closeCreate}
+          isSubmitting={createMutation.isPending}
+          error={createMutation.error}
+        />
+      </CModal>
+    </>
+  )
+}
+
+export default OrdersPage
