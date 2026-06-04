@@ -209,7 +209,7 @@ const OrderDetailPage = () => {
             </div>
             {updateStatus.error && (
               <div className="text-danger small mt-2">
-                {updateStatus.error.detail || 'Error al cambiar estado.'}
+                {updateStatus.error.message || 'Error al cambiar estado.'}
               </div>
             )}
           </CCardBody>
@@ -226,9 +226,9 @@ const OrderDetailPage = () => {
             <CTable small responsive hover>
               <CTableHead>
                 <CTableRow>
-                  <CTableHeaderCell className="bg-body-tertiary">Tablero</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Producto</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Qty tableros</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">Cant.</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Precio unit.</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Total línea</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Eficiencia avg</CTableHeaderCell>
@@ -238,8 +238,8 @@ const OrderDetailPage = () => {
               <CTableBody>
                 {order.lines.map((l) => (
                   <CTableRow key={l.id}>
-                    <CTableDataCell>{l.boardName ?? '—'}</CTableDataCell>
-                    <CTableDataCell>{l.boardCode ?? '—'}</CTableDataCell>
+                    <CTableDataCell>{l.productName ?? '—'}</CTableDataCell>
+                    <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
                     <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
                     <CTableDataCell className="text-end">{fmt(l.unitPriceSnapshot)}</CTableDataCell>
                     <CTableDataCell className="text-end">{fmt(l.lineTotal)}</CTableDataCell>
@@ -388,7 +388,7 @@ const OrderDetailPage = () => {
           />
           {updateStatus.error && (
             <div className="text-danger small mt-2">
-              {updateStatus.error.detail || 'Error al cambiar estado.'}
+              {updateStatus.error.message || 'Error al cambiar estado.'}
             </div>
           )}
         </CModalBody>
@@ -421,7 +421,7 @@ const OrderDetailPage = () => {
           />
           {associateInvoice.error && (
             <div className="text-danger small mt-2">
-              {associateInvoice.error.detail || 'Error al asociar la factura.'}
+              {associateInvoice.error.message || 'Error al asociar la factura.'}
             </div>
           )}
         </CModalBody>

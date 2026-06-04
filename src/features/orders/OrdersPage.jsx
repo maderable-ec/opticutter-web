@@ -62,15 +62,17 @@ const isExpiringSoon = (expiresAt, status) => {
 const OrdersPage = () => {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
-  const [skip, setSkip] = useState(0)
+  const [offset, setOffset] = useState(0)
   const [createModal, setCreateModal] = useState(false)
 
-  const { data: orders = [], isLoading } = useOrders({ status: status || undefined, skip, limit: LIMIT })
+  const { data: ordersData, isLoading } = useOrders({ status: status || undefined, offset, limit: LIMIT })
+  const orders = ordersData?.items ?? []
+  const pagination = ordersData?.pagination
   const createMutation = useCreateOrder()
 
   const handleStatusChange = (e) => {
     setStatus(e.target.value)
-    setSkip(0)
+    setOffset(0)
   }
 
   const openCreate = () => {
@@ -88,8 +90,8 @@ const OrdersPage = () => {
     })
   }
 
-  const showPrev = skip > 0
-  const showNext = orders.length === LIMIT
+  const showPrev = offset > 0
+  const showNext = pagination ? offset + LIMIT < pagination.total : false
 
   return (
     <>
@@ -174,7 +176,7 @@ const OrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setSkip(Math.max(0, skip - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
               >
                 Anterior
               </CButton>
@@ -182,7 +184,7 @@ const OrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setSkip(skip + LIMIT)}
+                onClick={() => setOffset(offset + LIMIT)}
               >
                 Siguiente
               </CButton>
