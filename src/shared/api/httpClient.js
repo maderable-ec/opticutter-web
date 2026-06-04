@@ -10,6 +10,7 @@ const request = async (path, options = {}) => {
     error.status = res.status
     throw error
   }
+  if (res.status === 204) return null
   return res.json()
 }
 
