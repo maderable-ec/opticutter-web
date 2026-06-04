@@ -44,8 +44,10 @@ const OrderForm = ({ onSubmit, onCancel, isSubmitting, error }) => {
     return () => clearTimeout(t)
   }, [clientSearch])
 
-  const { data: clients = [] } = useClientsMin(debouncedSearch)
-  const { data: boards = [] } = useBoards()
+  const { data: clientsData } = useClientsMin(debouncedSearch)
+  const { data: boardsData } = useBoards()
+  const clients = clientsData?.items ?? []
+  const boards = boardsData?.items ?? []
 
   const selectedClient = clients.find((c) => String(c.id) === String(selectedClientId))
 
@@ -237,7 +239,7 @@ const OrderForm = ({ onSubmit, onCancel, isSubmitting, error }) => {
           {error && (
             <CCol xs={12}>
               <div className="text-danger small">
-                {error.detail || 'Error al crear la orden. Intente nuevamente.'}
+                {error.message || 'Error al crear la orden. Intente nuevamente.'}
               </div>
             </CCol>
           )}

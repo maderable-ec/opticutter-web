@@ -33,19 +33,21 @@ const fullName = (c) => [c.firstName, c.lastName].filter(Boolean).join(' ') || '
 const ClientsPage = () => {
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
-  const [skip, setSkip] = useState(0)
+  const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState({ visible: false, client: null })
   const [deleteModal, setDeleteModal] = useState({ visible: false, client: null })
 
   useEffect(() => {
     const t = setTimeout(() => {
       setSearch(rawSearch)
-      setSkip(0)
+      setOffset(0)
     }, 350)
     return () => clearTimeout(t)
   }, [rawSearch])
 
-  const { data: clients = [], isLoading } = useClients({ search, skip, limit: LIMIT })
+  const { data: clientsData, isLoading } = useClients({ search, offset, limit: LIMIT })
+  const clients = clientsData?.items ?? []
+  const pagination = clientsData?.pagination
   const createMutation = useCreateClient()
   const updateMutation = useUpdateClient()
   const deleteMutation = useDeleteClient()
@@ -75,8 +77,8 @@ const ClientsPage = () => {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
-  const showPrev = skip > 0
-  const showNext = clients.length === LIMIT
+  const showPrev = offset > 0
+  const showNext = pagination ? offset + LIMIT < pagination.total : false
 
   return (
     <>
@@ -167,7 +169,7 @@ const ClientsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setSkip(Math.max(0, skip - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
               >
                 Anterior
               </CButton>
@@ -175,7 +177,7 @@ const ClientsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setSkip(skip + LIMIT)}
+                onClick={() => setOffset(offset + LIMIT)}
               >
                 Siguiente
               </CButton>

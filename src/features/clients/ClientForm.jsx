@@ -73,7 +73,7 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }) => {
           </CCol>
           {error && (
             <CCol xs={12}>
-              <div className="text-danger small">Error al guardar. Intente nuevamente.</div>
+              <div className="text-danger small">{error.message || 'Error al guardar. Intente nuevamente.'}</div>
             </CCol>
           )}
         </CRow>
