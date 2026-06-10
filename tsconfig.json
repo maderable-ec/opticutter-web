@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+
+    /* Bundler mode (Vite) */
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Gradual migration: lenient now, tightened to strict in the final session.
+       allowJs lets .js/.jsx coexist; checkJs stays false so only .ts/.tsx are type-checked. */
+    "allowJs": true,
+    "checkJs": false,
+    "strict": false,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Path alias matching vite.config.mjs (bare `src/...` imports).
+       Without baseUrl, paths resolve relative to this tsconfig (TS 5+). */
+    "paths": {
+      "src/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}
