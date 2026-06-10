@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CBadge,
   CButton,
@@ -29,23 +29,47 @@ import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
 
 import ProductForm from './ProductForm'
 import { useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct } from './useProducts'
+import type {
+  BoardAttributes,
+  EdgeBandingAttributes,
+  Product,
+  ProductListParams,
+  ProductPayload,
+  ProductType,
+} from './types'
 
 const LIMIT = 20
 
-const TYPE_LABELS = { board: 'Tablero', edge_banding: 'Tapacanto', hardware: 'Herraje' }
-const TYPE_COLORS = { board: 'info', edge_banding: 'warning', hardware: 'secondary' }
-const BAND_TYPE_LABELS = { Soft: 'Suave', Hard: 'Duro' }
+const TYPE_LABELS: Record<string, string> = {
+  board: 'Tablero',
+  edge_banding: 'Tapacanto',
+  hardware: 'Herraje',
+}
+const TYPE_COLORS: Record<string, string> = {
+  board: 'info',
+  edge_banding: 'warning',
+  hardware: 'secondary',
+}
+const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
-const fmtPrice = (n) =>
+const fmtPrice = (n?: number) =>
   typeof n === 'number' ? n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' }) : '—'
+
+interface ProductModalState {
+  visible: boolean
+  product: Product | null
+}
 
 const ProductsPage = () => {
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState<ProductType | ''>('')
   const [offset, setOffset] = useState(0)
-  const [formModal, setFormModal] = useState({ visible: false, product: null })
-  const [deleteModal, setDeleteModal] = useState({ visible: false, product: null })
+  const [formModal, setFormModal] = useState<ProductModalState>({ visible: false, product: null })
+  const [deleteModal, setDeleteModal] = useState<ProductModalState>({
+    visible: false,
+    product: null,
+  })
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -55,7 +79,7 @@ const ProductsPage = () => {
     return () => clearTimeout(t)
   }, [rawSearch])
 
-  const queryParams = { search, offset, limit: LIMIT }
+  const queryParams: ProductListParams = { search, offset, limit: LIMIT }
   if (typeFilter) queryParams.type = typeFilter
 
   const { data: productsData, isLoading } = useProducts(queryParams)
@@ -67,16 +91,16 @@ const ProductsPage = () => {
   const deleteMutation = useDeleteProduct()
 
   const openCreate = () => setFormModal({ visible: true, product: null })
-  const openEdit = (product) => setFormModal({ visible: true, product })
+  const openEdit = (product: Product) => setFormModal({ visible: true, product })
   const closeForm = () => {
     setFormModal({ visible: false, product: null })
     createMutation.reset()
     updateMutation.reset()
   }
-  const openDelete = (product) => setDeleteModal({ visible: true, product })
+  const openDelete = (product: Product) => setDeleteModal({ visible: true, product })
   const closeDelete = () => setDeleteModal({ visible: false, product: null })
 
-  const handleSubmit = (data) => {
+  const handleSubmit = (data: ProductPayload) => {
     const { product } = formModal
     if (product) {
       updateMutation.mutate({ id: product.id, data }, { onSuccess: closeForm })
@@ -86,6 +110,7 @@ const ProductsPage = () => {
   }
 
   const handleDelete = () => {
+    if (!deleteModal.product) return
     deleteMutation.mutate(deleteModal.product.id, { onSuccess: closeDelete })
   }
 
@@ -138,7 +163,7 @@ const ProductsPage = () => {
     )
   }
 
-  const renderRow = (p) => {
+  const renderRow = (p: Product) => {
     const actions = (
       <CTableDataCell className="text-end text-nowrap">
         <CButton variant="ghost" color="secondary" size="sm" onClick={() => openEdit(p)}>
@@ -163,7 +188,7 @@ const ProductsPage = () => {
     )
 
     if (typeFilter === 'board') {
-      const a = p.attributes ?? {}
+      const a = (p.attributes ?? {}) as BoardAttributes & EdgeBandingAttributes
       return (
         <CTableRow key={p.id}>
           <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
@@ -183,7 +208,7 @@ const ProductsPage = () => {
     }
 
     if (typeFilter === 'edge_banding') {
-      const a = p.attributes ?? {}
+      const a = (p.attributes ?? {}) as BoardAttributes & EdgeBandingAttributes
       return (
         <CTableRow key={p.id}>
           <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
@@ -195,7 +220,7 @@ const ProductsPage = () => {
           <CTableDataCell>{a.thickness != null ? `${a.thickness} mm` : '—'}</CTableDataCell>
           <CTableDataCell>{a.width ? `${a.width} mm` : '—'}</CTableDataCell>
           <CTableDataCell>
-            {a.bandType ? BAND_TYPE_LABELS[a.bandType] ?? a.bandType : '—'}
+            {a.bandType ? (BAND_TYPE_LABELS[a.bandType] ?? a.bandType) : '—'}
           </CTableDataCell>
           <CTableDataCell>{a.color ?? '—'}</CTableDataCell>
           <CTableDataCell>{statusBadge}</CTableDataCell>
@@ -241,7 +266,7 @@ const ProductsPage = () => {
               <CFormSelect
                 value={typeFilter}
                 onChange={(e) => {
-                  setTypeFilter(e.target.value)
+                  setTypeFilter(e.target.value as ProductType | '')
                   setOffset(0)
                 }}
                 style={{ minWidth: 160 }}
@@ -322,9 +347,7 @@ const ProductsPage = () => {
         scrollable
       >
         <CModalHeader>
-          <CModalTitle>
-            {formModal.product ? 'Editar producto' : 'Nuevo producto'}
-          </CModalTitle>
+          <CModalTitle>{formModal.product ? 'Editar producto' : 'Nuevo producto'}</CModalTitle>
         </CModalHeader>
         <ProductForm
           key={formModal.product?.id ?? 'new'}
@@ -341,8 +364,8 @@ const ProductsPage = () => {
           <CModalTitle>Eliminar producto</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          ¿Eliminar <strong>{deleteModal.product?.name}</strong> (
-          {deleteModal.product?.code})? Esta acción no se puede deshacer.
+          ¿Eliminar <strong>{deleteModal.product?.name}</strong> ({deleteModal.product?.code})? Esta
+          acción no se puede deshacer.
         </CModalBody>
         <CModalFooter>
           <CButton color="secondary" onClick={closeDelete}>

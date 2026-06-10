@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CAlert,
@@ -25,9 +25,20 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilCalculator, cilPlus, cilTrash } from '@coreui/icons'
 
+import type { Client } from 'src/features/clients/types'
 import { useBoards, useClientsMin, useCreateOrder, useOptimize } from './useOrders'
 
-const EMPTY_REQ = {
+interface RequirementForm {
+  boardId: string
+  height: number | string
+  width: number | string
+  quantity: number | string
+  priority: number | string
+  label: string
+  canRotate: boolean
+}
+
+const EMPTY_REQ: RequirementForm = {
   boardId: '',
   height: '',
   width: '',
@@ -37,16 +48,16 @@ const EMPTY_REQ = {
   canRotate: true,
 }
 
-const fullClientLabel = (c) => {
+const fullClientLabel = (c: Client) => {
   const name = [c.firstName, c.lastName].filter(Boolean).join(' ')
   return name ? `${name} — @${c.identifier}` : `@${c.identifier}`
 }
 
-const fmt = (n) =>
+const fmt = (n?: number | null) =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 // Construye el payload del contrato vigente: materiales únicos referenciados por materialKey.
-const buildMaterialsAndRequirements = (requirements) => {
+const buildMaterialsAndRequirements = (requirements: RequirementForm[]) => {
   const validReqs = requirements.filter(
     (r) => r.boardId && Number(r.height) > 0 && Number(r.width) > 0,
   )
@@ -71,7 +82,7 @@ const OrderCreatePage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [notes, setNotes] = useState('')
-  const [requirements, setRequirements] = useState([{ ...EMPTY_REQ }])
+  const [requirements, setRequirements] = useState<RequirementForm[]>([{ ...EMPTY_REQ }])
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(clientSearch), 350)
@@ -89,9 +100,12 @@ const OrderCreatePage = () => {
   const createOrder = useCreateOrder()
 
   const addRequirement = () => setRequirements((r) => [...r, { ...EMPTY_REQ }])
-  const removeRequirement = (i) => setRequirements((r) => r.filter((_, idx) => idx !== i))
-  const updateReq = (i, field, value) =>
-    setRequirements((r) => r.map((req, idx) => (idx === i ? { ...req, [field]: value } : req)))
+  const removeRequirement = (i: number) => setRequirements((r) => r.filter((_, idx) => idx !== i))
+  const updateReq = <K extends keyof RequirementForm>(
+    i: number,
+    field: K,
+    value: RequirementForm[K],
+  ) => setRequirements((r) => r.map((req, idx) => (idx === i ? { ...req, [field]: value } : req)))
 
   const {
     materials,
@@ -156,7 +170,7 @@ const OrderCreatePage = () => {
             className="mb-1"
           />
           <CFormSelect
-            size={5}
+            htmlSize={5}
             value={selectedClientId}
             onChange={(e) => setSelectedClientId(e.target.value)}
           >
@@ -167,7 +181,7 @@ const OrderCreatePage = () => {
               </option>
             ))}
           </CFormSelect>
-          {selectedClient && selectedClient.phone === null && (
+          {selectedClient && selectedClient.phone == null && (
             <CAlert color="warning" className="mt-2 mb-0 py-2 small">
               Este cliente no tiene celular registrado. La cotización no podrá crearse hasta que se
               registre un número.

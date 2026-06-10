@@ -19,6 +19,7 @@ interface ProductBase {
   id: string
   code: string
   name: string
+  description?: string | null
   price: number
   isActive: boolean
 }
@@ -46,6 +47,7 @@ export interface ProductListParams {
 export interface ProductPayload {
   code: string
   name: string
+  description?: string | null
   type: ProductType
   price: number
   isActive?: boolean

@@ -31,9 +31,15 @@ export interface OrderHistoryEntry {
   note?: string
 }
 
-// A cut-list piece on an order. Shape is broad until the create flow is fully typed.
+// A cut-list piece on an order, as returned by the server.
 export interface OrderPiece {
   id?: string
+  label?: string
+  height?: number
+  width?: number
+  quantity?: number
+  priority?: number
+  canRotate?: boolean
   [key: string]: unknown
 }
 
@@ -68,9 +74,10 @@ export interface AssociateInvoicePayload {
   [key: string]: unknown
 }
 
-// Payload to create a quote/order. Refined as OrderCreatePage is typed.
+// Payload to create a quote/order. The cut-list is sent as `materials` + `requirements`
+// (see OrderCreatePage); those travel through the index signature.
 export interface OrderCreatePayload {
-  clientId?: string
+  clientId?: number
   pieces?: OrderPiece[]
   [key: string]: unknown
 }
@@ -96,5 +103,7 @@ export interface ReviewLinkInfo {
   status: string
   url?: string
   token?: string
+  createdAt?: string
   expiresAt?: string
+  usedAt?: string
 }

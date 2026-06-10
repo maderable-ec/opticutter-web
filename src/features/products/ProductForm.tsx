@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import {
   CButton,
   CCol,
@@ -14,15 +15,42 @@ import {
   CSpinner,
 } from '@coreui/react'
 
-const TYPES = [
+import { ApiError } from 'src/shared/api/types'
+import type { Product, ProductPayload, ProductType } from './types'
+
+const TYPES: { value: ProductType; label: string }[] = [
   { value: 'board', label: 'Tablero (Board)' },
   { value: 'edge_banding', label: 'Tapacanto (Edge Banding)' },
 ]
 
-const EMPTY_BOARD_ATTRS = { height: '', width: '', thickness: '', grainDirection: '' }
-const EMPTY_EDGE_ATTRS = { thickness: '', width: '', bandType: '', color: '', length: '' }
+interface AttrsForm {
+  height?: number | string
+  width?: number | string
+  thickness?: number | string
+  grainDirection?: string
+  bandType?: string
+  color?: string
+  length?: number | string
+}
 
-const initAttrs = (product) => {
+interface ProductFormState {
+  code: string
+  name: string
+  description: string
+  price: number | string
+  isActive: boolean
+}
+
+const EMPTY_BOARD_ATTRS: AttrsForm = { height: '', width: '', thickness: '', grainDirection: '' }
+const EMPTY_EDGE_ATTRS: AttrsForm = {
+  thickness: '',
+  width: '',
+  bandType: '',
+  color: '',
+  length: '',
+}
+
+const initAttrs = (product: Product | null): AttrsForm => {
   if (!product) return EMPTY_BOARD_ATTRS
   if (product.type === 'board') {
     const a = product.attributes ?? {}
@@ -33,66 +61,78 @@ const initAttrs = (product) => {
       grainDirection: a.grainDirection ?? '',
     }
   }
-  if (product.type === 'edge_banding') {
-    const a = product.attributes ?? {}
-    return {
-      thickness: a.thickness ?? '',
-      width: a.width ?? '',
-      bandType: a.bandType ?? '',
-      color: a.color ?? '',
-      length: a.length ?? '',
-    }
+  const a = product.attributes ?? {}
+  return {
+    thickness: a.thickness ?? '',
+    width: a.width ?? '',
+    bandType: a.bandType ?? '',
+    color: a.color ?? '',
+    length: a.length ?? '',
   }
-  return EMPTY_BOARD_ATTRS
 }
 
-const mapServerErrors = (error) => {
-  if (!error?.errors) return {}
-  const out = {}
+const mapServerErrors = (error: Error | null): Record<string, string> => {
+  if (!(error instanceof ApiError)) return {}
+  const out: Record<string, string> = {}
   for (const e of error.errors) {
     if (e.field) {
       const key = e.field.replace(/^body\.(?:attributes\.)?/, '')
       out[key] = e.message
     } else if (e.code === 'CONFLICT') {
-      if (e.message?.includes('código')) out.code = e.message
-      else if (e.message?.includes('nombre')) out.name = e.message
+      if (e.message.includes('código')) out.code = e.message
+      else if (e.message.includes('nombre')) out.name = e.message
     }
   }
   return out
 }
 
-const FieldError = ({ name, fieldErrors }) =>
-  fieldErrors[name] ? (
-    <div className="text-danger small mt-1">{fieldErrors[name]}</div>
-  ) : null
+const FieldError = ({
+  name,
+  fieldErrors,
+}: {
+  name: string
+  fieldErrors: Record<string, string>
+}) => (fieldErrors[name] ? <div className="text-danger small mt-1">{fieldErrors[name]}</div> : null)
 
-const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }) => {
+interface ProductFormProps {
+  product: Product | null
+  onSubmit: (data: ProductPayload) => void
+  onCancel: () => void
+  isSubmitting: boolean
+  error: Error | null
+}
+
+const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: ProductFormProps) => {
   const isEdit = !!product
 
-  const [type, setType] = useState(product?.type ?? 'board')
-  const [form, setForm] = useState({
+  const [type, setType] = useState<ProductType>(product?.type ?? 'board')
+  const [form, setForm] = useState<ProductFormState>({
     code: product?.code ?? '',
     name: product?.name ?? '',
     description: product?.description ?? '',
     price: product?.price ?? '',
     isActive: product?.isActive ?? true,
   })
-  const [attrs, setAttrs] = useState(initAttrs(product))
+  const [attrs, setAttrs] = useState<AttrsForm>(initAttrs(product))
 
   const fieldErrors = mapServerErrors(error)
-  const hasGenericError =
-    error && Object.keys(fieldErrors).length === 0
+  const hasGenericError = error && Object.keys(fieldErrors).length === 0
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
-  const setAttr = (field) => (e) => setAttrs((a) => ({ ...a, [field]: e.target.value }))
+  const set =
+    (field: 'code' | 'name' | 'description' | 'price') =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [field]: e.target.value }))
+  const setAttr =
+    (field: keyof AttrsForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setAttrs((a) => ({ ...a, [field]: e.target.value }))
 
-  const handleTypeChange = (e) => {
-    const next = e.target.value
+  const handleTypeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const next = e.target.value as ProductType
     setType(next)
     setAttrs(next === 'board' ? EMPTY_BOARD_ATTRS : EMPTY_EDGE_ATTRS)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     const attributes =
@@ -250,11 +290,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }) => {
                 <CFormLabel>
                   Grosor (mm) <span className="text-danger">*</span>
                 </CFormLabel>
-                <CFormSelect
-                  value={attrs.thickness}
-                  onChange={setAttr('thickness')}
-                  required
-                >
+                <CFormSelect value={attrs.thickness} onChange={setAttr('thickness')} required>
                   <option value="">Seleccionar…</option>
                   <option value="15">15 mm</option>
                   <option value="36">36 mm</option>
@@ -285,11 +321,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }) => {
                 <CFormLabel>
                   Grosor (mm) <span className="text-danger">*</span>
                 </CFormLabel>
-                <CFormSelect
-                  value={attrs.thickness}
-                  onChange={setAttr('thickness')}
-                  required
-                >
+                <CFormSelect value={attrs.thickness} onChange={setAttr('thickness')} required>
                   <option value="">Seleccionar…</option>
                   <option value="0.45">0.45 mm</option>
                   <option value="1.0">1.0 mm</option>
@@ -301,11 +333,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }) => {
                 <CFormLabel>
                   Ancho (mm) <span className="text-danger">*</span>
                 </CFormLabel>
-                <CFormSelect
-                  value={attrs.width}
-                  onChange={setAttr('width')}
-                  required
-                >
+                <CFormSelect value={attrs.width} onChange={setAttr('width')} required>
                   <option value="">Seleccionar…</option>
                   <option value="19">19 mm</option>
                   <option value="40">40 mm</option>
@@ -350,7 +378,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }) => {
           {hasGenericError && (
             <CCol xs={12}>
               <div className="text-danger small">
-                {error.message || 'Error al guardar. Intente nuevamente.'}
+                {error?.message || 'Error al guardar. Intente nuevamente.'}
               </div>
             </CCol>
           )}
