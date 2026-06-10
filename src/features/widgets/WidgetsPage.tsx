@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   CCard,
   CCardBody,
@@ -34,9 +33,15 @@ import DocsExample from 'src/shared/components/DocsExample'
 import WidgetsBrand from './WidgetsBrand'
 import WidgetsDropdown from './WidgetsDropdown'
 
-const Widgets = () => {
-  const random = (min, max) => Math.floor(Math.random() * (max - min + 1) + min)
+const random = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min)
 
+// Demo sparkline series for the CWidgetStatsE row. Computed once at module load
+// (not during render) so the values stay stable and don't break render purity.
+const sparkData = Array.from({ length: 6 }, () => Array.from({ length: 15 }, () => random(40, 100)))
+
+const sparkLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W', 'T', 'F', 'S', 'S', 'M']
+
+const Widgets = () => {
   return (
     <CCard className="mb-4">
       <CCardHeader>Widgets</CCardHeader>
@@ -133,45 +138,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: getStyle('--cui-danger'),
                           borderColor: 'transparent',
                           borderWidth: 1,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[0],
                         },
                       ],
                     }}
@@ -204,45 +177,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: getStyle('--cui-primary'),
                           borderColor: 'transparent',
                           borderWidth: 1,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[1],
                         },
                       ],
                     }}
@@ -275,45 +216,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: getStyle('--cui-success'),
                           borderColor: 'transparent',
                           borderWidth: 1,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[2],
                         },
                       ],
                     }}
@@ -346,45 +255,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: 'transparent',
                           borderColor: getStyle('--cui-danger'),
                           borderWidth: 2,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[3],
                         },
                       ],
                     }}
@@ -425,45 +302,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: 'transparent',
                           borderColor: getStyle('--cui-success'),
                           borderWidth: 2,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[4],
                         },
                       ],
                     }}
@@ -504,45 +349,13 @@ const Widgets = () => {
                     className="mx-auto"
                     style={{ height: '40px', width: '80px' }}
                     data={{
-                      labels: [
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                        'T',
-                        'W',
-                        'T',
-                        'F',
-                        'S',
-                        'S',
-                        'M',
-                      ],
+                      labels: sparkLabels,
                       datasets: [
                         {
                           backgroundColor: 'transparent',
                           borderColor: getStyle('--cui-info'),
                           borderWidth: 2,
-                          data: [
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                            random(40, 100),
-                          ],
+                          data: sparkData[5],
                         },
                       ],
                     }}

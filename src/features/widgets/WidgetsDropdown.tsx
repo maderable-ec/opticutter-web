@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react'
-import PropTypes from 'prop-types'
+import { useEffect, useRef, type ComponentRef } from 'react'
 
 import {
   CRow,
@@ -14,24 +13,32 @@ import { getStyle } from '@coreui/utils'
 import { CChartBar, CChartLine } from '@coreui/react-chartjs'
 import CIcon from '@coreui/icons-react'
 import { cilArrowBottom, cilArrowTop, cilOptions } from '@coreui/icons'
+import type { ChartDataset } from 'chart.js'
 
-const WidgetsDropdown = (props) => {
-  const widgetChartRef1 = useRef(null)
-  const widgetChartRef2 = useRef(null)
+interface WidgetsDropdownProps {
+  className?: string
+  withCharts?: boolean
+}
+
+const WidgetsDropdown = (props: WidgetsDropdownProps) => {
+  const widgetChartRef1 = useRef<ComponentRef<typeof CChartLine>>(null)
+  const widgetChartRef2 = useRef<ComponentRef<typeof CChartLine>>(null)
 
   useEffect(() => {
     document.documentElement.addEventListener('ColorSchemeChange', () => {
       if (widgetChartRef1.current) {
         setTimeout(() => {
-          widgetChartRef1.current.data.datasets[0].pointBackgroundColor = getStyle('--cui-primary')
-          widgetChartRef1.current.update()
+          const dataset = widgetChartRef1.current!.data.datasets[0] as ChartDataset<'line'>
+          dataset.pointBackgroundColor = getStyle('--cui-primary')
+          widgetChartRef1.current!.update()
         })
       }
 
       if (widgetChartRef2.current) {
         setTimeout(() => {
-          widgetChartRef2.current.data.datasets[0].pointBackgroundColor = getStyle('--cui-info')
-          widgetChartRef2.current.update()
+          const dataset = widgetChartRef2.current!.data.datasets[0] as ChartDataset<'line'>
+          dataset.pointBackgroundColor = getStyle('--cui-info')
+          widgetChartRef2.current!.update()
         })
       }
     })
@@ -95,7 +102,6 @@ const WidgetsDropdown = (props) => {
                     },
                     grid: {
                       display: false,
-                      drawBorder: false,
                     },
                     ticks: {
                       display: false,
@@ -185,7 +191,6 @@ const WidgetsDropdown = (props) => {
                     },
                     grid: {
                       display: false,
-                      drawBorder: false,
                     },
                     ticks: {
                       display: false,
@@ -371,7 +376,6 @@ const WidgetsDropdown = (props) => {
                     },
                     grid: {
                       display: false,
-                      drawBorder: false,
                       drawTicks: false,
                     },
                     ticks: {
@@ -386,11 +390,6 @@ const WidgetsDropdown = (props) => {
       </CCol>
     </CRow>
   )
-}
-
-WidgetsDropdown.propTypes = {
-  className: PropTypes.string,
-  withCharts: PropTypes.bool,
 }
 
 export default WidgetsDropdown

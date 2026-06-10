@@ -1,11 +1,19 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+import type { CSSProperties } from 'react'
 import { CWidgetStatsD, CRow, CCol } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cibFacebook, cibLinkedin, cibTwitter, cilCalendar } from '@coreui/icons'
 import { CChart } from '@coreui/react-chartjs'
 
-const WidgetsBrand = (props) => {
+interface WidgetsBrandProps {
+  className?: string
+  withCharts?: boolean
+}
+
+// React's CSSProperties has no index signature for CSS custom properties, so
+// the documented escape hatch is a type assertion.
+const capBg = (color: string) => ({ '--cui-card-cap-bg': color }) as CSSProperties
+
+const WidgetsBrand = (props: WidgetsBrandProps) => {
   const chartOptions = {
     elements: {
       line: {
@@ -65,9 +73,7 @@ const WidgetsBrand = (props) => {
             { title: 'friends', value: '89K' },
             { title: 'feeds', value: '459' },
           ]}
-          style={{
-            '--cui-card-cap-bg': '#3b5998',
-          }}
+          style={capBg('#3b5998')}
         />
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
@@ -99,9 +105,7 @@ const WidgetsBrand = (props) => {
             { title: 'followers', value: '973k' },
             { title: 'tweets', value: '1.792' },
           ]}
-          style={{
-            '--cui-card-cap-bg': '#00aced',
-          }}
+          style={capBg('#00aced')}
         />
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
@@ -133,9 +137,7 @@ const WidgetsBrand = (props) => {
             { title: 'contacts', value: '500' },
             { title: 'feeds', value: '1.292' },
           ]}
-          style={{
-            '--cui-card-cap-bg': '#4875b4',
-          }}
+          style={capBg('#4875b4')}
         />
       </CCol>
       <CCol sm={6} xl={4} xxl={3}>
@@ -172,11 +174,6 @@ const WidgetsBrand = (props) => {
       </CCol>
     </CRow>
   )
-}
-
-WidgetsBrand.propTypes = {
-  className: PropTypes.string,
-  withCharts: PropTypes.bool,
 }
 
 export default WidgetsBrand

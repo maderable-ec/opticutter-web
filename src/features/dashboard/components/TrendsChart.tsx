@@ -1,10 +1,18 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ComponentRef } from 'react'
 import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
 import { CChartLine } from '@coreui/react-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useTimeseries } from '../useAnalytics'
+import type { Granularity } from '../types'
 
-const formatBucketLabel = (bucket, granularity) => {
+// Minimal shape we mutate on theme change; the full Chart.js scale type is a
+// DeepPartial that fights direct assignment, so we narrow to what we touch.
+type MutableScale = {
+  grid: { color: string | undefined }
+  ticks: { color: string | undefined }
+}
+
+const formatBucketLabel = (bucket: string, granularity: Granularity) => {
   const date = new Date(bucket + 'T00:00:00')
   if (granularity === 'month') {
     return date.toLocaleDateString('es', { month: 'short', year: 'numeric' })
@@ -15,25 +23,34 @@ const formatBucketLabel = (bucket, granularity) => {
   return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
-const TrendsChart = ({ from, to, granularity }) => {
-  const chartRef = useRef(null)
+interface TrendsChartProps {
+  from: string
+  to: string
+  granularity: Granularity
+}
+
+const TrendsChart = ({ from, to, granularity }: TrendsChartProps) => {
+  const chartRef = useRef<ComponentRef<typeof CChartLine>>(null)
   const { data, isLoading, error } = useTimeseries(from, to, granularity)
 
   useEffect(() => {
     const handleColorSchemeChange = () => {
-      if (chartRef.current) {
+      const chart = chartRef.current
+      if (chart) {
         setTimeout(() => {
-          chartRef.current.options.scales.x.grid.color = getStyle('--cui-border-color-translucent')
-          chartRef.current.options.scales.x.ticks.color = getStyle('--cui-body-color')
-          chartRef.current.options.scales.y.grid.color = getStyle('--cui-border-color-translucent')
-          chartRef.current.options.scales.y.ticks.color = getStyle('--cui-body-color')
-          chartRef.current.options.scales.y1.ticks.color = getStyle('--cui-body-color')
-          chartRef.current.update()
+          const scales = chart.options.scales as unknown as Record<string, MutableScale>
+          scales.x.grid.color = getStyle('--cui-border-color-translucent')
+          scales.x.ticks.color = getStyle('--cui-body-color')
+          scales.y.grid.color = getStyle('--cui-border-color-translucent')
+          scales.y.ticks.color = getStyle('--cui-body-color')
+          scales.y1.ticks.color = getStyle('--cui-body-color')
+          chart.update()
         })
       }
     }
     document.documentElement.addEventListener('ColorSchemeChange', handleColorSchemeChange)
-    return () => document.documentElement.removeEventListener('ColorSchemeChange', handleColorSchemeChange)
+    return () =>
+      document.documentElement.removeEventListener('ColorSchemeChange', handleColorSchemeChange)
   }, [chartRef])
 
   const renderContent = () => {
@@ -46,11 +63,17 @@ const TrendsChart = ({ from, to, granularity }) => {
     }
 
     if (error) {
-      return <div className="text-danger small py-3">Error cargando tendencias: {error.message}</div>
+      return (
+        <div className="text-danger small py-3">Error cargando tendencias: {error.message}</div>
+      )
     }
 
-    if (!data?.buckets?.length) {
-      return <div className="text-body-secondary text-center py-5 small">Sin datos en el período seleccionado</div>
+    if (!data || data.buckets.length === 0) {
+      return (
+        <div className="text-body-secondary text-center py-5 small">
+          Sin datos en el período seleccionado
+        </div>
+      )
     }
 
     const labels = data.buckets.map((b) => formatBucketLabel(b, granularity))

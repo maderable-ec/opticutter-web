@@ -334,7 +334,7 @@ const OrderDetailPage = () => {
       )}
 
       {/* Pieces */}
-      {order.pieces?.length > 0 && (
+      {order.pieces && order.pieces.length > 0 && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Lista de corte</strong>
@@ -379,7 +379,7 @@ const OrderDetailPage = () => {
       )}
 
       {/* History */}
-      {order.history?.length > 0 && (
+      {order.history && order.history.length > 0 && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Historial</strong>

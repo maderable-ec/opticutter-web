@@ -1,21 +1,32 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { CCard, CCardBody, CCardHeader, CCol, CRow, CSpinner } from '@coreui/react'
 import { useSummary } from '../useAnalytics'
 
-const fmtPct = (rate) => `${(rate * 100).toFixed(1)} %`
-const fmtEff = (val) => `${val.toFixed(1)} %`
-const fmtUSD = (n) =>
+const fmtPct = (rate: number) => `${(rate * 100).toFixed(1)} %`
+const fmtEff = (val: number) => `${val.toFixed(1)} %`
+const fmtUSD = (n: number) =>
   '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtM2 = (n) => `${n.toFixed(1)} m²`
+const fmtM2 = (n: number) => `${n.toFixed(1)} m²`
 
-const StatCard = ({ label, value, color = 'info' }) => (
+interface StatCardProps {
+  label: string
+  value: ReactNode
+  color?: string
+}
+
+const StatCard = ({ label, value, color = 'info' }: StatCardProps) => (
   <div className={`border-start border-start-4 border-start-${color} py-1 px-3 h-100`}>
     <div className="text-body-secondary text-truncate small">{label}</div>
     <div className="fs-5 fw-semibold">{value}</div>
   </div>
 )
 
-const KpiCards = ({ from, to }) => {
+interface KpiCardsProps {
+  from: string
+  to: string
+}
+
+const KpiCards = ({ from, to }: KpiCardsProps) => {
   const { data, isLoading, error } = useSummary(from, to)
 
   if (isLoading) {
@@ -27,12 +38,10 @@ const KpiCards = ({ from, to }) => {
   }
 
   if (error) {
-    return (
-      <div className="text-danger small mb-4">
-        Error cargando KPIs: {error.message}
-      </div>
-    )
+    return <div className="text-danger small mb-4">Error cargando KPIs: {error.message}</div>
   }
+
+  if (!data) return null
 
   const s = data
 
@@ -46,7 +55,11 @@ const KpiCards = ({ from, to }) => {
               <StatCard label="Tableros consumidos" value={s.totalBoardsConsumed} color="primary" />
             </CCol>
             <CCol xs={6} md={3}>
-              <StatCard label="Eficiencia promedio" value={fmtEff(s.averageEfficiency)} color="success" />
+              <StatCard
+                label="Eficiencia promedio"
+                value={fmtEff(s.averageEfficiency)}
+                color="success"
+              />
             </CCol>
             <CCol xs={6} md={3}>
               <StatCard label="Área cortada" value={fmtM2(s.totalAreaCutM2)} color="info" />
@@ -59,14 +72,20 @@ const KpiCards = ({ from, to }) => {
       </CCard>
 
       <CCard className="mb-3">
-        <CCardHeader className="small fw-semibold text-body-secondary">Pipeline y salud</CCardHeader>
+        <CCardHeader className="small fw-semibold text-body-secondary">
+          Pipeline y salud
+        </CCardHeader>
         <CCardBody>
           <CRow className="g-3">
             <CCol xs={6} md={4}>
               <StatCard label="Órdenes pendientes" value={s.pendingOrdersCount} color="info" />
             </CCol>
             <CCol xs={6} md={4}>
-              <StatCard label="Tasa de cancelación" value={fmtPct(s.cancellationRate)} color="danger" />
+              <StatCard
+                label="Tasa de cancelación"
+                value={fmtPct(s.cancellationRate)}
+                color="danger"
+              />
             </CCol>
             <CCol xs={6} md={4}>
               <StatCard label="Tasa de expiración" value={fmtPct(s.expiryRate)} color="warning" />
@@ -80,7 +99,11 @@ const KpiCards = ({ from, to }) => {
         <CCardBody>
           <CRow className="g-3">
             <CCol xs={6} md={3}>
-              <StatCard label="Ingresos realizados" value={fmtUSD(s.realizedRevenue)} color="success" />
+              <StatCard
+                label="Ingresos realizados"
+                value={fmtUSD(s.realizedRevenue)}
+                color="success"
+              />
             </CCol>
             <CCol xs={6} md={3}>
               <StatCard label="Ticket promedio" value={fmtUSD(s.averageTicket)} color="info" />

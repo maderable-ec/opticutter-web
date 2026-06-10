@@ -14,26 +14,41 @@ export interface AnalyticsSummary {
   averageEfficiency: number
 }
 
-export interface TimeseriesBucket {
-  date: string
-  revenue?: number
-  orderCount?: number
-  [key: string]: unknown
-}
-
+// Time series: `buckets` are ISO date strings; `series` holds parallel numeric
+// arrays aligned to the buckets (one value per bucket per metric).
 export interface Timeseries {
-  series?: TimeseriesBucket[]
-  buckets?: TimeseriesBucket[]
+  buckets: string[]
+  series: {
+    revenue: number[]
+    orderCount: number[]
+    boardsConsumed: number[]
+    newClients: number[]
+  }
 }
 
 export interface StatusBreakdownItem {
-  status: string
-  count: number
+  key: string
+  label: string
+  orderCount: number
+  revenue: number
+}
+
+export interface StatusBreakdownData {
+  items: StatusBreakdownItem[]
+}
+
+// One status→status transition in the order lifecycle, with timing stats.
+export interface LifecycleTransition {
+  fromStatus: string
+  toStatus: string
+  avgHours: number
+  sampleCount: number
 }
 
 export interface OperationsStats {
-  totalAreaCutM2: number
   averageEfficiency: number
-  wasteEstimateM2: number
   expiryBeforeApprovalRate: number
+  totalAreaCutM2: number
+  wasteEstimateM2: number
+  lifecycle: LifecycleTransition[]
 }

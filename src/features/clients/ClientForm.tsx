@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import {
   CButton,
   CCol,
@@ -10,13 +10,30 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import type { Client, ClientPayload } from './types'
 
 const DEFAULT_SOURCE = 'dashboard'
 
-const EMPTY = { identifier: '', firstName: '', lastName: '', phone: '', email: '' }
+interface FormState {
+  identifier: string
+  firstName: string
+  lastName: string
+  phone: string
+  email: string
+}
 
-const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }) => {
-  const [form, setForm] = useState(
+const EMPTY: FormState = { identifier: '', firstName: '', lastName: '', phone: '', email: '' }
+
+interface ClientFormProps {
+  client: Client | null
+  onSubmit: (data: ClientPayload) => void
+  onCancel: () => void
+  isSubmitting: boolean
+  error: Error | null
+}
+
+const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientFormProps) => {
+  const [form, setForm] = useState<FormState>(
     client
       ? {
           identifier: client.identifier ?? '',
@@ -28,15 +45,19 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }) => {
       : EMPTY,
   )
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set = (field: keyof FormState) => (e: ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const data = { identifier: form.identifier, source: client?.source ?? DEFAULT_SOURCE }
-    ;['firstName', 'lastName', 'phone', 'email'].forEach((k) => {
-      data[k] = form[k] || null
+    onSubmit({
+      identifier: form.identifier,
+      source: client?.source ?? DEFAULT_SOURCE,
+      firstName: form.firstName || null,
+      lastName: form.lastName || null,
+      phone: form.phone || null,
+      email: form.email || null,
     })
-    onSubmit(data)
   }
 
   return (
@@ -73,7 +94,9 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }) => {
           </CCol>
           {error && (
             <CCol xs={12}>
-              <div className="text-danger small">{error.message || 'Error al guardar. Intente nuevamente.'}</div>
+              <div className="text-danger small">
+                {error.message || 'Error al guardar. Intente nuevamente.'}
+              </div>
             </CCol>
           )}
         </CRow>
