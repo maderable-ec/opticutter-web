@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   CButton,
   CCard,
@@ -25,17 +25,23 @@ import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
 
 import ClientForm from './ClientForm'
 import { useClients, useCreateClient, useDeleteClient, useUpdateClient } from './useClients'
+import type { Client, ClientPayload } from './types'
 
 const LIMIT = 20
 
-const fullName = (c) => [c.firstName, c.lastName].filter(Boolean).join(' ') || '—'
+const fullName = (c: Client) => [c.firstName, c.lastName].filter(Boolean).join(' ') || '—'
+
+interface ModalState {
+  visible: boolean
+  client: Client | null
+}
 
 const ClientsPage = () => {
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
-  const [formModal, setFormModal] = useState({ visible: false, client: null })
-  const [deleteModal, setDeleteModal] = useState({ visible: false, client: null })
+  const [formModal, setFormModal] = useState<ModalState>({ visible: false, client: null })
+  const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, client: null })
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -53,16 +59,16 @@ const ClientsPage = () => {
   const deleteMutation = useDeleteClient()
 
   const openCreate = () => setFormModal({ visible: true, client: null })
-  const openEdit = (client) => setFormModal({ visible: true, client })
+  const openEdit = (client: Client) => setFormModal({ visible: true, client })
   const closeForm = () => {
     setFormModal({ visible: false, client: null })
     createMutation.reset()
     updateMutation.reset()
   }
-  const openDelete = (client) => setDeleteModal({ visible: true, client })
+  const openDelete = (client: Client) => setDeleteModal({ visible: true, client })
   const closeDelete = () => setDeleteModal({ visible: false, client: null })
 
-  const handleSubmit = (data) => {
+  const handleSubmit = (data: ClientPayload) => {
     const { client } = formModal
     if (client) {
       updateMutation.mutate({ id: client.id, data }, { onSuccess: closeForm })
@@ -72,6 +78,7 @@ const ClientsPage = () => {
   }
 
   const handleDelete = () => {
+    if (!deleteModal.client) return
     deleteMutation.mutate(deleteModal.client.id, { onSuccess: closeDelete })
   }
 

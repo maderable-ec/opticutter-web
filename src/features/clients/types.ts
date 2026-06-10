@@ -9,12 +9,13 @@ export interface Client {
 }
 
 export interface ClientPayload {
-  firstName: string
-  lastName: string
   identifier: string
-  email?: string
-  phone?: string
-  source?: string
+  source: string
+  // Optional fields are sent as null (not omitted) to clear them server-side.
+  firstName: string | null
+  lastName: string | null
+  email: string | null
+  phone: string | null
 }
 
 export interface ClientListParams {

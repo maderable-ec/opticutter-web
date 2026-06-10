@@ -20,7 +20,8 @@ const App = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.href.split('?')[1])
-    const theme = urlParams.get('theme') && urlParams.get('theme').match(/^[A-Za-z0-9\s]+/)[0]
+    const rawTheme = urlParams.get('theme')
+    const theme = rawTheme?.match(/^[A-Za-z0-9\s]+/)?.[0]
     if (theme) {
       setColorMode(theme)
     }
@@ -42,9 +43,12 @@ const App = () => {
         }
       >
         <Routes>
-          {publicRoutes.map((route) => (
-            <Route key={route.path} path={route.path} element={<route.element />} />
-          ))}
+          {publicRoutes.map((route) => {
+            const Element = route.element
+            return Element ? (
+              <Route key={route.path} path={route.path} element={<Element />} />
+            ) : null
+          })}
           <Route path="*" element={<DefaultLayout />} />
         </Routes>
       </Suspense>

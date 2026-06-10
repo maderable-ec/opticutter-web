@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   CCard,
   CCardBody,
@@ -12,9 +11,14 @@ import {
 } from '@coreui/react'
 
 import { edgesLabel, fmtMoney } from './format'
+import type { ReviewData } from './types'
+
+interface ReviewSummaryProps {
+  data: ReviewData
+}
 
 // Muestra la lista de corte (piezas, no se cobra por pieza) y el detalle de cobro (lines).
-const ReviewSummary = ({ data }) => {
+const ReviewSummary = ({ data }: ReviewSummaryProps) => {
   const currency = data.currency ?? 'USD'
 
   return (

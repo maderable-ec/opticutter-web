@@ -14,12 +14,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Gradual migration: lenient now, tightened to strict in the final session.
-       allowJs lets .js/.jsx coexist; checkJs stays false so only .ts/.tsx are type-checked. */
-    "allowJs": true,
-    "checkJs": false,
-    "strict": false,
-    "noImplicitAny": false,
+    /* Migration complete: full strict type-checking over the all-TypeScript tree. */
+    "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
 

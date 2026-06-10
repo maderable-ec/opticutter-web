@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   CAlert,
@@ -15,7 +15,11 @@ import {
 
 import { useConfirmReview, useRejectReview } from './useReview'
 
-const ReviewActions = ({ token }) => {
+interface ReviewActionsProps {
+  token: string
+}
+
+const ReviewActions = ({ token }: ReviewActionsProps) => {
   const qc = useQueryClient()
   const confirm = useConfirmReview(token)
   const reject = useRejectReview(token)

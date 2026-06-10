@@ -1,12 +1,21 @@
-import React from 'react'
-import { CButton, CButtonGroup, CCard, CCardBody, CCol, CFormInput, CFormLabel, CRow } from '@coreui/react'
+import {
+  CButton,
+  CButtonGroup,
+  CCard,
+  CCardBody,
+  CCol,
+  CFormInput,
+  CFormLabel,
+  CRow,
+} from '@coreui/react'
+import type { Granularity } from '../types'
 
 const today = () => {
   const d = new Date()
   return d.toISOString().slice(0, 10)
 }
 
-const daysAgo = (n) => {
+const daysAgo = (n: number) => {
   const d = new Date()
   d.setDate(d.getDate() - n)
   return d.toISOString().slice(0, 10)
@@ -18,21 +27,43 @@ const startOfMonth = () => {
   return d.toISOString().slice(0, 10)
 }
 
-const PRESETS = [
+interface Preset {
+  label: string
+  from: () => string
+  to: () => string
+}
+
+const PRESETS: Preset[] = [
   { label: '7d', from: () => daysAgo(7), to: today },
   { label: '30d', from: () => daysAgo(30), to: today },
   { label: '90d', from: () => daysAgo(90), to: today },
   { label: 'Este mes', from: startOfMonth, to: today },
 ]
 
-const GRANULARITIES = [
+const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: 'day', label: 'Día' },
   { value: 'week', label: 'Semana' },
   { value: 'month', label: 'Mes' },
 ]
 
-const DateRangeFilter = ({ from, to, granularity, onFromChange, onToChange, onGranularityChange }) => {
-  const invalid = from && to && from > to
+interface DateRangeFilterProps {
+  from: string
+  to: string
+  granularity: Granularity
+  onFromChange: (value: string) => void
+  onToChange: (value: string) => void
+  onGranularityChange: (value: Granularity) => void
+}
+
+const DateRangeFilter = ({
+  from,
+  to,
+  granularity,
+  onFromChange,
+  onToChange,
+  onGranularityChange,
+}: DateRangeFilterProps) => {
+  const invalid = !!(from && to && from > to)
 
   return (
     <CCard className="mb-4">
@@ -94,7 +125,9 @@ const DateRangeFilter = ({ from, to, granularity, onFromChange, onToChange, onGr
           </CCol>
         </CRow>
         {invalid && (
-          <div className="text-danger small mt-2">La fecha de inicio debe ser anterior o igual a la fecha de fin.</div>
+          <div className="text-danger small mt-2">
+            La fecha de inicio debe ser anterior o igual a la fecha de fin.
+          </div>
         )}
       </CCardBody>
     </CCard>

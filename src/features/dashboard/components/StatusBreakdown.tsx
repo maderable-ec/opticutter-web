@@ -1,14 +1,13 @@
-import React from 'react'
 import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
 import { CChartBar } from '@coreui/react-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useStatusBreakdown } from '../useAnalytics'
 
-const fmtUSD = (n) =>
+const fmtUSD = (n: number) =>
   '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 // Color per status key
-const STATUS_COLOR = {
+const STATUS_COLOR: Record<string, string> = {
   draft: 'rgba(108, 117, 125, 0.6)',
   quoted: 'rgba(108, 117, 125, 0.6)',
   confirmed: 'rgba(13, 202, 240, 0.7)',
@@ -20,7 +19,12 @@ const STATUS_COLOR = {
   expired: 'rgba(220, 53, 69, 0.5)',
 }
 
-const StatusBreakdown = ({ from, to }) => {
+interface StatusBreakdownProps {
+  from: string
+  to: string
+}
+
+const StatusBreakdown = ({ from, to }: StatusBreakdownProps) => {
   const { data, isLoading, error } = useStatusBreakdown(from, to)
 
   const renderContent = () => {

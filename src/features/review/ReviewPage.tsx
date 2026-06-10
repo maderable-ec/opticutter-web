@@ -1,8 +1,9 @@
-import React from 'react'
+import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { CAlert, CButton, CCard, CCardBody, CContainer, CSpinner } from '@coreui/react'
 
 import OrderStatusBadge from 'src/features/orders/OrderStatusBadge'
+import { ApiError } from 'src/shared/api/types'
 import { useReview } from './useReview'
 import { reviewApi } from './reviewApi'
 import ReviewSummary from './ReviewSummary'
@@ -11,7 +12,7 @@ import { fmtDate, fmtDateTime } from './format'
 
 const CONFIRMED_STATES = ['confirmed', 'approved', 'in_production', 'cut', 'completed']
 
-const Shell = ({ children }) => (
+const Shell = ({ children }: { children: ReactNode }) => (
   <div className="min-vh-100 bg-body-tertiary py-4">
     <CContainer style={{ maxWidth: 880 }}>
       <div className="text-center mb-4">
@@ -23,7 +24,7 @@ const Shell = ({ children }) => (
   </div>
 )
 
-const InfoView = ({ title, children }) => (
+const InfoView = ({ title, children }: { title: ReactNode; children?: ReactNode }) => (
   <Shell>
     <CCard>
       <CCardBody className="text-center py-5">
@@ -49,16 +50,18 @@ const ReviewPage = () => {
   }
 
   if (error) {
+    // ApiError lleva el status HTTP; un fallo de red (TypeError de fetch) no es ApiError.
+    const errStatus = error instanceof ApiError ? error.status : null
     // 404 = token inexistente o revocado (definitivo, sin reintento ni detalles técnicos).
-    if (error.status === 404) {
+    if (errStatus === 404) {
       return (
         <InfoView title="Enlace no válido">
           Este enlace no es válido o fue reemplazado. Pedí a tu vendedor uno nuevo.
         </InfoView>
       )
     }
-    // Sin status = fallo de red (TypeError de fetch) → reintentable.
-    if (error.status == null) {
+    // Sin status = fallo de red → reintentable.
+    if (errStatus == null) {
       return (
         <Shell>
           <CCard>
@@ -75,6 +78,8 @@ const ReviewPage = () => {
     }
     return <InfoView title="Ocurrió un error">{error.message}</InfoView>
   }
+
+  if (!token || !data) return null
 
   const status = data.status
 

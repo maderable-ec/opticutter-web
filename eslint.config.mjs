@@ -44,8 +44,8 @@ export default [
   {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
-      // Gradual migration: `any` is tolerated (warn) while converting; tightened to error in the final session.
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // Migration complete: explicit `any` is no longer allowed.
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   eslintPluginPrettierRecommended,

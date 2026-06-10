@@ -1,6 +1,8 @@
 // Helpers de formato para la página pública de revisión.
 // Las fechas vienen en UTC sin sufijo de zona; las mostramos en formato local legible.
 
+import type { ReviewEdges } from './types'
+
 export const fmtMoney = (n?: number | null, currency = 'USD') =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(n) : '—'
 
@@ -31,13 +33,8 @@ const SIDE_LABELS: Record<string, string> = {
   right: 'derecho',
 }
 
-interface Edges {
-  sides?: string[]
-  band_type?: string
-}
-
 // `edges` viene con claves en snake_case: { product_id, sides, band_type }.
-export const edgesLabel = (edges?: Edges | null) => {
+export const edgesLabel = (edges?: ReviewEdges | null) => {
   if (!edges || !edges.sides?.length) return '—'
   const sides = edges.sides.map((s) => SIDE_LABELS[s] ?? s).join(', ')
   return edges.band_type ? `${sides} · ${edges.band_type}` : sides

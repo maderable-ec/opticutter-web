@@ -1,13 +1,14 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { CCol, CRow } from '@coreui/react'
 import DateRangeFilter from './components/DateRangeFilter'
 import KpiCards from './components/KpiCards'
 import TrendsChart from './components/TrendsChart'
 import StatusBreakdown from './components/StatusBreakdown'
 import OperationsPanel from './components/OperationsPanel'
+import type { Granularity } from './types'
 
-const formatDate = (date) => date.toISOString().slice(0, 10)
-const subDays = (date, n) => {
+const formatDate = (date: Date) => date.toISOString().slice(0, 10)
+const subDays = (date: Date, n: number) => {
   const d = new Date(date)
   d.setDate(d.getDate() - n)
   return d
@@ -16,7 +17,7 @@ const subDays = (date, n) => {
 const DashboardPage = () => {
   const [from, setFrom] = useState(() => formatDate(subDays(new Date(), 30)))
   const [to, setTo] = useState(() => formatDate(new Date()))
-  const [granularity, setGranularity] = useState('day')
+  const [granularity, setGranularity] = useState<Granularity>('day')
 
   return (
     <>

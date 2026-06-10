@@ -3,7 +3,7 @@ import type {
   AnalyticsSummary,
   Granularity,
   OperationsStats,
-  StatusBreakdownItem,
+  StatusBreakdownData,
   Timeseries,
 } from './types'
 
@@ -24,7 +24,7 @@ export const analyticsApi = {
   timeseries: (from?: string, to?: string, granularity: Granularity = 'day') =>
     httpClient.get<Timeseries>(`/api/v1/analytics/timeseries${buildQs({ from, to, granularity })}`),
   statusBreakdown: (from?: string, to?: string) =>
-    httpClient.get<StatusBreakdownItem[]>(
+    httpClient.get<StatusBreakdownData>(
       `/api/v1/analytics/breakdown/status${buildQs({ from, to })}`,
     ),
   operations: (from?: string, to?: string) =>
