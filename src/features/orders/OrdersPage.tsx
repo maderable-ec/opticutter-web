@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CButton,
@@ -19,12 +20,14 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
+import type { Client } from 'src/features/clients/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useOrders } from './useOrders'
+import type { OrderStatus } from './types'
 
 const LIMIT = 20
 
-const STATUSES = [
+const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
   { value: 'draft', label: 'Borrador' },
   { value: 'quoted', label: 'Cotizado' },
@@ -37,12 +40,12 @@ const STATUSES = [
   { value: 'expired', label: 'Vencido' },
 ]
 
-const TERMINAL_STATES = ['completed', 'cancelled', 'expired']
+const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled', 'expired']
 
-const clientName = (c) =>
+const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
-const fmtDate = (iso) =>
+const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -51,18 +54,18 @@ const fmtDate = (iso) =>
       })
     : '—'
 
-const fmt = (n) =>
+const fmt = (n?: number | null) =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
-const isExpiringSoon = (expiresAt, status) => {
+const isExpiringSoon = (expiresAt: string | undefined, status: OrderStatus) => {
   if (!expiresAt || TERMINAL_STATES.includes(status)) return false
-  const diff = new Date(expiresAt) - new Date()
+  const diff = new Date(expiresAt).getTime() - Date.now()
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
 
 const OrdersPage = () => {
   const navigate = useNavigate()
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState<OrderStatus | ''>('')
   const [offset, setOffset] = useState(0)
 
   const { data: ordersData, isLoading } = useOrders({
@@ -73,8 +76,8 @@ const OrdersPage = () => {
   const orders = ordersData?.items ?? []
   const pagination = ordersData?.pagination
 
-  const handleStatusChange = (e) => {
-    setStatus(e.target.value)
+  const handleStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setStatus(e.target.value as OrderStatus | '')
     setOffset(0)
   }
 

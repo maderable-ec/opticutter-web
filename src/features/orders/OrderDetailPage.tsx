@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
@@ -28,6 +28,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilCopy, cilExternalLink } from '@coreui/icons'
 
+import type { Client } from 'src/features/clients/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import {
   useAssociateInvoice,
@@ -37,10 +38,17 @@ import {
   useUpdateOrderStatus,
 } from './useOrders'
 import { ordersApi } from './ordersApi'
+import type { OrderStatus } from './types'
 
-const TERMINAL_STATES = ['completed', 'cancelled', 'expired']
+interface StatusTransition {
+  to: OrderStatus
+  label: string
+  color: string
+}
 
-const STATUS_TRANSITIONS = {
+const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled', 'expired']
+
+const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   draft: [
     { to: 'quoted', label: 'Cotizar', color: 'primary' },
     { to: 'cancelled', label: 'Cancelar', color: 'danger' },
@@ -61,10 +69,10 @@ const STATUS_TRANSITIONS = {
   cut: [{ to: 'completed', label: 'Marcar como completado', color: 'success' }],
 }
 
-const fmt = (n) =>
+const fmt = (n?: number | null) =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
-const fmtDate = (iso) =>
+const fmtDate = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleDateString('es-AR', {
         day: '2-digit',
@@ -73,7 +81,7 @@ const fmtDate = (iso) =>
       })
     : '—'
 
-const fmtDateTime = (iso) =>
+const fmtDateTime = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleString('es-AR', {
         day: '2-digit',
@@ -84,23 +92,33 @@ const fmtDateTime = (iso) =>
       })
     : '—'
 
-const isExpiringSoon = (expiresAt, status) => {
+const isExpiringSoon = (expiresAt: string | undefined, status: OrderStatus) => {
   if (!expiresAt || TERMINAL_STATES.includes(status)) return false
-  const diff = new Date(expiresAt) - new Date()
+  const diff = new Date(expiresAt).getTime() - Date.now()
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
 
-const clientName = (c) =>
+const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
-const REVIEW_LINK_STATUS = {
+const REVIEW_LINK_STATUS: Record<string, string> = {
   active: 'Activo (vigente)',
   used: 'Usado por el cliente',
   revoked: 'Reemplazado',
 }
 
+interface TransitionModalState {
+  visible: boolean
+  transition: StatusTransition | null
+}
+
+interface LinkModalState {
+  visible: boolean
+  url: string
+}
+
 const OrderDetailPage = () => {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
   const { data: order, isLoading } = useOrder(id)
@@ -109,15 +127,18 @@ const OrderDetailPage = () => {
   const reviewLinkInfo = useReviewLinkInfo(id, order?.status)
   const createReviewLink = useCreateReviewLink()
 
-  const [transitionModal, setTransitionModal] = useState({ visible: false, transition: null })
+  const [transitionModal, setTransitionModal] = useState<TransitionModalState>({
+    visible: false,
+    transition: null,
+  })
   const [transitionNote, setTransitionNote] = useState('')
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
-  const [linkModal, setLinkModal] = useState({ visible: false, url: '' })
+  const [linkModal, setLinkModal] = useState<LinkModalState>({ visible: false, url: '' })
   const [regenModal, setRegenModal] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const openTransition = (transition) => {
+  const openTransition = (transition: StatusTransition) => {
     setTransitionNote('')
     setTransitionModal({ visible: true, transition })
   }
@@ -128,6 +149,7 @@ const OrderDetailPage = () => {
 
   const confirmTransition = () => {
     const { transition } = transitionModal
+    if (!id || !transition) return
     updateStatus.mutate(
       { id, data: { status: transition.to, note: transitionNote || undefined } },
       { onSuccess: closeTransition },
@@ -140,6 +162,7 @@ const OrderDetailPage = () => {
     associateInvoice.reset()
   }
   const confirmInvoice = () => {
+    if (!id) return
     associateInvoice.mutate(
       { id, data: { externalInvoiceId: invoiceId } },
       { onSuccess: closeInvoice },
@@ -147,11 +170,12 @@ const OrderDetailPage = () => {
   }
 
   const generateLink = () => {
+    if (!id) return
     createReviewLink.mutate(id, {
       onSuccess: (data) => {
         setCopied(false)
         setRegenModal(false)
-        setLinkModal({ visible: true, url: data.url })
+        setLinkModal({ visible: true, url: data.url ?? '' })
       },
     })
   }
@@ -179,7 +203,7 @@ const OrderDetailPage = () => {
 
   const transitions = STATUS_TRANSITIONS[order.status] ?? []
   const isTerminal = TERMINAL_STATES.includes(order.status)
-  const showDocuments = !['draft', 'expired'].includes(order.status)
+  const showDocuments = !(['draft', 'expired'] as OrderStatus[]).includes(order.status)
   const expiringSoon = isExpiringSoon(order.expiresAt, order.status)
 
   return (
@@ -468,7 +492,7 @@ const OrderDetailPage = () => {
                 color="secondary"
                 variant="outline"
                 size="sm"
-                onClick={() => ordersApi.downloadProforma(id)}
+                onClick={() => id && ordersApi.downloadProforma(id)}
               >
                 <CIcon icon={cilExternalLink} className="me-1" />
                 Proforma PDF
@@ -477,7 +501,7 @@ const OrderDetailPage = () => {
                 color="secondary"
                 variant="outline"
                 size="sm"
-                onClick={() => ordersApi.downloadProductionSheet(id)}
+                onClick={() => id && ordersApi.downloadProductionSheet(id)}
               >
                 <CIcon icon={cilExternalLink} className="me-1" />
                 Hoja de producción PDF
