@@ -1,6 +1,6 @@
 import React from 'react'
 import CIcon from '@coreui/icons-react'
-import { cilTask } from '@coreui/icons'
+import { cilCalculator, cilTask } from '@coreui/icons'
 import { CNavItem } from '@coreui/react'
 
 export const ordersNav = [
@@ -9,5 +9,11 @@ export const ordersNav = [
     name: 'Órdenes',
     to: '/orders',
     icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavItem,
+    name: 'Optimizaciones',
+    to: '/orders/new',
+    icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
   },
 ]

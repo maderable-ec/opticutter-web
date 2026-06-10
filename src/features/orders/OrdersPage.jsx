@@ -7,9 +7,6 @@ import {
   CCardHeader,
   CCol,
   CFormSelect,
-  CModal,
-  CModalHeader,
-  CModalTitle,
   CRow,
   CSpinner,
   CTable,
@@ -23,8 +20,7 @@ import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
 import OrderStatusBadge from './OrderStatusBadge'
-import OrderForm from './OrderForm'
-import { useCreateOrder, useOrders } from './useOrders'
+import { useOrders } from './useOrders'
 
 const LIMIT = 20
 
@@ -43,15 +39,20 @@ const STATUSES = [
 
 const TERMINAL_STATES = ['completed', 'cancelled', 'expired']
 
-const clientName = (c) => [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
+const clientName = (c) =>
+  [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
 const fmtDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+  iso
+    ? new Date(iso).toLocaleDateString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : '—'
 
 const fmt = (n) =>
-  n != null
-    ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n)
-    : '—'
+  n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 const isExpiringSoon = (expiresAt, status) => {
   if (!expiresAt || TERMINAL_STATES.includes(status)) return false
@@ -63,31 +64,18 @@ const OrdersPage = () => {
   const navigate = useNavigate()
   const [status, setStatus] = useState('')
   const [offset, setOffset] = useState(0)
-  const [createModal, setCreateModal] = useState(false)
 
-  const { data: ordersData, isLoading } = useOrders({ status: status || undefined, offset, limit: LIMIT })
+  const { data: ordersData, isLoading } = useOrders({
+    status: status || undefined,
+    offset,
+    limit: LIMIT,
+  })
   const orders = ordersData?.items ?? []
   const pagination = ordersData?.pagination
-  const createMutation = useCreateOrder()
 
   const handleStatusChange = (e) => {
     setStatus(e.target.value)
     setOffset(0)
-  }
-
-  const openCreate = () => {
-    createMutation.reset()
-    setCreateModal(true)
-  }
-  const closeCreate = () => setCreateModal(false)
-
-  const handleCreate = (data) => {
-    createMutation.mutate(data, {
-      onSuccess: (order) => {
-        closeCreate()
-        navigate(`/orders/${order.id}`)
-      },
-    })
   }
 
   const showPrev = offset > 0
@@ -98,7 +86,7 @@ const OrdersPage = () => {
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Órdenes</strong>
-          <CButton color="primary" size="sm" onClick={openCreate}>
+          <CButton color="primary" size="sm" onClick={() => navigate('/orders/new')}>
             <CIcon icon={cilPlus} className="me-1" />
             Nueva orden
           </CButton>
@@ -154,8 +142,12 @@ const OrdersPage = () => {
                         <CTableDataCell>
                           <OrderStatusBadge status={o.status} />
                         </CTableDataCell>
-                        <CTableDataCell className="text-end text-nowrap">{fmt(o.total)}</CTableDataCell>
-                        <CTableDataCell className="text-nowrap">{fmtDate(o.createdAt)}</CTableDataCell>
+                        <CTableDataCell className="text-end text-nowrap">
+                          {fmt(o.total)}
+                        </CTableDataCell>
+                        <CTableDataCell className="text-nowrap">
+                          {fmtDate(o.createdAt)}
+                        </CTableDataCell>
                         <CTableDataCell
                           className={`text-nowrap ${expiringSoon ? 'text-danger fw-semibold' : ''}`}
                         >
@@ -192,18 +184,6 @@ const OrdersPage = () => {
           )}
         </CCardBody>
       </CCard>
-
-      <CModal size="xl" visible={createModal} onClose={closeCreate} backdrop="static">
-        <CModalHeader>
-          <CModalTitle>Nueva orden</CModalTitle>
-        </CModalHeader>
-        <OrderForm
-          onSubmit={handleCreate}
-          onCancel={closeCreate}
-          isSubmitting={createMutation.isPending}
-          error={createMutation.error}
-        />
-      </CModal>
     </>
   )
 }
