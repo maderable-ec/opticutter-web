@@ -10,6 +10,7 @@ import {
   CFormInput,
   CFormLabel,
   CFormTextarea,
+  CInputGroup,
   CModal,
   CModalBody,
   CModalFooter,
@@ -25,10 +26,16 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
+import { cilArrowLeft, cilCopy, cilExternalLink } from '@coreui/icons'
 
 import OrderStatusBadge from './OrderStatusBadge'
-import { useAssociateInvoice, useOrder, useUpdateOrderStatus } from './useOrders'
+import {
+  useAssociateInvoice,
+  useCreateReviewLink,
+  useOrder,
+  useReviewLinkInfo,
+  useUpdateOrderStatus,
+} from './useOrders'
 import { ordersApi } from './ordersApi'
 
 const TERMINAL_STATES = ['completed', 'cancelled', 'expired']
@@ -55,12 +62,16 @@ const STATUS_TRANSITIONS = {
 }
 
 const fmt = (n) =>
-  n != null
-    ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n)
-    : '—'
+  n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 const fmtDate = (iso) =>
-  iso ? new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+  iso
+    ? new Date(iso).toLocaleDateString('es-AR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : '—'
 
 const fmtDateTime = (iso) =>
   iso
@@ -79,7 +90,14 @@ const isExpiringSoon = (expiresAt, status) => {
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
 
-const clientName = (c) => [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
+const clientName = (c) =>
+  [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
+
+const REVIEW_LINK_STATUS = {
+  active: 'Activo (vigente)',
+  used: 'Usado por el cliente',
+  revoked: 'Reemplazado',
+}
 
 const OrderDetailPage = () => {
   const { id } = useParams()
@@ -88,11 +106,16 @@ const OrderDetailPage = () => {
   const { data: order, isLoading } = useOrder(id)
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
+  const reviewLinkInfo = useReviewLinkInfo(id, order?.status)
+  const createReviewLink = useCreateReviewLink()
 
   const [transitionModal, setTransitionModal] = useState({ visible: false, transition: null })
   const [transitionNote, setTransitionNote] = useState('')
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
+  const [linkModal, setLinkModal] = useState({ visible: false, url: '' })
+  const [regenModal, setRegenModal] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const openTransition = (transition) => {
     setTransitionNote('')
@@ -121,6 +144,25 @@ const OrderDetailPage = () => {
       { id, data: { externalInvoiceId: invoiceId } },
       { onSuccess: closeInvoice },
     )
+  }
+
+  const generateLink = () => {
+    createReviewLink.mutate(id, {
+      onSuccess: (data) => {
+        setCopied(false)
+        setRegenModal(false)
+        setLinkModal({ visible: true, url: data.url })
+      },
+    })
+  }
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(linkModal.url)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
   }
 
   if (isLoading) {
@@ -165,16 +207,20 @@ const OrderDetailPage = () => {
             <CCol xs={12} md={6}>
               <div className="small">
                 <div>
-                  <span className="text-body-secondary">Creado:</span> {fmtDateTime(order.createdAt)}
+                  <span className="text-body-secondary">Creado:</span>{' '}
+                  {fmtDateTime(order.createdAt)}
                 </div>
                 {order.confirmedAt && (
                   <div>
-                    <span className="text-body-secondary">Confirmado:</span> {fmtDateTime(order.confirmedAt)}
+                    <span className="text-body-secondary">Confirmado:</span>{' '}
+                    {fmtDateTime(order.confirmedAt)}
                   </div>
                 )}
                 {order.expiresAt && (
                   <div className={expiringSoon ? 'text-danger fw-semibold' : ''}>
-                    <span className={expiringSoon ? 'text-danger' : 'text-body-secondary'}>Vence:</span>{' '}
+                    <span className={expiringSoon ? 'text-danger' : 'text-body-secondary'}>
+                      Vence:
+                    </span>{' '}
                     {fmtDate(order.expiresAt)}
                     {expiringSoon && ' ⚠ Vence pronto'}
                   </div>
@@ -229,9 +275,15 @@ const OrderDetailPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Producto</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Cant.</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Precio unit.</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Total línea</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Eficiencia avg</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Precio unit.
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Total línea
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Eficiencia avg
+                  </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Área m²</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
@@ -268,11 +320,19 @@ const OrderDetailPage = () => {
               <CTableHead>
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Etiqueta</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Alto (mm)</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Ancho (mm)</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Alto (mm)
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Ancho (mm)
+                  </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Cant.</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Prioridad</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-center">Puede rotar</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Prioridad
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-center">
+                    Puede rotar
+                  </CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
@@ -283,7 +343,9 @@ const OrderDetailPage = () => {
                     <CTableDataCell className="text-end">{p.width}</CTableDataCell>
                     <CTableDataCell className="text-end">{p.quantity}</CTableDataCell>
                     <CTableDataCell className="text-end">{p.priority}</CTableDataCell>
-                    <CTableDataCell className="text-center">{p.canRotate ? 'Sí' : 'No'}</CTableDataCell>
+                    <CTableDataCell className="text-center">
+                      {p.canRotate ? 'Sí' : 'No'}
+                    </CTableDataCell>
                   </CTableRow>
                 ))}
               </CTableBody>
@@ -320,11 +382,76 @@ const OrderDetailPage = () => {
                     </CTableDataCell>
                     <CTableDataCell>{h.actor ?? '—'}</CTableDataCell>
                     <CTableDataCell>{h.note ?? '—'}</CTableDataCell>
-                    <CTableDataCell className="text-nowrap">{fmtDateTime(h.createdAt)}</CTableDataCell>
+                    <CTableDataCell className="text-nowrap">
+                      {fmtDateTime(h.createdAt)}
+                    </CTableDataCell>
                   </CTableRow>
                 ))}
               </CTableBody>
             </CTable>
+          </CCardBody>
+        </CCard>
+      )}
+
+      {/* Enlace de revisión (solo en cotización) */}
+      {order.status === 'quoted' && (
+        <CCard className="mb-3">
+          <CCardHeader>
+            <strong>Enlace de revisión</strong>
+          </CCardHeader>
+          <CCardBody>
+            {reviewLinkInfo.isLoading ? (
+              <CSpinner size="sm" />
+            ) : reviewLinkInfo.data ? (
+              <>
+                <div className="small mb-2">
+                  <div>
+                    Estado:{' '}
+                    <strong>
+                      {REVIEW_LINK_STATUS[reviewLinkInfo.data.status] ?? reviewLinkInfo.data.status}
+                    </strong>
+                  </div>
+                  <div className="text-body-secondary">
+                    Creado: {fmtDateTime(reviewLinkInfo.data.createdAt)} · Vence:{' '}
+                    {fmtDate(reviewLinkInfo.data.expiresAt)}
+                    {reviewLinkInfo.data.usedAt &&
+                      ` · Usado: ${fmtDateTime(reviewLinkInfo.data.usedAt)}`}
+                  </div>
+                </div>
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRegenModal(true)}
+                >
+                  Regenerar enlace
+                </CButton>
+              </>
+            ) : (
+              <>
+                <p className="text-body-secondary small mb-2">
+                  Generá un enlace seguro para que el cliente revise y confirme esta cotización.
+                </p>
+                <CButton
+                  color="primary"
+                  variant="outline"
+                  size="sm"
+                  onClick={generateLink}
+                  disabled={createReviewLink.isPending}
+                >
+                  {createReviewLink.isPending ? (
+                    <CSpinner size="sm" />
+                  ) : (
+                    'Generar enlace de revisión'
+                  )}
+                </CButton>
+              </>
+            )}
+            {createReviewLink.error && (
+              <div className="text-danger small mt-2">
+                {createReviewLink.error.message || 'Error al generar el enlace.'}
+              </div>
+            )}
           </CCardBody>
         </CCard>
       )}
@@ -435,6 +562,48 @@ const OrderDetailPage = () => {
             disabled={associateInvoice.isPending || !invoiceId.trim()}
           >
             {associateInvoice.isPending ? <CSpinner size="sm" /> : 'Asociar'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Review link result modal */}
+      <CModal visible={linkModal.visible} onClose={() => setLinkModal({ visible: false, url: '' })}>
+        <CModalHeader>
+          <CModalTitle>Enlace de revisión generado</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <CAlert color="warning" className="py-2 small">
+            Copiá este enlace ahora: por seguridad, solo se muestra una vez.
+          </CAlert>
+          <CInputGroup>
+            <CFormInput value={linkModal.url} readOnly />
+            <CButton color="primary" onClick={copyLink}>
+              <CIcon icon={cilCopy} className="me-1" />
+              {copied ? '¡Copiado!' : 'Copiar'}
+            </CButton>
+          </CInputGroup>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setLinkModal({ visible: false, url: '' })}>
+            Cerrar
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Regenerate confirmation modal */}
+      <CModal visible={regenModal} onClose={() => setRegenModal(false)}>
+        <CModalHeader>
+          <CModalTitle>Regenerar enlace</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          El enlace anterior dejará de funcionar de inmediato. ¿Generar uno nuevo?
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setRegenModal(false)}>
+            Cancelar
+          </CButton>
+          <CButton color="primary" onClick={generateLink} disabled={createReviewLink.isPending}>
+            {createReviewLink.isPending ? <CSpinner size="sm" /> : 'Regenerar'}
           </CButton>
         </CModalFooter>
       </CModal>

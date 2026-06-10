@@ -11,8 +11,11 @@ export const ordersApi = {
   },
   get: (id) => httpClient.get(`${BASE}/${id}`),
   create: (data) => httpClient.post(`${BASE}/`, data),
+  optimize: (data) => httpClient.post('/api/v1/optimize/', data),
   updateStatus: (id, data) => httpClient.patch(`${BASE}/${id}/status`, data),
   associateInvoice: (id, data) => httpClient.post(`${BASE}/${id}/invoice`, data),
+  createReviewLink: (id) => httpClient.post(`${BASE}/${id}/review-link`),
+  getReviewLinkInfo: (id) => httpClient.get(`${BASE}/${id}/review-link`),
   downloadProforma: (id) => {
     window.open(`${BASE_URL}${BASE}/${id}/proforma?format=pdf`, '_blank')
   },
@@ -22,7 +25,7 @@ export const ordersApi = {
 }
 
 export const boardsApi = {
-  list: () => httpClient.list('/api/v1/boards/?limit=100'),
+  list: () => httpClient.list('/api/v1/products/?type=board&limit=100'),
 }
 
 export const clientsApiMin = {

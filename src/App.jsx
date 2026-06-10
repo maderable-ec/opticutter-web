@@ -7,6 +7,10 @@ import './scss/style.scss'
 import './scss/examples.scss'
 
 import { authRoutes } from 'src/features/auth/routes'
+import { reviewRoutes } from 'src/features/review/routes'
+
+// Rutas públicas standalone (sin el layout administrativo): se montan antes del catch-all.
+const publicRoutes = [...authRoutes, ...reviewRoutes]
 
 const DefaultLayout = React.lazy(() => import('src/shared/layout/DefaultLayout'))
 
@@ -38,7 +42,7 @@ const App = () => {
         }
       >
         <Routes>
-          {authRoutes.map((route) => (
+          {publicRoutes.map((route) => (
             <Route
               key={route.path}
               path={route.path}

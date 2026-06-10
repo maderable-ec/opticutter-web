@@ -22,6 +22,27 @@ export const useCreateOrder = () => {
   })
 }
 
+export const useOptimize = () =>
+  useMutation({
+    mutationFn: ordersApi.optimize,
+  })
+
+export const useReviewLinkInfo = (id, status) =>
+  useQuery({
+    queryKey: ['review-link', id],
+    queryFn: () => ordersApi.getReviewLinkInfo(id),
+    enabled: !!id && status === 'quoted',
+    retry: false,
+  })
+
+export const useCreateReviewLink = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => ordersApi.createReviewLink(id),
+    onSuccess: (_data, id) => qc.invalidateQueries({ queryKey: ['review-link', id] }),
+  })
+}
+
 export const useUpdateOrderStatus = () => {
   const qc = useQueryClient()
   return useMutation({
