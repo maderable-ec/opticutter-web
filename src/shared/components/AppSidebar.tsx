@@ -18,10 +18,11 @@ import { sygnet } from 'src/assets/brand/sygnet'
 
 import { dashboardNav } from 'src/features/dashboard/nav'
 import { ordersNav } from 'src/features/orders/nav'
+import { optimizerNav } from 'src/features/optimizer/nav'
 import { clientsNav } from 'src/features/clients/nav'
 import { productsNav } from 'src/features/products/nav'
 
-const navigation = [...dashboardNav, ...ordersNav, ...clientsNav, ...productsNav]
+const navigation = [...dashboardNav, ...ordersNav, ...optimizerNav, ...clientsNav, ...productsNav]
 
 const AppSidebar = () => {
   const unfoldable = useUIStore((state) => state.sidebarUnfoldable)

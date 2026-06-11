@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { boardsApi, clientsApiMin, ordersApi } from './ordersApi'
+import { clientsApiMin, ordersApi } from './ordersApi'
 import type {
   OrderListParams,
   OrderStatus,
@@ -27,11 +27,6 @@ export const useCreateOrder = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
   })
 }
-
-export const useOptimize = () =>
-  useMutation({
-    mutationFn: ordersApi.optimize,
-  })
 
 export const useReviewLinkInfo = (id?: string, status?: OrderStatus) =>
   useQuery({
@@ -71,13 +66,6 @@ export const useAssociateInvoice = () => {
     },
   })
 }
-
-export const useBoards = () =>
-  useQuery({
-    queryKey: ['boards'],
-    queryFn: boardsApi.list,
-    staleTime: 5 * 60 * 1000,
-  })
 
 export const useClientsMin = (search?: string) =>
   useQuery({
