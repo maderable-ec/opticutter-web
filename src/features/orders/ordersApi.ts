@@ -1,12 +1,10 @@
 import { httpClient } from 'src/shared/api/httpClient'
 import type { Client } from 'src/features/clients/types'
-import type { Product } from 'src/features/products/types'
 import type {
   AssociateInvoicePayload,
   Order,
   OrderCreatePayload,
   OrderListParams,
-  OptimizeResult,
   ReviewLinkInfo,
   UpdateStatusPayload,
 } from './types'
@@ -22,8 +20,6 @@ export const ordersApi = {
   },
   get: (id: string) => httpClient.get<Order>(`${BASE}/${id}`),
   create: (data: OrderCreatePayload) => httpClient.post<Order>(`${BASE}/`, data),
-  optimize: (data: OrderCreatePayload) =>
-    httpClient.post<OptimizeResult>('/api/v1/optimize/', data),
   updateStatus: (id: string, data: UpdateStatusPayload) =>
     httpClient.patch<Order>(`${BASE}/${id}/status`, data),
   associateInvoice: (id: string, data: AssociateInvoicePayload) =>
@@ -36,10 +32,6 @@ export const ordersApi = {
   downloadProductionSheet: (id: string) => {
     window.open(`${BASE_URL}${BASE}/${id}/production-sheet?format=pdf`, '_blank')
   },
-}
-
-export const boardsApi = {
-  list: () => httpClient.list<Product>('/api/v1/products/?type=board&limit=100'),
 }
 
 export const clientsApiMin = {

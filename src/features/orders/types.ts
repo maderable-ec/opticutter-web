@@ -75,28 +75,11 @@ export interface AssociateInvoicePayload {
 }
 
 // Payload to create a quote/order. The cut-list is sent as `materials` + `requirements`
-// (see OrderCreatePage); those travel through the index signature.
+// (built by the optimizer feature); those travel through the index signature.
 export interface OrderCreatePayload {
   clientId?: number
   pieces?: OrderPiece[]
   [key: string]: unknown
-}
-
-export interface OptimizeMaterial {
-  materialKey: string
-  productCode: string
-  productName: string
-  count: number
-  totalCost: number
-  avgEfficiency?: number
-}
-
-export interface OptimizeResult {
-  totalBoardsUsed: number
-  totalBoardsCost?: number
-  totalEdgeBandingCost?: number
-  totalCutLinearM?: number
-  materialsSummary: OptimizeMaterial[]
 }
 
 export interface ReviewLinkInfo {

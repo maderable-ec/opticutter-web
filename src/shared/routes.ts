@@ -3,6 +3,7 @@ import { dashboardRoutes } from 'src/features/dashboard/routes'
 import { widgetsRoutes } from 'src/features/widgets/routes'
 import { clientsRoutes } from 'src/features/clients/routes'
 import { ordersRoutes } from 'src/features/orders/routes'
+import { optimizerRoutes } from 'src/features/optimizer/routes'
 import { productsRoutes } from 'src/features/products/routes'
 
 export interface AppRoute {
@@ -18,5 +19,6 @@ export const routes: AppRoute[] = [
   ...widgetsRoutes,
   ...clientsRoutes,
   ...ordersRoutes,
+  ...optimizerRoutes,
   ...productsRoutes,
 ]

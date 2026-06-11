@@ -89,9 +89,9 @@ const OrdersPage = () => {
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Órdenes</strong>
-          <CButton color="primary" size="sm" onClick={() => navigate('/orders/new')}>
+          <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
             <CIcon icon={cilPlus} className="me-1" />
-            Nueva orden
+            Nueva cotización
           </CButton>
         </CCardHeader>
         <CCardBody>
