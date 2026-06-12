@@ -17,10 +17,14 @@ export interface OptimizeMaterialSheet {
   area: number
 }
 
-export interface PlacedPieceEdge {
-  productId: number
-  productCode: string
-  productName: string
+// Tapacanto de una pieza. Las claves llegan en snake_case desde el servidor.
+export interface PlacedPieceEdges {
+  // Lados con tapacanto, en espacio geométrico (post-rotación).
+  sides: EdgeSide[]
+  product_id: number
+  code: string
+  color: string
+  notation: string
 }
 
 export interface PlacedPiece {
@@ -32,8 +36,8 @@ export interface PlacedPiece {
   rotated: boolean
   originalHeight: number
   originalWidth: number
-  // Lados con tapacanto, en espacio geométrico (post-rotación). Puede ser null.
-  edges?: Partial<Record<EdgeSide, PlacedPieceEdge>> | null
+  // Tapacanto aplicado a la pieza, o null si no tiene. Ver PlacedPieceEdges.
+  edges?: PlacedPieceEdges | null
 }
 
 export interface Remainder {
