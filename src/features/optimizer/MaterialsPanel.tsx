@@ -12,6 +12,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus, cilTrash } from '@coreui/icons'
 
+import SearchableSelect from 'src/shared/components/SearchableSelect'
 import type { BoardProduct } from 'src/features/products/types'
 import type { MaterialSourceKind } from './types'
 import { SOURCE_LABELS } from './optimizerForm'
@@ -75,18 +76,19 @@ const MaterialsPanel = ({ materials, boards, onAdd, onRemove, onUpdate }: Materi
                 {m.source === 'catalog' ? (
                   <CCol xs={12} sm={6} md={7}>
                     <CFormLabel className="small mb-1">Tablero</CFormLabel>
-                    <CFormSelect
+                    <SearchableSelect
                       size="sm"
-                      value={m.boardId}
-                      onChange={(e) => onUpdate(m.uid, 'boardId', e.target.value)}
-                    >
-                      <option value="">Seleccionar…</option>
-                      {boards.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name} ({b.code})
-                        </option>
-                      ))}
-                    </CFormSelect>
+                      value={String(m.boardId)}
+                      placeholder="Seleccionar…"
+                      searchPlaceholder="Buscar por nombre o código…"
+                      emptyText="Sin tableros que coincidan"
+                      options={boards.map((b) => ({
+                        value: String(b.id),
+                        label: b.name,
+                        sublabel: b.code,
+                      }))}
+                      onChange={(v) => onUpdate(m.uid, 'boardId', v)}
+                    />
                     {dims && <div className="small text-body-secondary mt-1">{dims}</div>}
                   </CCol>
                 ) : (
