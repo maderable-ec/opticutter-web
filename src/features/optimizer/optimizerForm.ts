@@ -71,7 +71,7 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   quantity: 1,
   priority: 0,
   label: '',
-  canRotate: true,
+  canRotate: false,
   edgeBanding: emptyEdgeBanding(),
 })
 
@@ -87,6 +87,53 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
 
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean =>
   eb.productId !== '' && selectedSides(eb).length > 0
+
+// uids de materiales válidos: las piezas solo pueden referenciar a uno de estos.
+export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
+  new Set(materials.filter(isMaterialValid).map((m) => m.uid))
+
+// Una pieza es válida (entra a la optimización) si referencia un material válido y tiene medidas > 0.
+export const isRequirementValid = (r: RequirementForm, validUids: Set<string>): boolean =>
+  validUids.has(r.materialUid) && Number(r.height) > 0 && Number(r.width) > 0
+
+// Fila "en blanco" (recién agregada, sin tocar): no se resalta como error aunque sea inválida.
+export const isRequirementEmpty = (r: RequirementForm): boolean =>
+  r.height === '' && r.width === '' && !r.label.trim() && !hasEdgeBanding(r.edgeBanding)
+
+// Clon profundo de una pieza (edgeBanding.sides es objeto) para duplicar filas.
+export const cloneRequirement = (r: RequirementForm): RequirementForm => ({
+  ...r,
+  edgeBanding: { productId: r.edgeBanding.productId, sides: { ...r.edgeBanding.sides } },
+})
+
+export interface PiecesSummary {
+  pieces: number // filas válidas
+  units: number // Σ cantidad de las filas válidas
+  areaM2: number // Σ alto·ancho·cant / 1e6
+  invalid: number // filas con datos pero inválidas
+}
+
+export const piecesSummary = (
+  requirements: RequirementForm[],
+  materials: MaterialForm[],
+): PiecesSummary => {
+  const validUids = validMaterialUids(materials)
+  let pieces = 0
+  let units = 0
+  let areaM2 = 0
+  let invalid = 0
+  for (const r of requirements) {
+    if (isRequirementValid(r, validUids)) {
+      const qty = Number(r.quantity) || 1
+      pieces += 1
+      units += qty
+      areaM2 += (Number(r.height) * Number(r.width) * qty) / 1_000_000
+    } else if (!isRequirementEmpty(r)) {
+      invalid += 1
+    }
+  }
+  return { pieces, units, areaM2, invalid }
+}
 
 // Nombre legible de un material para el dropdown de piezas y el diagrama.
 export const materialLabel = (m: MaterialForm, boards: BoardProduct[]): string => {
@@ -114,7 +161,7 @@ export const buildPayload = (
   requirements: RequirementForm[],
 ): BuiltPayload => {
   const validMaterials = materials.filter(isMaterialValid)
-  const validUids = new Set(validMaterials.map((m) => m.uid))
+  const validUids = validMaterialUids(materials)
 
   const mappedMaterials: MaterialInput[] = validMaterials.map((m) =>
     m.source === 'catalog'
@@ -130,9 +177,7 @@ export const buildPayload = (
         },
   )
 
-  const validReqs = requirements.filter(
-    (r) => validUids.has(r.materialUid) && Number(r.height) > 0 && Number(r.width) > 0,
-  )
+  const validReqs = requirements.filter((r) => isRequirementValid(r, validUids))
 
   const mappedReqs: RequirementInput[] = validReqs.map((r) => {
     const sides = selectedSides(r.edgeBanding)
