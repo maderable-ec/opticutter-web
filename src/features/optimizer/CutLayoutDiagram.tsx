@@ -10,6 +10,8 @@ import {
   CRow,
 } from '@coreui/react'
 
+import useZoomPan from 'src/shared/hooks/useZoomPan'
+import ZoomControls from 'src/shared/components/ZoomControls'
 import type { EdgeSide, Layout, LayoutGroup, MaterialSummary, PlacedPiece } from './types'
 import {
   EDGE_COLOR,
@@ -34,6 +36,8 @@ interface SheetSvgProps {
   maxHeight?: number
   // Muestra las medidas del tablero (ancho arriba, alto a la izquierda). Solo en la vista ampliada.
   showDimensions?: boolean
+  // Habilita zoom + desplazamiento (pinch/rueda/arrastre + botones). Solo en la vista ampliada.
+  enableZoom?: boolean
 }
 
 const SheetSvg = ({
@@ -45,6 +49,7 @@ const SheetSvg = ({
   onPieceLeave,
   maxHeight = 420,
   showDimensions = false,
+  enableZoom = false,
 }: SheetSvgProps) => {
   const rawId = useId()
   const wasteId = `waste-${rawId.replace(/:/g, '')}`
@@ -53,15 +58,25 @@ const SheetSvg = ({
   const H = material.height
   const edgeWidth = clamp(Math.max(W, H) * 0.012, 8, 22)
 
+  const { svgRef, groupTransform, scale, isZoomed, zoomIn, zoomOut, reset } = useZoomPan()
+
   // Margen reservado para las etiquetas de medida del tablero (solo vista ampliada).
   const margin = showDimensions ? Math.max(W, H) * 0.07 : 0
   const labelSize = clamp(Math.max(W, H) * 0.028, 16, 44)
 
-  return (
+  const svg = (
     <svg
+      ref={enableZoom ? svgRef : undefined}
       viewBox={`${-margin} ${-margin} ${W + margin} ${H + margin}`}
       preserveAspectRatio="xMidYMid meet"
-      style={{ width: '100%', height: 'auto', display: 'block', maxHeight }}
+      style={{
+        width: '100%',
+        height: 'auto',
+        display: 'block',
+        maxHeight,
+        touchAction: enableZoom ? 'none' : undefined,
+        cursor: enableZoom && isZoomed ? 'grab' : undefined,
+      }}
       role="img"
       aria-label={`Hoja ${material.width}×${material.height} con ${statistics.piecesCount} piezas`}
     >
@@ -72,127 +87,139 @@ const SheetSvg = ({
         </pattern>
       </defs>
 
-      {/* Medidas del tablero */}
-      {showDimensions && (
-        <g fill="#868e96" style={{ userSelect: 'none' }}>
-          <text
-            x={W / 2}
-            y={-margin / 2}
-            fontSize={labelSize}
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            {W} mm
-          </text>
-          <text
-            x={-margin / 2}
-            y={H / 2}
-            fontSize={labelSize}
-            textAnchor="middle"
-            dominantBaseline="central"
-            transform={`rotate(-90 ${-margin / 2} ${H / 2})`}
-          >
-            {H} mm
-          </text>
-        </g>
-      )}
+      <g transform={enableZoom ? groupTransform : undefined}>
+        {/* Medidas del tablero */}
+        {showDimensions && (
+          <g fill="#868e96" style={{ userSelect: 'none' }}>
+            <text
+              x={W / 2}
+              y={-margin / 2}
+              fontSize={labelSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+            >
+              {W} mm
+            </text>
+            <text
+              x={-margin / 2}
+              y={H / 2}
+              fontSize={labelSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              transform={`rotate(-90 ${-margin / 2} ${H / 2})`}
+            >
+              {H} mm
+            </text>
+          </g>
+        )}
 
-      {/* Tablero */}
-      <rect
-        x={0}
-        y={0}
-        width={W}
-        height={H}
-        fill="#ffffff"
-        stroke="#868e96"
-        strokeWidth={1.5}
-        vectorEffect="non-scaling-stroke"
-      />
-
-      {/* Sobrantes / desperdicio */}
-      {remainders.map((r, idx) => (
+        {/* Tablero */}
         <rect
-          key={`rem-${idx}`}
-          x={r.x}
-          y={r.y}
-          width={r.width}
-          height={r.height}
-          fill={`url(#${wasteId})`}
-          stroke="#ced4da"
-          strokeWidth={1}
-          strokeDasharray="6 6"
+          x={0}
+          y={0}
+          width={W}
+          height={H}
+          fill="#ffffff"
+          stroke="#868e96"
+          strokeWidth={1.5}
           vectorEffect="non-scaling-stroke"
         />
-      ))}
 
-      {/* Piezas */}
-      {placedPieces.map((p) => {
-        const sig = pieceSig(p)
-        const color = colorFor(sig)
-        const dimmed =
-          highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
-        const minSide = Math.min(p.width, p.height)
-        const fontSize = clamp(minSide / 5, 22, 90)
-        const showText = p.width > 130 && p.height > 90
+        {/* Sobrantes / desperdicio */}
+        {remainders.map((r, idx) => (
+          <rect
+            key={`rem-${idx}`}
+            x={r.x}
+            y={r.y}
+            width={r.width}
+            height={r.height}
+            fill={`url(#${wasteId})`}
+            stroke="#ced4da"
+            strokeWidth={1}
+            strokeDasharray="6 6"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
 
-        return (
-          <g
-            key={p.pieceId}
-            opacity={dimmed ? 0.35 : 1}
-            onMouseEnter={() => onPieceEnter?.(p)}
-            onMouseLeave={() => onPieceLeave?.()}
-            style={{ cursor: 'default' }}
-          >
-            <title>
-              {p.originalWidth}×{p.originalHeight} mm{p.rotated ? ' (rotada 90°)' : ''}
-            </title>
-            <rect
-              x={p.x}
-              y={p.y}
-              width={p.width}
-              height={p.height}
-              fill={color}
-              fillOpacity={0.85}
-              stroke="rgba(0,0,0,0.35)"
-              strokeWidth={1}
-              vectorEffect="non-scaling-stroke"
-            />
+        {/* Piezas */}
+        {placedPieces.map((p) => {
+          const sig = pieceSig(p)
+          const color = colorFor(sig)
+          const dimmed =
+            highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
+          const minSide = Math.min(p.width, p.height)
+          const fontSize = clamp(minSide / 5, 22, 90)
+          // Al acercar, las piezas pequeñas revelan su medida (umbral según escala efectiva).
+          const showText = p.width * scale > 130 && p.height * scale > 90
 
-            {/* Tapacanto por lado geométrico */}
-            {bandedSides(p).map((side) => {
-              const l = sideLine(side, p.x, p.y, p.width, p.height)
-              return (
-                <line
-                  key={`${p.pieceId}-${side}`}
-                  x1={l.x1}
-                  y1={l.y1}
-                  x2={l.x2}
-                  y2={l.y2}
-                  stroke={EDGE_COLOR}
-                  strokeWidth={edgeWidth}
-                  strokeLinecap="round"
-                />
-              )
-            })}
+          return (
+            <g
+              key={p.pieceId}
+              opacity={dimmed ? 0.35 : 1}
+              onMouseEnter={() => onPieceEnter?.(p)}
+              onMouseLeave={() => onPieceLeave?.()}
+              style={{ cursor: 'default' }}
+            >
+              <title>
+                {p.originalWidth}×{p.originalHeight} mm{p.rotated ? ' (rotada 90°)' : ''}
+              </title>
+              <rect
+                x={p.x}
+                y={p.y}
+                width={p.width}
+                height={p.height}
+                fill={color}
+                fillOpacity={0.85}
+                stroke="rgba(0,0,0,0.35)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
 
-            {showText && (
-              <text
-                x={p.x + p.width / 2}
-                y={p.y + p.height / 2}
-                fontSize={fontSize}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="#212529"
-                style={{ pointerEvents: 'none', userSelect: 'none' }}
-              >
-                {p.originalWidth}×{p.originalHeight}
-                {p.rotated ? ' ↻' : ''}
-              </text>
-            )}
-          </g>
-        )
-      })}
+              {/* Tapacanto por lado geométrico */}
+              {bandedSides(p).map((side) => {
+                const l = sideLine(side, p.x, p.y, p.width, p.height)
+                return (
+                  <line
+                    key={`${p.pieceId}-${side}`}
+                    x1={l.x1}
+                    y1={l.y1}
+                    x2={l.x2}
+                    y2={l.y2}
+                    stroke={EDGE_COLOR}
+                    strokeWidth={edgeWidth}
+                    strokeLinecap="round"
+                  />
+                )
+              })}
+
+              {showText && (
+                <text
+                  x={p.x + p.width / 2}
+                  y={p.y + p.height / 2}
+                  fontSize={fontSize}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill="#212529"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {p.originalWidth}×{p.originalHeight}
+                  {p.rotated ? ' ↻' : ''}
+                </text>
+              )}
+            </g>
+          )
+        })}
+      </g>
     </svg>
+  )
+
+  if (!enableZoom) return svg
+
+  return (
+    <div style={{ position: 'relative', overflow: 'hidden' }}>
+      {svg}
+      <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={reset} isZoomed={isZoomed} />
+    </div>
   )
 }
 
@@ -495,6 +522,7 @@ const SheetDetailModal = ({ group, materialName, colorFor, onClose }: SheetDetai
                 onPieceLeave={() => setHoverPiece(null)}
                 maxHeight={640}
                 showDimensions
+                enableZoom
               />
             </CCol>
             <CCol xs={12} lg={5}>
