@@ -11,57 +11,16 @@ import {
 } from '@coreui/react'
 
 import type { EdgeSide, Layout, LayoutGroup, MaterialSummary, PlacedPiece } from './types'
-
-// Paleta estable para colorear piezas por dimensión (firma). Colores tipo Tableau, legibles.
-const PALETTE = [
-  '#4e79a7',
-  '#59a14f',
-  '#f28e2b',
-  '#e15759',
-  '#76b7b2',
-  '#b07aa1',
-  '#edc948',
-  '#ff9da7',
-  '#9c755f',
-  '#86bcb6',
-]
-
-const EDGE_COLOR = '#d9480f' // color del tapacanto en el diagrama
-
-const SIDE_LABELS_ES: Record<EdgeSide, string> = {
-  top: 'Superior',
-  bottom: 'Inferior',
-  left: 'Izquierdo',
-  right: 'Derecho',
-}
-
-// Las piezas iguales comparten dimensiones nominales (originalWidth×originalHeight).
-const pieceSig = (p: PlacedPiece) => `${p.originalWidth}×${p.originalHeight}`
-
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
-
-const bandedSides = (p: PlacedPiece): EdgeSide[] => p.edges?.sides ?? []
-
-interface SideLine {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-}
-
-// Coordenadas del lado geométrico de un rect (x,y,w,h). Los edges de la respuesta ya son geométricos.
-const sideLine = (side: EdgeSide, x: number, y: number, w: number, h: number): SideLine => {
-  switch (side) {
-    case 'top':
-      return { x1: x, y1: y, x2: x + w, y2: y }
-    case 'bottom':
-      return { x1: x, y1: y + h, x2: x + w, y2: y + h }
-    case 'left':
-      return { x1: x, y1: y, x2: x, y2: y + h }
-    case 'right':
-      return { x1: x + w, y1: y, x2: x + w, y2: y + h }
-  }
-}
+import {
+  EDGE_COLOR,
+  PALETTE,
+  SIDE_LABELS_ES,
+  bandedSides,
+  clamp,
+  pieceSig,
+  sideLine,
+} from './cutDrawing'
+import type { SideLine } from './cutDrawing'
 
 // --- SVG reutilizable de una hoja (se usa en la tarjeta pequeña y ampliado en el modal) ---
 
