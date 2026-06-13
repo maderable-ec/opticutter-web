@@ -16,6 +16,8 @@ import {
   CModalFooter,
   CModalHeader,
   CModalTitle,
+  CProgress,
+  CProgressBar,
   CRow,
   CSpinner,
   CTable,
@@ -33,6 +35,7 @@ import OrderStatusBadge from './OrderStatusBadge'
 import {
   useAssociateInvoice,
   useCreateReviewLink,
+  useCuttingPlan,
   useOrder,
   useReviewLinkInfo,
   useUpdateOrderStatus,
@@ -47,6 +50,10 @@ interface StatusTransition {
 }
 
 const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled', 'expired']
+
+// Estados donde el plan de corte es relevante: producción (interactivo en el taller) y posteriores
+// (solo-lectura, auditoría de lo cortado).
+const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   draft: [
@@ -122,6 +129,7 @@ const OrderDetailPage = () => {
   const navigate = useNavigate()
 
   const { data: order, isLoading } = useOrder(id)
+  const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
   const reviewLinkInfo = useReviewLinkInfo(id, order?.status)
@@ -206,6 +214,18 @@ const OrderDetailPage = () => {
   const showDocuments = !(['draft', 'expired'] as OrderStatus[]).includes(order.status)
   const expiringSoon = isExpiringSoon(order.expiresAt, order.status)
 
+  const plan = cuttingPlan.data
+  const showProduction = WORKSHOP_STATES.includes(order.status)
+  const piecesPending = plan ? plan.progress.totalPieces - plan.progress.cutPieces : 0
+  // El API es la garantía (responde 422 si faltan piezas); deshabilitar el botón es solo UX.
+  const cutGated = order.status === 'in_production' && !!plan && piecesPending > 0
+  const planPct =
+    plan && plan.progress.totalPieces > 0
+      ? Math.round((plan.progress.cutPieces / plan.progress.totalPieces) * 100)
+      : 0
+  const planDone =
+    !!plan && plan.progress.totalPieces > 0 && plan.progress.cutPieces >= plan.progress.totalPieces
+
   return (
     <>
       <div className="d-flex align-items-center gap-2 mb-3">
@@ -271,15 +291,64 @@ const OrderDetailPage = () => {
           </CCardHeader>
           <CCardBody>
             <div className="d-flex gap-2 flex-wrap">
-              {transitions.map((t) => (
-                <CButton key={t.to} color={t.color} size="sm" onClick={() => openTransition(t)}>
-                  {t.label}
-                </CButton>
-              ))}
+              {transitions.map((t) => {
+                const blocked = t.to === 'cut' && cutGated
+                return (
+                  <CButton
+                    key={t.to}
+                    color={t.color}
+                    size="sm"
+                    disabled={blocked}
+                    title={blocked ? `Faltan ${piecesPending} pieza(s) por cortar` : undefined}
+                    onClick={() => openTransition(t)}
+                  >
+                    {t.label}
+                  </CButton>
+                )
+              })}
             </div>
+            {cutGated && (
+              <div className="text-warning small mt-2">
+                Faltan {piecesPending} pieza(s) por cortar. Marcalas en el taller para habilitar el
+                corte.
+              </div>
+            )}
             {updateStatus.error && (
               <div className="text-danger small mt-2">
                 {updateStatus.error.message || 'Error al cambiar estado.'}
+              </div>
+            )}
+          </CCardBody>
+        </CCard>
+      )}
+
+      {/* Producción / Taller */}
+      {showProduction && (
+        <CCard className="mb-3">
+          <CCardHeader>
+            <strong>Producción</strong>
+          </CCardHeader>
+          <CCardBody>
+            {cuttingPlan.isLoading ? (
+              <CSpinner size="sm" />
+            ) : plan ? (
+              <>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="fw-semibold">
+                    {plan.progress.cutPieces} de {plan.progress.totalPieces} piezas cortadas
+                  </span>
+                  <span className="text-body-secondary small">{plan.boards.length} tablero(s)</span>
+                </div>
+                <CProgress className="mb-3" height={12}>
+                  <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
+                </CProgress>
+                <CButton color="primary" onClick={() => navigate(`/orders/${id}/workshop`)}>
+                  {order.status === 'in_production' ? 'Abrir taller' : 'Ver corte'}
+                </CButton>
+              </>
+            ) : (
+              <div className="text-body-secondary small">
+                {cuttingPlan.error?.message || 'No se pudo cargar el plan de corte.'}
               </div>
             )}
           </CCardBody>
