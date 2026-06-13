@@ -269,6 +269,7 @@ const WorkshopPage = () => {
             </CButton>
           )}
           <WorkshopBoardSvg
+            key={current.id}
             board={current}
             colorFor={colorFor}
             interactive={!!interactive}
