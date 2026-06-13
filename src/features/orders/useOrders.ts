@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ApiError } from 'src/shared/api/types'
 import { clientsApiMin, ordersApi } from './ordersApi'
 import type {
   OrderListParams,
   OrderStatus,
   UpdateStatusPayload,
   AssociateInvoicePayload,
+  CuttingPlan,
+  MarkPieceResponse,
 } from './types'
 
 export const useOrders = (params?: OrderListParams) =>
@@ -72,3 +75,77 @@ export const useClientsMin = (search?: string) =>
     queryKey: ['clients-min', search],
     queryFn: () => clientsApiMin.list(search),
   })
+
+const cuttingPlanKey = (id: string) => ['orders', id, 'cutting-plan']
+
+// Flip optimista de una pieza: ajusta los contadores de su tablero y el total solo si el estado
+// cambió de verdad (idempotente ante doble-tap o re-marcado).
+const applyCut = (plan: CuttingPlan, pieceId: number, cut: boolean): CuttingPlan => {
+  let changed = false
+  const boards = plan.boards.map((board) => {
+    const idx = board.pieces.findIndex((p) => p.id === pieceId)
+    if (idx === -1) return board
+    const piece = board.pieces[idx]
+    if (piece.cut === cut) return board
+    changed = true
+    const pieces = board.pieces.slice()
+    pieces[idx] = { ...piece, cut }
+    const delta = cut ? 1 : -1
+    return {
+      ...board,
+      pieces,
+      progress: { ...board.progress, cutPieces: board.progress.cutPieces + delta },
+    }
+  })
+  if (!changed) return plan
+  const delta = cut ? 1 : -1
+  return {
+    ...plan,
+    boards,
+    progress: { ...plan.progress, cutPieces: plan.progress.cutPieces + delta },
+  }
+}
+
+// Reconcilia el cache con la respuesta del PATCH (progress/boardProgress ya recalculados por el API).
+const reconcile = (plan: CuttingPlan, res: MarkPieceResponse): CuttingPlan => ({
+  ...plan,
+  progress: res.progress,
+  boards: plan.boards.map((board) => {
+    const idx = board.pieces.findIndex((p) => p.id === res.piece.id)
+    if (idx === -1) return board
+    const pieces = board.pieces.slice()
+    pieces[idx] = res.piece
+    return { ...board, pieces, progress: res.boardProgress }
+  }),
+})
+
+export const useCuttingPlan = (id?: string, enabled = true) =>
+  useQuery({
+    queryKey: ['orders', id, 'cutting-plan'],
+    queryFn: () => ordersApi.getCuttingPlan(id as string),
+    enabled: !!id && enabled,
+  })
+
+export const useMarkPiece = (orderId: string) => {
+  const qc = useQueryClient()
+  const key = cuttingPlanKey(orderId)
+  return useMutation({
+    mutationFn: ({ pieceId, cut }: { pieceId: number; cut: boolean }) =>
+      ordersApi.markPiece(orderId, pieceId, cut),
+    onMutate: async ({ pieceId, cut }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<CuttingPlan>(key)
+      if (prev) qc.setQueryData<CuttingPlan>(key, applyCut(prev, pieceId, cut))
+      return { prev }
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+      // 404: el plan local quedó obsoleto (p. ej. orden recreada) → refrescar desde el server.
+      if (err instanceof ApiError && err.status === 404) qc.invalidateQueries({ queryKey: key })
+    },
+    onSuccess: (res) => {
+      // Multi-operario (último escribe gana): sincronizamos con los contadores reales del API.
+      qc.setQueryData<CuttingPlan>(key, (cur) => (cur ? reconcile(cur, res) : cur))
+    },
+  })
+}

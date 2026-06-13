@@ -2,6 +2,8 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type { Client } from 'src/features/clients/types'
 import type {
   AssociateInvoicePayload,
+  CuttingPlan,
+  MarkPieceResponse,
   Order,
   OrderCreatePayload,
   OrderListParams,
@@ -26,6 +28,9 @@ export const ordersApi = {
     httpClient.post<Order>(`${BASE}/${id}/invoice`, data),
   createReviewLink: (id: string) => httpClient.post<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
   getReviewLinkInfo: (id: string) => httpClient.get<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
+  getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
+  markPiece: (id: string, pieceId: number, cut: boolean) =>
+    httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
   downloadProforma: (id: string) => {
     window.open(`${BASE_URL}${BASE}/${id}/proforma?format=pdf`, '_blank')
   },
