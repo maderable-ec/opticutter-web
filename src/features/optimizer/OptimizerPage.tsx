@@ -4,44 +4,33 @@ import CIcon from '@coreui/icons-react'
 import { cilSave } from '@coreui/icons'
 
 import { useBoards, useOptimize } from './useOptimizer'
-import {
-  buildPayload,
-  emptyCatalogMaterial,
-  emptyEdgeBanding,
-  emptyRequirement,
-} from './optimizerForm'
-import type { EdgeBandingForm, MaterialForm, RequirementForm } from './optimizerForm'
+import { buildPayload, emptyCatalogMaterial, emptyEdgeBanding } from './optimizerForm'
+import type { MaterialForm } from './optimizerForm'
+import { downloadCsv, requirementsToCsv } from './piecesCsv'
+import { usePiecesEditor } from './usePiecesEditor'
 import MaterialsPanel from './MaterialsPanel'
 import PiecesTable from './PiecesTable'
 import OptimizationPreview from './OptimizationPreview'
 import EdgeBandingModal from './EdgeBandingModal'
+import ImportPiecesModal from './ImportPiecesModal'
 import CreateQuoteModal from './CreateQuoteModal'
 
 const OptimizerPage = () => {
   const [materials, setMaterials] = useState<MaterialForm[]>(() => [emptyCatalogMaterial()])
-  const [requirements, setRequirements] = useState<RequirementForm[]>(() => [
-    emptyRequirement(materials[0].uid),
-  ])
   const [ebIndex, setEbIndex] = useState<number | null>(null)
   const [showQuote, setShowQuote] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const { data: boards = [] } = useBoards()
   const optimize = useOptimize()
+  const pieces = usePiecesEditor(materials)
 
   // --- Materiales ---
   const addMaterial = () => setMaterials((ms) => [...ms, emptyCatalogMaterial()])
   const removeMaterial = (uid: string) => {
     const remaining = materials.filter((m) => m.uid !== uid)
     setMaterials(remaining)
-    // Reapunta las piezas del material eliminado; si queda uno solo, las huérfanas pasan a él.
-    setRequirements((rs) =>
-      rs.map((r) => {
-        const orphaned = r.materialUid === uid || r.materialUid === ''
-        if (remaining.length === 1 && orphaned) return { ...r, materialUid: remaining[0].uid }
-        if (r.materialUid === uid) return { ...r, materialUid: '' }
-        return r
-      }),
-    )
+    pieces.reassignOnMaterialRemoval(uid, remaining)
   }
   const updateMaterial = <K extends keyof MaterialForm>(
     uid: string,
@@ -49,24 +38,16 @@ const OptimizerPage = () => {
     value: MaterialForm[K],
   ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
 
-  // --- Piezas ---
-  const addRequirement = () =>
-    setRequirements((rs) => [...rs, emptyRequirement(materials[0]?.uid ?? '')])
-  const removeRequirement = (i: number) => setRequirements((rs) => rs.filter((_, idx) => idx !== i))
-  const updateReq = <K extends keyof RequirementForm>(
-    i: number,
-    field: K,
-    value: RequirementForm[K],
-  ) => setRequirements((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
-  const updateEdgeBanding = (i: number, eb: EdgeBandingForm) => updateReq(i, 'edgeBanding', eb)
-
-  const built = buildPayload(materials, requirements)
+  const built = buildPayload(materials, pieces.requirements)
   const canOptimize = built.validCount > 0
 
   const handleOptimize = () => {
     if (!canOptimize) return
     optimize.mutate({ materials: built.materials, requirements: built.requirements })
   }
+
+  const handleExport = () =>
+    downloadCsv('piezas.csv', requirementsToCsv(pieces.requirements, materials, boards))
 
   return (
     <>
@@ -87,13 +68,12 @@ const OptimizerPage = () => {
       />
 
       <PiecesTable
-        requirements={requirements}
+        editor={pieces}
         materials={materials}
         boards={boards}
-        onAdd={addRequirement}
-        onRemove={removeRequirement}
-        onUpdate={updateReq}
         onEditEdgeBanding={setEbIndex}
+        onImportOpen={() => setShowImport(true)}
+        onExport={handleExport}
       />
 
       <OptimizationPreview
@@ -113,10 +93,18 @@ const OptimizerPage = () => {
 
       <EdgeBandingModal
         visible={ebIndex !== null}
-        value={ebIndex !== null ? requirements[ebIndex].edgeBanding : emptyEdgeBanding()}
-        pieceLabel={ebIndex !== null ? requirements[ebIndex].label || undefined : undefined}
-        onChange={(eb) => ebIndex !== null && updateEdgeBanding(ebIndex, eb)}
+        value={ebIndex !== null ? pieces.requirements[ebIndex].edgeBanding : emptyEdgeBanding()}
+        pieceLabel={ebIndex !== null ? pieces.requirements[ebIndex].label || undefined : undefined}
+        onChange={(eb) => ebIndex !== null && pieces.update(ebIndex, 'edgeBanding', eb)}
         onClose={() => setEbIndex(null)}
+      />
+
+      <ImportPiecesModal
+        visible={showImport}
+        materials={materials}
+        boards={boards}
+        onImport={(rows, replace) => pieces.addMany(rows, replace)}
+        onClose={() => setShowImport(false)}
       />
 
       <CreateQuoteModal
