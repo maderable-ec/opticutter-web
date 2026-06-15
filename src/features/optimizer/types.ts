@@ -1,4 +1,5 @@
 import type { Client } from 'src/features/clients/types'
+import type { MaterialForm, RequirementForm } from './optimizerForm'
 
 // Tipos de la respuesta de POST /api/v1/optimize/. El contrato es determinista y cacheado por
 // hash del input; ver la spec del endpoint para detalles de cada campo.
@@ -156,4 +157,29 @@ export interface OptimizePayload {
   materials: MaterialInput[]
   requirements: RequirementInput[]
   clientId?: number
+}
+
+// --- Borradores del optimizador (persistencia) ---
+
+// Lo que se persiste es el ESTADO DEL FORMULARIO tal cual (con sus `uid`), no el contrato
+// `buildPayload()`. Así se reconstruye el estado idéntico, incluidas filas incompletas/inválidas.
+// El backend trata `payload` como JSON opaco; `version` permite migraciones futuras.
+export interface OptimizerDraftPayload {
+  version: 1
+  materials: MaterialForm[]
+  requirements: RequirementForm[]
+}
+
+// Listado (sin payload).
+export interface DraftSummary {
+  id: number
+  name: string
+  clientId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+// Detalle (incluye payload).
+export interface Draft extends DraftSummary {
+  payload: OptimizerDraftPayload
 }

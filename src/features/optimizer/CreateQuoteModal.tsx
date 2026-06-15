@@ -33,6 +33,8 @@ interface CreateQuoteModalProps {
   materials: MaterialInput[]
   requirements: RequirementInput[]
   optimizationHash?: string | null
+  // Se invoca tras crear la orden con éxito (p. ej. para limpiar el autosave del optimizer).
+  onCreated?: () => void
 }
 
 const CreateQuoteModal = ({
@@ -41,6 +43,7 @@ const CreateQuoteModal = ({
   materials,
   requirements,
   optimizationHash,
+  onCreated,
 }: CreateQuoteModalProps) => {
   const navigate = useNavigate()
 
@@ -75,6 +78,7 @@ const CreateQuoteModal = ({
       {
         // Idempotencia: si la orden ya existía, el API devuelve la activa — navegamos igual.
         onSuccess: (order) => {
+          onCreated?.()
           onClose()
           navigate(`/orders/${order.id}`)
         },

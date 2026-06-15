@@ -9,11 +9,13 @@ export type FillScope = 'all' | 'selected'
 
 // Encapsula la lista de piezas y todas las operaciones de edición masiva (pegar, duplicar, fill-down,
 // selección múltiple, foco). Sigue el estilo del proyecto: estado plano + actualizaciones inmutables.
-export const usePiecesEditor = (materials: MaterialForm[]) => {
+export const usePiecesEditor = (materials: MaterialForm[], initial?: RequirementForm[]) => {
   const firstUid = () => materials[0]?.uid ?? ''
-  const [requirements, setRequirements] = useState<RequirementForm[]>(() => [
-    emptyRequirement(firstUid()),
-  ])
+  // `initial` solo se usa para hidratar el estado inicial (p. ej. desde el autosave). Pasarlo en
+  // renders posteriores no reinicia la lista: la edición posterior manda.
+  const [requirements, setRequirements] = useState<RequirementForm[]>(() =>
+    initial && initial.length ? initial : [emptyRequirement(firstUid())],
+  )
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   // Índice de fila a enfocar tras agregar (lo consume la tabla y luego lo limpia).
   const [focusRow, setFocusRow] = useState<number | null>(null)
