@@ -11,10 +11,10 @@ import {
 } from '@coreui/react'
 
 import { edgesLabel, fmtMoney } from './format'
-import type { ReviewData } from './types'
+import type { ReviewPreOrder } from './types'
 
 interface ReviewSummaryProps {
-  data: ReviewData
+  data: ReviewPreOrder
 }
 
 // Muestra la lista de corte (piezas, no se cobra por pieza) y el detalle de cobro (lines).

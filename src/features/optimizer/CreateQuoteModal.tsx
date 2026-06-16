@@ -18,7 +18,8 @@ import CIcon from '@coreui/icons-react'
 import { cilCloudDownload } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
-import { useClientsMin, useCreateOrder } from 'src/features/orders/useOrders'
+import { useClientsMin } from 'src/features/orders/useOrders'
+import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
 import type { MaterialInput, RequirementInput } from './types'
 import { optimizerApi } from './optimizerApi'
 
@@ -62,31 +63,32 @@ const CreateQuoteModal = ({
   const selectedClient = clients.find((c) => String(c.id) === String(selectedClientId))
   const missingPhone = !!selectedClient && selectedClient.phone == null
 
-  const createOrder = useCreateOrder()
+  const createPreOrder = useCreatePreOrder()
 
   const handleCreate = () => {
     if (!selectedClientId || missingPhone) return
-    createOrder.mutate(
+    createPreOrder.mutate(
       {
         clientId: Number(selectedClientId),
-        status: 'quoted',
         source: 'dashboard',
         notes: notes || undefined,
         materials,
         requirements,
       },
       {
-        // Idempotencia: si la orden ya existía, el API devuelve la activa — navegamos igual.
-        onSuccess: (order) => {
+        onSuccess: (preOrder) => {
           onCreated?.()
           onClose()
-          navigate(`/orders/${order.id}`)
+          navigate(`/preorders/${preOrder.id}`)
         },
       },
     )
   }
 
   const canPreviewProforma = !!optimizationHash && !!selectedClientId && !missingPhone
+
+  const isPending = createPreOrder.isPending
+  const mutationError = createPreOrder.error
 
   return (
     <CModal visible={visible} onClose={onClose} size="lg" alignment="center">
@@ -131,9 +133,9 @@ const CreateQuoteModal = ({
           placeholder="Instrucciones especiales, referencias, etc."
         />
 
-        {createOrder.error && (
+        {mutationError && (
           <CAlert color="danger" className="mt-3 mb-0 py-2 small">
-            {createOrder.error.message || 'Error al crear la cotización. Intente nuevamente.'}
+            {mutationError.message || 'Error al crear la cotización. Intente nuevamente.'}
           </CAlert>
         )}
       </CModalBody>
@@ -156,10 +158,10 @@ const CreateQuoteModal = ({
           </CButton>
           <CButton
             color="primary"
-            disabled={!selectedClientId || missingPhone || createOrder.isPending}
+            disabled={!selectedClientId || missingPhone || isPending}
             onClick={handleCreate}
           >
-            {createOrder.isPending ? <CSpinner size="sm" /> : 'Crear cotización'}
+            {isPending ? <CSpinner size="sm" /> : 'Crear cotización'}
           </CButton>
         </div>
       </CModalFooter>

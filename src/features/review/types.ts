@@ -1,4 +1,11 @@
-import type { OrderStatus } from 'src/features/orders/types'
+export type ReviewPreOrderStatus =
+  | 'draft'
+  | 'sent'
+  | 'changes_requested'
+  | 'confirmed'
+  | 'rejected'
+  | 'expired'
+  | 'cancelled'
 
 export interface ReviewLine {
   productName: string
@@ -23,14 +30,20 @@ export interface ReviewPiece {
   edges?: ReviewEdges | null
 }
 
-export interface ReviewData {
-  orderCode: string
+export interface ReviewPreOrder {
+  reference: string // pre-order code (PRE-…), displayed as the document reference
+  status: ReviewPreOrderStatus
+  orderCode: string | null // null until confirmed; "ORD-…" after confirmation
   clientName: string
+  clientNote: string | null // note written by the client when requesting changes
   currency: string
-  status: OrderStatus
+  subtotal: number
   total: number
-  expiresAt?: string
-  confirmedAt?: string
+  totalBoardsUsed: number
+  createdAt: string
+  sentAt: string | null
+  confirmedAt: string | null
+  expiresAt: string | null
   lines: ReviewLine[]
-  pieces?: ReviewPiece[]
+  pieces: ReviewPiece[]
 }

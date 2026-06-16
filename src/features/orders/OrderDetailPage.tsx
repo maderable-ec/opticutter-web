@@ -10,7 +10,6 @@ import {
   CFormInput,
   CFormLabel,
   CFormTextarea,
-  CInputGroup,
   CModal,
   CModalBody,
   CModalFooter,
@@ -28,16 +27,14 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilCopy, cilExternalLink } from '@coreui/icons'
+import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import {
   useAssociateInvoice,
-  useCreateReviewLink,
   useCuttingPlan,
   useOrder,
-  useReviewLinkInfo,
   useUpdateOrderStatus,
 } from './useOrders'
 import { ordersApi } from './ordersApi'
@@ -57,10 +54,6 @@ const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   draft: [
-    { to: 'quoted', label: 'Cotizar', color: 'primary' },
-    { to: 'cancelled', label: 'Cancelar', color: 'danger' },
-  ],
-  quoted: [
     { to: 'confirmed', label: 'Confirmar', color: 'primary' },
     { to: 'cancelled', label: 'Cancelar', color: 'danger' },
   ],
@@ -108,20 +101,9 @@ const isExpiringSoon = (expiresAt: string | undefined, status: OrderStatus) => {
 const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
-const REVIEW_LINK_STATUS: Record<string, string> = {
-  active: 'Activo (vigente)',
-  used: 'Usado por el cliente',
-  revoked: 'Reemplazado',
-}
-
 interface TransitionModalState {
   visible: boolean
   transition: StatusTransition | null
-}
-
-interface LinkModalState {
-  visible: boolean
-  url: string
 }
 
 const OrderDetailPage = () => {
@@ -132,8 +114,6 @@ const OrderDetailPage = () => {
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
-  const reviewLinkInfo = useReviewLinkInfo(id, order?.status)
-  const createReviewLink = useCreateReviewLink()
 
   const [transitionModal, setTransitionModal] = useState<TransitionModalState>({
     visible: false,
@@ -142,9 +122,6 @@ const OrderDetailPage = () => {
   const [transitionNote, setTransitionNote] = useState('')
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
-  const [linkModal, setLinkModal] = useState<LinkModalState>({ visible: false, url: '' })
-  const [regenModal, setRegenModal] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   const openTransition = (transition: StatusTransition) => {
     setTransitionNote('')
@@ -175,26 +152,6 @@ const OrderDetailPage = () => {
       { id, data: { externalInvoiceId: invoiceId } },
       { onSuccess: closeInvoice },
     )
-  }
-
-  const generateLink = () => {
-    if (!id) return
-    createReviewLink.mutate(id, {
-      onSuccess: (data) => {
-        setCopied(false)
-        setRegenModal(false)
-        setLinkModal({ visible: true, url: data.url ?? '' })
-      },
-    })
-  }
-
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(linkModal.url)
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
   }
 
   if (isLoading) {
@@ -486,69 +443,6 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* Enlace de revisión (solo en cotización) */}
-      {order.status === 'quoted' && (
-        <CCard className="mb-3">
-          <CCardHeader>
-            <strong>Enlace de revisión</strong>
-          </CCardHeader>
-          <CCardBody>
-            {reviewLinkInfo.isLoading ? (
-              <CSpinner size="sm" />
-            ) : reviewLinkInfo.data ? (
-              <>
-                <div className="small mb-2">
-                  <div>
-                    Estado:{' '}
-                    <strong>
-                      {REVIEW_LINK_STATUS[reviewLinkInfo.data.status] ?? reviewLinkInfo.data.status}
-                    </strong>
-                  </div>
-                  <div className="text-body-secondary">
-                    Creado: {fmtDateTime(reviewLinkInfo.data.createdAt)} · Vence:{' '}
-                    {fmtDate(reviewLinkInfo.data.expiresAt)}
-                    {reviewLinkInfo.data.usedAt &&
-                      ` · Usado: ${fmtDateTime(reviewLinkInfo.data.usedAt)}`}
-                  </div>
-                </div>
-                <CButton
-                  color="secondary"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setRegenModal(true)}
-                >
-                  Regenerar enlace
-                </CButton>
-              </>
-            ) : (
-              <>
-                <p className="text-body-secondary small mb-2">
-                  Generá un enlace seguro para que el cliente revise y confirme esta cotización.
-                </p>
-                <CButton
-                  color="primary"
-                  variant="outline"
-                  size="sm"
-                  onClick={generateLink}
-                  disabled={createReviewLink.isPending}
-                >
-                  {createReviewLink.isPending ? (
-                    <CSpinner size="sm" />
-                  ) : (
-                    'Generar enlace de revisión'
-                  )}
-                </CButton>
-              </>
-            )}
-            {createReviewLink.error && (
-              <div className="text-danger small mt-2">
-                {createReviewLink.error.message || 'Error al generar el enlace.'}
-              </div>
-            )}
-          </CCardBody>
-        </CCard>
-      )}
-
       {/* Documents & invoice */}
       {showDocuments && (
         <CCard className="mb-3">
@@ -659,47 +553,6 @@ const OrderDetailPage = () => {
         </CModalFooter>
       </CModal>
 
-      {/* Review link result modal */}
-      <CModal visible={linkModal.visible} onClose={() => setLinkModal({ visible: false, url: '' })}>
-        <CModalHeader>
-          <CModalTitle>Enlace de revisión generado</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <CAlert color="warning" className="py-2 small">
-            Copiá este enlace ahora: por seguridad, solo se muestra una vez.
-          </CAlert>
-          <CInputGroup>
-            <CFormInput value={linkModal.url} readOnly />
-            <CButton color="primary" onClick={copyLink}>
-              <CIcon icon={cilCopy} className="me-1" />
-              {copied ? '¡Copiado!' : 'Copiar'}
-            </CButton>
-          </CInputGroup>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setLinkModal({ visible: false, url: '' })}>
-            Cerrar
-          </CButton>
-        </CModalFooter>
-      </CModal>
-
-      {/* Regenerate confirmation modal */}
-      <CModal visible={regenModal} onClose={() => setRegenModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Regenerar enlace</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          El enlace anterior dejará de funcionar de inmediato. ¿Generar uno nuevo?
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setRegenModal(false)}>
-            Cancelar
-          </CButton>
-          <CButton color="primary" onClick={generateLink} disabled={createReviewLink.isPending}>
-            {createReviewLink.isPending ? <CSpinner size="sm" /> : 'Regenerar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
     </>
   )
 }

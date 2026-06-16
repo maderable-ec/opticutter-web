@@ -2,15 +2,12 @@ import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { CAlert, CButton, CCard, CCardBody, CContainer, CSpinner } from '@coreui/react'
 
-import OrderStatusBadge from 'src/features/orders/OrderStatusBadge'
 import { ApiError } from 'src/shared/api/types'
 import { useReview } from './useReview'
 import { reviewApi } from './reviewApi'
 import ReviewSummary from './ReviewSummary'
 import ReviewActions from './ReviewActions'
 import { fmtDate, fmtDateTime } from './format'
-
-const CONFIRMED_STATES = ['confirmed', 'approved', 'in_production', 'cut', 'completed']
 
 const Shell = ({ children }: { children: ReactNode }) => (
   <div className="min-vh-100 bg-body-tertiary py-4">
@@ -50,7 +47,6 @@ const ReviewPage = () => {
   }
 
   if (error) {
-    // ApiError lleva el status HTTP; un fallo de red (TypeError de fetch) no es ApiError.
     const errStatus = error instanceof ApiError ? error.status : null
     // 404 = token inexistente o revocado (definitivo, sin reintento ni detalles técnicos).
     if (errStatus === 404) {
@@ -60,7 +56,6 @@ const ReviewPage = () => {
         </InfoView>
       )
     }
-    // Sin status = fallo de red → reintentable.
     if (errStatus == null) {
       return (
         <Shell>
@@ -88,14 +83,11 @@ const ReviewPage = () => {
       <CCardBody>
         <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div>
-            <div className="d-flex align-items-center gap-2 mb-1">
-              <h5 className="mb-0">{data.orderCode}</h5>
-              <OrderStatusBadge status={status} />
-            </div>
+            <h5 className="mb-1">{data.reference}</h5>
             <div className="text-body-secondary small">Cliente: {data.clientName}</div>
           </div>
           <div className="text-end small">
-            {status === 'quoted' && data.expiresAt && (
+            {status === 'sent' && data.expiresAt && (
               <div>
                 Válida hasta el <strong>{fmtDate(data.expiresAt)}</strong>
               </div>
@@ -109,9 +101,17 @@ const ReviewPage = () => {
     </CCard>
   )
 
-  if (status === 'quoted') {
+  if (status === 'sent' || status === 'changes_requested') {
     return (
       <Shell>
+        {status === 'changes_requested' && (
+          <CAlert color="info" className="mb-3">
+            <strong>Pediste cambios — el taller está ajustando tu cotización.</strong>
+            {data.clientNote && (
+              <div className="mt-1 small">Tu nota: &ldquo;{data.clientNote}&rdquo;</div>
+            )}
+          </CAlert>
+        )}
         {header}
         <ReviewSummary data={data} />
         <CCard className="mb-3">
@@ -132,7 +132,7 @@ const ReviewPage = () => {
     )
   }
 
-  if (CONFIRMED_STATES.includes(status)) {
+  if (status === 'confirmed') {
     return (
       <Shell>
         <CAlert color="success">
@@ -165,9 +165,17 @@ const ReviewPage = () => {
     )
   }
 
+  if (status === 'rejected') {
+    return (
+      <InfoView title="Cotización rechazada">
+        Esta cotización fue rechazada. Contactá a ventas para más información.
+      </InfoView>
+    )
+  }
+
   if (status === 'cancelled') {
     return (
-      <InfoView title="Cotización rechazada o retirada">
+      <InfoView title="Cotización retirada">
         Esta cotización ya no está disponible. Contactá a ventas para más información.
       </InfoView>
     )
