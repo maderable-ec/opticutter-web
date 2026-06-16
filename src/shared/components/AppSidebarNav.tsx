@@ -19,6 +19,7 @@ export interface NavItem {
   to?: string
   href?: string
   items?: NavItem[]
+  roles?: string[]
   [key: string]: unknown
 }
 

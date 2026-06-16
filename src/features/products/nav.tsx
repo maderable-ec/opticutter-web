@@ -9,5 +9,6 @@ export const productsNav: NavItem[] = [
     name: 'Productos',
     to: '/products',
     icon: <CIcon icon={cilStorage} customClassName="nav-icon" />,
+    roles: ['administrador', 'vendedor'],
   },
 ]

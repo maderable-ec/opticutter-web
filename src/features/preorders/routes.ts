@@ -5,6 +5,16 @@ const PreOrdersPage = lazy(() => import('./PreOrdersPage'))
 const PreOrderDetailPage = lazy(() => import('./PreOrderDetailPage'))
 
 export const preordersRoutes: AppRoute[] = [
-  { path: '/preorders', name: 'Cotizaciones', element: PreOrdersPage },
-  { path: '/preorders/:id', name: 'Detalle de cotización', element: PreOrderDetailPage },
+  {
+    path: '/preorders',
+    name: 'Cotizaciones',
+    element: PreOrdersPage,
+    roles: ['administrador', 'vendedor'],
+  },
+  {
+    path: '/preorders/:id',
+    name: 'Detalle de cotización',
+    element: PreOrderDetailPage,
+    roles: ['administrador', 'vendedor'],
+  },
 ]

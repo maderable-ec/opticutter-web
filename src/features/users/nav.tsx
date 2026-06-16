@@ -1,14 +1,14 @@
 import CIcon from '@coreui/icons-react'
-import { cilSpeedometer } from '@coreui/icons'
+import { cilPeople } from '@coreui/icons'
 import { CNavItem } from '@coreui/react'
 import type { NavItem } from 'src/shared/components/AppSidebarNav'
 
-export const dashboardNav: NavItem[] = [
+export const usersNav: NavItem[] = [
   {
     component: CNavItem,
-    name: 'Dashboard',
-    to: '/dashboard',
-    icon: <CIcon icon={cilSpeedometer} customClassName="nav-icon" />,
+    name: 'Usuarios',
+    to: '/users',
+    icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
     roles: ['administrador'],
   },
 ]
