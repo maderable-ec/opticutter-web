@@ -77,18 +77,15 @@ const KpiCards = ({ from, to }: KpiCardsProps) => {
         </CCardHeader>
         <CCardBody>
           <CRow className="g-3">
-            <CCol xs={6} md={4}>
+            <CCol xs={6} md={6}>
               <StatCard label="Órdenes pendientes" value={s.pendingOrdersCount} color="info" />
             </CCol>
-            <CCol xs={6} md={4}>
+            <CCol xs={6} md={6}>
               <StatCard
                 label="Tasa de cancelación"
                 value={fmtPct(s.cancellationRate)}
                 color="danger"
               />
-            </CCol>
-            <CCol xs={6} md={4}>
-              <StatCard label="Tasa de expiración" value={fmtPct(s.expiryRate)} color="warning" />
             </CCol>
           </CRow>
         </CCardBody>

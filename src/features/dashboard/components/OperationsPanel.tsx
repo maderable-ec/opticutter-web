@@ -4,7 +4,6 @@ import { getStyle } from '@coreui/utils'
 import { useOperations } from '../useAnalytics'
 
 const fmtEff = (val: number) => `${val.toFixed(1)} %`
-const fmtPct = (rate: number) => `${(rate * 100).toFixed(1)} %`
 const fmtM2 = (n: number) => `${n.toFixed(1)} m²`
 const fmtHours = (h: number) =>
   h > 48 ? `${Math.floor(h / 24)}d ${Math.round(h % 24)}h` : `${h.toFixed(1)} h`
@@ -124,17 +123,6 @@ const OperationsPanel = ({ from, to }: OperationsPanelProps) => {
             <div className="border-start border-start-4 border-start-success py-1 px-3">
               <div className="text-body-secondary small">Eficiencia promedio</div>
               <div className="fs-3 fw-bold text-success">{fmtEff(data.averageEfficiency)}</div>
-            </div>
-          </CCol>
-          <CCol xs={6}>
-            <div className="border-start border-start-4 border-start-warning py-1 px-3">
-              <div className="text-body-secondary small">Fricción comercial</div>
-              <div className="fs-3 fw-bold text-warning">
-                {fmtPct(data.expiryBeforeApprovalRate)}
-              </div>
-              <div className="text-body-secondary" style={{ fontSize: '0.65rem' }}>
-                Expiradas sin aprobar
-              </div>
             </div>
           </CCol>
           <CCol xs={6}>

@@ -43,7 +43,11 @@ import {
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
 import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
-import type { MaterialInput, OptimizeResponse, RequirementInput } from 'src/features/optimizer/types'
+import type {
+  MaterialInput,
+  OptimizeResponse,
+  RequirementInput,
+} from 'src/features/optimizer/types'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { ApiError } from 'src/shared/api/types'
 
@@ -360,7 +364,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                 >
                   {isMissingPhone
                     ? 'El cliente no tiene celular registrado. Registrá un número antes de generar el enlace.'
-                    : (createReviewLink.error.message || 'Error al generar el enlace.')}
+                    : createReviewLink.error.message || 'Error al generar el enlace.'}
                 </CAlert>
               )}
             </CCol>
@@ -575,11 +579,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
             Cancelar
           </CButton>
-          <CButton
-            color="danger"
-            onClick={handleDelete}
-            disabled={deletePreOrder.isPending}
-          >
+          <CButton color="danger" onClick={handleDelete} disabled={deletePreOrder.isPending}>
             {deletePreOrder.isPending ? <CSpinner size="sm" /> : 'Eliminar'}
           </CButton>
         </CModalFooter>
@@ -603,9 +603,7 @@ const PreOrderDetailPage = () => {
   }
 
   if (error || !preOrder) {
-    return (
-      <CAlert color="danger">No se pudo cargar la cotización.</CAlert>
-    )
+    return <CAlert color="danger">No se pudo cargar la cotización.</CAlert>
   }
 
   return <PreOrderView preOrder={preOrder} />

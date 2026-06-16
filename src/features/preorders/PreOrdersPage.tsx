@@ -54,8 +54,11 @@ const isExpiringSoon = (expiresAt: string | null | undefined, status: PreOrderSt
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
 
-const clientLabel = (c: { firstName?: string | null; lastName?: string | null; identifier?: string }) =>
-  [c.firstName, c.lastName].filter(Boolean).join(' ') || c.identifier || '—'
+const clientLabel = (c: {
+  firstName?: string | null
+  lastName?: string | null
+  identifier?: string
+}) => [c.firstName, c.lastName].filter(Boolean).join(' ') || c.identifier || '—'
 
 const PreOrdersPage = () => {
   const navigate = useNavigate()
@@ -136,7 +139,9 @@ const PreOrdersPage = () => {
                           <PreOrderStatusBadge status={po.status} />
                         </CTableDataCell>
                         <CTableDataCell>{po.source}</CTableDataCell>
-                        <CTableDataCell className="text-nowrap">{fmtDate(po.createdAt)}</CTableDataCell>
+                        <CTableDataCell className="text-nowrap">
+                          {fmtDate(po.createdAt)}
+                        </CTableDataCell>
                         <CTableDataCell
                           className={`text-nowrap ${expiringSoon ? 'text-danger fw-semibold' : ''}`}
                         >
