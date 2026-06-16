@@ -7,7 +7,6 @@ import type {
   Order,
   OrderCreatePayload,
   OrderListParams,
-  ReviewLinkInfo,
   UpdateStatusPayload,
 } from './types'
 
@@ -26,8 +25,6 @@ export const ordersApi = {
     httpClient.patch<Order>(`${BASE}/${id}/status`, data),
   associateInvoice: (id: string, data: AssociateInvoicePayload) =>
     httpClient.post<Order>(`${BASE}/${id}/invoice`, data),
-  createReviewLink: (id: string) => httpClient.post<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
-  getReviewLinkInfo: (id: string) => httpClient.get<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),

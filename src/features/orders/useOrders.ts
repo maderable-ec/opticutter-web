@@ -31,22 +31,6 @@ export const useCreateOrder = () => {
   })
 }
 
-export const useReviewLinkInfo = (id?: string, status?: OrderStatus) =>
-  useQuery({
-    queryKey: ['review-link', id],
-    queryFn: () => ordersApi.getReviewLinkInfo(id as string),
-    enabled: !!id && status === 'quoted',
-    retry: false,
-  })
-
-export const useCreateReviewLink = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => ordersApi.createReviewLink(id),
-    onSuccess: (_data, id) => qc.invalidateQueries({ queryKey: ['review-link', id] }),
-  })
-}
-
 export const useUpdateOrderStatus = () => {
   const qc = useQueryClient()
   return useMutation({

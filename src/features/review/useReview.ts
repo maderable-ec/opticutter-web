@@ -26,3 +26,11 @@ export const useRejectReview = (token: string) => {
     onSuccess: (data) => qc.setQueryData(['review', token], data),
   })
 }
+
+export const useRequestChangesReview = (token: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (note?: string) => reviewApi.requestChanges(token, note),
+    onSuccess: (data) => qc.setQueryData(['review', token], data),
+  })
+}
