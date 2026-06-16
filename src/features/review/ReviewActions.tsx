@@ -13,7 +13,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 
-import { useConfirmReview, useRejectReview } from './useReview'
+import { useConfirmReview, useRejectReview, useRequestChangesReview } from './useReview'
 
 interface ReviewActionsProps {
   token: string
@@ -23,17 +23,30 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
   const qc = useQueryClient()
   const confirm = useConfirmReview(token)
   const reject = useRejectReview(token)
+  const requestChanges = useRequestChangesReview(token)
+
   const [rejectModal, setRejectModal] = useState(false)
-  const [note, setNote] = useState('')
+  const [changesModal, setChangesModal] = useState(false)
+  const [rejectNote, setRejectNote] = useState('')
+  const [changesNote, setChangesNote] = useState('')
 
   const closeReject = () => {
     const hadError = !!reject.error
     setRejectModal(false)
-    setNote('')
+    setRejectNote('')
     reject.reset()
-    // Si el rechazo falló (p. ej. 409 ya confirmada), re-sincronizamos al cerrar.
     if (hadError) qc.invalidateQueries({ queryKey: ['review', token] })
   }
+
+  const closeChanges = () => {
+    const hadError = !!requestChanges.error
+    setChangesModal(false)
+    setChangesNote('')
+    requestChanges.reset()
+    if (hadError) qc.invalidateQueries({ queryKey: ['review', token] })
+  }
+
+  const anyPending = confirm.isPending || reject.isPending || requestChanges.isPending
 
   return (
     <>
@@ -43,23 +56,63 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
         </CAlert>
       )}
       <div className="d-flex gap-2 flex-wrap">
-        <CButton
-          color="primary"
-          disabled={confirm.isPending}
-          onClick={() => confirm.mutate(undefined)}
-        >
+        <CButton color="primary" disabled={anyPending} onClick={() => confirm.mutate(undefined)}>
           {confirm.isPending ? <CSpinner size="sm" /> : 'Confirmar pedido'}
+        </CButton>
+        <CButton
+          color="warning"
+          variant="outline"
+          disabled={anyPending}
+          onClick={() => setChangesModal(true)}
+        >
+          Solicitar cambios
         </CButton>
         <CButton
           color="secondary"
           variant="outline"
-          disabled={confirm.isPending}
+          disabled={anyPending}
           onClick={() => setRejectModal(true)}
         >
           Rechazar
         </CButton>
       </div>
 
+      {/* Request changes modal */}
+      <CModal visible={changesModal} onClose={closeChanges}>
+        <CModalHeader>
+          <CModalTitle>Solicitar cambios</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p>Indicá qué ajustes necesitás en la cotización. El taller recibirá tu nota.</p>
+          <CFormLabel>¿Qué querés cambiar? (opcional)</CFormLabel>
+          <CFormTextarea
+            rows={3}
+            maxLength={512}
+            value={changesNote}
+            onChange={(e) => setChangesNote(e.target.value)}
+            placeholder="Ej: cambiá las dimensiones de la pieza 2, agregá barniz…"
+          />
+          {requestChanges.error && (
+            <div className="text-danger small mt-2">
+              {requestChanges.error.message || 'No se pudo enviar la solicitud.'}
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={closeChanges}>
+            Cancelar
+          </CButton>
+          <CButton
+            color="warning"
+            disabled={requestChanges.isPending}
+            onClick={() => requestChanges.mutate(changesNote || undefined)}
+          >
+            {requestChanges.isPending ? <CSpinner size="sm" /> : 'Enviar solicitud'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Reject modal */}
       <CModal visible={rejectModal} onClose={closeReject}>
         <CModalHeader>
           <CModalTitle>Rechazar cotización</CModalTitle>
@@ -70,8 +123,8 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CFormTextarea
             rows={3}
             maxLength={512}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+            value={rejectNote}
+            onChange={(e) => setRejectNote(e.target.value)}
             placeholder="Motivo del rechazo…"
           />
           {reject.error && (
@@ -87,7 +140,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CButton
             color="danger"
             disabled={reject.isPending}
-            onClick={() => reject.mutate(note || undefined)}
+            onClick={() => reject.mutate(rejectNote || undefined)}
           >
             {reject.isPending ? <CSpinner size="sm" /> : 'Rechazar'}
           </CButton>
