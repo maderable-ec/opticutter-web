@@ -29,6 +29,7 @@ import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
 
 import ProductForm from './ProductForm'
 import { useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct } from './useProducts'
+import { useHasRole } from 'src/features/auth/useAuth'
 import type {
   BoardAttributes,
   EdgeBandingAttributes,
@@ -61,6 +62,7 @@ interface ProductModalState {
 }
 
 const ProductsPage = () => {
+  const isReadOnly = useHasRole('vendedor')
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<ProductType | ''>('')
@@ -166,18 +168,22 @@ const ProductsPage = () => {
   const renderRow = (p: Product) => {
     const actions = (
       <CTableDataCell className="text-end text-nowrap">
-        <CButton variant="ghost" color="secondary" size="sm" onClick={() => openEdit(p)}>
-          <CIcon icon={cilPencil} />
-        </CButton>
-        <CButton
-          variant="ghost"
-          color="danger"
-          size="sm"
-          className="ms-1"
-          onClick={() => openDelete(p)}
-        >
-          <CIcon icon={cilTrash} />
-        </CButton>
+        {!isReadOnly && (
+          <>
+            <CButton variant="ghost" color="secondary" size="sm" onClick={() => openEdit(p)}>
+              <CIcon icon={cilPencil} />
+            </CButton>
+            <CButton
+              variant="ghost"
+              color="danger"
+              size="sm"
+              className="ms-1"
+              onClick={() => openDelete(p)}
+            >
+              <CIcon icon={cilTrash} />
+            </CButton>
+          </>
+        )}
       </CTableDataCell>
     )
 
@@ -255,10 +261,12 @@ const ProductsPage = () => {
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Productos</strong>
-          <CButton color="primary" size="sm" onClick={openCreate}>
-            <CIcon icon={cilPlus} className="me-1" />
-            Nuevo producto
-          </CButton>
+          {!isReadOnly && (
+            <CButton color="primary" size="sm" onClick={openCreate}>
+              <CIcon icon={cilPlus} className="me-1" />
+              Nuevo producto
+            </CButton>
+          )}
         </CCardHeader>
         <CCardBody>
           <CRow className="mb-3 g-2">

@@ -1,5 +1,6 @@
 import { ApiError } from './types'
 import type { ApiErrorItem, PaginatedResult, Pagination } from './types'
+import { useAuthStore } from 'src/shared/store/authStore'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
@@ -17,17 +18,34 @@ const buildError = (status: number, body: ErrorBody): ApiError => {
   return new ApiError(status, message, body.errors ?? [], body.meta?.requestId ?? '')
 }
 
+const buildHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const token = useAuthStore.getState().token
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  return headers
+}
+
 const send = async (path: string, options: RequestOptions): Promise<Response> =>
   fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: { ...buildHeaders(), ...options.headers },
   })
+
+const handle401 = (path: string) => {
+  if (!path.includes('/auth/login')) {
+    useAuthStore.getState().clearSession()
+    window.location.replace('/#/login')
+  }
+}
 
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const res = await send(path, options)
   if (res.status === 204) return null as T
   const body = await res.json()
-  if (!res.ok) throw buildError(res.status, body)
+  if (!res.ok) {
+    if (res.status === 401) handle401(path)
+    throw buildError(res.status, body)
+  }
   return body.data as T
 }
 
@@ -37,7 +55,10 @@ const requestList = async <T>(
 ): Promise<PaginatedResult<T>> => {
   const res = await send(path, options)
   const body = await res.json()
-  if (!res.ok) throw buildError(res.status, body)
+  if (!res.ok) {
+    if (res.status === 401) handle401(path)
+    throw buildError(res.status, body)
+  }
   return { items: body.data as T[], pagination: body.meta.pagination as Pagination }
 }
 

@@ -9,5 +9,6 @@ export const optimizerNav: NavItem[] = [
     name: 'Optimizador',
     to: '/optimizer',
     icon: <CIcon icon={cilCalculator} customClassName="nav-icon" />,
+    roles: ['administrador', 'vendedor'],
   },
 ]

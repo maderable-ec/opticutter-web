@@ -1,91 +1,43 @@
 import {
-  CAvatar,
   CBadge,
   CDropdown,
   CDropdownDivider,
-  CDropdownHeader,
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
-import {
-  cilBell,
-  cilCreditCard,
-  cilCommentSquare,
-  cilEnvelopeOpen,
-  cilFile,
-  cilLockLocked,
-  cilSettings,
-  cilTask,
-  cilUser,
-} from '@coreui/icons'
+import { cilAccountLogout } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
+import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
 
-import avatar8 from 'src/assets/images/avatars/8.jpg'
+const ROLE_LABELS: Record<string, string> = {
+  administrador: 'Admin',
+  vendedor: 'Vendedor',
+  operador: 'Operador',
+}
 
 const AppHeaderDropdown = () => {
+  const user = useCurrentUser()
+  const logout = useLogout()
+
+  const displayName = user?.fullName ?? user?.email ?? '—'
+  const roleLabel = user?.role ? (ROLE_LABELS[user.role] ?? user.role) : ''
+
   return (
     <CDropdown variant="nav-item" placement="bottom-end">
-      <CDropdownToggle className="py-0 pe-0" caret={false}>
-        <CAvatar src={avatar8} size="md" />
+      <CDropdownToggle className="py-0 pe-0 d-flex align-items-center gap-2" caret={false}>
+        <span className="d-none d-sm-inline fw-semibold">{displayName}</span>
+        {roleLabel && (
+          <CBadge color="secondary" className="d-none d-sm-inline">
+            {roleLabel}
+          </CBadge>
+        )}
       </CDropdownToggle>
-      <CDropdownMenu className="pt-0">
-        <CDropdownHeader className="bg-body-secondary fw-semibold mb-2">Account</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilBell} className="me-2" />
-          Updates
-          <CBadge color="info" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilEnvelopeOpen} className="me-2" />
-          Messages
-          <CBadge color="success" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilTask} className="me-2" />
-          Tasks
-          <CBadge color="danger" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCommentSquare} className="me-2" />
-          Comments
-          <CBadge color="warning" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownHeader className="bg-body-secondary fw-semibold my-2">Settings</CDropdownHeader>
-        <CDropdownItem href="#">
-          <CIcon icon={cilUser} className="me-2" />
-          Profile
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilSettings} className="me-2" />
-          Settings
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilCreditCard} className="me-2" />
-          Payments
-          <CBadge color="secondary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
-        <CDropdownItem href="#">
-          <CIcon icon={cilFile} className="me-2" />
-          Projects
-          <CBadge color="primary" className="ms-2">
-            42
-          </CBadge>
-        </CDropdownItem>
+      <CDropdownMenu className="pt-0" style={{ minWidth: 200 }}>
         <CDropdownDivider />
-        <CDropdownItem href="#">
-          <CIcon icon={cilLockLocked} className="me-2" />
-          Lock Account
+        <CDropdownItem onClick={logout} style={{ cursor: 'pointer' }}>
+          <CIcon icon={cilAccountLogout} className="me-2" />
+          Cerrar sesión
         </CDropdownItem>
       </CDropdownMenu>
     </CDropdown>
