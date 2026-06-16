@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import useUIStore from 'src/shared/store/uiStore'
+import { useAuthStore } from 'src/shared/store/authStore'
 
 import {
   CCloseButton,
@@ -23,8 +24,10 @@ import { optimizerNav } from 'src/features/optimizer/nav'
 import { clientsNav } from 'src/features/clients/nav'
 import { productsNav } from 'src/features/products/nav'
 import { settingsNav } from 'src/features/settings/nav'
+import { usersNav } from 'src/features/users/nav'
 
-const navigation = [
+const allNavItems = [
+  ...usersNav,
   ...dashboardNav,
   ...optimizerNav,
   ...preordersNav,
@@ -39,6 +42,11 @@ const AppSidebar = () => {
   const sidebarShow = useUIStore((state) => state.sidebarShow)
   const setSidebarShow = useUIStore((state) => state.setSidebarShow)
   const setSidebarUnfoldable = useUIStore((state) => state.setSidebarUnfoldable)
+  const userRole = useAuthStore((s) => s.user?.role)
+
+  const navigation = allNavItems.filter(
+    (item) => !item.roles || (userRole && item.roles.includes(userRole)),
+  )
 
   return (
     <CSidebar

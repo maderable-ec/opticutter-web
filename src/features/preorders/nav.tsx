@@ -9,5 +9,6 @@ export const preordersNav: NavItem[] = [
     name: 'Cotizaciones',
     to: '/preorders',
     icon: <CIcon icon={cilFile} customClassName="nav-icon" />,
+    roles: ['administrador', 'vendedor'],
   },
 ]

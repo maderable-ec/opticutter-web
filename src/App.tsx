@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import useUIStore from 'src/shared/store/uiStore'
+import { useAuthStore } from 'src/shared/store/authStore'
+import { authApi } from 'src/features/auth/authApi'
 
 import { CSpinner, useColorModes } from '@coreui/react'
 import './scss/style.scss'
@@ -9,10 +11,46 @@ import './scss/examples.scss'
 import { authRoutes } from 'src/features/auth/routes'
 import { reviewRoutes } from 'src/features/review/routes'
 
-// Rutas públicas standalone (sin el layout administrativo): se montan antes del catch-all.
+// Public routes rendered standalone (without the admin layout).
 const publicRoutes = [...authRoutes, ...reviewRoutes]
 
 const DefaultLayout = lazy(() => import('src/shared/layout/DefaultLayout'))
+
+const SessionRestorer = () => {
+  const { status, setUser, setStatus, clearSession } = useAuthStore()
+
+  useEffect(() => {
+    if (status !== 'loading') return
+    authApi
+      .me()
+      .then((user) => {
+        setUser(user)
+        setStatus('authenticated')
+      })
+      .catch(() => clearSession())
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return null
+}
+
+const RequireAuth = ({ children }: { children: React.ReactNode }) => {
+  const status = useAuthStore((s) => s.status)
+  const location = useLocation()
+
+  if (status === 'idle' || status === 'loading') {
+    return (
+      <div className="min-vh-100 d-flex align-items-center justify-content-center">
+        <CSpinner color="primary" />
+      </div>
+    )
+  }
+
+  if (status === 'unauthenticated') {
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return <>{children}</>
+}
 
 const App = () => {
   const { isColorModeSet, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
@@ -35,6 +73,7 @@ const App = () => {
 
   return (
     <HashRouter>
+      <SessionRestorer />
       <Suspense
         fallback={
           <div className="pt-3 text-center">
@@ -49,7 +88,14 @@ const App = () => {
               <Route key={route.path} path={route.path} element={<Element />} />
             ) : null
           })}
-          <Route path="*" element={<DefaultLayout />} />
+          <Route
+            path="*"
+            element={
+              <RequireAuth>
+                <DefaultLayout />
+              </RequireAuth>
+            }
+          />
         </Routes>
       </Suspense>
     </HashRouter>

@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
+  CAlert,
   CButton,
   CCard,
   CCardBody,
-  CCardGroup,
   CCol,
   CContainer,
   CForm,
@@ -11,70 +12,92 @@ import {
   CInputGroup,
   CInputGroupText,
   CRow,
+  CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilLockLocked, cilUser } from '@coreui/icons'
+import { cilEnvelopeClosed, cilLockLocked } from '@coreui/icons'
+import { useLogin } from './useAuth'
+import { ApiError } from 'src/shared/api/types'
 
-const Login = () => {
+const LoginPage = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const navigate = useNavigate()
+  const location = useLocation()
+  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/'
+
+  const login = useLogin()
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    login.mutate({ email, password }, { onSuccess: () => navigate(from, { replace: true }) })
+  }
+
+  const errorMsg =
+    login.error instanceof ApiError
+      ? (login.error.errors[0]?.message ?? login.error.message)
+      : login.error
+        ? 'Error inesperado. Intente nuevamente.'
+        : null
+
   return (
     <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
       <CContainer>
         <CRow className="justify-content-center">
-          <CCol md={8}>
-            <CCardGroup>
-              <CCard className="p-4">
-                <CCardBody>
-                  <CForm>
-                    <h1>Login</h1>
-                    <p className="text-body-secondary">Sign In to your account</p>
-                    <CInputGroup className="mb-3">
-                      <CInputGroupText>
-                        <CIcon icon={cilUser} />
-                      </CInputGroupText>
-                      <CFormInput placeholder="Username" autoComplete="username" />
-                    </CInputGroup>
-                    <CInputGroup className="mb-4">
-                      <CInputGroupText>
-                        <CIcon icon={cilLockLocked} />
-                      </CInputGroupText>
-                      <CFormInput
-                        type="password"
-                        placeholder="Password"
-                        autoComplete="current-password"
-                      />
-                    </CInputGroup>
-                    <CRow>
-                      <CCol xs={6}>
-                        <CButton color="primary" className="px-4">
-                          Login
-                        </CButton>
-                      </CCol>
-                      <CCol xs={6} className="text-right">
-                        <CButton color="link" className="px-0">
-                          Forgot password?
-                        </CButton>
-                      </CCol>
-                    </CRow>
-                  </CForm>
-                </CCardBody>
-              </CCard>
-              <CCard className="text-white bg-primary py-5" style={{ width: '44%' }}>
-                <CCardBody className="text-center">
-                  <div>
-                    <h2>Sign up</h2>
-                    <p>
-                      Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod
-                      tempor incididunt ut labore et dolore magna aliqua.
-                    </p>
-                    <Link to="/register">
-                      <CButton color="primary" className="mt-3" active tabIndex={-1}>
-                        Register Now!
-                      </CButton>
-                    </Link>
-                  </div>
-                </CCardBody>
-              </CCard>
-            </CCardGroup>
+          <CCol md={5} lg={4}>
+            <CCard className="p-4">
+              <CCardBody>
+                <CForm onSubmit={handleSubmit}>
+                  <h1>Iniciar sesión</h1>
+                  <p className="text-body-secondary mb-4">Ingresá con tu cuenta</p>
+
+                  {errorMsg && (
+                    <CAlert color="danger" className="py-2">
+                      {errorMsg}
+                    </CAlert>
+                  )}
+
+                  <CInputGroup className="mb-3">
+                    <CInputGroupText>
+                      <CIcon icon={cilEnvelopeClosed} />
+                    </CInputGroupText>
+                    <CFormInput
+                      type="email"
+                      placeholder="Email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      disabled={login.isPending}
+                    />
+                  </CInputGroup>
+
+                  <CInputGroup className="mb-4">
+                    <CInputGroupText>
+                      <CIcon icon={cilLockLocked} />
+                    </CInputGroupText>
+                    <CFormInput
+                      type="password"
+                      placeholder="Contraseña"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      disabled={login.isPending}
+                    />
+                  </CInputGroup>
+
+                  <CButton
+                    color="primary"
+                    type="submit"
+                    className="w-100"
+                    disabled={login.isPending}
+                  >
+                    {login.isPending ? <CSpinner size="sm" /> : 'Entrar'}
+                  </CButton>
+                </CForm>
+              </CCardBody>
+            </CCard>
           </CCol>
         </CRow>
       </CContainer>
@@ -82,4 +105,4 @@ const Login = () => {
   )
 }
 
-export default Login
+export default LoginPage

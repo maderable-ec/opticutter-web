@@ -9,5 +9,6 @@ export const settingsNav: NavItem[] = [
     name: 'Configuración',
     to: '/settings',
     icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
+    roles: ['administrador'],
   },
 ]

@@ -9,5 +9,6 @@ export const clientsNav: NavItem[] = [
     name: 'Clientes',
     to: '/clients',
     icon: <CIcon icon={cilPeople} customClassName="nav-icon" />,
+    roles: ['administrador', 'vendedor'],
   },
 ]

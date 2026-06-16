@@ -5,5 +5,5 @@ const DashboardPage = lazy(() => import('./DashboardPage'))
 
 export const dashboardRoutes: AppRoute[] = [
   { path: '/', exact: true, name: 'Home' },
-  { path: '/dashboard', name: 'Dashboard', element: DashboardPage },
+  { path: '/dashboard', name: 'Dashboard', element: DashboardPage, roles: ['administrador'] },
 ]
