@@ -2,15 +2,12 @@ import type { Client } from 'src/features/clients/types'
 import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
 export type OrderStatus =
-  | 'draft'
-  | 'quoted'
   | 'confirmed'
   | 'approved'
   | 'in_production'
   | 'cut'
   | 'completed'
   | 'cancelled'
-  | 'expired'
 
 export interface OrderLine {
   id: string
@@ -54,7 +51,6 @@ export interface Order {
   pieces?: OrderPiece[]
   history?: OrderHistoryEntry[]
   createdAt: string
-  expiresAt?: string
   confirmedAt?: string
   externalInvoiceId?: string
 }
@@ -72,14 +68,6 @@ export interface UpdateStatusPayload {
 
 export interface AssociateInvoicePayload {
   externalInvoiceId: string
-  [key: string]: unknown
-}
-
-// Payload to create a quote/order. The cut-list is sent as `materials` + `requirements`
-// (built by the optimizer feature); those travel through the index signature.
-export interface OrderCreatePayload {
-  clientId?: number
-  pieces?: OrderPiece[]
   [key: string]: unknown
 }
 

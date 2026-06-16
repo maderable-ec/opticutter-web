@@ -31,12 +31,7 @@ import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import OrderStatusBadge from './OrderStatusBadge'
-import {
-  useAssociateInvoice,
-  useCuttingPlan,
-  useOrder,
-  useUpdateOrderStatus,
-} from './useOrders'
+import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
 import { ordersApi } from './ordersApi'
 import type { OrderStatus } from './types'
 
@@ -46,17 +41,13 @@ interface StatusTransition {
   color: string
 }
 
-const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled', 'expired']
+const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled']
 
 // Estados donde el plan de corte es relevante: producción (interactivo en el taller) y posteriores
 // (solo-lectura, auditoría de lo cortado).
 const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
-  draft: [
-    { to: 'confirmed', label: 'Confirmar', color: 'primary' },
-    { to: 'cancelled', label: 'Cancelar', color: 'danger' },
-  ],
   confirmed: [
     { to: 'approved', label: 'Aprobar', color: 'primary' },
     { to: 'cancelled', label: 'Cancelar', color: 'danger' },
@@ -72,15 +63,6 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
 const fmt = (n?: number | null) =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
-const fmtDate = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : '—'
-
 const fmtDateTime = (iso?: string) =>
   iso
     ? new Date(iso).toLocaleString('es-AR', {
@@ -91,12 +73,6 @@ const fmtDateTime = (iso?: string) =>
         minute: '2-digit',
       })
     : '—'
-
-const isExpiringSoon = (expiresAt: string | undefined, status: OrderStatus) => {
-  if (!expiresAt || TERMINAL_STATES.includes(status)) return false
-  const diff = new Date(expiresAt).getTime() - Date.now()
-  return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
-}
 
 const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
@@ -168,8 +144,6 @@ const OrderDetailPage = () => {
 
   const transitions = STATUS_TRANSITIONS[order.status] ?? []
   const isTerminal = TERMINAL_STATES.includes(order.status)
-  const showDocuments = !(['draft', 'expired'] as OrderStatus[]).includes(order.status)
-  const expiringSoon = isExpiringSoon(order.expiresAt, order.status)
 
   const plan = cuttingPlan.data
   const showProduction = WORKSHOP_STATES.includes(order.status)
@@ -215,15 +189,6 @@ const OrderDetailPage = () => {
                   <div>
                     <span className="text-body-secondary">Confirmado:</span>{' '}
                     {fmtDateTime(order.confirmedAt)}
-                  </div>
-                )}
-                {order.expiresAt && (
-                  <div className={expiringSoon ? 'text-danger fw-semibold' : ''}>
-                    <span className={expiringSoon ? 'text-danger' : 'text-body-secondary'}>
-                      Vence:
-                    </span>{' '}
-                    {fmtDate(order.expiresAt)}
-                    {expiringSoon && ' ⚠ Vence pronto'}
                   </div>
                 )}
               </div>
@@ -443,45 +408,43 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* Documents & invoice */}
-      {showDocuments && (
-        <CCard className="mb-3">
-          <CCardHeader>
-            <strong>Documentos y factura</strong>
-          </CCardHeader>
-          <CCardBody>
-            <div className="d-flex gap-2 flex-wrap">
-              <CButton
-                color="secondary"
-                variant="outline"
-                size="sm"
-                onClick={() => id && ordersApi.downloadProforma(id)}
-              >
-                <CIcon icon={cilExternalLink} className="me-1" />
-                Proforma PDF
-              </CButton>
-              <CButton
-                color="secondary"
-                variant="outline"
-                size="sm"
-                onClick={() => id && ordersApi.downloadProductionSheet(id)}
-              >
-                <CIcon icon={cilExternalLink} className="me-1" />
-                Hoja de producción PDF
-              </CButton>
-              <CButton
-                color="primary"
-                variant="outline"
-                size="sm"
-                disabled={!!order.externalInvoiceId}
-                onClick={() => setInvoiceModal(true)}
-              >
-                {order.externalInvoiceId ? 'Factura asociada' : 'Asociar factura'}
-              </CButton>
-            </div>
-          </CCardBody>
-        </CCard>
-      )}
+      {/* Documents & invoice — las órdenes nacen confirmadas, siempre tienen documentos. */}
+      <CCard className="mb-3">
+        <CCardHeader>
+          <strong>Documentos y factura</strong>
+        </CCardHeader>
+        <CCardBody>
+          <div className="d-flex gap-2 flex-wrap">
+            <CButton
+              color="secondary"
+              variant="outline"
+              size="sm"
+              onClick={() => id && ordersApi.downloadProforma(id)}
+            >
+              <CIcon icon={cilExternalLink} className="me-1" />
+              Proforma PDF
+            </CButton>
+            <CButton
+              color="secondary"
+              variant="outline"
+              size="sm"
+              onClick={() => id && ordersApi.downloadProductionSheet(id)}
+            >
+              <CIcon icon={cilExternalLink} className="me-1" />
+              Hoja de producción PDF
+            </CButton>
+            <CButton
+              color="primary"
+              variant="outline"
+              size="sm"
+              disabled={!!order.externalInvoiceId}
+              onClick={() => setInvoiceModal(true)}
+            >
+              {order.externalInvoiceId ? 'Factura asociada' : 'Asociar factura'}
+            </CButton>
+          </div>
+        </CCardBody>
+      </CCard>
 
       {/* Transition confirmation modal */}
       <CModal visible={transitionModal.visible} onClose={closeTransition}>
@@ -552,7 +515,6 @@ const OrderDetailPage = () => {
           </CButton>
         </CModalFooter>
       </CModal>
-
     </>
   )
 }

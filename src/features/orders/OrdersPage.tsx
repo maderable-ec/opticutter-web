@@ -29,18 +29,13 @@ const LIMIT = 20
 
 const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
-  { value: 'draft', label: 'Borrador' },
-  { value: 'quoted', label: 'Cotizado' },
-  { value: 'confirmed', label: 'Confirmado' },
-  { value: 'approved', label: 'Aprobado' },
+  { value: 'confirmed', label: 'Confirmada' },
+  { value: 'approved', label: 'Aprobada' },
   { value: 'in_production', label: 'En producción' },
-  { value: 'cut', label: 'Cortado' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'cancelled', label: 'Cancelado' },
-  { value: 'expired', label: 'Vencido' },
+  { value: 'cut', label: 'Cortada' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
 ]
-
-const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled', 'expired']
 
 const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
@@ -56,12 +51,6 @@ const fmtDate = (iso?: string) =>
 
 const fmt = (n?: number | null) =>
   n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
-
-const isExpiringSoon = (expiresAt: string | undefined, status: OrderStatus) => {
-  if (!expiresAt || TERMINAL_STATES.includes(status)) return false
-  const diff = new Date(expiresAt).getTime() - Date.now()
-  return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
-}
 
 const OrdersPage = () => {
   const navigate = useNavigate()
@@ -120,46 +109,36 @@ const OrdersPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Creado</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Vence</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {orders.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={5} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
                 ) : (
-                  orders.map((o) => {
-                    const expiringSoon = isExpiringSoon(o.expiresAt, o.status)
-                    return (
-                      <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
-                        <CTableDataCell>
-                          <strong>{o.code ?? '—'}</strong>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <div>{clientName(o.client)}</div>
-                          <div className="text-body-secondary small">@{o.client?.identifier}</div>
-                        </CTableDataCell>
-                        <CTableDataCell>
-                          <OrderStatusBadge status={o.status} />
-                        </CTableDataCell>
-                        <CTableDataCell className="text-end text-nowrap">
-                          {fmt(o.total)}
-                        </CTableDataCell>
-                        <CTableDataCell className="text-nowrap">
-                          {fmtDate(o.createdAt)}
-                        </CTableDataCell>
-                        <CTableDataCell
-                          className={`text-nowrap ${expiringSoon ? 'text-danger fw-semibold' : ''}`}
-                        >
-                          {fmtDate(o.expiresAt)}
-                          {expiringSoon && ' ⚠'}
-                        </CTableDataCell>
-                      </CTableRow>
-                    )
-                  })
+                  orders.map((o) => (
+                    <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
+                      <CTableDataCell>
+                        <strong>{o.code ?? '—'}</strong>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <div>{clientName(o.client)}</div>
+                        <div className="text-body-secondary small">@{o.client?.identifier}</div>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <OrderStatusBadge status={o.status} />
+                      </CTableDataCell>
+                      <CTableDataCell className="text-end text-nowrap">
+                        {fmt(o.total)}
+                      </CTableDataCell>
+                      <CTableDataCell className="text-nowrap">
+                        {fmtDate(o.createdAt)}
+                      </CTableDataCell>
+                    </CTableRow>
+                  ))
                 )}
               </CTableBody>
             </CTable>

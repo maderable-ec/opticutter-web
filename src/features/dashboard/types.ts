@@ -7,7 +7,6 @@ export interface AnalyticsSummary {
   activeClientsCount: number
   pendingOrdersCount: number
   cancellationRate: number
-  expiryRate: number
   totalBoardsConsumed: number
   totalAreaCutM2: number
   wasteEstimateM2: number
@@ -47,7 +46,6 @@ export interface LifecycleTransition {
 
 export interface OperationsStats {
   averageEfficiency: number
-  expiryBeforeApprovalRate: number
   totalAreaCutM2: number
   wasteEstimateM2: number
   lifecycle: LifecycleTransition[]

@@ -25,7 +25,16 @@ export interface CompanySettings {
   branches: Branch[]
 }
 
+/** Pre-order policy. Both are positive integers (≥ 1), edited here in Settings. */
+export interface PreorderSettings {
+  /** Days a pre-order quote stays valid (drives the proforma validity line). */
+  preorderValidityDays: number
+  /** Anti-abuse cap on concurrently open pre-orders per client. */
+  maxOpenPreordersPerClient: number
+}
+
 /** PATCH payloads are partial: send only changed fields. */
 export type CuttingPayload = Partial<CuttingSettings>
 /** For `branches`, sending the field REPLACES the whole array (not a per-item merge). */
 export type CompanyPayload = Partial<CompanySettings>
+export type PreorderPayload = Partial<PreorderSettings>

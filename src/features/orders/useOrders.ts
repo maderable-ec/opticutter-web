@@ -3,7 +3,6 @@ import { ApiError } from 'src/shared/api/types'
 import { clientsApiMin, ordersApi } from './ordersApi'
 import type {
   OrderListParams,
-  OrderStatus,
   UpdateStatusPayload,
   AssociateInvoicePayload,
   CuttingPlan,
@@ -22,14 +21,6 @@ export const useOrder = (id?: string) =>
     queryFn: () => ordersApi.get(id as string),
     enabled: !!id,
   })
-
-export const useCreateOrder = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ordersApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
-  })
-}
 
 export const useUpdateOrderStatus = () => {
   const qc = useQueryClient()
