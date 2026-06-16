@@ -6,6 +6,7 @@ import { ordersRoutes } from 'src/features/orders/routes'
 import { preordersRoutes } from 'src/features/preorders/routes'
 import { optimizerRoutes } from 'src/features/optimizer/routes'
 import { productsRoutes } from 'src/features/products/routes'
+import { settingsRoutes } from 'src/features/settings/routes'
 
 export interface AppRoute {
   path: string
@@ -23,4 +24,5 @@ export const routes: AppRoute[] = [
   ...preordersRoutes,
   ...optimizerRoutes,
   ...productsRoutes,
+  ...settingsRoutes,
 ]

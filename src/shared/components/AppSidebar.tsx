@@ -22,14 +22,16 @@ import { preordersNav } from 'src/features/preorders/nav'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { clientsNav } from 'src/features/clients/nav'
 import { productsNav } from 'src/features/products/nav'
+import { settingsNav } from 'src/features/settings/nav'
 
 const navigation = [
   ...dashboardNav,
-  ...ordersNav,
-  ...preordersNav,
   ...optimizerNav,
+  ...preordersNav,
+  ...ordersNav,
   ...clientsNav,
   ...productsNav,
+  ...settingsNav,
 ]
 
 const AppSidebar = () => {
