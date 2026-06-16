@@ -1,11 +1,14 @@
 import { useState } from 'react'
+import type { ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CButton,
   CCard,
   CCardBody,
   CCardHeader,
+  CCol,
   CFormSelect,
+  CRow,
   CSpinner,
   CTable,
   CTableBody,
@@ -14,10 +17,14 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilPlus } from '@coreui/icons'
 
 import { usePreOrders } from './usePreOrders'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import type { PreOrderStatus } from './types'
+
+const LIMIT = 20
 
 const STATUSES: { value: PreOrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -30,7 +37,7 @@ const STATUSES: { value: PreOrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
-const LIMIT = 20
+const ACTIVE_STATES: PreOrderStatus[] = ['draft', 'sent', 'changes_requested']
 
 const fmtDate = (iso?: string | null) =>
   iso
@@ -41,8 +48,8 @@ const fmtDate = (iso?: string | null) =>
       })
     : '—'
 
-const isExpiringSoon = (expiresAt: string | null, status: PreOrderStatus) => {
-  if (!expiresAt || !['draft', 'sent', 'changes_requested'].includes(status)) return false
+const isExpiringSoon = (expiresAt: string | null | undefined, status: PreOrderStatus) => {
+  if (!expiresAt || !ACTIVE_STATES.includes(status)) return false
   const diff = new Date(expiresAt).getTime() - Date.now()
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
@@ -57,44 +64,45 @@ const PreOrdersPage = () => {
 
   const { data, isLoading } = usePreOrders({ status: status || undefined, offset, limit: LIMIT })
   const items = data?.items ?? []
-  const total = data?.pagination.total ?? 0
+  const pagination = data?.pagination
 
-  const handleStatusChange = (v: string) => {
-    setStatus(v as PreOrderStatus | '')
+  const handleStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    setStatus(e.target.value as PreOrderStatus | '')
     setOffset(0)
   }
 
+  const showPrev = offset > 0
+  const showNext = pagination ? offset + LIMIT < pagination.total : false
+
   return (
     <>
-      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <h5 className="mb-0">Cotizaciones</h5>
-        <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
-          Nueva cotización
-        </CButton>
-      </div>
-
       <CCard>
-        <CCardHeader>
-          <CFormSelect
-            size="sm"
-            style={{ maxWidth: 200 }}
-            value={status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-          >
-            {STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </CFormSelect>
+        <CCardHeader className="d-flex justify-content-between align-items-center">
+          <strong>Cotizaciones</strong>
+          <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
+            <CIcon icon={cilPlus} className="me-1" />
+            Nueva cotización
+          </CButton>
         </CCardHeader>
-        <CCardBody className="p-0">
+        <CCardBody>
+          <CRow className="mb-3">
+            <CCol xs={12} sm={6} md={4}>
+              <CFormSelect value={status} onChange={handleStatusChange}>
+                {STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
+          </CRow>
+
           {isLoading ? (
-            <div className="text-center py-4">
+            <div className="text-center py-5">
               <CSpinner color="primary" />
             </div>
           ) : (
-            <CTable small hover responsive className="mb-0">
+            <CTable align="middle" hover responsive style={{ cursor: 'pointer' }}>
               <CTableHead>
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
@@ -106,69 +114,65 @@ const PreOrdersPage = () => {
                 </CTableRow>
               </CTableHead>
               <CTableBody>
-                {items.length === 0 && (
+                {items.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-4">
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
+                ) : (
+                  items.map((po) => {
+                    const expiringSoon = isExpiringSoon(po.expiresAt, po.status)
+                    return (
+                      <CTableRow key={po.id} onClick={() => navigate(`/preorders/${po.id}`)}>
+                        <CTableDataCell>
+                          <strong>{po.code}</strong>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <div>{clientLabel(po.client)}</div>
+                          <div className="text-body-secondary small">@{po.client.identifier}</div>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <PreOrderStatusBadge status={po.status} />
+                        </CTableDataCell>
+                        <CTableDataCell>{po.source}</CTableDataCell>
+                        <CTableDataCell className="text-nowrap">{fmtDate(po.createdAt)}</CTableDataCell>
+                        <CTableDataCell
+                          className={`text-nowrap ${expiringSoon ? 'text-danger fw-semibold' : ''}`}
+                        >
+                          {fmtDate(po.expiresAt)}
+                          {expiringSoon && ' ⚠'}
+                        </CTableDataCell>
+                      </CTableRow>
+                    )
+                  })
                 )}
-                {items.map((po) => {
-                  const expiring = isExpiringSoon(po.expiresAt, po.status)
-                  return (
-                    <CTableRow
-                      key={po.id}
-                      style={{ cursor: 'pointer' }}
-                      className={expiring ? 'text-danger' : ''}
-                      onClick={() => navigate(`/preorders/${po.id}`)}
-                    >
-                      <CTableDataCell className="fw-semibold">{po.code}</CTableDataCell>
-                      <CTableDataCell>{clientLabel(po.client)}</CTableDataCell>
-                      <CTableDataCell>
-                        <PreOrderStatusBadge status={po.status} />
-                      </CTableDataCell>
-                      <CTableDataCell>{po.source}</CTableDataCell>
-                      <CTableDataCell className="text-nowrap">{fmtDate(po.createdAt)}</CTableDataCell>
-                      <CTableDataCell className="text-nowrap">
-                        {po.expiresAt ? fmtDate(po.expiresAt) : '—'}
-                        {expiring && ' ⚠'}
-                      </CTableDataCell>
-                    </CTableRow>
-                  )
-                })}
               </CTableBody>
             </CTable>
           )}
+
+          {(showPrev || showNext) && (
+            <div className="d-flex justify-content-end gap-2 mt-2">
+              <CButton
+                size="sm"
+                color="secondary"
+                disabled={!showPrev}
+                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+              >
+                Anterior
+              </CButton>
+              <CButton
+                size="sm"
+                color="secondary"
+                disabled={!showNext}
+                onClick={() => setOffset(offset + LIMIT)}
+              >
+                Siguiente
+              </CButton>
+            </div>
+          )}
         </CCardBody>
       </CCard>
-
-      {total > LIMIT && (
-        <div className="d-flex justify-content-between align-items-center mt-3">
-          <span className="text-body-secondary small">
-            {offset + 1}–{Math.min(offset + LIMIT, total)} de {total}
-          </span>
-          <div className="d-flex gap-2">
-            <CButton
-              size="sm"
-              color="secondary"
-              variant="outline"
-              disabled={offset === 0}
-              onClick={() => setOffset(Math.max(0, offset - LIMIT))}
-            >
-              Anterior
-            </CButton>
-            <CButton
-              size="sm"
-              color="secondary"
-              variant="outline"
-              disabled={offset + LIMIT >= total}
-              onClick={() => setOffset(offset + LIMIT)}
-            >
-              Siguiente
-            </CButton>
-          </div>
-        </div>
-      )}
     </>
   )
 }
