@@ -6,17 +6,15 @@ import { useStatusBreakdown } from '../useAnalytics'
 const fmtUSD = (n: number) =>
   '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-// Color per status key
+// Color per status key. The chart renders dynamically from the API `items`; unknown keys
+// fall back to neutral gray (see the lookup below).
 const STATUS_COLOR: Record<string, string> = {
-  draft: 'rgba(108, 117, 125, 0.6)',
-  quoted: 'rgba(108, 117, 125, 0.6)',
   confirmed: 'rgba(13, 202, 240, 0.7)',
   approved: 'rgba(13, 202, 240, 0.85)',
   in_production: 'rgba(255, 193, 7, 0.7)',
   cut: 'rgba(255, 193, 7, 0.85)',
   completed: 'rgba(25, 135, 84, 0.8)',
   cancelled: 'rgba(220, 53, 69, 0.7)',
-  expired: 'rgba(220, 53, 69, 0.5)',
 }
 
 interface StatusBreakdownProps {

@@ -2,15 +2,12 @@ import { CBadge } from '@coreui/react'
 import type { OrderStatus } from './types'
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; label: string }> = {
-  draft: { color: 'secondary', label: 'Borrador' },
-  quoted: { color: 'light', label: 'Cotizado' },
-  confirmed: { color: 'primary', label: 'Confirmado' },
-  approved: { color: 'success', label: 'Aprobado' },
+  confirmed: { color: 'primary', label: 'Confirmada' },
+  approved: { color: 'success', label: 'Aprobada' },
   in_production: { color: 'warning', label: 'En producción' },
-  cut: { color: 'info', label: 'Cortado' },
-  completed: { color: 'success', label: 'Completado' },
-  cancelled: { color: 'danger', label: 'Cancelado' },
-  expired: { color: 'secondary', label: 'Vencido' },
+  cut: { color: 'info', label: 'Cortada' },
+  completed: { color: 'success', label: 'Completada' },
+  cancelled: { color: 'danger', label: 'Cancelada' },
 }
 
 interface OrderStatusBadgeProps {

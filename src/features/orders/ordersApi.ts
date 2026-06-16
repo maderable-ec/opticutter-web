@@ -5,7 +5,6 @@ import type {
   CuttingPlan,
   MarkPieceResponse,
   Order,
-  OrderCreatePayload,
   OrderListParams,
   UpdateStatusPayload,
 } from './types'
@@ -20,7 +19,6 @@ export const ordersApi = {
     return httpClient.list<Order>(`${BASE}/?${params}`)
   },
   get: (id: string) => httpClient.get<Order>(`${BASE}/${id}`),
-  create: (data: OrderCreatePayload) => httpClient.post<Order>(`${BASE}/`, data),
   updateStatus: (id: string, data: UpdateStatusPayload) =>
     httpClient.patch<Order>(`${BASE}/${id}/status`, data),
   associateInvoice: (id: string, data: AssociateInvoicePayload) =>
