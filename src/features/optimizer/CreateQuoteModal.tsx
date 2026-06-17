@@ -20,6 +20,9 @@ import { cilCloudDownload } from '@coreui/icons'
 import type { Client } from 'src/features/clients/types'
 import { useClientsMin } from 'src/features/orders/useOrders'
 import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
+import { useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { ApiError } from 'src/shared/api/types'
 import type { MaterialInput, RequirementInput } from './types'
 import { optimizerApi } from './optimizerApi'
 
@@ -52,6 +55,11 @@ const CreateQuoteModal = ({
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [notes, setNotes] = useState('')
+  const [branchId, setBranchId] = useState('')
+
+  // Sólo el admin (global) elige sucursal; para staff el backend fuerza la suya.
+  const isAdmin = useHasRole('administrador')
+  const { data: branches = [] } = useActiveBranches()
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(clientSearch), 350)
@@ -66,7 +74,7 @@ const CreateQuoteModal = ({
   const createPreOrder = useCreatePreOrder()
 
   const handleCreate = () => {
-    if (!selectedClientId || missingPhone) return
+    if (!selectedClientId || missingPhone || (isAdmin && !branchId)) return
     createPreOrder.mutate(
       {
         clientId: Number(selectedClientId),
@@ -74,6 +82,7 @@ const CreateQuoteModal = ({
         notes: notes || undefined,
         materials,
         requirements,
+        branchId: isAdmin && branchId ? Number(branchId) : undefined,
       },
       {
         onSuccess: (preOrder) => {
@@ -89,6 +98,10 @@ const CreateQuoteModal = ({
 
   const isPending = createPreOrder.isPending
   const mutationError = createPreOrder.error
+  const branchError =
+    mutationError instanceof ApiError
+      ? mutationError.errors.find((e) => e.field === 'branchId')?.message
+      : undefined
 
   return (
     <CModal visible={visible} onClose={onClose} size="lg" alignment="center">
@@ -122,6 +135,27 @@ const CreateQuoteModal = ({
             Este cliente no tiene celular registrado. La cotización no podrá crearse hasta que se
             registre un número.
           </CAlert>
+        )}
+
+        {isAdmin && (
+          <>
+            <CFormLabel className="mt-3">
+              Sucursal <span className="text-danger">*</span>
+            </CFormLabel>
+            <CFormSelect
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              invalid={!!branchError}
+            >
+              <option value="">— Seleccionar sucursal —</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </CFormSelect>
+            {branchError && <div className="invalid-feedback d-block">{branchError}</div>}
+          </>
         )}
 
         <CFormLabel className="mt-3">Notas</CFormLabel>
@@ -158,7 +192,7 @@ const CreateQuoteModal = ({
           </CButton>
           <CButton
             color="primary"
-            disabled={!selectedClientId || missingPhone || isPending}
+            disabled={!selectedClientId || missingPhone || isPending || (isAdmin && !branchId)}
             onClick={handleCreate}
           >
             {isPending ? <CSpinner size="sm" /> : 'Crear cotización'}

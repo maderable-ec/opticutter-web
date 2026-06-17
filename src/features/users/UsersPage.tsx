@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   CBadge,
   CButton,
@@ -26,6 +26,7 @@ import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
 
 import UserForm from './UserForm'
 import { useUsers, useCreateUser, useDeleteUser, useUpdateUser } from './useUsers'
+import { useBranches } from 'src/features/branches/useBranches'
 import type { User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
 
@@ -65,6 +66,13 @@ const UsersPage = () => {
   const { data: usersData, isLoading } = useUsers({ search, offset, limit: LIMIT })
   const users = usersData?.items ?? []
   const pagination = usersData?.pagination
+
+  // Resolver branchId → nombre (incluye inactivas para no perder la etiqueta de staff históricos).
+  const { data: branchesData } = useBranches({ limit: 100 })
+  const branchName = useMemo(
+    () => new Map((branchesData?.items ?? []).map((b) => [b.id, b.name])),
+    [branchesData],
+  )
   const createMutation = useCreateUser()
   const updateMutation = useUpdateUser()
   const deleteMutation = useDeleteUser()
@@ -135,6 +143,7 @@ const UsersPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Email</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Nombre</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Rol</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary" />
                 </CTableRow>
@@ -142,7 +151,7 @@ const UsersPage = () => {
               <CTableBody>
                 {users.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
@@ -156,6 +165,13 @@ const UsersPage = () => {
                         <CBadge color={ROLE_COLORS[u.role] ?? 'secondary'}>
                           {ROLE_LABELS[u.role] ?? u.role}
                         </CBadge>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {u.role === 'administrador'
+                          ? 'Global'
+                          : u.branchId != null
+                            ? (branchName.get(u.branchId) ?? '—')
+                            : '—'}
                       </CTableDataCell>
                       <CTableDataCell>
                         <CBadge color={u.isActive ? 'success' : 'secondary'}>

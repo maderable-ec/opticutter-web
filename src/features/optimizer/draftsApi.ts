@@ -7,12 +7,20 @@ interface DraftWrite {
   name: string
   clientId?: number | null
   payload: OptimizerDraftPayload
+  // Sólo lo envía el admin al crear; el staff lo omite (el backend fuerza su sucursal).
+  branchId?: number | null
 }
 
 // CRUD del recurso de borradores. Sigue el patrón de `optimizerApi.ts`/`ordersApi.ts`: el
 // httpClient ya desenvuelve `data` y `list()` devuelve `{ items, pagination }`.
 export const draftsApi = {
-  list: () => httpClient.list<DraftSummary>(`${PATH}/`),
+  // `branchId` sólo lo pasa el admin; el staff queda acotado a su sucursal por el backend.
+  list: (branchId?: number) => {
+    const params = new URLSearchParams()
+    if (branchId) params.set('branchId', String(branchId))
+    const qs = params.toString()
+    return httpClient.list<DraftSummary>(`${PATH}/${qs ? `?${qs}` : ''}`)
+  },
   get: (id: number) => httpClient.get<Draft>(`${PATH}/${id}`),
   create: (data: DraftWrite) => httpClient.post<Draft>(`${PATH}/`, data),
   update: (id: number, data: Partial<DraftWrite>) => httpClient.put<Draft>(`${PATH}/${id}`, data),

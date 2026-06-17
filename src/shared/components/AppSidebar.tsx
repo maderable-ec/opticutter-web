@@ -25,9 +25,11 @@ import { clientsNav } from 'src/features/clients/nav'
 import { productsNav } from 'src/features/products/nav'
 import { settingsNav } from 'src/features/settings/nav'
 import { usersNav } from 'src/features/users/nav'
+import { branchesNav } from 'src/features/branches/nav'
 
 const allNavItems = [
   ...usersNav,
+  ...branchesNav,
   ...dashboardNav,
   ...optimizerNav,
   ...preordersNav,

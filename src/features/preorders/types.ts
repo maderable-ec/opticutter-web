@@ -1,4 +1,5 @@
 import type { Client } from 'src/features/clients/types'
+import type { BranchRef } from 'src/features/branches/types'
 import type {
   MaterialInput,
   OptimizeResponse,
@@ -17,6 +18,8 @@ export type PreOrderStatus =
 export interface PreOrderListParams {
   status?: PreOrderStatus
   clientId?: number
+  // Filtro sólo efectivo para admin; el staff queda acotado a su sucursal por el backend.
+  branchId?: number
   offset?: number
   limit?: number
 }
@@ -25,12 +28,26 @@ export interface PreOrderSummary {
   id: number
   code: string
   client: Client
+  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  branch: BranchRef
   status: PreOrderStatus
   source: string
   orderId: number | null
   createdAt: string
   updatedAt: string
   expiresAt: string | null
+}
+
+// Auditoría (PR #39): línea de tiempo de cambios de estado de la pre-orden.
+export interface PreOrderStatusHistoryEntry {
+  id: number
+  fromStatus?: PreOrderStatus
+  toStatus: PreOrderStatus
+  actor?: 'staff' | 'client' | 'system'
+  actorUserId?: number | null
+  actorLabel?: string | null
+  note?: string | null
+  createdAt: string
 }
 
 export interface PreOrder extends PreOrderSummary {
@@ -42,6 +59,7 @@ export interface PreOrder extends PreOrderSummary {
   materials: MaterialInput[]
   requirements: RequirementInput[]
   optimization: OptimizeResponse
+  history: PreOrderStatusHistoryEntry[]
 }
 
 export interface PreOrderCreate {
@@ -50,6 +68,8 @@ export interface PreOrderCreate {
   source?: string
   materials: MaterialInput[]
   requirements: RequirementInput[]
+  // Sólo lo envía el admin (global); el staff lo omite y el backend fuerza su sucursal.
+  branchId?: number
 }
 
 export interface ReviewLink {
