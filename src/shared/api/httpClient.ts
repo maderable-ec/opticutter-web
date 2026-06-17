@@ -1,5 +1,6 @@
 import { ApiError } from './types'
 import type { ApiErrorItem, PaginatedResult, Pagination } from './types'
+import type { TokenResponse } from 'src/features/auth/types'
 import { useAuthStore } from 'src/shared/store/authStore'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -31,21 +32,59 @@ const send = async (path: string, options: RequestOptions): Promise<Response> =>
     headers: { ...buildHeaders(), ...options.headers },
   })
 
-const handle401 = (path: string) => {
-  if (!path.includes('/auth/login')) {
+// Session endpoints never trigger a refresh-retry: login/refresh/logout are public
+// and a 401 from them means bad credentials or an already-rotated refresh token.
+const isSessionRoute = (path: string): boolean => /\/auth\/(login|refresh|logout)/.test(path)
+
+const redirectToLogin = () => {
+  window.location.hash = '#/login'
+}
+
+// Single-flight refresh: concurrent 401s share one in-flight refresh promise.
+let refreshing: Promise<string> | null = null
+
+const doRefresh = async (): Promise<string> => {
+  const refreshToken = useAuthStore.getState().refreshToken
+  if (!refreshToken) throw new ApiError(401, 'No refresh token', [], '')
+  const res = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw buildError(res.status, body)
+  const data = body.data as TokenResponse
+  // Rotation: always replace the stored pair with the freshly issued one.
+  useAuthStore.getState().setSession(data.accessToken, data.refreshToken, data.user)
+  return data.accessToken
+}
+
+const triggerRefresh = (): Promise<string> =>
+  (refreshing ??= doRefresh().finally(() => {
+    refreshing = null
+  }))
+
+// Sends the request; on a 401 (outside session routes) attempts a single refresh
+// and retries once with the rotated access token. On refresh failure, clears the
+// session and redirects to login, returning the original 401 so the caller throws.
+const fetchWithRefresh = async (path: string, options: RequestOptions): Promise<Response> => {
+  const res = await send(path, options)
+  if (res.status !== 401 || isSessionRoute(path)) return res
+  try {
+    await triggerRefresh()
+  } catch {
     useAuthStore.getState().clearSession()
-    window.location.replace('/#/login')
+    redirectToLogin()
+    return res
   }
+  return send(path, options)
 }
 
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
-  const res = await send(path, options)
+  const res = await fetchWithRefresh(path, options)
   if (res.status === 204) return null as T
   const body = await res.json()
-  if (!res.ok) {
-    if (res.status === 401) handle401(path)
-    throw buildError(res.status, body)
-  }
+  if (!res.ok) throw buildError(res.status, body)
   return body.data as T
 }
 
@@ -53,12 +92,9 @@ const requestList = async <T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<PaginatedResult<T>> => {
-  const res = await send(path, options)
+  const res = await fetchWithRefresh(path, options)
   const body = await res.json()
-  if (!res.ok) {
-    if (res.status === 401) handle401(path)
-    throw buildError(res.status, body)
-  }
+  if (!res.ok) throw buildError(res.status, body)
   return { items: body.data as T[], pagination: body.meta.pagination as Pagination }
 }
 
