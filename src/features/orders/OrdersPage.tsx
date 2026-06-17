@@ -61,7 +61,16 @@ const OrdersPage = () => {
   const canCreate = useHasRole('administrador', 'vendedor')
   // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
   const isAdmin = useHasRole('administrador')
-  const [status, setStatus] = useState<OrderStatus | ''>('')
+  // El operador trabaja en el piso: solo ve órdenes en producción/cortadas y entra directo al taller.
+  const isOperator = useHasRole('operador')
+  // Filtro acotado para el operador (sin "Todos los estados"); el resto usa el set completo.
+  const statusOptions = isOperator
+    ? ([
+        { value: 'in_production', label: 'En producción' },
+        { value: 'cut', label: 'Cortada' },
+      ] as const)
+    : STATUSES
+  const [status, setStatus] = useState<OrderStatus | ''>(isOperator ? 'in_production' : '')
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 
@@ -104,7 +113,7 @@ const OrdersPage = () => {
           <CRow className="mb-3">
             <CCol xs={12} sm={6} md={4}>
               <CFormSelect value={status} onChange={handleStatusChange}>
-                {STATUSES.map((s) => (
+                {statusOptions.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
@@ -145,20 +154,30 @@ const OrdersPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Cliente</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
+                  {!isOperator && (
+                    <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
+                  )}
                   <CTableHeaderCell className="bg-body-tertiary">Creado</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {orders.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                    <CTableDataCell
+                      colSpan={isOperator ? 5 : 6}
+                      className="text-center text-body-secondary py-5"
+                    >
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
                 ) : (
                   orders.map((o) => (
-                    <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
+                    <CTableRow
+                      key={o.id}
+                      onClick={() =>
+                        navigate(isOperator ? `/orders/${o.id}/workshop` : `/orders/${o.id}`)
+                      }
+                    >
                       <CTableDataCell>
                         <strong>{o.code ?? '—'}</strong>
                       </CTableDataCell>
@@ -173,9 +192,11 @@ const OrdersPage = () => {
                       <CTableDataCell>
                         <OrderStatusBadge status={o.status} />
                       </CTableDataCell>
-                      <CTableDataCell className="text-end text-nowrap">
-                        {fmt(o.total)}
-                      </CTableDataCell>
+                      {!isOperator && (
+                        <CTableDataCell className="text-end text-nowrap">
+                          {fmt(o.total)}
+                        </CTableDataCell>
+                      )}
                       <CTableDataCell className="text-nowrap">
                         {fmtDate(o.createdAt)}
                       </CTableDataCell>

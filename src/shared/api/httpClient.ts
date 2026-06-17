@@ -80,6 +80,15 @@ const fetchWithRefresh = async (path: string, options: RequestOptions): Promise<
   return send(path, options)
 }
 
+const requestBlob = async (path: string): Promise<Blob> => {
+  const res = await fetchWithRefresh(path, {})
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw buildError(res.status, body)
+  }
+  return res.blob()
+}
+
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const res = await fetchWithRefresh(path, options)
   if (res.status === 204) return null as T
@@ -108,4 +117,5 @@ export const httpClient = {
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   list: <T>(path: string) => requestList<T>(path),
+  download: (path: string) => requestBlob(path),
 }

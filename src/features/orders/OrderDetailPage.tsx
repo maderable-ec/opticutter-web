@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -89,6 +89,8 @@ const OrderDetailPage = () => {
   const navigate = useNavigate()
   // Operador puede ver la orden, proforma y el plan de corte, pero no cambiar estado ni facturar.
   const canManage = useHasRole('administrador', 'vendedor')
+  // El operador no usa el detalle: su flujo es el taller. Lo redirigimos allí (también por URL directa).
+  const isOperator = useHasRole('operador')
 
   const { data: order, isLoading } = useOrder(id)
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
@@ -132,6 +134,10 @@ const OrderDetailPage = () => {
       { id, data: { externalInvoiceId: invoiceId } },
       { onSuccess: closeInvoice },
     )
+  }
+
+  if (isOperator) {
+    return <Navigate to={`/orders/${id}/workshop`} replace />
   }
 
   if (isLoading) {

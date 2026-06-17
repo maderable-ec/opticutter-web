@@ -16,12 +16,14 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilArrowLeft, cilArrowRight } from '@coreui/icons'
+import { cilArrowLeft, cilArrowRight, cilCheckAlt, cilPrint } from '@coreui/icons'
 
+import { useHasRole } from 'src/features/auth/useAuth'
 import { PALETTE, pieceSig } from 'src/features/optimizer/cutDrawing'
 import OrderStatusBadge from './OrderStatusBadge'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
-import { useCuttingPlan, useMarkPiece } from './useOrders'
+import { ordersApi } from './ordersApi'
+import { useCuttingPlan, useMarkPiece, useUpdateOrderStatus } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
 
 const pct = ({ cutPieces, totalPieces }: CutProgress) =>
@@ -35,11 +37,15 @@ const isDone = ({ cutPieces, totalPieces }: CutProgress) =>
 const WorkshopPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  // El operador no tiene detalle de orden: vuelve al listado en vez de a /orders/:id.
+  const isOperator = useHasRole('operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
   const markPiece = useMarkPiece(id ?? '')
+  const updateStatus = useUpdateOrderStatus()
 
   const [undoPiece, setUndoPiece] = useState<CutPiece | null>(null)
+  const [cutModal, setCutModal] = useState(false)
   // Tablero en pantalla (uno a la vez). Se identifica por id persistente para sobrevivir a refetchs.
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
   const stripRef = useRef<HTMLDivElement>(null)
@@ -84,7 +90,12 @@ const WorkshopPage = () => {
     setUndoPiece(null)
   }
 
-  const backToOrder = () => navigate(`/orders/${id}`)
+  const confirmCut = () => {
+    if (!id) return
+    updateStatus.mutate({ id, data: { status: 'cut' } }, { onSuccess: () => setCutModal(false) })
+  }
+
+  const backToOrder = () => navigate(isOperator ? '/orders' : `/orders/${id}`)
 
   if (isLoading) {
     return (
@@ -99,7 +110,7 @@ const WorkshopPage = () => {
       <>
         <CButton variant="ghost" color="secondary" className="mb-3" onClick={backToOrder}>
           <CIcon icon={cilArrowLeft} className="me-1" />
-          Volver a la orden
+          {isOperator ? 'Volver a órdenes' : 'Volver a la orden'}
         </CButton>
         <CAlert color="danger">{error?.message || 'No se pudo cargar el plan de corte.'}</CAlert>
       </>
@@ -137,12 +148,21 @@ const WorkshopPage = () => {
     <div className="d-flex align-items-center justify-content-between gap-2 mb-3 flex-wrap">
       <CButton variant="ghost" color="secondary" size="lg" onClick={backToOrder}>
         <CIcon icon={cilArrowLeft} className="me-1" />
-        Volver a la orden
+        {isOperator ? 'Volver a órdenes' : 'Volver a la orden'}
       </CButton>
       <div className="d-flex align-items-center gap-2">
         <h4 className="mb-0">{plan.orderCode}</h4>
         <OrderStatusBadge status={plan.status} />
       </div>
+      <CButton
+        color="secondary"
+        variant="outline"
+        size="lg"
+        onClick={() => id && ordersApi.downloadProductionSheet(id)}
+      >
+        <CIcon icon={cilPrint} className="me-1" />
+        Hoja de producción
+      </CButton>
     </div>
   )
 
@@ -201,6 +221,40 @@ const WorkshopPage = () => {
           })}
         </div>
       </div>
+
+      {/* Cerrar el corte: habilitado solo cuando todas las piezas están marcadas. El API es la
+          garantía real (422 si faltan piezas); deshabilitar es UX. Al pasar a 'cut', el plan se
+          refresca y la vista queda en solo-lectura. */}
+      {interactive && (
+        <div className="mb-3">
+          <CButton
+            color="primary"
+            size="lg"
+            className="w-100"
+            disabled={hasPending(plan.progress) || updateStatus.isPending}
+            title={
+              hasPending(plan.progress)
+                ? `Faltan ${plan.progress.totalPieces - plan.progress.cutPieces} pieza(s) por cortar`
+                : undefined
+            }
+            onClick={() => setCutModal(true)}
+          >
+            <CIcon icon={cilCheckAlt} className="me-1" />
+            Marcar orden como cortada
+          </CButton>
+          {hasPending(plan.progress) && (
+            <div className="text-warning small mt-2">
+              Faltan {plan.progress.totalPieces - plan.progress.cutPieces} pieza(s) por cortar para
+              habilitar el corte.
+            </div>
+          )}
+          {updateStatus.error && (
+            <div className="text-danger small mt-2">
+              {updateStatus.error.message || 'Error al cambiar estado.'}
+            </div>
+          )}
+        </div>
+      )}
 
       {!interactive && (
         <div className="text-body-secondary small mb-3">
@@ -293,6 +347,30 @@ const WorkshopPage = () => {
           </CButton>
           <CButton color="warning" onClick={confirmUndo}>
             Deshacer
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Confirmar cierre del corte (orden → cortada) */}
+      <CModal visible={cutModal} onClose={() => setCutModal(false)}>
+        <CModalHeader>
+          <CModalTitle>Marcar como cortada</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          ¿Marcar la orden <strong>{plan.orderCode}</strong> como <strong>cortada</strong>? Esto
+          cierra el corte y la vista pasará a solo lectura.
+          {updateStatus.error && (
+            <div className="text-danger small mt-2">
+              {updateStatus.error.message || 'Error al cambiar estado.'}
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setCutModal(false)}>
+            Cancelar
+          </CButton>
+          <CButton color="primary" onClick={confirmCut} disabled={updateStatus.isPending}>
+            {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
           </CButton>
         </CModalFooter>
       </CModal>
