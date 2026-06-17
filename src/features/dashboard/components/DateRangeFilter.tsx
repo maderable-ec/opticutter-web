@@ -6,6 +6,7 @@ import {
   CCol,
   CFormInput,
   CFormLabel,
+  CFormSelect,
   CRow,
 } from '@coreui/react'
 import type { Granularity } from '../types'
@@ -53,6 +54,10 @@ interface DateRangeFilterProps {
   onFromChange: (value: string) => void
   onToChange: (value: string) => void
   onGranularityChange: (value: Granularity) => void
+  // Filtro de sucursal opcional (sólo el dashboard admin lo provee). '' = todas.
+  branches?: { id: number; name: string }[]
+  branchId?: string
+  onBranchChange?: (value: string) => void
 }
 
 const DateRangeFilter = ({
@@ -62,6 +67,9 @@ const DateRangeFilter = ({
   onFromChange,
   onToChange,
   onGranularityChange,
+  branches,
+  branchId,
+  onBranchChange,
 }: DateRangeFilterProps) => {
   const invalid = !!(from && to && from > to)
 
@@ -90,6 +98,19 @@ const DateRangeFilter = ({
               invalid={invalid}
             />
           </CCol>
+          {onBranchChange && (
+            <CCol xs={12} sm={6} md={3} lg={2}>
+              <CFormLabel className="small fw-semibold mb-1">Sucursal</CFormLabel>
+              <CFormSelect value={branchId ?? ''} onChange={(e) => onBranchChange(e.target.value)}>
+                <option value="">Todas</option>
+                {(branches ?? []).map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
+          )}
           <CCol xs={12} md="auto">
             <CFormLabel className="small fw-semibold mb-1 d-block">Período</CFormLabel>
             <CButtonGroup>

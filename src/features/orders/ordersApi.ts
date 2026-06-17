@@ -13,9 +13,10 @@ const BASE = '/api/v1/orders'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export const ordersApi = {
-  list: ({ status, offset = 0, limit = 20 }: OrderListParams = {}) => {
+  list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
     if (status) params.set('status', status)
+    if (branchId) params.set('branchId', String(branchId))
     return httpClient.list<Order>(`${BASE}/?${params}`)
   },
   get: (id: string) => httpClient.get<Order>(`${BASE}/${id}`),

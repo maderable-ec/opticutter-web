@@ -50,6 +50,7 @@ import type {
 } from 'src/features/optimizer/types'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { ApiError } from 'src/shared/api/types'
+import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import {
@@ -60,7 +61,7 @@ import {
   useUpdatePreOrder,
 } from './usePreOrders'
 import { preordersApi } from './preordersApi'
-import type { PreOrder } from './types'
+import type { PreOrder, PreOrderStatus } from './types'
 
 // Convert stored API format back to editable form state
 function formFromPreOrderData(
@@ -422,6 +423,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           </CCardBody>
         </CCard>
       )}
+
+      {/* Historial — autor (actorLabel) + tipo de actor (badge); ver StatusHistoryCard. */}
+      <StatusHistoryCard
+        entries={preOrder.history ?? []}
+        renderStatus={(s) => <PreOrderStatusBadge status={s as PreOrderStatus} />}
+      />
 
       {/* Notes (editable) */}
       {canEdit && (

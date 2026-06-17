@@ -9,6 +9,7 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   orders: ['administrador', 'vendedor', 'operador'],
   settings: ['administrador'],
   users: ['administrador'],
+  branches: ['administrador'],
 }
 
 export const canAccess = (role: Role | undefined, key: string): boolean =>

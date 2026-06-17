@@ -9,6 +9,8 @@ export interface User {
   role: Role
   isActive: boolean
   createdAt: string
+  // Sucursal del staff. Obligatoria para vendedor/operador; null para administrador (es global).
+  branchId: number | null
 }
 
 export interface LoginPayload {

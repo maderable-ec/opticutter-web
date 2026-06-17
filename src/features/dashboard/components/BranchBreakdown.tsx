@@ -1,30 +1,19 @@
 import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
 import { CChartBar } from '@coreui/react-chartjs'
 import { getStyle } from '@coreui/utils'
-import { useStatusBreakdown } from '../useAnalytics'
+import { useBranchBreakdown } from '../useAnalytics'
 
 const fmtUSD = (n: number) =>
   '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-// Color per status key. The chart renders dynamically from the API `items`; unknown keys
-// fall back to neutral gray (see the lookup below).
-const STATUS_COLOR: Record<string, string> = {
-  confirmed: 'rgba(13, 202, 240, 0.7)',
-  approved: 'rgba(13, 202, 240, 0.85)',
-  in_production: 'rgba(255, 193, 7, 0.7)',
-  cut: 'rgba(255, 193, 7, 0.85)',
-  completed: 'rgba(25, 135, 84, 0.8)',
-  cancelled: 'rgba(220, 53, 69, 0.7)',
-}
-
-interface StatusBreakdownProps {
+interface BranchBreakdownProps {
   from: string
   to: string
   branchId?: number
 }
 
-const StatusBreakdown = ({ from, to, branchId }: StatusBreakdownProps) => {
-  const { data, isLoading, error } = useStatusBreakdown(from, to, branchId)
+const BranchBreakdown = ({ from, to, branchId }: BranchBreakdownProps) => {
+  const { data, isLoading, error } = useBranchBreakdown(from, to, branchId)
 
   const renderContent = () => {
     if (isLoading) {
@@ -36,13 +25,15 @@ const StatusBreakdown = ({ from, to, branchId }: StatusBreakdownProps) => {
     }
 
     if (error) {
-      return <div className="text-danger small py-3">Error cargando embudo: {error.message}</div>
+      return (
+        <div className="text-danger small py-3">Error cargando comparativo: {error.message}</div>
+      )
     }
 
     const items = data?.items ?? []
     const allZero = items.every((i) => i.orderCount === 0)
 
-    if (allZero) {
+    if (items.length === 0 || allZero) {
       return (
         <div className="text-body-secondary text-center py-5 small">
           Sin órdenes en el período seleccionado
@@ -59,7 +50,7 @@ const StatusBreakdown = ({ from, to, branchId }: StatusBreakdownProps) => {
             {
               label: 'Órdenes',
               data: items.map((i) => i.orderCount),
-              backgroundColor: items.map((i) => STATUS_COLOR[i.key] ?? 'rgba(108,117,125,0.5)'),
+              backgroundColor: `rgba(${getStyle('--cui-info-rgb')}, 0.7)`,
               borderRadius: 4,
             },
           ],
@@ -96,10 +87,12 @@ const StatusBreakdown = ({ from, to, branchId }: StatusBreakdownProps) => {
 
   return (
     <CCard className="mb-4">
-      <CCardHeader className="small fw-semibold text-body-secondary">Embudo de estados</CCardHeader>
+      <CCardHeader className="small fw-semibold text-body-secondary">
+        Comparativo por sucursal
+      </CCardHeader>
       <CCardBody>{renderContent()}</CCardBody>
     </CCard>
   )
 }
 
-export default StatusBreakdown
+export default BranchBreakdown

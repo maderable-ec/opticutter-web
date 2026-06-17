@@ -5,6 +5,8 @@ export interface UserPayload {
   password: string
   role: import('src/features/auth/types').Role
   fullName?: string
+  // Obligatorio para vendedor/operador; ignorado por el backend para administrador.
+  branchId?: number | null
 }
 
 export interface UserUpdatePayload {
@@ -13,6 +15,7 @@ export interface UserUpdatePayload {
   role?: import('src/features/auth/types').Role
   isActive?: boolean
   password?: string
+  branchId?: number | null
 }
 
 export interface UserListParams {

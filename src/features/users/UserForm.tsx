@@ -13,6 +13,7 @@ import {
 import type { Role, User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
 import { ApiError } from 'src/shared/api/types'
+import { useActiveBranches } from 'src/features/branches/useBranches'
 
 interface UserFormProps {
   user: User | null
@@ -36,12 +37,18 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
   const [role, setRole] = useState<Role>(user?.role ?? 'vendedor')
   const [isActive, setIsActive] = useState(user?.isActive ?? true)
   const [password, setPassword] = useState('')
+  const [branchId, setBranchId] = useState<number | null>(user?.branchId ?? null)
+
+  // El admin es global: la sucursal sólo aplica (y es obligatoria) para vendedor/operador.
+  const isStaff = role !== 'administrador'
+  const { data: branches = [] } = useActiveBranches()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isEdit) {
       const payload: UserUpdatePayload = { email, fullName: fullName || undefined, role, isActive }
       if (password) payload.password = password
+      if (isStaff) payload.branchId = branchId
       onSubmit(payload)
     } else {
       const payload: UserPayload = {
@@ -50,9 +57,15 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
         role,
         fullName: fullName || undefined,
       }
+      if (isStaff) payload.branchId = branchId
       onSubmit(payload)
     }
   }
+
+  const branchError =
+    error instanceof ApiError
+      ? error.errors.find((e) => e.field === 'branchId')?.message
+      : undefined
 
   const errorMsg =
     error instanceof ApiError
@@ -107,6 +120,28 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
             ))}
           </CFormSelect>
         </div>
+
+        {isStaff && (
+          <div className="mb-3">
+            <CFormLabel htmlFor="uf-branch">Sucursal</CFormLabel>
+            <CFormSelect
+              id="uf-branch"
+              value={branchId == null ? '' : String(branchId)}
+              onChange={(e) => setBranchId(e.target.value ? Number(e.target.value) : null)}
+              required
+              invalid={!!branchError}
+              disabled={isSubmitting}
+            >
+              <option value="">— Seleccionar sucursal —</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </CFormSelect>
+            {branchError && <div className="invalid-feedback d-block">{branchError}</div>}
+          </div>
+        )}
 
         <div className="mb-3">
           <CFormLabel htmlFor="uf-password">

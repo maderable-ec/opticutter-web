@@ -31,6 +31,7 @@ import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import { useHasRole } from 'src/features/auth/useAuth'
+import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
 import { ordersApi } from './ordersApi'
@@ -372,44 +373,11 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* History */}
-      {order.history && order.history.length > 0 && (
-        <CCard className="mb-3">
-          <CCardHeader>
-            <strong>Historial</strong>
-          </CCardHeader>
-          <CCardBody>
-            <CTable small responsive>
-              <CTableHead>
-                <CTableRow>
-                  <CTableHeaderCell className="bg-body-tertiary">Desde</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Hacia</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Actor</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Nota</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Fecha</CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {order.history.map((h) => (
-                  <CTableRow key={h.id}>
-                    <CTableDataCell>
-                      {h.fromStatus ? <OrderStatusBadge status={h.fromStatus} /> : '—'}
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <OrderStatusBadge status={h.toStatus} />
-                    </CTableDataCell>
-                    <CTableDataCell>{h.actor ?? '—'}</CTableDataCell>
-                    <CTableDataCell>{h.note ?? '—'}</CTableDataCell>
-                    <CTableDataCell className="text-nowrap">
-                      {fmtDateTime(h.createdAt)}
-                    </CTableDataCell>
-                  </CTableRow>
-                ))}
-              </CTableBody>
-            </CTable>
-          </CCardBody>
-        </CCard>
-      )}
+      {/* History — autor (actorLabel) + tipo de actor (badge); ver StatusHistoryCard. */}
+      <StatusHistoryCard
+        entries={order.history ?? []}
+        renderStatus={(s) => <OrderStatusBadge status={s as OrderStatus} />}
+      />
 
       {/* Documents & invoice — las órdenes nacen confirmadas, siempre tienen documentos. */}
       <CCard className="mb-3">

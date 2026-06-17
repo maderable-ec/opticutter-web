@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import {
   CButton,
+  CFormSelect,
   CListGroup,
   CListGroupItem,
   CModal,
@@ -12,6 +14,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilTrash } from '@coreui/icons'
 
+import { useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useDeleteDraft, useDrafts } from './useDrafts'
 
 interface DraftsModalProps {
@@ -29,7 +33,11 @@ const formatDate = (iso: string) =>
   })
 
 const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) => {
-  const { data, isLoading } = useDrafts()
+  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
+  const isAdmin = useHasRole('administrador')
+  const [branchId, setBranchId] = useState('')
+  const { data: branches = [] } = useActiveBranches()
+  const { data, isLoading } = useDrafts(branchId ? Number(branchId) : undefined)
   const deleteDraft = useDeleteDraft()
   const drafts = data?.items ?? []
 
@@ -45,6 +53,20 @@ const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) 
         <CModalTitle>Borradores guardados</CModalTitle>
       </CModalHeader>
       <CModalBody>
+        {isAdmin && (
+          <CFormSelect
+            className="mb-3"
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+          >
+            <option value="">Todas las sucursales</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </CFormSelect>
+        )}
         {isLoading ? (
           <div className="text-center py-4">
             <CSpinner />
@@ -67,7 +89,7 @@ const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) 
                   <div style={{ minWidth: 0 }}>
                     <div className="fw-semibold text-truncate">{d.name}</div>
                     <div className="small text-body-secondary">
-                      Actualizado el {formatDate(d.updatedAt)}
+                      {d.branch.name} · Actualizado el {formatDate(d.updatedAt)}
                     </div>
                   </div>
                   <div className="d-flex gap-2 flex-shrink-0">

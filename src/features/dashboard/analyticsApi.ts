@@ -19,14 +19,23 @@ const buildQs = (params: QsParams) => {
 }
 
 export const analyticsApi = {
-  summary: (from?: string, to?: string) =>
-    httpClient.get<AnalyticsSummary>(`/api/v1/analytics/summary${buildQs({ from, to })}`),
-  timeseries: (from?: string, to?: string, granularity: Granularity = 'day') =>
-    httpClient.get<Timeseries>(`/api/v1/analytics/timeseries${buildQs({ from, to, granularity })}`),
-  statusBreakdown: (from?: string, to?: string) =>
-    httpClient.get<StatusBreakdownData>(
-      `/api/v1/analytics/breakdown/status${buildQs({ from, to })}`,
+  summary: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<AnalyticsSummary>(`/api/v1/analytics/summary${buildQs({ from, to, branchId })}`),
+  timeseries: (from?: string, to?: string, granularity: Granularity = 'day', branchId?: number) =>
+    httpClient.get<Timeseries>(
+      `/api/v1/analytics/timeseries${buildQs({ from, to, granularity, branchId })}`,
     ),
-  operations: (from?: string, to?: string) =>
-    httpClient.get<OperationsStats>(`/api/v1/analytics/operations${buildQs({ from, to })}`),
+  statusBreakdown: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<StatusBreakdownData>(
+      `/api/v1/analytics/breakdown/status${buildQs({ from, to, branchId })}`,
+    ),
+  operations: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<OperationsStats>(
+      `/api/v1/analytics/operations${buildQs({ from, to, branchId })}`,
+    ),
+  // Comparativo por almacén (mismo shape que el breakdown de estados).
+  branchBreakdown: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<StatusBreakdownData>(
+      `/api/v1/analytics/breakdown/branch${buildQs({ from, to, branchId })}`,
+    ),
 }

@@ -24,10 +24,11 @@ const StatCard = ({ label, value, color = 'info' }: StatCardProps) => (
 interface KpiCardsProps {
   from: string
   to: string
+  branchId?: number
 }
 
-const KpiCards = ({ from, to }: KpiCardsProps) => {
-  const { data, isLoading, error } = useSummary(from, to)
+const KpiCards = ({ from, to, branchId }: KpiCardsProps) => {
+  const { data, isLoading, error } = useSummary(from, to, branchId)
 
   if (isLoading) {
     return (
