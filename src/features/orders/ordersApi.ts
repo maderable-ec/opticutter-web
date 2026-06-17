@@ -10,7 +10,6 @@ import type {
 } from './types'
 
 const BASE = '/api/v1/orders'
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export const ordersApi = {
   list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) => {
@@ -27,11 +26,17 @@ export const ordersApi = {
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
-  downloadProforma: (id: string) => {
-    window.open(`${BASE_URL}${BASE}/${id}/proforma?format=pdf`, '_blank')
+  downloadProforma: async (id: string) => {
+    const blob = await httpClient.download(`${BASE}/${id}/proforma?format=pdf`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   },
-  downloadProductionSheet: (id: string) => {
-    window.open(`${BASE_URL}${BASE}/${id}/production-sheet?format=pdf`, '_blank')
+  downloadProductionSheet: async (id: string) => {
+    const blob = await httpClient.download(`${BASE}/${id}/production-sheet?format=pdf`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   },
 }
 

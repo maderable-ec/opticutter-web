@@ -9,7 +9,6 @@ import type {
 } from './types'
 
 const BASE = '/api/v1/preorders'
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export const preordersApi = {
   list: ({ status, clientId, branchId, offset = 0, limit = 20 }: PreOrderListParams = {}) => {
@@ -26,7 +25,10 @@ export const preordersApi = {
   remove: (id: number) => httpClient.delete<null>(`${BASE}/${id}`),
   createReviewLink: (id: number) => httpClient.post<ReviewLink>(`${BASE}/${id}/review-link`),
   getReviewLinkInfo: (id: number) => httpClient.get<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
-  downloadProforma: (id: number) => {
-    window.open(`${BASE_URL}${BASE}/${id}/proforma?format=pdf`, '_blank')
+  downloadProforma: async (id: number) => {
+    const blob = await httpClient.download(`${BASE}/${id}/proforma?format=pdf`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   },
 }
