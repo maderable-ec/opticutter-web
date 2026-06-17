@@ -6,19 +6,16 @@ import {
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
-import { cilAccountLogout } from '@coreui/icons'
+import { cilAccountLogout, cilLockLocked, cilUser } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
+import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
-
-const ROLE_LABELS: Record<string, string> = {
-  administrador: 'Admin',
-  vendedor: 'Vendedor',
-  operador: 'Operador',
-}
+import { ROLE_LABELS } from 'src/features/auth/roleLabels'
 
 const AppHeaderDropdown = () => {
   const user = useCurrentUser()
   const logout = useLogout()
+  const navigate = useNavigate()
 
   const displayName = user?.fullName ?? user?.email ?? '—'
   const roleLabel = user?.role ? (ROLE_LABELS[user.role] ?? user.role) : ''
@@ -34,6 +31,17 @@ const AppHeaderDropdown = () => {
         )}
       </CDropdownToggle>
       <CDropdownMenu className="pt-0" style={{ minWidth: 200 }}>
+        <CDropdownItem onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+          <CIcon icon={cilUser} className="me-2" />
+          Perfil
+        </CDropdownItem>
+        <CDropdownItem
+          onClick={() => navigate('/profile/change-password')}
+          style={{ cursor: 'pointer' }}
+        >
+          <CIcon icon={cilLockLocked} className="me-2" />
+          Cambiar contraseña
+        </CDropdownItem>
         <CDropdownDivider />
         <CDropdownItem onClick={logout} style={{ cursor: 'pointer' }}>
           <CIcon icon={cilAccountLogout} className="me-2" />

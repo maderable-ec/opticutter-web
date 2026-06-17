@@ -16,9 +16,19 @@ export interface LoginPayload {
   password: string
 }
 
-export interface LoginResponse {
+export interface TokenResponse {
   accessToken: string
-  tokenType: string
+  refreshToken: string
+  tokenType: 'bearer'
   expiresIn: number
   user: User
+}
+
+export interface UpdateMePayload {
+  fullName: string | null
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string
+  newPassword: string
 }
