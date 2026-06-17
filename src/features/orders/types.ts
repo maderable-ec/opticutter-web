@@ -1,4 +1,5 @@
 import type { Client } from 'src/features/clients/types'
+import type { BranchRef } from 'src/features/branches/types'
 import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
 export type OrderStatus =
@@ -22,7 +23,10 @@ export interface OrderLine {
 
 export interface OrderHistoryEntry {
   id: string
-  actor?: string
+  // Auditoría (PR #39): `actor` es el TIPO de quien actuó, no un nombre libre.
+  actor?: 'staff' | 'client' | 'system'
+  actorUserId?: number | null
+  actorLabel?: string | null // nombre congelado del actor al momento de la acción
   createdAt: string
   fromStatus?: OrderStatus
   toStatus: OrderStatus
@@ -47,6 +51,8 @@ export interface Order {
   status: OrderStatus
   total: number
   client: Client
+  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  branch: BranchRef
   lines: OrderLine[]
   pieces?: OrderPiece[]
   history?: OrderHistoryEntry[]
@@ -57,6 +63,8 @@ export interface Order {
 
 export interface OrderListParams {
   status?: OrderStatus
+  // Filtro sólo efectivo para admin; el staff queda acotado a su sucursal por el backend.
+  branchId?: number
   offset?: number
   limit?: number
 }
@@ -106,6 +114,9 @@ export interface CutPiece {
   edges?: PlacedPieceEdges | null
   cut: boolean
   cutAt: string | null
+  // Auditoría (PR #39): quién marcó la pieza como cortada.
+  cutBy?: number | null
+  cutByLabel?: string | null
 }
 
 // Un recorrido real de la sierra (guillotina) calculado por el optimizador: nace en (x, y) y corre

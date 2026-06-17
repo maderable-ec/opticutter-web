@@ -1,4 +1,5 @@
 import type { Client } from 'src/features/clients/types'
+import type { BranchRef } from 'src/features/branches/types'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 
 // Tipos de la respuesta de POST /api/v1/optimize/. El contrato es determinista y cacheado por
@@ -175,6 +176,8 @@ export interface DraftSummary {
   id: number
   name: string
   clientId: number | null
+  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  branch: BranchRef
   createdAt: string
   updatedAt: string
 }

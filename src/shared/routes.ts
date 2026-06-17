@@ -9,6 +9,7 @@ import { optimizerRoutes } from 'src/features/optimizer/routes'
 import { productsRoutes } from 'src/features/products/routes'
 import { settingsRoutes } from 'src/features/settings/routes'
 import { usersRoutes } from 'src/features/users/routes'
+import { branchesRoutes } from 'src/features/branches/routes'
 import { profileRoutes } from 'src/features/profile/routes'
 
 export interface AppRoute {
@@ -22,6 +23,7 @@ export interface AppRoute {
 
 export const routes: AppRoute[] = [
   ...usersRoutes,
+  ...branchesRoutes,
   ...dashboardRoutes,
   ...widgetsRoutes,
   ...clientsRoutes,

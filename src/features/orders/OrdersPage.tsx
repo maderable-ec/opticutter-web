@@ -22,6 +22,8 @@ import { cilPlus } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import { useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useOrders } from './useOrders'
 import type { OrderStatus } from './types'
@@ -57,16 +59,26 @@ const OrdersPage = () => {
   const navigate = useNavigate()
   // Operador puede ver órdenes pero no crear cotizaciones (eso es del optimizador).
   const canCreate = useHasRole('administrador', 'vendedor')
+  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
+  const isAdmin = useHasRole('administrador')
   const [status, setStatus] = useState<OrderStatus | ''>('')
+  const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 
-  const { data: ordersData, isLoading } = useOrders({
+  const { data: branches = [] } = useActiveBranches()
+  const {
+    data: ordersData,
+    isLoading,
+    error,
+  } = useOrders({
     status: status || undefined,
+    branchId: branchId ? Number(branchId) : undefined,
     offset,
     limit: LIMIT,
   })
   const orders = ordersData?.items ?? []
   const pagination = ordersData?.pagination
+  const noBranch = isNoBranchError(error)
 
   const handleStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setStatus(e.target.value as OrderStatus | '')
@@ -99,9 +111,29 @@ const OrdersPage = () => {
                 ))}
               </CFormSelect>
             </CCol>
+            {isAdmin && (
+              <CCol xs={12} sm={6} md={4}>
+                <CFormSelect
+                  value={branchId}
+                  onChange={(e) => {
+                    setBranchId(e.target.value)
+                    setOffset(0)
+                  }}
+                >
+                  <option value="">Todas las sucursales</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            )}
           </CRow>
 
-          {isLoading ? (
+          {noBranch ? (
+            <NoBranchNotice />
+          ) : isLoading ? (
             <div className="text-center py-5">
               <CSpinner color="primary" />
             </div>
@@ -111,6 +143,7 @@ const OrdersPage = () => {
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Cliente</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Creado</CTableHeaderCell>
@@ -119,7 +152,7 @@ const OrdersPage = () => {
               <CTableBody>
                 {orders.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={5} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
@@ -132,6 +165,10 @@ const OrdersPage = () => {
                       <CTableDataCell>
                         <div>{clientName(o.client)}</div>
                         <div className="text-body-secondary small">@{o.client?.identifier}</div>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <div>{o.branch.name}</div>
+                        <div className="text-body-secondary small">{o.branch.code}</div>
                       </CTableDataCell>
                       <CTableDataCell>
                         <OrderStatusBadge status={o.status} />

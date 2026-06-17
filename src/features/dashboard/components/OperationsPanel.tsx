@@ -19,10 +19,11 @@ const TRANSITION_LABEL: Record<string, string> = {
 interface OperationsPanelProps {
   from: string
   to: string
+  branchId?: number
 }
 
-const OperationsPanel = ({ from, to }: OperationsPanelProps) => {
-  const { data, isLoading, error } = useOperations(from, to)
+const OperationsPanel = ({ from, to, branchId }: OperationsPanelProps) => {
+  const { data, isLoading, error } = useOperations(from, to, branchId)
 
   if (isLoading) {
     return (

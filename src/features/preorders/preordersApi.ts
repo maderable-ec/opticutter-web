@@ -12,10 +12,11 @@ const BASE = '/api/v1/preorders'
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export const preordersApi = {
-  list: ({ status, clientId, offset = 0, limit = 20 }: PreOrderListParams = {}) => {
+  list: ({ status, clientId, branchId, offset = 0, limit = 20 }: PreOrderListParams = {}) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
     if (status) params.set('status', status)
     if (clientId) params.set('clientId', String(clientId))
+    if (branchId) params.set('branchId', String(branchId))
     return httpClient.list<PreOrderSummary>(`${BASE}/?${params}`)
   },
   get: (id: number) => httpClient.get<PreOrder>(`${BASE}/${id}`),

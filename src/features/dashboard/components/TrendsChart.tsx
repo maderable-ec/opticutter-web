@@ -27,11 +27,12 @@ interface TrendsChartProps {
   from: string
   to: string
   granularity: Granularity
+  branchId?: number
 }
 
-const TrendsChart = ({ from, to, granularity }: TrendsChartProps) => {
+const TrendsChart = ({ from, to, granularity, branchId }: TrendsChartProps) => {
   const chartRef = useRef<ComponentRef<typeof CChartLine>>(null)
-  const { data, isLoading, error } = useTimeseries(from, to, granularity)
+  const { data, isLoading, error } = useTimeseries(from, to, granularity, branchId)
 
   useEffect(() => {
     const handleColorSchemeChange = () => {

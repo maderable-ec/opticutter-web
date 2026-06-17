@@ -3,6 +3,7 @@ import {
   CButton,
   CFormInput,
   CFormLabel,
+  CFormSelect,
   CModal,
   CModalBody,
   CModalFooter,
@@ -10,12 +11,17 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import { useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { ApiError } from 'src/shared/api/types'
 
 interface SaveDraftModalProps {
   visible: boolean
   isSaving: boolean
-  onSave: (name: string) => void
+  // El admin (global) debe elegir sucursal; para staff llega null y no se envía.
+  onSave: (name: string, branchId: number | null) => void
   onClose: () => void
+  error?: Error | null
 }
 
 const NAME_MAX = 128
@@ -28,23 +34,35 @@ const suggestedName = () =>
     year: 'numeric',
   })}`
 
-const SaveDraftModal = ({ visible, isSaving, onSave, onClose }: SaveDraftModalProps) => {
+const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraftModalProps) => {
   const [name, setName] = useState(suggestedName)
+  const [branchId, setBranchId] = useState('')
 
-  // Reinicia el nombre sugerido cada vez que se abre el modal (patrón "ajustar estado al cambiar una
+  const isAdmin = useHasRole('administrador')
+  const { data: branches = [] } = useActiveBranches()
+
+  // Reinicia el estado cada vez que se abre el modal (patrón "ajustar estado al cambiar una
   // prop" durante el render, en vez de un efecto: https://react.dev/learn/you-might-not-need-an-effect).
   const [wasVisible, setWasVisible] = useState(visible)
   if (visible !== wasVisible) {
     setWasVisible(visible)
-    if (visible) setName(suggestedName())
+    if (visible) {
+      setName(suggestedName())
+      setBranchId('')
+    }
   }
 
   const trimmed = name.trim()
-  const canSave = trimmed.length > 0 && !isSaving
+  const canSave = trimmed.length > 0 && !isSaving && (!isAdmin || !!branchId)
+
+  const branchError =
+    error instanceof ApiError
+      ? error.errors.find((e) => e.field === 'branchId')?.message
+      : undefined
 
   const handleSave = () => {
     if (!canSave) return
-    onSave(trimmed)
+    onSave(trimmed, isAdmin && branchId ? Number(branchId) : null)
   }
 
   return (
@@ -62,6 +80,26 @@ const SaveDraftModal = ({ visible, isSaving, onSave, onClose }: SaveDraftModalPr
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           placeholder="Ej.: Cocina familia Pérez"
         />
+        {isAdmin && (
+          <>
+            <CFormLabel className="mt-3">
+              Sucursal <span className="text-danger">*</span>
+            </CFormLabel>
+            <CFormSelect
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              invalid={!!branchError}
+            >
+              <option value="">— Seleccionar sucursal —</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </CFormSelect>
+            {branchError && <div className="invalid-feedback d-block">{branchError}</div>}
+          </>
+        )}
         <p className="text-body-secondary small mt-2 mb-0">
           Se guarda el estado actual (materiales y piezas) para retomarlo después.
         </p>

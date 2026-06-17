@@ -20,6 +20,9 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
+import { useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import { usePreOrders } from './usePreOrders'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import type { PreOrderStatus } from './types'
@@ -62,12 +65,22 @@ const clientLabel = (c: {
 
 const PreOrdersPage = () => {
   const navigate = useNavigate()
+  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
+  const isAdmin = useHasRole('administrador')
   const [status, setStatus] = useState<PreOrderStatus | ''>('')
+  const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 
-  const { data, isLoading } = usePreOrders({ status: status || undefined, offset, limit: LIMIT })
+  const { data: branches = [] } = useActiveBranches()
+  const { data, isLoading, error } = usePreOrders({
+    status: status || undefined,
+    branchId: branchId ? Number(branchId) : undefined,
+    offset,
+    limit: LIMIT,
+  })
   const items = data?.items ?? []
   const pagination = data?.pagination
+  const noBranch = isNoBranchError(error)
 
   const handleStatusChange = (e: ChangeEvent<HTMLSelectElement>) => {
     setStatus(e.target.value as PreOrderStatus | '')
@@ -98,9 +111,29 @@ const PreOrdersPage = () => {
                 ))}
               </CFormSelect>
             </CCol>
+            {isAdmin && (
+              <CCol xs={12} sm={6} md={4}>
+                <CFormSelect
+                  value={branchId}
+                  onChange={(e) => {
+                    setBranchId(e.target.value)
+                    setOffset(0)
+                  }}
+                >
+                  <option value="">Todas las sucursales</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </CFormSelect>
+              </CCol>
+            )}
           </CRow>
 
-          {isLoading ? (
+          {noBranch ? (
+            <NoBranchNotice />
+          ) : isLoading ? (
             <div className="text-center py-5">
               <CSpinner color="primary" />
             </div>
@@ -110,6 +143,7 @@ const PreOrdersPage = () => {
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Código</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Cliente</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Fuente</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Creada</CTableHeaderCell>
@@ -119,7 +153,7 @@ const PreOrdersPage = () => {
               <CTableBody>
                 {items.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
@@ -134,6 +168,10 @@ const PreOrdersPage = () => {
                         <CTableDataCell>
                           <div>{clientLabel(po.client)}</div>
                           <div className="text-body-secondary small">@{po.client.identifier}</div>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <div>{po.branch.name}</div>
+                          <div className="text-body-secondary small">{po.branch.code}</div>
                         </CTableDataCell>
                         <CTableDataCell>
                           <PreOrderStatusBadge status={po.status} />

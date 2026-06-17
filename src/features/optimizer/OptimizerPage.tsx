@@ -151,9 +151,9 @@ const OptimizerPage = () => {
     }
   }
 
-  const handleSaveNewDraft = (name: string) => {
+  const handleSaveNewDraft = (name: string, branchId: number | null) => {
     saveDraft.mutate(
-      { name, payload: draftPayload() },
+      { name, payload: draftPayload(), branchId: branchId ?? undefined },
       {
         onSuccess: (d) => {
           setDraftId(d.id)
@@ -308,6 +308,7 @@ const OptimizerPage = () => {
         isSaving={saveDraft.isPending}
         onSave={handleSaveNewDraft}
         onClose={() => setShowSaveDraft(false)}
+        error={saveDraft.error}
       />
     </>
   )

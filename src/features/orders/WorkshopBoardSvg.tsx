@@ -116,6 +116,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                   {p.label} · {p.originalWidth}×{p.originalHeight} mm
                   {p.rotated ? ' (rotada 90°)' : ''}
                   {p.cut ? ' — cortada' : ''}
+                  {p.cut && p.cutByLabel ? ` por ${p.cutByLabel}` : ''}
                 </title>
 
                 {/* Visual de la pieza: atenuado cuando ya está cortada */}
