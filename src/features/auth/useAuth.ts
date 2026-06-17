@@ -8,16 +8,24 @@ export const useLogin = () => {
   const setSession = useAuthStore((s) => s.setSession)
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (data) => setSession(data.accessToken, data.user),
+    onSuccess: (data) => setSession(data.accessToken, data.refreshToken, data.user),
   })
 }
 
 export const useLogout = () => {
-  const clearSession = useAuthStore((s) => s.clearSession)
   const navigate = useNavigate()
   return () => {
-    clearSession()
-    navigate('/login')
+    const { refreshToken, clearSession } = useAuthStore.getState()
+    const done = () => {
+      clearSession()
+      navigate('/login')
+    }
+    // Revoke the refresh token server-side, but log out locally regardless.
+    if (refreshToken) {
+      authApi.logout(refreshToken).finally(done)
+    } else {
+      done()
+    }
   }
 }
 

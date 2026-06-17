@@ -21,6 +21,7 @@ import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
+import { useHasRole } from 'src/features/auth/useAuth'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useOrders } from './useOrders'
 import type { OrderStatus } from './types'
@@ -54,6 +55,8 @@ const fmt = (n?: number | null) =>
 
 const OrdersPage = () => {
   const navigate = useNavigate()
+  // Operador puede ver órdenes pero no crear cotizaciones (eso es del optimizador).
+  const canCreate = useHasRole('administrador', 'vendedor')
   const [status, setStatus] = useState<OrderStatus | ''>('')
   const [offset, setOffset] = useState(0)
 
@@ -78,10 +81,12 @@ const OrdersPage = () => {
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Órdenes</strong>
-          <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
-            <CIcon icon={cilPlus} className="me-1" />
-            Nueva cotización
-          </CButton>
+          {canCreate && (
+            <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
+              <CIcon icon={cilPlus} className="me-1" />
+              Nueva cotización
+            </CButton>
+          )}
         </CCardHeader>
         <CCardBody>
           <CRow className="mb-3">

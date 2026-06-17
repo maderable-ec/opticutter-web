@@ -30,6 +30,7 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
+import { useHasRole } from 'src/features/auth/useAuth'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
 import { ordersApi } from './ordersApi'
@@ -85,6 +86,8 @@ interface TransitionModalState {
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  // Operador puede ver la orden, proforma y el plan de corte, pero no cambiar estado ni facturar.
+  const canManage = useHasRole('administrador', 'vendedor')
 
   const { data: order, isLoading } = useOrder(id)
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
@@ -206,7 +209,7 @@ const OrderDetailPage = () => {
       </CCard>
 
       {/* Status actions */}
-      {!isTerminal && transitions.length > 0 && (
+      {canManage && !isTerminal && transitions.length > 0 && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Acciones</strong>
@@ -433,15 +436,17 @@ const OrderDetailPage = () => {
               <CIcon icon={cilExternalLink} className="me-1" />
               Hoja de producción PDF
             </CButton>
-            <CButton
-              color="primary"
-              variant="outline"
-              size="sm"
-              disabled={!!order.externalInvoiceId}
-              onClick={() => setInvoiceModal(true)}
-            >
-              {order.externalInvoiceId ? 'Factura asociada' : 'Asociar factura'}
-            </CButton>
+            {canManage && (
+              <CButton
+                color="primary"
+                variant="outline"
+                size="sm"
+                disabled={!!order.externalInvoiceId}
+                onClick={() => setInvoiceModal(true)}
+              >
+                {order.externalInvoiceId ? 'Factura asociada' : 'Asociar factura'}
+              </CButton>
+            )}
           </div>
         </CCardBody>
       </CCard>
