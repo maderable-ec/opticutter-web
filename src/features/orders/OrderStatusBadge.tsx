@@ -3,8 +3,8 @@ import type { OrderStatus } from './types'
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; label: string }> = {
   confirmed: { color: 'primary', label: 'Confirmada' },
-  approved: { color: 'success', label: 'Aprobada' },
-  in_production: { color: 'warning', label: 'En producción' },
+  in_production: { color: 'info', label: 'En producción' },
+  cutting: { color: 'warning', label: 'En corte' },
   cut: { color: 'info', label: 'Cortada' },
   completed: { color: 'success', label: 'Completada' },
   cancelled: { color: 'danger', label: 'Cancelada' },
