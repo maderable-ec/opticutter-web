@@ -19,8 +19,8 @@ import {
   SIDE_LABELS_ES,
   bandedSides,
   clamp,
+  insetSideLine,
   pieceSig,
-  sideLine,
 } from './cutDrawing'
 import type { SideLine } from './cutDrawing'
 
@@ -175,9 +175,9 @@ const SheetSvg = ({
                 vectorEffect="non-scaling-stroke"
               />
 
-              {/* Tapacanto por lado geométrico */}
+              {/* Tapacanto: banda gruesa hacia dentro de la pieza (no pisa la línea de corte) */}
               {bandedSides(p).map((side) => {
-                const l = sideLine(side, p.x, p.y, p.width, p.height)
+                const l = insetSideLine(side, p.x, p.y, p.width, p.height, edgeWidth)
                 return (
                   <line
                     key={`${p.pieceId}-${side}`}
@@ -187,7 +187,7 @@ const SheetSvg = ({
                     y2={l.y2}
                     stroke={EDGE_COLOR}
                     strokeWidth={edgeWidth}
-                    strokeLinecap="round"
+                    strokeLinecap="butt"
                   />
                 )
               })}

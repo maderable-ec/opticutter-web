@@ -14,7 +14,9 @@ const BASE = '/api/v1/orders'
 export const ordersApi = {
   list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
-    if (status) params.set('status', status)
+    // Varios estados → `status` repetido (?status=a&status=b); uno solo → un único `status`.
+    if (Array.isArray(status)) status.forEach((s) => params.append('status', s))
+    else if (status) params.set('status', status)
     if (branchId) params.set('branchId', String(branchId))
     return httpClient.list<Order>(`${BASE}/?${params}`)
   },
