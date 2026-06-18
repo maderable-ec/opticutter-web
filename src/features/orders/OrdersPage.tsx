@@ -40,6 +40,16 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
+// Estados que el operador puede ver; su opción "Todos" (value '') equivale a este set completo.
+const OPERATOR_STATUSES: OrderStatus[] = ['in_production', 'cutting', 'cut']
+
+const OPERATOR_STATUS_OPTIONS: { value: OrderStatus | ''; label: string }[] = [
+  { value: '', label: 'Todos' },
+  { value: 'in_production', label: 'En producción' },
+  { value: 'cutting', label: 'En corte' },
+  { value: 'cut', label: 'Cortada' },
+]
+
 const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
@@ -63,17 +73,15 @@ const OrdersPage = () => {
   const isAdmin = useHasRole('administrador')
   // El operador trabaja en el piso: solo ve órdenes en producción/cortadas y entra directo al taller.
   const isOperator = useHasRole('operador')
-  // Filtro acotado para el operador (sin "Todos los estados"); el resto usa el set completo.
-  const statusOptions = isOperator
-    ? ([
-        { value: 'in_production', label: 'En producción' },
-        { value: 'cutting', label: 'En corte' },
-        { value: 'cut', label: 'Cortada' },
-      ] as const)
-    : STATUSES
-  const [status, setStatus] = useState<OrderStatus | ''>(isOperator ? 'in_production' : '')
+  // Filtro acotado a sus estados visibles; arranca en "Todos" (los tres). El resto usa el set completo.
+  const statusOptions = isOperator ? OPERATOR_STATUS_OPTIONS : STATUSES
+  const [status, setStatus] = useState<OrderStatus | ''>('')
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
+
+  // "Todos" del operador (status '') = sus tres estados visibles; "Todos" del resto = sin filtro.
+  const statusParam: OrderStatus | OrderStatus[] | undefined =
+    status || (isOperator ? OPERATOR_STATUSES : undefined)
 
   const { data: branches = [] } = useActiveBranches()
   const {
@@ -81,7 +89,7 @@ const OrdersPage = () => {
     isLoading,
     error,
   } = useOrders({
-    status: status || undefined,
+    status: statusParam,
     branchId: branchId ? Number(branchId) : undefined,
     offset,
     limit: LIMIT,

@@ -69,3 +69,28 @@ export const sideLine = (side: EdgeSide, x: number, y: number, w: number, h: num
       return { x1: x + w, y1: y, x2: x + w, y2: y + h }
   }
 }
+
+// Línea de tapacanto desplazada hacia DENTRO de la pieza: con offset t/2 el borde exterior del trazo
+// (grosor t) coincide con el lado de la pieza y la banda crece hacia el interior. Así se ve a qué pieza
+// pertenece el canto sin pisar la línea de corte ni invadir a la vecina. Usar con strokeLinecap="butt"
+// y el mismo grosor t; en cantos de dos lados contiguos las bandas se solapan limpias en la esquina.
+export const insetSideLine = (
+  side: EdgeSide,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  t: number,
+): SideLine => {
+  const o = t / 2
+  switch (side) {
+    case 'top':
+      return { x1: x, y1: y + o, x2: x + w, y2: y + o }
+    case 'bottom':
+      return { x1: x, y1: y + h - o, x2: x + w, y2: y + h - o }
+    case 'left':
+      return { x1: x + o, y1: y, x2: x + o, y2: y + h }
+    case 'right':
+      return { x1: x + w - o, y1: y, x2: x + w - o, y2: y + h }
+  }
+}

@@ -4,8 +4,8 @@ import {
   EDGE_COLOR,
   bandedSides,
   clamp,
+  insetSideLine,
   pieceSig,
-  sideLine,
 } from 'src/features/optimizer/cutDrawing'
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import ZoomControls from 'src/shared/components/ZoomControls'
@@ -20,11 +20,10 @@ interface WorkshopBoardSvgProps {
 }
 
 const CHECK_COLOR = '#2b8a3e' // verde del ✓ de pieza cortada
-const CUT_COLOR = '#1971c2' // azul del recorrido de la sierra
 
 // Dibuja un tablero físico del plan de corte con la misma geometría que el optimizador, agregando el
-// estado de corte por pieza (atenuada + ✓), los sobrantes rayados, los recorridos de la sierra y el
-// área táctil sobre todo el rectángulo.
+// estado de corte por pieza (atenuada + ✓), los sobrantes rayados y el área táctil sobre todo el
+// rectángulo.
 const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: WorkshopBoardSvgProps) => {
   const W = board.width
   const H = board.height
@@ -133,9 +132,9 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                     vectorEffect="non-scaling-stroke"
                   />
 
-                  {/* Tapacanto por lado geométrico */}
+                  {/* Tapacanto: banda gruesa hacia dentro de la pieza (no pisa la línea de corte) */}
                   {bandedSides(p).map((side) => {
-                    const l = sideLine(side, p.x, p.y, p.width, p.height)
+                    const l = insetSideLine(side, p.x, p.y, p.width, p.height, edgeWidth)
                     return (
                       <line
                         key={`${p.id}-${side}`}
@@ -145,7 +144,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                         y2={l.y2}
                         stroke={EDGE_COLOR}
                         strokeWidth={edgeWidth}
-                        strokeLinecap="round"
+                        strokeLinecap="butt"
                       />
                     )
                   })}
@@ -181,39 +180,6 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                     ✓
                   </text>
                 )}
-              </g>
-            )
-          })}
-
-          {/* Recorridos de la sierra (guillotina), por encima de las piezas. Doble trazo (casing blanco +
-          punteado azul) para que se lean sobre cualquier color de pieza. "¿Por dónde paso la sierra?" */}
-          {(board.cuts ?? []).map((c, idx) => {
-            const x2 = c.isHorizontal ? c.x + c.length : c.x
-            const y2 = c.isHorizontal ? c.y : c.y + c.length
-            return (
-              <g key={`cut-${idx}`} style={{ pointerEvents: 'none' }}>
-                <line
-                  x1={c.x}
-                  y1={c.y}
-                  x2={x2}
-                  y2={y2}
-                  stroke="#ffffff"
-                  strokeWidth={4}
-                  strokeOpacity={0.85}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-                <line
-                  x1={c.x}
-                  y1={c.y}
-                  x2={x2}
-                  y2={y2}
-                  stroke={CUT_COLOR}
-                  strokeWidth={2}
-                  strokeDasharray="9 6"
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
               </g>
             )
           })}
