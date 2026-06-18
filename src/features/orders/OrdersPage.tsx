@@ -33,8 +33,8 @@ const LIMIT = 20
 const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
   { value: 'confirmed', label: 'Confirmada' },
-  { value: 'approved', label: 'Aprobada' },
   { value: 'in_production', label: 'En producción' },
+  { value: 'cutting', label: 'En corte' },
   { value: 'cut', label: 'Cortada' },
   { value: 'completed', label: 'Completada' },
   { value: 'cancelled', label: 'Cancelada' },
@@ -67,6 +67,7 @@ const OrdersPage = () => {
   const statusOptions = isOperator
     ? ([
         { value: 'in_production', label: 'En producción' },
+        { value: 'cutting', label: 'En corte' },
         { value: 'cut', label: 'Cortada' },
       ] as const)
     : STATUSES
