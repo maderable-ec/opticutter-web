@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import useUIStore from 'src/shared/store/uiStore'
+import { useAuthStore } from 'src/shared/store/authStore'
 import {
   CContainer,
   CDropdown,
@@ -34,6 +35,23 @@ const AppHeader = () => {
 
   const sidebarShow = useUIStore((state) => state.sidebarShow)
   const setSidebarShow = useUIStore((state) => state.setSidebarShow)
+  const userRole = useAuthStore((s) => s.user?.role)
+
+  const navLinks: Record<string, { label: string; to: string }[]> = {
+    administrador: [
+      { label: 'Dashboard', to: '/dashboard' },
+      { label: 'Usuarios', to: '/users' },
+      { label: 'Configuración', to: '/settings' },
+    ],
+    vendedor: [
+      { label: 'Optimizador', to: '/optimizer' },
+      { label: 'Cotizaciones', to: '/preorders' },
+      { label: 'Órdenes', to: '/orders' },
+    ],
+    operador: [{ label: 'Órdenes', to: '/orders' }],
+  }
+
+  const links = (userRole && navLinks[userRole]) ?? []
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,17 +74,13 @@ const AppHeader = () => {
           <CIcon icon={cilMenu} size="lg" />
         </CHeaderToggler>
         <CHeaderNav className="d-none d-md-flex">
-          <CNavItem>
-            <CNavLink to="/dashboard" as={NavLink}>
-              Dashboard
-            </CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">Users</CNavLink>
-          </CNavItem>
-          <CNavItem>
-            <CNavLink href="#">Settings</CNavLink>
-          </CNavItem>
+          {links.map(({ label, to }) => (
+            <CNavItem key={to}>
+              <CNavLink to={to} as={NavLink}>
+                {label}
+              </CNavLink>
+            </CNavItem>
+          ))}
         </CHeaderNav>
         <CHeaderNav className="ms-auto">
           <CNavItem>

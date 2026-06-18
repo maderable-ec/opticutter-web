@@ -105,7 +105,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CButton
             color="warning"
             disabled={requestChanges.isPending}
-            onClick={() => requestChanges.mutate(changesNote || undefined)}
+            onClick={() => requestChanges.mutate(changesNote || undefined, { onSuccess: closeChanges })}
           >
             {requestChanges.isPending ? <CSpinner size="sm" /> : 'Enviar solicitud'}
           </CButton>
@@ -140,7 +140,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CButton
             color="danger"
             disabled={reject.isPending}
-            onClick={() => reject.mutate(rejectNote || undefined)}
+            onClick={() => reject.mutate(rejectNote || undefined, { onSuccess: closeReject })}
           >
             {reject.isPending ? <CSpinner size="sm" /> : 'Rechazar'}
           </CButton>
