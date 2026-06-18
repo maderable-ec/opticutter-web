@@ -39,6 +39,7 @@ const WorkshopPage = () => {
   const navigate = useNavigate()
   // El operador no tiene detalle de orden: vuelve al listado en vez de a /orders/:id.
   const isOperator = useHasRole('operador')
+  const isAdminOrOperator = useHasRole('administrador', 'operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
   const markPiece = useMarkPiece(id ?? '')
@@ -74,7 +75,7 @@ const WorkshopPage = () => {
     stripRef.current?.children[idx]?.scrollIntoView({ block: 'nearest', inline: 'center' })
   }, [plan, selectedBoardId])
 
-  const interactive = plan?.status === 'in_production'
+  const interactive = plan?.status === 'cutting'
 
   const onPieceTap = (piece: CutPiece) => {
     if (!id) return
@@ -222,6 +223,29 @@ const WorkshopPage = () => {
         </div>
       </div>
 
+      {/* Cola de espera: el operador aún no tomó la orden */}
+      {plan.status === 'in_production' && isAdminOrOperator && (
+        <CCard className="mb-3 border-primary">
+          <CCardBody>
+            <p className="mb-3">Esta orden está disponible para cortar.</p>
+            <CButton
+              color="primary"
+              size="lg"
+              className="w-100"
+              disabled={updateStatus.isPending}
+              onClick={() => id && updateStatus.mutate({ id, data: { status: 'cutting' } })}
+            >
+              {updateStatus.isPending ? <CSpinner size="sm" /> : 'Tomar esta orden'}
+            </CButton>
+            {updateStatus.error && (
+              <div className="text-danger small mt-2">
+                {updateStatus.error.message || 'Error al tomar la orden.'}
+              </div>
+            )}
+          </CCardBody>
+        </CCard>
+      )}
+
       {/* Cerrar el corte: habilitado solo cuando todas las piezas están marcadas. El API es la
           garantía real (422 si faltan piezas); deshabilitar es UX. Al pasar a 'cut', el plan se
           refresca y la vista queda en solo-lectura. */}
@@ -256,9 +280,14 @@ const WorkshopPage = () => {
         </div>
       )}
 
-      {!interactive && (
+      {!interactive && plan.status !== 'in_production' && (
         <div className="text-body-secondary small mb-3">
-          Solo lectura: la orden ya no está en producción.
+          Solo lectura: el corte ya fue completado.
+        </div>
+      )}
+      {!interactive && plan.status === 'in_production' && !isAdminOrOperator && (
+        <div className="text-body-secondary small mb-3">
+          Disponible en la cola. Toma la orden para empezar a cortar.
         </div>
       )}
 

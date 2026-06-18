@@ -30,7 +30,7 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
@@ -41,25 +41,30 @@ interface StatusTransition {
   to: OrderStatus
   label: string
   color: string
+  roles: string[]
 }
 
 const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled']
 
 // Estados donde el plan de corte es relevante: producción (interactivo en el taller) y posteriores
 // (solo-lectura, auditoría de lo cortado).
-const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cut', 'completed']
+const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cutting', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   confirmed: [
-    { to: 'approved', label: 'Aprobar', color: 'primary' },
-    { to: 'cancelled', label: 'Cancelar', color: 'danger' },
+    { to: 'in_production', label: 'Enviar a producción', color: 'primary', roles: ['administrador', 'vendedor'] },
+    { to: 'cancelled', label: 'Cancelar', color: 'danger', roles: ['administrador', 'vendedor'] },
   ],
-  approved: [
-    { to: 'in_production', label: 'Enviar a producción', color: 'primary' },
-    { to: 'cancelled', label: 'Cancelar', color: 'danger' },
+  in_production: [
+    { to: 'cutting', label: 'Tomar orden', color: 'primary', roles: ['administrador', 'operador'] },
   ],
-  in_production: [{ to: 'cut', label: 'Marcar como cortado', color: 'primary' }],
-  cut: [{ to: 'completed', label: 'Marcar como completado', color: 'success' }],
+  cutting: [
+    { to: 'cut', label: 'Marcar como cortada', color: 'primary', roles: ['administrador', 'operador'] },
+    { to: 'in_production', label: 'Regresar a cola', color: 'secondary', roles: ['administrador'] },
+  ],
+  cut: [
+    { to: 'completed', label: 'Marcar como completada', color: 'success', roles: ['administrador', 'vendedor'] },
+  ],
 }
 
 const fmt = (n?: number | null) =>
@@ -92,6 +97,7 @@ const OrderDetailPage = () => {
   // El operador no usa el detalle: su flujo es el taller. Lo redirigimos allí (también por URL directa).
   const isOperator = useHasRole('operador')
 
+  const currentUser = useCurrentUser()
   const { data: order, isLoading } = useOrder(id)
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
   const updateStatus = useUpdateOrderStatus()
@@ -152,14 +158,16 @@ const OrderDetailPage = () => {
     return <CAlert color="danger">Orden no encontrada.</CAlert>
   }
 
-  const transitions = STATUS_TRANSITIONS[order.status] ?? []
+  const transitions = (STATUS_TRANSITIONS[order.status] ?? []).filter(
+    (t) => t.roles.includes(currentUser?.role ?? ''),
+  )
   const isTerminal = TERMINAL_STATES.includes(order.status)
 
   const plan = cuttingPlan.data
   const showProduction = WORKSHOP_STATES.includes(order.status)
   const piecesPending = plan ? plan.progress.totalPieces - plan.progress.cutPieces : 0
   // El API es la garantía (responde 422 si faltan piezas); deshabilitar el botón es solo UX.
-  const cutGated = order.status === 'in_production' && !!plan && piecesPending > 0
+  const cutGated = order.status === 'cutting' && !!plan && piecesPending > 0
   const planPct =
     plan && plan.progress.totalPieces > 0
       ? Math.round((plan.progress.cutPieces / plan.progress.totalPieces) * 100)
@@ -215,8 +223,27 @@ const OrderDetailPage = () => {
         </CCardBody>
       </CCard>
 
+      {/* Asignación del operador (cutting en curso o auditoría post-cut) */}
+      {(order.status === 'cutting' || order.status === 'cut') && order.assignedToLabel && (
+        <CCard className="mb-3 border-warning">
+          <CCardBody className="bg-warning bg-opacity-10 py-2">
+            <div className="fw-semibold text-warning-emphasis mb-1">En corte</div>
+            <div className="small">
+              <span className="text-body-secondary">Operador:</span>{' '}
+              <strong>{order.assignedToLabel}</strong>
+            </div>
+            {order.assignedAt && (
+              <div className="small">
+                <span className="text-body-secondary">Desde:</span>{' '}
+                {fmtDateTime(order.assignedAt)}
+              </div>
+            )}
+          </CCardBody>
+        </CCard>
+      )}
+
       {/* Status actions */}
-      {canManage && !isTerminal && transitions.length > 0 && (
+      {!isTerminal && transitions.length > 0 && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Acciones</strong>
@@ -275,7 +302,7 @@ const OrderDetailPage = () => {
                   <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
                 </CProgress>
                 <CButton color="primary" onClick={() => navigate(`/orders/${id}/workshop`)}>
-                  {order.status === 'in_production' ? 'Abrir taller' : 'Ver corte'}
+                  {(order.status === 'in_production' || order.status === 'cutting') ? 'Abrir taller' : 'Ver corte'}
                 </CButton>
               </>
             ) : (

@@ -4,8 +4,8 @@ import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
 export type OrderStatus =
   | 'confirmed'
-  | 'approved'
   | 'in_production'
+  | 'cutting'
   | 'cut'
   | 'completed'
   | 'cancelled'
@@ -59,6 +59,9 @@ export interface Order {
   createdAt: string
   confirmedAt?: string
   externalInvoiceId?: string
+  assignedToId?: number | null
+  assignedAt?: string | null
+  assignedToLabel?: string | null
 }
 
 export interface OrderListParams {
