@@ -196,6 +196,14 @@ const OrderDetailPage = () => {
               <div className="text-body-secondary small">
                 Cliente: <strong>{clientName(order.client)}</strong> (@{order.client?.identifier})
               </div>
+              {canManage && (
+                <div className="text-body-secondary small">
+                  Sucursal: <strong>{order.branch.name}</strong>
+                  {order.branch.code && (
+                    <span> ({order.branch.code})</span>
+                  )}
+                </div>
+              )}
             </CCol>
             <CCol xs={12} md={6}>
               <div className="small">

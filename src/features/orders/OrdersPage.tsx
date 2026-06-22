@@ -21,7 +21,7 @@ import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import OrderStatusBadge from './OrderStatusBadge'
@@ -69,8 +69,7 @@ const OrdersPage = () => {
   const navigate = useNavigate()
   // Operador puede ver órdenes pero no crear cotizaciones (eso es del optimizador).
   const canCreate = useHasRole('administrador', 'vendedor')
-  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
-  const isAdmin = useHasRole('administrador')
+  const isGlobalBranch = useIsGlobalBranchRole()
   // El operador trabaja en el piso: solo ve órdenes en producción/cortadas y entra directo al taller.
   const isOperator = useHasRole('operador')
   // Filtro acotado a sus estados visibles; arranca en "Todos" (los tres). El resto usa el set completo.
@@ -129,7 +128,7 @@ const OrdersPage = () => {
                 ))}
               </CFormSelect>
             </CCol>
-            {isAdmin && (
+            {isGlobalBranch && (
               <CCol xs={12} sm={6} md={4}>
                 <CFormSelect
                   value={branchId}

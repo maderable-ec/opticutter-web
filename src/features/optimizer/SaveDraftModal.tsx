@@ -11,7 +11,7 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { ApiError } from 'src/shared/api/types'
 
@@ -36,10 +36,15 @@ const suggestedName = () =>
 
 const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraftModalProps) => {
   const [name, setName] = useState(suggestedName)
-  const [branchId, setBranchId] = useState('')
 
+  const user = useCurrentUser()
   const isAdmin = useHasRole('administrador')
+  const isGlobalBranch = useIsGlobalBranchRole()
   const { data: branches = [] } = useActiveBranches()
+
+  // Admin: sin preselección (campo obligatorio). Vendedor: preselecciona su sucursal base.
+  const defaultBranchId = isAdmin ? '' : String(user?.branchId ?? '')
+  const [branchId, setBranchId] = useState(defaultBranchId)
 
   // Reinicia el estado cada vez que se abre el modal (patrón "ajustar estado al cambiar una
   // prop" durante el render, en vez de un efecto: https://react.dev/learn/you-might-not-need-an-effect).
@@ -48,7 +53,7 @@ const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraft
     setWasVisible(visible)
     if (visible) {
       setName(suggestedName())
-      setBranchId('')
+      setBranchId(defaultBranchId)
     }
   }
 
@@ -62,7 +67,7 @@ const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraft
 
   const handleSave = () => {
     if (!canSave) return
-    onSave(trimmed, isAdmin && branchId ? Number(branchId) : null)
+    onSave(trimmed, isGlobalBranch && branchId ? Number(branchId) : null)
   }
 
   return (
@@ -80,10 +85,10 @@ const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraft
           onKeyDown={(e) => e.key === 'Enter' && handleSave()}
           placeholder="Ej.: Cocina familia Pérez"
         />
-        {isAdmin && (
+        {isGlobalBranch && (
           <>
             <CFormLabel className="mt-3">
-              Sucursal <span className="text-danger">*</span>
+              Sucursal {isAdmin && <span className="text-danger">*</span>}
             </CFormLabel>
             <CFormSelect
               value={branchId}

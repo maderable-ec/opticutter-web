@@ -18,7 +18,7 @@ export type PreOrderStatus =
 export interface PreOrderListParams {
   status?: PreOrderStatus
   clientId?: number
-  // Filtro sólo efectivo para admin; el staff queda acotado a su sucursal por el backend.
+  // Filtro efectivo para roles globales (admin y vendedor); el operador queda acotado a su sucursal.
   branchId?: number
   offset?: number
   limit?: number
@@ -68,7 +68,8 @@ export interface PreOrderCreate {
   source?: string
   materials: MaterialInput[]
   requirements: RequirementInput[]
-  // Sólo lo envía el admin (global); el staff lo omite y el backend fuerza su sucursal.
+  // Operador: lo omite (backend usa su sucursal). Vendedor: opcional, backend usa su base si se omite.
+  // Admin: obligatorio.
   branchId?: number
 }
 

@@ -1,5 +1,10 @@
 import type { Role } from './types'
 
+// Roles que ven y operan sobre todas las sucursales (eje sucursal global).
+export const GLOBAL_BRANCH_ROLES = ['administrador', 'vendedor'] as const
+export const isGlobalBranchRole = (role?: string): boolean =>
+  GLOBAL_BRANCH_ROLES.includes(role as any)
+
 export const ROUTE_ROLES: Record<string, Role[]> = {
   dashboard: ['administrador'],
   clients: ['administrador', 'vendedor'],

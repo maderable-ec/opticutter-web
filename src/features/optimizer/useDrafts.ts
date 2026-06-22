@@ -5,7 +5,7 @@ import type { OptimizerDraftPayload } from './types'
 
 const LIST_KEY = ['optimization-drafts']
 
-// Listado de borradores guardados (nombre + fechas, sin payload). `branchId` (sólo admin) filtra.
+// Listado de borradores guardados (nombre + fechas, sin payload). `branchId` filtra (roles globales).
 export const useDrafts = (branchId?: number) =>
   useQuery({
     queryKey: [...LIST_KEY, { branchId }],
@@ -24,7 +24,7 @@ interface SaveDraftVars {
   id?: number | null
   name: string
   payload: OptimizerDraftPayload
-  // Sólo en creación y sólo para admin; en el PUT no se reenvía (la sucursal ya quedó fijada).
+  // Solo en creación (POST); en PUT la sucursal ya quedó fijada y no se reenvía.
   branchId?: number | null
 }
 
