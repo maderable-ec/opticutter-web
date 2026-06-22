@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from 'src/shared/store/authStore'
 import { authApi } from './authApi'
+import { isGlobalBranchRole } from './permissions'
 import type { Role, User } from './types'
 
 export const useLogin = () => {
@@ -34,4 +35,9 @@ export const useCurrentUser = (): User | null => useAuthStore((s) => s.user)
 export const useHasRole = (...roles: Role[]): boolean => {
   const user = useAuthStore((s) => s.user)
   return user ? roles.includes(user.role) : false
+}
+
+export const useIsGlobalBranchRole = (): boolean => {
+  const user = useAuthStore((s) => s.user)
+  return isGlobalBranchRole(user?.role)
 }

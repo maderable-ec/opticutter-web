@@ -14,7 +14,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilTrash } from '@coreui/icons'
 
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useDeleteDraft, useDrafts } from './useDrafts'
 
@@ -33,8 +33,7 @@ const formatDate = (iso: string) =>
   })
 
 const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) => {
-  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
-  const isAdmin = useHasRole('administrador')
+  const isGlobalBranch = useIsGlobalBranchRole()
   const [branchId, setBranchId] = useState('')
   const { data: branches = [] } = useActiveBranches()
   const { data, isLoading } = useDrafts(branchId ? Number(branchId) : undefined)
@@ -53,7 +52,7 @@ const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) 
         <CModalTitle>Borradores guardados</CModalTitle>
       </CModalHeader>
       <CModalBody>
-        {isAdmin && (
+        {isGlobalBranch && (
           <CFormSelect
             className="mb-3"
             value={branchId}
