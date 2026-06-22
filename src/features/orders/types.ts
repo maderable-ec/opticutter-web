@@ -67,7 +67,7 @@ export interface Order {
 export interface OrderListParams {
   // Uno o varios estados; con varios el backend recibe `status` repetido (?status=a&status=b).
   status?: OrderStatus | OrderStatus[]
-  // Filtro sólo efectivo para admin; el staff queda acotado a su sucursal por el backend.
+  // Filtro efectivo para roles globales (admin y vendedor); el operador queda acotado a su sucursal.
   branchId?: number
   offset?: number
   limit?: number

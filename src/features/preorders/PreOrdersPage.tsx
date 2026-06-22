@@ -20,7 +20,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import { usePreOrders } from './usePreOrders'
@@ -65,8 +65,7 @@ const clientLabel = (c: {
 
 const PreOrdersPage = () => {
   const navigate = useNavigate()
-  // Sólo el admin filtra por sucursal; el staff queda acotado a la suya por el backend.
-  const isAdmin = useHasRole('administrador')
+  const isGlobalBranch = useIsGlobalBranchRole()
   const [status, setStatus] = useState<PreOrderStatus | ''>('')
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
@@ -111,7 +110,7 @@ const PreOrdersPage = () => {
                 ))}
               </CFormSelect>
             </CCol>
-            {isAdmin && (
+            {isGlobalBranch && (
               <CCol xs={12} sm={6} md={4}>
                 <CFormSelect
                   value={branchId}

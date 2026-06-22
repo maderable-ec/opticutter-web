@@ -28,6 +28,7 @@ import {
   cilTrash,
 } from '@coreui/icons'
 
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import MaterialsPanel from 'src/features/optimizer/MaterialsPanel'
 import PiecesTable from 'src/features/optimizer/PiecesTable'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
@@ -147,6 +148,7 @@ const LINK_STATUS_LABELS: Record<string, string> = {
 // Inner component: receives an already-loaded pre-order
 const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const navigate = useNavigate()
+  const isGlobalBranch = useIsGlobalBranchRole()
   const canEdit = ['draft', 'sent', 'changes_requested'].includes(preOrder.status)
 
   // Compute initial form state only once at mount from API-provided fields.
@@ -253,6 +255,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               <div className="text-body-secondary small">
                 Cliente: <strong>{clientLabel}</strong>
               </div>
+              {isGlobalBranch && (
+                <div className="text-body-secondary small">
+                  Sucursal: <strong>{preOrder.branch.name}</strong>
+                  {preOrder.branch.code && (
+                    <span> ({preOrder.branch.code})</span>
+                  )}
+                </div>
+              )}
               {preOrder.source && (
                 <div className="text-body-secondary small">Fuente: {preOrder.source}</div>
               )}

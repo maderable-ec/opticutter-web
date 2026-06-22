@@ -20,7 +20,7 @@ import { cilCloudDownload } from '@coreui/icons'
 import type { Client } from 'src/features/clients/types'
 import { useClientsMin } from 'src/features/orders/useOrders'
 import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
-import { useHasRole } from 'src/features/auth/useAuth'
+import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { ApiError } from 'src/shared/api/types'
 import type { MaterialInput, RequirementInput } from './types'
@@ -55,11 +55,16 @@ const CreateQuoteModal = ({
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [notes, setNotes] = useState('')
-  const [branchId, setBranchId] = useState('')
 
-  // Sólo el admin (global) elige sucursal; para staff el backend fuerza la suya.
+  const user = useCurrentUser()
   const isAdmin = useHasRole('administrador')
+  const isGlobalBranch = useIsGlobalBranchRole()
   const { data: branches = [] } = useActiveBranches()
+
+  // Admin: sin preselección (campo obligatorio). Vendedor: preselecciona su sucursal base.
+  const [branchId, setBranchId] = useState(() =>
+    isAdmin ? '' : String(user?.branchId ?? ''),
+  )
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(clientSearch), 350)
@@ -82,7 +87,7 @@ const CreateQuoteModal = ({
         notes: notes || undefined,
         materials,
         requirements,
-        branchId: isAdmin && branchId ? Number(branchId) : undefined,
+        branchId: isGlobalBranch && branchId ? Number(branchId) : undefined,
       },
       {
         onSuccess: (preOrder) => {
@@ -137,10 +142,10 @@ const CreateQuoteModal = ({
           </CAlert>
         )}
 
-        {isAdmin && (
+        {isGlobalBranch && (
           <>
             <CFormLabel className="mt-3">
-              Sucursal <span className="text-danger">*</span>
+              Sucursal {isAdmin && <span className="text-danger">*</span>}
             </CFormLabel>
             <CFormSelect
               value={branchId}
