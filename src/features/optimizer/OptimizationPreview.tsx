@@ -18,6 +18,7 @@ import CIcon from '@coreui/icons-react'
 import { cilCalculator } from '@coreui/icons'
 
 import { fmtMoney } from 'src/features/review/format'
+import PricingBlock from 'src/shared/components/PricingBlock'
 import type { OptimizeResponse } from './types'
 import CutLayoutDiagram from './CutLayoutDiagram'
 
@@ -94,6 +95,12 @@ const OptimizationPreview = ({
                 <div className="fs-5 fw-semibold">{meters(result.totalEdgeBandingLinearM)}</div>
               </CCol>
             </CRow>
+
+            {result.pricing && (
+              <div className="mb-3">
+                <PricingBlock pricing={result.pricing} />
+              </div>
+            )}
 
             {result.materialsSummary?.length > 0 && (
               <CTable small responsive className="mb-3">

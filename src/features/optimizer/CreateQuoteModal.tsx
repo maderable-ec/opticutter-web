@@ -23,6 +23,7 @@ import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
 import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { ApiError } from 'src/shared/api/types'
+import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 import type { MaterialInput, RequirementInput } from './types'
 import { optimizerApi } from './optimizerApi'
 
@@ -37,6 +38,8 @@ interface CreateQuoteModalProps {
   materials: MaterialInput[]
   requirements: RequirementInput[]
   optimizationHash?: string | null
+  priceTierCode: string
+  onPriceTierChange: (code: string) => void
   // Se invoca tras crear la orden con éxito (p. ej. para limpiar el autosave del optimizer).
   onCreated?: () => void
 }
@@ -47,6 +50,8 @@ const CreateQuoteModal = ({
   materials,
   requirements,
   optimizationHash,
+  priceTierCode,
+  onPriceTierChange,
   onCreated,
 }: CreateQuoteModalProps) => {
   const navigate = useNavigate()
@@ -85,6 +90,7 @@ const CreateQuoteModal = ({
         clientId: Number(selectedClientId),
         source: 'dashboard',
         notes: notes || undefined,
+        priceTierCode,
         materials,
         requirements,
         branchId: isGlobalBranch && branchId ? Number(branchId) : undefined,
@@ -163,6 +169,9 @@ const CreateQuoteModal = ({
           </>
         )}
 
+        <CFormLabel className="mt-3">Nivel de precio</CFormLabel>
+        <PriceTierSelect value={priceTierCode} onChange={onPriceTierChange} />
+
         <CFormLabel className="mt-3">Notas</CFormLabel>
         <CFormTextarea
           rows={2}
@@ -185,7 +194,11 @@ const CreateQuoteModal = ({
           disabled={!canPreviewProforma}
           onClick={() =>
             optimizationHash &&
-            optimizerApi.downloadOptimizationProforma(optimizationHash, Number(selectedClientId))
+            optimizerApi.downloadOptimizationProforma(
+              optimizationHash,
+              Number(selectedClientId),
+              priceTierCode,
+            )
           }
         >
           <CIcon icon={cilCloudDownload} className="me-1" />

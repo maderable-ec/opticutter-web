@@ -52,6 +52,7 @@ import type {
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { ApiError } from 'src/shared/api/types'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
+import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import {
@@ -163,6 +164,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     () => initialFormData?.materials ?? [emptyCatalogMaterial()],
   )
   const [notes, setNotes] = useState(preOrder.notes ?? '')
+  const [priceTierCode, setPriceTierCode] = useState(preOrder.priceTierCode ?? 'consumidor')
   const [ebIndex, setEbIndex] = useState<number | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
@@ -187,7 +189,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     updatePreOrder.mutate(
       {
         id: preOrder.id,
-        data: { materials: mInputs, requirements: rInputs, notes: notes || undefined },
+        data: { materials: mInputs, requirements: rInputs, notes: notes || undefined, priceTierCode },
       },
       {
         onSuccess: (updated) => {
@@ -440,13 +442,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         renderStatus={(s) => <PreOrderStatusBadge status={s as PreOrderStatus} />}
       />
 
-      {/* Notes (editable) */}
+      {/* Notes + price tier (editable) */}
       {canEdit && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Notas</strong>
           </CCardHeader>
           <CCardBody>
+            <div className="mb-3">
+              <label className="form-label">Nivel de precio</label>
+              <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
+            </div>
             <CFormTextarea
               rows={2}
               maxLength={512}

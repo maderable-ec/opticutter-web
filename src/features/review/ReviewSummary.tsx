@@ -94,7 +94,24 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
             </CTableBody>
           </CTable>
           <div className="d-flex justify-content-end mt-2">
-            <div className="fs-5 fw-semibold">Total: {fmtMoney(data.total, currency)}</div>
+            <div className="d-flex flex-column align-items-end gap-1 small">
+              <div>
+                <span className="text-body-secondary me-2">Subtotal:</span>
+                <span>{fmtMoney(data.subtotal, currency)}</span>
+              </div>
+              {(data.discountAmount ?? 0) !== 0 && (
+                <div>
+                  <span className="text-body-secondary me-2">
+                    Descuento {data.priceTierName} (-{Math.round((data.discountRate ?? 0) * 100)}%):
+                  </span>
+                  <span className="text-danger">-{fmtMoney(data.discountAmount, currency)}</span>
+                </div>
+              )}
+              <div className="fs-5 fw-semibold">
+                <span className="text-body-secondary me-2">Total:</span>
+                <span>{fmtMoney(data.total, currency)}</span>
+              </div>
+            </div>
           </div>
         </CCardBody>
       </CCard>

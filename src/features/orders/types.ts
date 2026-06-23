@@ -49,7 +49,12 @@ export interface Order {
   id: string
   code: string
   status: OrderStatus
+  subtotal?: number
   total: number
+  priceTierCode?: string
+  priceTierName?: string
+  discountRate?: number
+  discountAmount?: number
   client: Client
   // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
   branch: BranchRef
