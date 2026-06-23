@@ -18,9 +18,11 @@ import {
   PALETTE,
   SIDE_LABELS_ES,
   bandedSides,
+  boardRotation,
   clamp,
   insetSideLine,
   pieceSig,
+  uprightText,
 } from './cutDrawing'
 import type { SideLine } from './cutDrawing'
 
@@ -67,7 +69,7 @@ const SheetSvg = ({
   const svg = (
     <svg
       ref={enableZoom ? svgRef : undefined}
-      viewBox={`${-margin} ${-margin} ${W + margin} ${H + margin}`}
+      viewBox={`${-margin} ${-margin} ${H + margin} ${W + margin}`}
       preserveAspectRatio="xMidYMid meet"
       style={{
         width: '100%',
@@ -87,32 +89,37 @@ const SheetSvg = ({
         </pattern>
       </defs>
 
-      <g transform={enableZoom ? groupTransform : undefined}>
-        {/* Medidas del tablero */}
-        {showDimensions && (
-          <g fill="#868e96" style={{ userSelect: 'none' }}>
-            <text
-              x={W / 2}
-              y={-margin / 2}
-              fontSize={labelSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-            >
-              {W} mm
-            </text>
-            <text
-              x={-margin / 2}
-              y={H / 2}
-              fontSize={labelSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-              transform={`rotate(-90 ${-margin / 2} ${H / 2})`}
-            >
-              {H} mm
-            </text>
-          </g>
-        )}
+      {/* Medidas del tablero: en espacio de paisaje, fuera de la rotación (arriba = H, lateral = W). */}
+      {showDimensions && (
+        <g
+          transform={enableZoom ? groupTransform : undefined}
+          fill="#868e96"
+          style={{ userSelect: 'none' }}
+        >
+          <text
+            x={H / 2}
+            y={-margin / 2}
+            fontSize={labelSize}
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            {H} mm
+          </text>
+          <text
+            x={-margin / 2}
+            y={W / 2}
+            fontSize={labelSize}
+            textAnchor="middle"
+            dominantBaseline="central"
+            transform={`rotate(-90 ${-margin / 2} ${W / 2})`}
+          >
+            {W} mm
+          </text>
+        </g>
+      )}
 
+      {/* Tablero y piezas girados 90° en horario (paisaje); el texto se contra-rota para seguir legible. */}
+      <g transform={enableZoom ? `${groupTransform} ${boardRotation(H)}` : boardRotation(H)}>
         {/* Tablero */}
         <rect
           x={0}
@@ -200,6 +207,7 @@ const SheetSvg = ({
                   textAnchor="middle"
                   dominantBaseline="central"
                   fill="#212529"
+                  transform={uprightText(p.x + p.width / 2, p.y + p.height / 2)}
                   style={{ pointerEvents: 'none', userSelect: 'none' }}
                 >
                   {p.originalWidth}×{p.originalHeight}

@@ -47,6 +47,14 @@ export const pieceSig = (p: Pick<DrawablePiece, 'originalWidth' | 'originalHeigh
 
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
+// Rota el contenido del tablero 90° en horario y lo reubica en el cuadrante positivo (la caja
+// [0,W]×[0,H] pasa a [0,H]×[0,W]). Combinar con un viewBox de lados intercambiados (H ancho × W alto).
+export const boardRotation = (height: number) => `translate(${height} 0) rotate(90)`
+
+// Contra-rotación para que un <text> dentro del grupo rotado quede horizontal/legible, pivotando
+// sobre su propio ancla (usar con textAnchor="middle" / dominantBaseline="central").
+export const uprightText = (x: number, y: number) => `rotate(-90 ${x} ${y})`
+
 export const bandedSides = (p: Pick<DrawablePiece, 'edges'>): EdgeSide[] => p.edges?.sides ?? []
 
 export interface SideLine {
