@@ -3,9 +3,11 @@ import { useId } from 'react'
 import {
   EDGE_COLOR,
   bandedSides,
+  boardRotation,
   clamp,
   insetSideLine,
   pieceSig,
+  uprightText,
 } from 'src/features/optimizer/cutDrawing'
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import ZoomControls from 'src/shared/components/ZoomControls'
@@ -16,7 +18,9 @@ interface WorkshopBoardSvgProps {
   colorFor: (sig: string) => string
   // Solo se puede tocar/marcar piezas con la orden en producción. En otros estados es solo-lectura.
   interactive: boolean
+  // Un clic marca la pieza como cortada; un doble clic la desmarca (sin confirmación).
   onPieceTap: (piece: CutPiece) => void
+  onPieceUntap: (piece: CutPiece) => void
 }
 
 const CHECK_COLOR = '#2b8a3e' // verde del ✓ de pieza cortada
@@ -24,7 +28,13 @@ const CHECK_COLOR = '#2b8a3e' // verde del ✓ de pieza cortada
 // Dibuja un tablero físico del plan de corte con la misma geometría que el optimizador, agregando el
 // estado de corte por pieza (atenuada + ✓), los sobrantes rayados y el área táctil sobre todo el
 // rectángulo.
-const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: WorkshopBoardSvgProps) => {
+const WorkshopBoardSvg = ({
+  board,
+  colorFor,
+  interactive,
+  onPieceTap,
+  onPieceUntap,
+}: WorkshopBoardSvgProps) => {
   const W = board.width
   const H = board.height
   const edgeWidth = clamp(Math.max(W, H) * 0.012, 8, 22)
@@ -41,7 +51,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
     <div style={{ position: 'relative', overflow: 'hidden' }}>
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${W} ${H}`}
+        viewBox={`0 0 ${H} ${W}`}
         preserveAspectRatio="xMidYMid meet"
         style={{
           width: '100%',
@@ -63,7 +73,8 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
           </pattern>
         </defs>
 
-        <g transform={groupTransform}>
+        {/* El tablero se gira 90° en horario (paisaje); el texto se contra-rota para seguir legible. */}
+        <g transform={`${groupTransform} ${boardRotation(H)}`}>
           {/* Tablero */}
           <rect
             x={0}
@@ -110,6 +121,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                 role={interactive ? 'button' : undefined}
                 style={{ cursor: interactive ? 'pointer' : 'default' }}
                 onClick={interactive ? () => onPieceTap(p) : undefined}
+                onDoubleClick={interactive ? () => onPieceUntap(p) : undefined}
               >
                 <title>
                   {p.label} · {p.originalWidth}×{p.originalHeight} mm
@@ -157,6 +169,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                       textAnchor="middle"
                       dominantBaseline="central"
                       fill="#212529"
+                      transform={uprightText(cx, cy)}
                       style={{ pointerEvents: 'none', userSelect: 'none' }}
                     >
                       {p.originalWidth}×{p.originalHeight}
@@ -175,6 +188,7 @@ const WorkshopBoardSvg = ({ board, colorFor, interactive, onPieceTap }: Workshop
                     dominantBaseline="central"
                     fill={CHECK_COLOR}
                     fontWeight={700}
+                    transform={uprightText(cx, cy)}
                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                   >
                     ✓
