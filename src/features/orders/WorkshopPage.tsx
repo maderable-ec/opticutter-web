@@ -45,7 +45,6 @@ const WorkshopPage = () => {
   const markPiece = useMarkPiece(id ?? '')
   const updateStatus = useUpdateOrderStatus()
 
-  const [undoPiece, setUndoPiece] = useState<CutPiece | null>(null)
   const [cutModal, setCutModal] = useState(false)
   // Tablero en pantalla (uno a la vez). Se identifica por id persistente para sobrevivir a refetchs.
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
@@ -77,18 +76,16 @@ const WorkshopPage = () => {
 
   const interactive = plan?.status === 'cutting'
 
+  // Un clic solo marca; sobre una pieza ya cortada no hace nada (se desmarca con doble clic).
   const onPieceTap = (piece: CutPiece) => {
-    if (!id) return
-    if (piece.cut) {
-      setUndoPiece(piece) // deshacer requiere confirmación
-    } else {
-      markPiece.mutate({ pieceId: piece.id, cut: true })
-    }
+    if (!id || piece.cut) return
+    markPiece.mutate({ pieceId: piece.id, cut: true })
   }
 
-  const confirmUndo = () => {
-    if (undoPiece) markPiece.mutate({ pieceId: undoPiece.id, cut: false })
-    setUndoPiece(null)
+  // Doble clic = desmarcar, sin confirmación.
+  const onPieceUntap = (piece: CutPiece) => {
+    if (!id || !piece.cut) return
+    markPiece.mutate({ pieceId: piece.id, cut: false })
   }
 
   const confirmCut = () => {
@@ -357,28 +354,10 @@ const WorkshopPage = () => {
             colorFor={colorFor}
             interactive={!!interactive}
             onPieceTap={onPieceTap}
+            onPieceUntap={onPieceUntap}
           />
         </CCardBody>
       </CCard>
-
-      {/* Confirmar deshacer corte */}
-      <CModal visible={!!undoPiece} onClose={() => setUndoPiece(null)}>
-        <CModalHeader>
-          <CModalTitle>Deshacer corte</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Marcar la pieza <strong>{undoPiece?.label}</strong> ({undoPiece?.originalWidth}×
-          {undoPiece?.originalHeight} mm) como <strong>no cortada</strong>?
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setUndoPiece(null)}>
-            Cancelar
-          </CButton>
-          <CButton color="warning" onClick={confirmUndo}>
-            Deshacer
-          </CButton>
-        </CModalFooter>
-      </CModal>
 
       {/* Confirmar cierre del corte (orden → cortada) */}
       <CModal visible={cutModal} onClose={() => setCutModal(false)}>
