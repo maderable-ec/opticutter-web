@@ -55,6 +55,7 @@ export interface PreOrder extends PreOrderSummary {
   clientNote: string | null // note written by client when requesting changes
   sentAt: string | null
   confirmedAt: string | null
+  priceTierCode?: string
   // Always present in GET /preorders/{id} and PUT responses
   materials: MaterialInput[]
   requirements: RequirementInput[]
@@ -66,6 +67,7 @@ export interface PreOrderCreate {
   clientId: number
   notes?: string
   source?: string
+  priceTierCode?: string
   materials: MaterialInput[]
   requirements: RequirementInput[]
   // Operador: lo omite (backend usa su sucursal). Vendedor: opcional, backend usa su base si se omite.

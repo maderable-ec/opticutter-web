@@ -103,6 +103,16 @@ export interface LayoutGroup {
   layout: Layout
 }
 
+export interface PricingData {
+  priceTierCode: string
+  priceTierName: string
+  discountRate: number
+  discountBase: number
+  subtotal: number
+  discountAmount: number
+  total: number
+}
+
 export interface OptimizeResponse {
   id: null
   client: Client | null
@@ -116,6 +126,7 @@ export interface OptimizeResponse {
   materialsSummary: MaterialSummary[]
   edgeBandingsSummary: EdgeBandingSummary[]
   layoutGroups: LayoutGroup[]
+  pricing?: PricingData
 }
 
 // --- Inputs del request (lo que envía el frontend) ---
@@ -158,6 +169,7 @@ export interface OptimizePayload {
   materials: MaterialInput[]
   requirements: RequirementInput[]
   clientId?: number
+  priceTierCode?: string
 }
 
 // --- Borradores del optimizador (persistencia) ---
