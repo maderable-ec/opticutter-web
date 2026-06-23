@@ -25,6 +25,7 @@ import ImportPiecesModal from './ImportPiecesModal'
 import CreateQuoteModal from './CreateQuoteModal'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
+import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 
 const OptimizerPage = () => {
   // Red de seguridad: leemos el autosave de la sesión anterior UNA vez (inicializador perezoso) y lo
@@ -43,6 +44,7 @@ const OptimizerPage = () => {
   const [draftName, setDraftName] = useState(bootstrap?.draftName ?? '')
   const [showDrafts, setShowDrafts] = useState(false)
   const [showSaveDraft, setShowSaveDraft] = useState(false)
+  const [priceTierCode, setPriceTierCode] = useState('consumidor')
   const [restored, setRestored] = useState(!!bootstrap)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
@@ -183,7 +185,7 @@ const OptimizerPage = () => {
 
   const handleOptimize = () => {
     if (!canOptimize) return
-    optimize.mutate({ materials: built.materials, requirements: built.requirements })
+    optimize.mutate({ materials: built.materials, requirements: built.requirements, priceTierCode })
   }
 
   const handleExport = () =>
@@ -256,6 +258,13 @@ const OptimizerPage = () => {
         onExport={handleExport}
       />
 
+      <div className="d-flex align-items-center gap-2 mb-2">
+        <label className="form-label mb-0 text-nowrap">Nivel de precio</label>
+        <div style={{ maxWidth: 220 }}>
+          <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
+        </div>
+      </div>
+
       <OptimizationPreview
         result={optimize.data}
         isPending={optimize.isPending}
@@ -293,6 +302,8 @@ const OptimizerPage = () => {
         materials={built.materials}
         requirements={built.requirements}
         optimizationHash={optimize.data?.optimizationHash}
+        priceTierCode={priceTierCode}
+        onPriceTierChange={setPriceTierCode}
         onCreated={clearAutosave}
       />
 

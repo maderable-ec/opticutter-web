@@ -38,6 +38,9 @@ export interface ReviewPreOrder {
   clientNote: string | null // note written by the client when requesting changes
   currency: string
   subtotal: number
+  priceTierName?: string
+  discountRate?: number
+  discountAmount?: number
   total: number
   totalBoardsUsed: number
   createdAt: string

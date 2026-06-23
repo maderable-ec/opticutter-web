@@ -32,6 +32,8 @@ import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 import type { Client } from 'src/features/clients/types'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
+import PricingBlock from 'src/shared/components/PricingBlock'
+import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
 import { ordersApi } from './ordersApi'
@@ -220,7 +222,23 @@ const OrderDetailPage = () => {
               </div>
             </CCol>
             <CCol xs={12}>
-              <div className="fs-5 fw-semibold">Total: {fmt(order.total)}</div>
+              {order.subtotal != null && order.priceTierCode ? (
+                <PricingBlock
+                  pricing={
+                    {
+                      priceTierCode: order.priceTierCode,
+                      priceTierName: order.priceTierName ?? order.priceTierCode,
+                      discountRate: order.discountRate ?? 0,
+                      discountBase: order.subtotal,
+                      subtotal: order.subtotal,
+                      discountAmount: order.discountAmount ?? 0,
+                      total: order.total,
+                    } satisfies PricingData
+                  }
+                />
+              ) : (
+                <div className="fs-5 fw-semibold">Total: {fmt(order.total)}</div>
+              )}
               {order.externalInvoiceId && (
                 <div className="text-body-secondary small">
                   Factura: <strong>{order.externalInvoiceId}</strong>

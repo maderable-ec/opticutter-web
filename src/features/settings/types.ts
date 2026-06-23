@@ -38,3 +38,15 @@ export type CuttingPayload = Partial<CuttingSettings>
 /** For `branches`, sending the field REPLACES the whole array (not a per-item merge). */
 export type CompanyPayload = Partial<CompanySettings>
 export type PreorderPayload = Partial<PreorderSettings>
+
+export interface PriceTier {
+  code: string
+  name: string
+  rate: number
+  isActive: boolean
+  sortOrder: number
+}
+
+export interface PriceTiersPayload {
+  priceTiers: PriceTier[]
+}
