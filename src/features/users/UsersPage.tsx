@@ -36,11 +36,13 @@ const ROLE_LABELS: Record<string, string> = {
   administrador: 'Admin',
   vendedor: 'Vendedor',
   operador: 'Operador',
+  canteador: 'Canteador',
 }
 const ROLE_COLORS: Record<string, string> = {
   administrador: 'danger',
   vendedor: 'primary',
   operador: 'secondary',
+  canteador: 'info',
 }
 
 interface ModalState {

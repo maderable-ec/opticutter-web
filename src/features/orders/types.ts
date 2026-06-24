@@ -2,13 +2,11 @@ import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
-export type OrderStatus =
-  | 'confirmed'
-  | 'in_production'
-  | 'cutting'
-  | 'cut'
-  | 'completed'
-  | 'cancelled'
+export type OrderStatus = 'confirmed' | 'queued' | 'cutting' | 'cut' | 'completed' | 'cancelled'
+
+// Pista de canteado (tapacantos), ortogonal al corte: una orden puede estar `cutting` y
+// `bandingStatus: 'in_progress'` a la vez. `not_applicable` = la orden no lleva tapacantos.
+export type BandingStatus = 'not_applicable' | 'pending' | 'in_progress' | 'done'
 
 export interface OrderLine {
   id: string
@@ -67,6 +65,15 @@ export interface Order {
   assignedToId?: number | null
   assignedAt?: string | null
   assignedToLabel?: string | null
+  // Pista de canteado (paralela al corte). Los `*Label` son nombres congelados al momento de la
+  // acción (mismo patrón que `assignedToLabel`).
+  bandingStatus?: BandingStatus
+  bandingStartedAt?: string | null
+  bandingStartedBy?: number | null
+  bandingStartedByLabel?: string | null
+  bandingFinishedAt?: string | null
+  bandingFinishedBy?: number | null
+  bandingFinishedByLabel?: string | null
 }
 
 export interface OrderListParams {
@@ -81,6 +88,32 @@ export interface OrderListParams {
 export interface UpdateStatusPayload {
   status: OrderStatus
   note?: string
+}
+
+// --- Canteado ---
+// El cuerpo del PATCH avanza la pista forward-only (pending → in_progress → done).
+export interface BandingPayload {
+  status: 'in_progress' | 'done'
+  note?: string
+}
+
+// Respuesta del PATCH /orders/{id}/banding (subconjunto: sin precios ni piezas).
+export interface BandingResult {
+  orderId: number
+  orderCode: string
+  bandingStatus: BandingStatus
+  bandingStartedAt: string | null
+  bandingFinishedAt: string | null
+}
+
+// Una orden en la cola de canteado (GET /orders/banding-queue). Sin precios ni detalle de piezas;
+// solo lo necesario para identificarla físicamente y mostrar su estado.
+export interface BandingQueueItem {
+  orderId: number
+  orderCode: string
+  status: OrderStatus
+  bandingStatus: Extract<BandingStatus, 'pending' | 'in_progress'>
+  createdAt: string
 }
 
 export interface AssociateInvoicePayload {

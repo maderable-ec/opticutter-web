@@ -15,7 +15,7 @@ import { dashboardNav } from 'src/features/dashboard/nav'
 import { logo } from 'src/assets/brand/logo'
 import { memo } from 'react'
 import { optimizerNav } from 'src/features/optimizer/nav'
-import { ordersNav } from 'src/features/orders/nav'
+import { bandingNav, ordersNav } from 'src/features/orders/nav'
 import { preordersNav } from 'src/features/preorders/nav'
 import { productsNav } from 'src/features/products/nav'
 import { settingsNav } from 'src/features/settings/nav'
@@ -29,6 +29,7 @@ const allNavItems = [
   ...optimizerNav,
   ...preordersNav,
   ...ordersNav,
+  ...bandingNav,
   ...clientsNav,
   ...productsNav,
   ...branchesNav,
