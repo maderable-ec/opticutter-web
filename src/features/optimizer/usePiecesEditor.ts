@@ -134,6 +134,33 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     })
   }
 
+  // Copia el valor del campo de la fila `srcIndex` a las filas entre srcIndex y targetIndex
+  // (inclusive), sin tocar el origen. Acotado a filas existentes (no crea nuevas). Lo usa el
+  // tirador de arrastre ("fill handle") de la tabla.
+  const fillRange = (srcIndex: number, targetIndex: number, field: FillableField) => {
+    if (srcIndex === targetIndex) return
+    applyWithHistory((rs) => {
+      const src = rs[srcIndex]
+      if (!src) return rs
+      const lo = Math.min(srcIndex, targetIndex)
+      const hi = Math.max(srcIndex, targetIndex)
+      return rs.map((r, i) => {
+        if (i < lo || i > hi || i === srcIndex) return r
+        if (field === 'edgeBanding') {
+          return {
+            ...r,
+            edgeBanding: {
+              productId: src.edgeBanding.productId,
+              sides: { ...src.edgeBanding.sides },
+            },
+          }
+        }
+        return { ...r, [field]: src[field] }
+      })
+    })
+    setSelected(new Set())
+  }
+
   const clear = () => {
     applyWithHistory(() => [emptyRequirement(firstUid())])
     setSelected(new Set())
@@ -221,6 +248,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     duplicateSelected,
     update,
     fillDown,
+    fillRange,
     clear,
     pasteIntoField,
     pasteRows,
