@@ -16,7 +16,7 @@ import type { CutBoard, CutPiece } from './types'
 interface WorkshopBoardSvgProps {
   board: CutBoard
   colorFor: (sig: string) => string
-  // Solo se puede tocar/marcar piezas con la orden en producción. En otros estados es solo-lectura.
+  // Solo se puede tocar/marcar piezas con la orden en corte (`cutting`). En otros estados es solo-lectura.
   interactive: boolean
   // Un clic marca la pieza como cortada; un doble clic la desmarca (sin confirmación).
   onPieceTap: (piece: CutPiece) => void

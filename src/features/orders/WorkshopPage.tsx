@@ -21,9 +21,10 @@ import { cilArrowLeft, cilArrowRight, cilCheckAlt, cilPrint } from '@coreui/icon
 import { useHasRole } from 'src/features/auth/useAuth'
 import { PALETTE, pieceSig } from 'src/features/optimizer/cutDrawing'
 import OrderStatusBadge from './OrderStatusBadge'
+import BandingStatusBadge from './BandingStatusBadge'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import { ordersApi } from './ordersApi'
-import { useCuttingPlan, useMarkPiece, useUpdateOrderStatus } from './useOrders'
+import { useCuttingPlan, useMarkPiece, useOrder, useUpdateOrderStatus } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
 
 const pct = ({ cutPieces, totalPieces }: CutProgress) =>
@@ -42,6 +43,8 @@ const WorkshopPage = () => {
   const isAdminOrOperator = useHasRole('administrador', 'operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
+  // El plan de corte no trae datos de canteado; traemos la orden para mostrar el chip (solo lectura).
+  const { data: order } = useOrder(id)
   const markPiece = useMarkPiece(id ?? '')
   const updateStatus = useUpdateOrderStatus()
 
@@ -148,9 +151,12 @@ const WorkshopPage = () => {
         <CIcon icon={cilArrowLeft} className="me-1" />
         {isOperator ? 'Volver a órdenes' : 'Volver a la orden'}
       </CButton>
-      <div className="d-flex align-items-center gap-2">
+      <div className="d-flex align-items-center gap-2 flex-wrap">
         <h4 className="mb-0">{plan.orderCode}</h4>
         <OrderStatusBadge status={plan.status} />
+        {order?.bandingStatus && order.bandingStatus !== 'not_applicable' && (
+          <BandingStatusBadge status={order.bandingStatus} />
+        )}
       </div>
       <CButton
         color="secondary"
@@ -221,7 +227,7 @@ const WorkshopPage = () => {
       </div>
 
       {/* Cola de espera: el operador aún no tomó la orden */}
-      {plan.status === 'in_production' && isAdminOrOperator && (
+      {plan.status === 'queued' && isAdminOrOperator && (
         <CCard className="mb-3 border-primary">
           <CCardBody>
             <p className="mb-3">Esta orden está disponible para cortar.</p>
@@ -277,12 +283,12 @@ const WorkshopPage = () => {
         </div>
       )}
 
-      {!interactive && plan.status !== 'in_production' && (
+      {!interactive && plan.status !== 'queued' && (
         <div className="text-body-secondary small mb-3">
           Solo lectura: el corte ya fue completado.
         </div>
       )}
-      {!interactive && plan.status === 'in_production' && !isAdminOrOperator && (
+      {!interactive && plan.status === 'queued' && !isAdminOrOperator && (
         <div className="text-body-secondary small mb-3">
           Disponible en la cola. Toma la orden para empezar a cortar.
         </div>

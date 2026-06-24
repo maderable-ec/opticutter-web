@@ -5,7 +5,7 @@ export interface UserPayload {
   password: string
   role: import('src/features/auth/types').Role
   fullName?: string
-  // Obligatorio para vendedor/operador; ignorado por el backend para administrador.
+  // Obligatorio para vendedor/operador/canteador; ignorado por el backend para administrador.
   branchId?: number | null
 }
 

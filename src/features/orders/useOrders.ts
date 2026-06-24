@@ -5,6 +5,7 @@ import type {
   OrderListParams,
   UpdateStatusPayload,
   AssociateInvoicePayload,
+  BandingPayload,
   CuttingPlan,
   MarkPieceResponse,
 } from './types'
@@ -41,6 +42,31 @@ export const useAssociateInvoice = () => {
       ordersApi.associateInvoice(id, data),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: ['orders', id] })
+    },
+  })
+}
+
+// --- Canteado ---
+
+const BANDING_QUEUE_KEY = ['orders', 'banding-queue'] as const
+
+export const useBandingQueue = () =>
+  useQuery({
+    queryKey: BANDING_QUEUE_KEY,
+    queryFn: () => ordersApi.getBandingQueue(),
+  })
+
+// Avanza la pista de canteado y refresca la cola + el detalle/listado de la orden. Al pasar a
+// `done` la orden sale de la cola (el refetch la quita).
+export const useUpdateBanding = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: BandingPayload }) =>
+      ordersApi.patchBanding(id, data),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: BANDING_QUEUE_KEY })
+      qc.invalidateQueries({ queryKey: ['orders', id] })
+      qc.invalidateQueries({ queryKey: ['orders'] })
     },
   })
 }

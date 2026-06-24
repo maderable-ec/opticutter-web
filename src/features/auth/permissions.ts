@@ -12,6 +12,7 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   optimizer: ['administrador', 'vendedor'],
   preorders: ['administrador', 'vendedor'],
   orders: ['administrador', 'vendedor', 'operador'],
+  banding: ['administrador', 'canteador'],
   settings: ['administrador'],
   users: ['administrador'],
   branches: ['administrador'],
@@ -30,6 +31,8 @@ export const homePathForRole = (role: Role | undefined): string => {
       return '/optimizer'
     case 'operador':
       return '/orders'
+    case 'canteador':
+      return '/banding' // su única vista: la cola de canteado
     default:
       return '/orders' // ruta accesible para todos los roles autenticados
   }

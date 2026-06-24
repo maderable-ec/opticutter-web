@@ -27,6 +27,7 @@ const ROLES: { value: Role; label: string }[] = [
   { value: 'administrador', label: 'Administrador' },
   { value: 'vendedor', label: 'Vendedor' },
   { value: 'operador', label: 'Operador' },
+  { value: 'canteador', label: 'Canteador' },
 ]
 
 const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormProps) => {
@@ -39,7 +40,7 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
   const [password, setPassword] = useState('')
   const [branchId, setBranchId] = useState<number | null>(user?.branchId ?? null)
 
-  // El admin es global: la sucursal sólo aplica (y es obligatoria) para vendedor/operador.
+  // El admin es global: la sucursal sólo aplica (y es obligatoria) para vendedor/operador/canteador.
   const isStaff = role !== 'administrador'
   const { data: branches = [] } = useActiveBranches()
 

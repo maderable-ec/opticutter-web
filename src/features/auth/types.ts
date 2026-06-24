@@ -1,4 +1,4 @@
-export type Role = 'administrador' | 'vendedor' | 'operador'
+export type Role = 'administrador' | 'vendedor' | 'operador' | 'canteador'
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -9,7 +9,7 @@ export interface User {
   role: Role
   isActive: boolean
   createdAt: string
-  // Sucursal del staff. Obligatoria para vendedor/operador; null para administrador (es global).
+  // Sucursal del staff. Obligatoria para vendedor/operador/canteador; null para administrador (es global).
   branchId: number | null
 }
 
