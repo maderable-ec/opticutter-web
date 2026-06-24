@@ -1,17 +1,10 @@
 {
-  "name": "@coreui/coreui-free-react-admin-template",
+  "name": "maderable-dashboard",
   "version": "5.6.0",
-  "description": "CoreUI Free React Admin Template",
+  "description": "Maderable Dashboard",
   "homepage": ".",
-  "bugs": {
-    "url": "https://github.com/coreui/coreui-free-react-admin-template/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git@github.com:coreui/coreui-free-react-admin-template.git"
-  },
   "license": "MIT",
-  "author": "The CoreUI Team (https://github.com/orgs/coreui/people)",
+  "author": "Denis Siavichay",
   "scripts": {
     "build": "vite build",
     "lint": "eslint src",
