@@ -35,6 +35,7 @@ import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
+import BandingStatusBadge from './BandingStatusBadge'
 import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
 import { ordersApi } from './ordersApi'
 import type { OrderStatus } from './types'
@@ -48,24 +49,39 @@ interface StatusTransition {
 
 const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled']
 
-// Estados donde el plan de corte es relevante: producción (interactivo en el taller) y posteriores
+// Estados donde el plan de corte es relevante: en cola (interactivo en el taller) y posteriores
 // (solo-lectura, auditoría de lo cortado).
-const WORKSHOP_STATES: OrderStatus[] = ['in_production', 'cutting', 'cut', 'completed']
+const WORKSHOP_STATES: OrderStatus[] = ['queued', 'cutting', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   confirmed: [
-    { to: 'in_production', label: 'Enviar a producción', color: 'primary', roles: ['administrador', 'vendedor'] },
+    {
+      to: 'queued',
+      label: 'Poner en cola',
+      color: 'primary',
+      roles: ['administrador', 'vendedor'],
+    },
     { to: 'cancelled', label: 'Cancelar', color: 'danger', roles: ['administrador', 'vendedor'] },
   ],
-  in_production: [
+  queued: [
     { to: 'cutting', label: 'Tomar orden', color: 'primary', roles: ['administrador', 'operador'] },
   ],
   cutting: [
-    { to: 'cut', label: 'Marcar como cortada', color: 'primary', roles: ['administrador', 'operador'] },
-    { to: 'in_production', label: 'Regresar a cola', color: 'secondary', roles: ['administrador'] },
+    {
+      to: 'cut',
+      label: 'Marcar como cortada',
+      color: 'primary',
+      roles: ['administrador', 'operador'],
+    },
+    { to: 'queued', label: 'Regresar a cola', color: 'secondary', roles: ['administrador'] },
   ],
   cut: [
-    { to: 'completed', label: 'Marcar como completada', color: 'success', roles: ['administrador', 'vendedor'] },
+    {
+      to: 'completed',
+      label: 'Marcar como completada',
+      color: 'success',
+      roles: ['administrador', 'vendedor'],
+    },
   ],
 }
 
@@ -160,8 +176,8 @@ const OrderDetailPage = () => {
     return <CAlert color="danger">Orden no encontrada.</CAlert>
   }
 
-  const transitions = (STATUS_TRANSITIONS[order.status] ?? []).filter(
-    (t) => t.roles.includes(currentUser?.role ?? ''),
+  const transitions = (STATUS_TRANSITIONS[order.status] ?? []).filter((t) =>
+    t.roles.includes(currentUser?.role ?? ''),
   )
   const isTerminal = TERMINAL_STATES.includes(order.status)
 
@@ -176,6 +192,11 @@ const OrderDetailPage = () => {
       : 0
   const planDone =
     !!plan && plan.progress.totalPieces > 0 && plan.progress.cutPieces >= plan.progress.totalPieces
+
+  // Canteado: bloque visible si la orden lleva tapacantos. El cierre (cut → completed) queda
+  // bloqueado mientras el canteado siga pendiente/en progreso (el API responde 422; deshabilitar es UX).
+  const showBanding = !!order.bandingStatus && order.bandingStatus !== 'not_applicable'
+  const bandingPending = order.bandingStatus === 'pending' || order.bandingStatus === 'in_progress'
 
   return (
     <>
@@ -201,9 +222,7 @@ const OrderDetailPage = () => {
               {canManage && (
                 <div className="text-body-secondary small">
                   Sucursal: <strong>{order.branch.name}</strong>
-                  {order.branch.code && (
-                    <span> ({order.branch.code})</span>
-                  )}
+                  {order.branch.code && <span> ({order.branch.code})</span>}
                 </div>
               )}
             </CCol>
@@ -260,8 +279,33 @@ const OrderDetailPage = () => {
             </div>
             {order.assignedAt && (
               <div className="small">
-                <span className="text-body-secondary">Desde:</span>{' '}
-                {fmtDateTime(order.assignedAt)}
+                <span className="text-body-secondary">Desde:</span> {fmtDateTime(order.assignedAt)}
+              </div>
+            )}
+          </CCardBody>
+        </CCard>
+      )}
+
+      {/* Canteado — pista paralela al corte. Se oculta si la orden no lleva tapacantos. */}
+      {showBanding && (
+        <CCard className="mb-3 border-info">
+          <CCardBody className="bg-info bg-opacity-10 py-2">
+            <div className="d-flex align-items-center gap-2 mb-1">
+              <span className="fw-semibold text-info-emphasis">Canteado</span>
+              <BandingStatusBadge status={order.bandingStatus!} />
+            </div>
+            {order.bandingStartedByLabel && (
+              <div className="small">
+                <span className="text-body-secondary">Inició:</span>{' '}
+                <strong>{order.bandingStartedByLabel}</strong>
+                {order.bandingStartedAt && <span> · {fmtDateTime(order.bandingStartedAt)}</span>}
+              </div>
+            )}
+            {order.bandingFinishedByLabel && (
+              <div className="small">
+                <span className="text-body-secondary">Terminó:</span>{' '}
+                <strong>{order.bandingFinishedByLabel}</strong>
+                {order.bandingFinishedAt && <span> · {fmtDateTime(order.bandingFinishedAt)}</span>}
               </div>
             )}
           </CCardBody>
@@ -277,14 +321,21 @@ const OrderDetailPage = () => {
           <CCardBody>
             <div className="d-flex gap-2 flex-wrap">
               {transitions.map((t) => {
-                const blocked = t.to === 'cut' && cutGated
+                const cutBlocked = t.to === 'cut' && cutGated
+                const bandingBlocked = t.to === 'completed' && bandingPending
+                const blocked = cutBlocked || bandingBlocked
+                const title = cutBlocked
+                  ? `Faltan ${piecesPending} pieza(s) por cortar`
+                  : bandingBlocked
+                    ? 'Falta terminar el canteado'
+                    : undefined
                 return (
                   <CButton
                     key={t.to}
                     color={t.color}
                     size="sm"
                     disabled={blocked}
-                    title={blocked ? `Faltan ${piecesPending} pieza(s) por cortar` : undefined}
+                    title={title}
                     onClick={() => openTransition(t)}
                   >
                     {t.label}
@@ -296,6 +347,11 @@ const OrderDetailPage = () => {
               <div className="text-warning small mt-2">
                 Faltan {piecesPending} pieza(s) por cortar. Marcalas en el taller para habilitar el
                 corte.
+              </div>
+            )}
+            {bandingPending && transitions.some((t) => t.to === 'completed') && (
+              <div className="text-warning small mt-2">
+                Falta terminar el canteado para poder completar la orden.
               </div>
             )}
             {updateStatus.error && (
@@ -328,7 +384,9 @@ const OrderDetailPage = () => {
                   <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
                 </CProgress>
                 <CButton color="primary" onClick={() => navigate(`/orders/${id}/workshop`)}>
-                  {(order.status === 'in_production' || order.status === 'cutting') ? 'Abrir taller' : 'Ver corte'}
+                  {order.status === 'queued' || order.status === 'cutting'
+                    ? 'Abrir taller'
+                    : 'Ver corte'}
                 </CButton>
               </>
             ) : (

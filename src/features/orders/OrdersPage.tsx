@@ -33,7 +33,7 @@ const LIMIT = 20
 const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
   { value: 'confirmed', label: 'Confirmada' },
-  { value: 'in_production', label: 'En producción' },
+  { value: 'queued', label: 'En cola' },
   { value: 'cutting', label: 'En corte' },
   { value: 'cut', label: 'Cortada' },
   { value: 'completed', label: 'Completada' },
@@ -41,11 +41,11 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
 ]
 
 // Estados que el operador puede ver; su opción "Todos" (value '') equivale a este set completo.
-const OPERATOR_STATUSES: OrderStatus[] = ['in_production', 'cutting', 'cut']
+const OPERATOR_STATUSES: OrderStatus[] = ['queued', 'cutting', 'cut']
 
 const OPERATOR_STATUS_OPTIONS: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos' },
-  { value: 'in_production', label: 'En producción' },
+  { value: 'queued', label: 'En cola' },
   { value: 'cutting', label: 'En corte' },
   { value: 'cut', label: 'Cortada' },
 ]

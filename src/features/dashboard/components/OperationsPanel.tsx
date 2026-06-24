@@ -11,7 +11,8 @@ const fmtHours = (h: number) =>
 const TRANSITION_LABEL: Record<string, string> = {
   confirmed: 'Confirmada',
   approved: 'Aprobada',
-  in_production: 'En producción',
+  queued: 'En cola',
+  in_production: 'En cola', // histórico (renombrado a `queued`)
   cut: 'Cortada',
   completed: 'Completada',
 }

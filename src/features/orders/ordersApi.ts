@@ -2,6 +2,9 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type { Client } from 'src/features/clients/types'
 import type {
   AssociateInvoicePayload,
+  BandingPayload,
+  BandingQueueItem,
+  BandingResult,
   CuttingPlan,
   MarkPieceResponse,
   Order,
@@ -28,6 +31,10 @@ export const ordersApi = {
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
+  // Canteado: la cola devuelve `{ data: [...], meta: {} }` (sin paginación) → `get`, no `list`.
+  getBandingQueue: () => httpClient.get<BandingQueueItem[]>(`${BASE}/banding-queue`),
+  patchBanding: (id: string, data: BandingPayload) =>
+    httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
   downloadProforma: async (id: string) => {
     const blob = await httpClient.download(`${BASE}/${id}/proforma?format=pdf`)
     const url = URL.createObjectURL(blob)
