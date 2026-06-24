@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ClipboardEvent, KeyboardEvent } from 'react'
+import type { CSSProperties, ClipboardEvent, KeyboardEvent } from 'react'
 import {
   CButton,
   CButtonGroup,
@@ -55,6 +55,31 @@ const areaFmt = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 })
 // Campos en los que se puede pegar una columna de valores para crear filas.
 const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'priority', 'label'])
 
+// Mapeo data-col → campo, para las 6 columnas navegables (las que tienen tirador de arrastre).
+const COL_FIELDS: FillableField[] = [
+  'materialUid',
+  'height',
+  'width',
+  'quantity',
+  'priority',
+  'label',
+]
+
+// Tirador ("fill handle") en la esquina inferior-derecha de la celda activa.
+const handleStyle: CSSProperties = {
+  position: 'absolute',
+  right: 1,
+  bottom: 1,
+  width: 9,
+  height: 9,
+  background: 'var(--cui-primary)',
+  border: '1px solid var(--cui-white, #fff)',
+  borderRadius: 1,
+  cursor: 'ns-resize',
+  touchAction: 'none',
+  zIndex: 3,
+}
+
 // Parsea formato rápido: "720x400", "720x400x4", "720x400x4 Etiqueta".
 // Separador: x, X, ×, *. Decimal: punto o coma.
 const QUICK_REGEX =
@@ -95,6 +120,7 @@ const PiecesTable = ({
     update,
     removeSelected,
     fillDown,
+    fillRange,
     clear,
     toggleSelect,
     selectAll,
@@ -107,6 +133,10 @@ const PiecesTable = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
+  // Celda donde se muestra el tirador de arrastre (sigue al foco, como el "active cell" de Excel).
+  const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null)
+  // Arrastre en curso del tirador. `targetRow` es la fila bajo el puntero (clampeada a la lista).
+  const [drag, setDrag] = useState<{ srcRow: number; col: number; targetRow: number } | null>(null)
 
   // Foco programático a una celda por posición (data-row / data-col).
   const focusCell = useCallback((row: number, col: number) => {
@@ -149,11 +179,7 @@ const PiecesTable = ({
   // ArrowUp/Down en col 0 se dejan al browser (navegan opciones del select).
   // ArrowLeft/Right en col 5 (texto) solo navegan si el cursor está en el borde de la cadena.
   const LAST_COL = 5
-  const handleKeyDown = (
-    e: KeyboardEvent<HTMLElement>,
-    rowIndex: number,
-    colIndex: number,
-  ) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>, rowIndex: number, colIndex: number) => {
     switch (e.key) {
       case 'Enter':
         if (colIndex === 0) return // el select usa Enter para abrir/cerrar
@@ -253,8 +279,7 @@ const PiecesTable = ({
       setQuickError('Formato: 720×400 o 720×400×4 Etiqueta')
       return
     }
-    const inheritUid =
-      requirements[requirements.length - 1]?.materialUid || materials[0]?.uid || ''
+    const inheritUid = requirements[requirements.length - 1]?.materialUid || materials[0]?.uid || ''
     const req = emptyRequirement(inheritUid)
     req.height = parsed.height
     req.width = parsed.width
@@ -263,6 +288,55 @@ const PiecesTable = ({
     addMany([req], false)
     setQuickText('')
     setQuickError('')
+  }
+
+  // Fila bajo la coordenada Y del puntero (clampeada al rango de filas existentes).
+  const rowFromY = (y: number): number => {
+    const rows = containerRef.current?.querySelectorAll('tbody tr')
+    if (!rows || rows.length === 0) return 0
+    for (let idx = 0; idx < rows.length; idx++) {
+      if (y < rows[idx].getBoundingClientRect().bottom) return idx
+    }
+    return rows.length - 1
+  }
+
+  // ¿La celda (col, fila i) está dentro del rango que se está arrastrando?
+  const inFillRange = (col: number, i: number): boolean => {
+    if (!drag || drag.col !== col) return false
+    return i >= Math.min(drag.srcRow, drag.targetRow) && i <= Math.max(drag.srcRow, drag.targetRow)
+  }
+
+  // Estilo de celda editable: posición relativa para anclar el tirador + resaltado del rango.
+  const cellStyle = (col: number, i: number, minWidth: number): CSSProperties => ({
+    minWidth,
+    position: 'relative',
+    ...(inFillRange(col, i) ? { boxShadow: 'inset 0 0 0 2px var(--cui-primary)' } : {}),
+  })
+
+  // Tirador arrastrable en la celda activa. Usa Pointer Events (mouse + touch) con captura de puntero.
+  const renderHandle = (i: number, col: number) => {
+    if (!activeCell || activeCell.row !== i || activeCell.col !== col) return null
+    return (
+      <span
+        title="Arrastrar para clonar"
+        style={handleStyle}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.currentTarget.setPointerCapture(e.pointerId)
+          setDrag({ srcRow: i, col, targetRow: i })
+        }}
+        onPointerMove={(e) => {
+          const target = rowFromY(e.clientY)
+          setDrag((d) => (!d || d.targetRow === target ? d : { ...d, targetRow: target }))
+        }}
+        onPointerUp={(e) => {
+          e.currentTarget.releasePointerCapture(e.pointerId)
+          if (drag) fillRange(drag.srcRow, drag.targetRow, COL_FIELDS[drag.col])
+          setDrag(null)
+        }}
+        onPointerCancel={() => setDrag(null)}
+      />
+    )
   }
 
   // Helper de render (no es componente): botón "rellenar hacia abajo" en una cabecera de columna.
@@ -418,12 +492,13 @@ const PiecesTable = ({
                     <CTableDataCell className="text-center">
                       <CFormCheck checked={selected.has(i)} onChange={() => toggleSelect(i)} />
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 170 }}>
+                    <CTableDataCell style={cellStyle(0, i, 170)}>
                       <CFormSelect
                         size="sm"
                         value={req.materialUid}
                         data-row={i}
                         data-col={0}
+                        onFocus={() => setActiveCell({ row: i, col: 0 })}
                         onChange={(e) => update(i, 'materialUid', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 0)}
                       >
@@ -434,8 +509,9 @@ const PiecesTable = ({
                           </option>
                         ))}
                       </CFormSelect>
+                      {renderHandle(i, 0)}
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 80 }}>
+                    <CTableDataCell style={cellStyle(1, i, 80)}>
                       <CFormInput
                         size="sm"
                         type="number"
@@ -444,11 +520,13 @@ const PiecesTable = ({
                         data-col={1}
                         data-field="height"
                         value={req.height}
+                        onFocus={() => setActiveCell({ row: i, col: 1 })}
                         onChange={(e) => update(i, 'height', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 1)}
                       />
+                      {renderHandle(i, 1)}
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 80 }}>
+                    <CTableDataCell style={cellStyle(2, i, 80)}>
                       <CFormInput
                         size="sm"
                         type="number"
@@ -457,11 +535,13 @@ const PiecesTable = ({
                         data-col={2}
                         data-field="width"
                         value={req.width}
+                        onFocus={() => setActiveCell({ row: i, col: 2 })}
                         onChange={(e) => update(i, 'width', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 2)}
                       />
+                      {renderHandle(i, 2)}
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 70 }}>
+                    <CTableDataCell style={cellStyle(3, i, 70)}>
                       <CFormInput
                         size="sm"
                         type="number"
@@ -471,11 +551,13 @@ const PiecesTable = ({
                         data-col={3}
                         data-field="quantity"
                         value={req.quantity}
+                        onFocus={() => setActiveCell({ row: i, col: 3 })}
                         onChange={(e) => update(i, 'quantity', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 3)}
                       />
+                      {renderHandle(i, 3)}
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 70 }}>
+                    <CTableDataCell style={cellStyle(4, i, 70)}>
                       <CFormInput
                         size="sm"
                         type="number"
@@ -484,21 +566,25 @@ const PiecesTable = ({
                         data-col={4}
                         data-field="priority"
                         value={req.priority}
+                        onFocus={() => setActiveCell({ row: i, col: 4 })}
                         onChange={(e) => update(i, 'priority', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 4)}
                       />
+                      {renderHandle(i, 4)}
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 120 }}>
+                    <CTableDataCell style={cellStyle(5, i, 120)}>
                       <CFormInput
                         size="sm"
                         data-row={i}
                         data-col={5}
                         data-field="label"
                         value={req.label}
+                        onFocus={() => setActiveCell({ row: i, col: 5 })}
                         onChange={(e) => update(i, 'label', e.target.value)}
                         onKeyDown={(e) => handleKeyDown(e, i, 5)}
                         placeholder="Puerta izq."
                       />
+                      {renderHandle(i, 5)}
                     </CTableDataCell>
                     <CTableDataCell className="text-center" style={{ minWidth: 60 }}>
                       <CFormCheck
