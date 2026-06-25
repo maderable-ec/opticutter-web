@@ -26,17 +26,20 @@ import {
   cilTrash,
 } from '@coreui/icons'
 
-import type { BoardProduct } from 'src/features/products/types'
+import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import {
+  CANTO_NOTATION_RE,
+  CANTO_NOTATIONS,
   emptyRequirement,
-  hasEdgeBanding,
   isRequirementEmpty,
   isRequirementValid,
   materialLabel,
+  notationFromSides,
   piecesSummary,
-  selectedSides,
+  sidesFromNotation,
   validMaterialUids,
 } from './optimizerForm'
+import type { EdgeSide } from './types'
 import type { MaterialForm } from './optimizerForm'
 import { parsePieces } from './piecesCsv'
 import type { FillableField, PiecesEditor } from './usePiecesEditor'
@@ -45,7 +48,7 @@ interface PiecesTableProps {
   editor: PiecesEditor
   materials: MaterialForm[]
   boards: BoardProduct[]
-  onEditEdgeBanding: (index: number) => void
+  edgeBandings: EdgeBandingProduct[]
   onImportOpen: () => void
   onExport: () => void
 }
@@ -55,14 +58,16 @@ const areaFmt = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 })
 // Campos en los que se puede pegar una columna de valores para crear filas.
 const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'priority', 'label'])
 
-// Mapeo data-col → campo, para las 6 columnas navegables (las que tienen tirador de arrastre).
+// Mapeo data-col → campo. Cols 6 y 7 (canto y tapacanto) ambas propagan 'edgeBanding'.
 const COL_FIELDS: FillableField[] = [
-  'materialUid',
-  'height',
-  'width',
-  'quantity',
-  'priority',
-  'label',
+  'materialUid', // col 0
+  'height',      // col 1
+  'width',       // col 2
+  'quantity',    // col 3
+  'priority',    // col 4
+  'label',       // col 5
+  'edgeBandingSides',     // col 6 — Canto (solo lados)
+  'edgeBandingProductId', // col 7 — Tapacanto (solo producto)
 ]
 
 // Tirador ("fill handle") en la esquina inferior-derecha de la celda activa.
@@ -80,30 +85,56 @@ const handleStyle: CSSProperties = {
   zIndex: 3,
 }
 
-// Parsea formato rápido: "720x400", "720x400x4", "720x400x4 Etiqueta".
+// Parsea formato rápido: "720x400", "720x400x4", "720x400x4 Etiqueta", "720x400x4 Etiqueta 1L2C".
 // Separador: x, X, ×, *. Decimal: punto o coma.
+// La notación de canto (1L, 2L, 1C, 2C, 1L1C, 1L2C, 2L1C, 4L) va al FINAL, después de la etiqueta.
 const QUICK_REGEX =
   /^(\d+(?:[.,]\d+)?)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)(?:\s*[xX×*]\s*(\d+(?:[.,]\d+)?))?(?:\s+(.+))?$/
 
 const parseQuickEntry = (
   text: string,
-): { height: number; width: number; quantity: number; label: string } | null => {
+): { height: number; width: number; quantity: number; label: string; notation: string | null } | null => {
   const m = text.trim().match(QUICK_REGEX)
   if (!m) return null
   const toNum = (s?: string) => (s ? Number(s.replace(',', '.')) : 0)
+  const remaining = (m[4] ?? '').trim()
+  let notation: string | null = null
+  let label = remaining
+  if (remaining) {
+    const parts = remaining.split(/\s+/)
+    const last = parts[parts.length - 1]
+    if (CANTO_NOTATION_RE.test(last)) {
+      notation = last.toUpperCase()
+      label = parts.slice(0, -1).join(' ')
+    }
+  }
   return {
     height: toNum(m[1]),
     width: toNum(m[2]),
     quantity: m[3] ? Math.max(1, Math.round(toNum(m[3]))) : 1,
-    label: (m[4] ?? '').trim(),
+    label: label.trim(),
+    notation,
   }
 }
+
+// Miniatura SVG: la pieza se muestra girada 90° en sentido horario, por lo que
+// los lados largos (L = left/right de la pieza) quedan como barras horizontales top/bottom,
+// y los lados cortos (C = top/bottom de la pieza) quedan como barras verticales left/right.
+const CantoPreview = ({ sides }: { sides: Record<EdgeSide, boolean> }) => (
+  <svg width="28" height="18" viewBox="0 0 28 18" style={{ flexShrink: 0 }}>
+    <rect x="1" y="1" width="26" height="16" fill="none" stroke="#adb5bd" strokeWidth="1" />
+    {sides.left   && <line x1="1"  y1="1"  x2="27" y2="1"  stroke="#d9480f" strokeWidth="2" />}
+    {sides.right  && <line x1="1"  y1="17" x2="27" y2="17" stroke="#d9480f" strokeWidth="2" />}
+    {sides.bottom && <line x1="1"  y1="1"  x2="1"  y2="17" stroke="#d9480f" strokeWidth="2" />}
+    {sides.top    && <line x1="27" y1="1"  x2="27" y2="17" stroke="#d9480f" strokeWidth="2" />}
+  </svg>
+)
 
 const PiecesTable = ({
   editor,
   materials,
   boards,
-  onEditEdgeBanding,
+  edgeBandings,
   onImportOpen,
   onExport,
 }: PiecesTableProps) => {
@@ -175,39 +206,43 @@ const PiecesTable = ({
   const hasSelection = selected.size > 0
 
   // Navegación con teclado en la grid de piezas.
-  // Col 0 = material (select), 1 = alto, 2 = ancho, 3 = cant, 4 = prior, 5 = etiqueta.
-  // ArrowUp/Down en col 0 se dejan al browser (navegan opciones del select).
+  // Col 0 = material (select), 1 = alto, 2 = ancho, 3 = cant, 4 = prior, 5 = etiqueta,
+  // 6 = canto (select), 7 = tapacanto (select).
+  // ArrowUp/Down en cols select (0, 6, 7) se dejan al browser.
   // ArrowLeft/Right en col 5 (texto) solo navegan si el cursor está en el borde de la cadena.
-  const LAST_COL = 5
+  const LAST_COL = 7
+  const SELECT_COLS = new Set([0, 6, 7])
   const handleKeyDown = (e: KeyboardEvent<HTMLElement>, rowIndex: number, colIndex: number) => {
     switch (e.key) {
       case 'Enter':
-        if (colIndex === 0) return // el select usa Enter para abrir/cerrar
+        if (SELECT_COLS.has(colIndex)) return // los selects usan Enter para abrir/cerrar
         e.preventDefault()
         if (rowIndex === requirements.length - 1) add()
         else focusCell(rowIndex + 1, colIndex)
         break
 
       case 'ArrowDown':
-        if (colIndex === 0) return // select navega sus propias opciones
+        if (SELECT_COLS.has(colIndex)) return // select navega sus propias opciones
         e.preventDefault()
         focusCell(rowIndex + 1, colIndex)
         break
 
       case 'ArrowUp':
-        if (colIndex === 0) return
+        if (SELECT_COLS.has(colIndex)) return
         e.preventDefault()
         if (rowIndex > 0) focusCell(rowIndex - 1, colIndex)
         break
 
       case 'ArrowRight': {
         if (colIndex === LAST_COL) {
-          // Input de texto: solo salir cuando el cursor ya está al final
-          const inp = e.currentTarget as HTMLInputElement
-          if (inp.selectionStart !== inp.value.length) return
           e.preventDefault()
           if (rowIndex < requirements.length - 1) focusCell(rowIndex + 1, 0)
           break
+        }
+        if (colIndex === 5) {
+          // Input de texto: solo salir cuando el cursor ya está al final
+          const inp = e.currentTarget as HTMLInputElement
+          if (inp.selectionStart !== inp.value.length) return
         }
         e.preventDefault()
         focusCell(rowIndex, colIndex + 1)
@@ -215,7 +250,7 @@ const PiecesTable = ({
       }
 
       case 'ArrowLeft': {
-        if (colIndex === LAST_COL) {
+        if (colIndex === 5) {
           // Input de texto: solo salir cuando el cursor ya está al inicio
           const inp = e.currentTarget as HTMLInputElement
           if (inp.selectionStart !== 0) return
@@ -270,13 +305,13 @@ const PiecesTable = ({
     [materials, boards, pasteRows, pasteIntoField],
   )
 
-  // Campo de ingreso rápido: "720×400×4 Etiqueta" → agrega pieza al presionar Enter.
+  // Campo de ingreso rápido: "720×400×4 Etiqueta 1L2C" → agrega pieza al presionar Enter.
   const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     if (!quickText.trim()) return
     const parsed = parseQuickEntry(quickText)
     if (!parsed) {
-      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta')
+      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta 1L2C')
       return
     }
     const inheritUid = requirements[requirements.length - 1]?.materialUid || materials[0]?.uid || ''
@@ -285,6 +320,13 @@ const PiecesTable = ({
     req.width = parsed.width
     req.quantity = parsed.quantity
     req.label = parsed.label
+    if (parsed.notation) {
+      const lastEb = requirements[requirements.length - 1]?.edgeBanding
+      req.edgeBanding = {
+        productId: lastEb?.productId ?? '',
+        sides: sidesFromNotation(parsed.notation),
+      }
+    }
     addMany([req], false)
     setQuickText('')
     setQuickError('')
@@ -477,16 +519,17 @@ const PiecesTable = ({
                   {renderFill('canRotate', 'Igualar rotación')}
                 </CTableHeaderCell>
                 <CTableHeaderCell>
-                  Tapacanto
-                  {renderFill('edgeBanding', 'Igualar tapacanto')}
+                  Canto
+                  {renderFill('edgeBandingSides', 'Igualar lados de canto')}
                 </CTableHeaderCell>
+                <CTableHeaderCell>Tapacanto</CTableHeaderCell>
                 <CTableHeaderCell />
               </CTableRow>
             </CTableHead>
             <CTableBody>
               {requirements.map((req, i) => {
-                const banded = hasEdgeBanding(req.edgeBanding)
                 const isError = !isRequirementValid(req, validUids) && !isRequirementEmpty(req)
+                const cantoNotation = notationFromSides(req.edgeBanding.sides)
                 return (
                   <CTableRow key={i} color={isError ? 'danger' : undefined}>
                     <CTableDataCell className="text-center">
@@ -592,16 +635,56 @@ const PiecesTable = ({
                         onChange={(e) => update(i, 'canRotate', e.target.checked)}
                       />
                     </CTableDataCell>
-                    <CTableDataCell style={{ minWidth: 110 }}>
-                      <CButton
+                    <CTableDataCell style={cellStyle(6, i, 120)}>
+                      <div className="d-flex align-items-center gap-1">
+                        <CantoPreview sides={req.edgeBanding.sides} />
+                        <CFormSelect
+                          size="sm"
+                          value={cantoNotation}
+                          data-row={i}
+                          data-col={6}
+                          onFocus={() => setActiveCell({ row: i, col: 6 })}
+                          onChange={(e) =>
+                            update(i, 'edgeBanding', {
+                              ...req.edgeBanding,
+                              sides: sidesFromNotation(e.target.value),
+                            })
+                          }
+                          onKeyDown={(e) => handleKeyDown(e, i, 6)}
+                        >
+                          {CANTO_NOTATIONS.map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </CFormSelect>
+                      </div>
+                      {renderHandle(i, 6)}
+                    </CTableDataCell>
+                    <CTableDataCell style={cellStyle(7, i, 140)}>
+                      <CFormSelect
                         size="sm"
-                        color={banded ? 'info' : 'secondary'}
-                        variant={banded ? 'outline' : 'ghost'}
-                        type="button"
-                        onClick={() => onEditEdgeBanding(i)}
+                        value={req.edgeBanding.productId}
+                        disabled={cantoNotation === '—'}
+                        data-row={i}
+                        data-col={7}
+                        onFocus={() => setActiveCell({ row: i, col: 7 })}
+                        onChange={(e) =>
+                          update(i, 'edgeBanding', {
+                            ...req.edgeBanding,
+                            productId: e.target.value,
+                          })
+                        }
+                        onKeyDown={(e) => handleKeyDown(e, i, 7)}
                       >
-                        {banded ? `${selectedSides(req.edgeBanding).length} lados` : '+ Tapacanto'}
-                      </CButton>
+                        <option value="">—</option>
+                        {edgeBandings.map((p) => (
+                          <option key={p.id} value={String(p.id)}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                      {renderHandle(i, 7)}
                     </CTableDataCell>
                     <CTableDataCell className="text-nowrap">
                       <CButton
@@ -633,7 +716,7 @@ const PiecesTable = ({
           </CTable>
         </div>
 
-        {/* Ingreso rápido: escribe "720×400×4 Etiqueta" y presiona Enter para agregar la pieza */}
+        {/* Ingreso rápido: "720×400×4 Etiqueta 1L2C" → agrega pieza al presionar Enter */}
         <div className="d-flex align-items-center gap-2 mt-2">
           <CFormInput
             size="sm"
@@ -643,10 +726,10 @@ const PiecesTable = ({
               setQuickError('')
             }}
             onKeyDown={handleQuickEntry}
-            placeholder="720×400×4  Etiqueta  (Enter para agregar)"
+            placeholder="720×400×4  Etiqueta  1L2C  (Enter para agregar)"
             disabled={materials.length === 0}
             invalid={!!quickError}
-            style={{ maxWidth: 360 }}
+            style={{ maxWidth: 400 }}
           />
           {quickError && <small className="text-danger">{quickError}</small>}
         </div>

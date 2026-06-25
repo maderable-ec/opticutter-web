@@ -3,13 +3,12 @@ import { CAlert, CButton, CSpinner } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCart, cilCheckAlt, cilFolderOpen, cilPlus, cilSave } from '@coreui/icons'
 
-import { useBoards, useOptimize } from './useOptimizer'
+import { useBoards, useEdgeBandings, useOptimize } from './useOptimizer'
 import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
 import {
   buildPayload,
   emptyCatalogMaterial,
-  emptyEdgeBanding,
   isRequirementEmpty,
 } from './optimizerForm'
 import type { MaterialForm } from './optimizerForm'
@@ -20,13 +19,10 @@ import { usePiecesEditor } from './usePiecesEditor'
 import MaterialsPanel from './MaterialsPanel'
 import PiecesTable from './PiecesTable'
 import OptimizationPreview from './OptimizationPreview'
-import EdgeBandingModal from './EdgeBandingModal'
 import ImportPiecesModal from './ImportPiecesModal'
 import CreateQuoteModal from './CreateQuoteModal'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
-import PriceTierSelect from 'src/features/settings/PriceTierSelect'
-
 const OptimizerPage = () => {
   // Red de seguridad: leemos el autosave de la sesión anterior UNA vez (inicializador perezoso) y lo
   // usamos para hidratar el estado inicial, en lugar de un efecto de montaje con setState.
@@ -35,7 +31,6 @@ const OptimizerPage = () => {
   const [materials, setMaterials] = useState<MaterialForm[]>(
     () => bootstrap?.materials ?? [emptyCatalogMaterial()],
   )
-  const [ebIndex, setEbIndex] = useState<number | null>(null)
   const [showQuote, setShowQuote] = useState(false)
   const [showImport, setShowImport] = useState(false)
 
@@ -51,6 +46,7 @@ const OptimizerPage = () => {
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { data: boards = [] } = useBoards()
+  const { data: edgeBandings = [] } = useEdgeBandings()
   const optimize = useOptimize()
   const pieces = usePiecesEditor(materials, bootstrap?.requirements)
   const saveDraft = useSaveDraft()
@@ -253,17 +249,10 @@ const OptimizerPage = () => {
         editor={pieces}
         materials={materials}
         boards={boards}
-        onEditEdgeBanding={setEbIndex}
+        edgeBandings={edgeBandings}
         onImportOpen={() => setShowImport(true)}
         onExport={handleExport}
       />
-
-      <div className="d-flex align-items-center gap-2 mb-2">
-        <label className="form-label mb-0 text-nowrap">Nivel de precio</label>
-        <div style={{ maxWidth: 220 }}>
-          <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
-        </div>
-      </div>
 
       <OptimizationPreview
         result={optimize.data}
@@ -279,14 +268,6 @@ const OptimizerPage = () => {
           Crear cotización
         </CButton>
       </div>
-
-      <EdgeBandingModal
-        visible={ebIndex !== null}
-        value={ebIndex !== null ? pieces.requirements[ebIndex].edgeBanding : emptyEdgeBanding()}
-        pieceLabel={ebIndex !== null ? pieces.requirements[ebIndex].label || undefined : undefined}
-        onChange={(eb) => ebIndex !== null && pieces.update(ebIndex, 'edgeBanding', eb)}
-        onClose={() => setEbIndex(null)}
-      />
 
       <ImportPiecesModal
         visible={showImport}

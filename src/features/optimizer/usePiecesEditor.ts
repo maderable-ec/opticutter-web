@@ -13,6 +13,8 @@ export type FillableField =
   | 'label'
   | 'canRotate'
   | 'edgeBanding'
+  | 'edgeBandingSides'
+  | 'edgeBandingProductId'
 export type FillScope = 'all' | 'selected'
 
 const MAX_HISTORY = 20
@@ -123,11 +125,14 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
         if (field === 'edgeBanding') {
           return {
             ...r,
-            edgeBanding: {
-              productId: src.edgeBanding.productId,
-              sides: { ...src.edgeBanding.sides },
-            },
+            edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
           }
+        }
+        if (field === 'edgeBandingSides') {
+          return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
+        }
+        if (field === 'edgeBandingProductId') {
+          return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
         }
         return { ...r, [field]: src[field] }
       })
@@ -149,11 +154,14 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
         if (field === 'edgeBanding') {
           return {
             ...r,
-            edgeBanding: {
-              productId: src.edgeBanding.productId,
-              sides: { ...src.edgeBanding.sides },
-            },
+            edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
           }
+        }
+        if (field === 'edgeBandingSides') {
+          return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
+        }
+        if (field === 'edgeBandingProductId') {
+          return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
         }
         return { ...r, [field]: src[field] }
       })

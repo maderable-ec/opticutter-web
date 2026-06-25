@@ -32,9 +32,8 @@ import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import MaterialsPanel from 'src/features/optimizer/MaterialsPanel'
 import PiecesTable from 'src/features/optimizer/PiecesTable'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
-import EdgeBandingModal from 'src/features/optimizer/EdgeBandingModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
-import { useBoards } from 'src/features/optimizer/useOptimizer'
+import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
 import {
   buildPayload,
@@ -165,7 +164,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   )
   const [notes, setNotes] = useState(preOrder.notes ?? '')
   const [priceTierCode, setPriceTierCode] = useState(preOrder.priceTierCode ?? 'consumidor')
-  const [ebIndex, setEbIndex] = useState<number | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
@@ -176,6 +174,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const editor = usePiecesEditor(materials, initialFormData?.requirements)
 
   const { data: boards = [] } = useBoards()
+  const { data: edgeBandings = [] } = useEdgeBandings()
   const updatePreOrder = useUpdatePreOrder()
   const deletePreOrder = useDeletePreOrder()
   const createReviewLink = useCreatePreOrderReviewLink()
@@ -499,7 +498,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                 editor={editor}
                 materials={materials}
                 boards={boards}
-                onEditEdgeBanding={(i) => setEbIndex(i)}
+                edgeBandings={edgeBandings}
                 onImportOpen={() => setShowImport(true)}
                 onExport={() =>
                   downloadCsv(
@@ -521,16 +520,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         canOptimize={canEdit && canSave}
         onOptimize={handleSave}
       />
-
-      {/* Edge banding modal */}
-      {ebIndex !== null && (
-        <EdgeBandingModal
-          visible
-          value={editor.requirements[ebIndex]?.edgeBanding ?? emptyEdgeBanding()}
-          onChange={(eb) => editor.update(ebIndex, 'edgeBanding', eb)}
-          onClose={() => setEbIndex(null)}
-        />
-      )}
 
       {/* Import pieces modal */}
       <ImportPiecesModal
