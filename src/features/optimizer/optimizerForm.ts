@@ -202,3 +202,39 @@ export const buildPayload = (
 
   return { materials: materialsUsed, requirements: mappedReqs, validCount: mappedReqs.length }
 }
+
+// --- Nomenclatura de canto (negocio) ---
+// L = lado largo = left/right (los lados a lo largo de la pieza)
+// C = lado corto = top/bottom (los lados a lo ancho de la pieza)
+
+export const CANTO_NOTATIONS = ['—', '1L', '2L', '1C', '2C', '1L1C', '1L2C', '2L1C', '4L'] as const
+export type CantoNotation = (typeof CANTO_NOTATIONS)[number]
+
+const NOTATION_TO_SIDES: Record<CantoNotation, Record<EdgeSide, boolean>> = {
+  '—':    { top: false, bottom: false, left: false, right: false },
+  '1L':   { top: false, bottom: false, left: true,  right: false },
+  '2L':   { top: false, bottom: false, left: true,  right: true  },
+  '1C':   { top: true,  bottom: false, left: false, right: false },
+  '2C':   { top: true,  bottom: true,  left: false, right: false },
+  '1L1C': { top: true,  bottom: false, left: true,  right: false },
+  '1L2C': { top: true,  bottom: true,  left: true,  right: false },
+  '2L1C': { top: true,  bottom: false, left: true,  right: true  },
+  '4L':   { top: true,  bottom: true,  left: true,  right: true  },
+}
+
+export function notationFromSides(sides: Record<EdgeSide, boolean>): CantoNotation {
+  const l = (sides.left ? 1 : 0) + (sides.right ? 1 : 0)
+  const c = (sides.top ? 1 : 0) + (sides.bottom ? 1 : 0)
+  if (l === 0 && c === 0) return '—'
+  if (l === 2 && c === 2) return '4L'
+  let key = ''
+  if (l > 0) key += `${l}L`
+  if (c > 0) key += `${c}C`
+  return (key as CantoNotation) ?? '—'
+}
+
+export function sidesFromNotation(n: string): Record<EdgeSide, boolean> {
+  return NOTATION_TO_SIDES[n as CantoNotation] ?? NOTATION_TO_SIDES['—']
+}
+
+export const CANTO_NOTATION_RE = /^(?:4[Ll]|[12][Ll](?:[12][Cc])?|[12][Cc])$/
