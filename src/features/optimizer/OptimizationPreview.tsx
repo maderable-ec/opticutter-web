@@ -156,17 +156,21 @@ const OptimizationPreview = ({
                 </CTableHead>
                 <CTableBody>
                   {result.edgeBandingsSummary.map((e) => (
-                    <CTableRow key={e.productId}>
+                    <CTableRow key={e.productId ?? 'sin-producto'}>
                       <CTableDataCell>
-                        {e.productName ?? e.productCode}
+                        {e.productName ?? e.productCode ?? 'Sin asignar'}
                         {e.color ? <span className="text-body-secondary"> · {e.color}</span> : null}
                       </CTableDataCell>
                       <CTableDataCell className="text-end">
                         {e.netLinearM.toFixed(2)}
                       </CTableDataCell>
                       <CTableDataCell className="text-end">{e.billedLinearM}</CTableDataCell>
-                      <CTableDataCell className="text-end">{fmtMoney(e.pricePerM)}</CTableDataCell>
-                      <CTableDataCell className="text-end">{fmtMoney(e.totalCost)}</CTableDataCell>
+                      <CTableDataCell className="text-end">
+                        {e.pricePerM ? fmtMoney(e.pricePerM) : '—'}
+                      </CTableDataCell>
+                      <CTableDataCell className="text-end">
+                        {e.totalCost ? fmtMoney(e.totalCost) : '—'}
+                      </CTableDataCell>
                     </CTableRow>
                   ))}
                 </CTableBody>

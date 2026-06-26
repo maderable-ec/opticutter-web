@@ -14,8 +14,6 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCloudDownload } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import { useClientsMin } from 'src/features/orders/useOrders'
@@ -25,7 +23,6 @@ import { useActiveBranches } from 'src/features/branches/useBranches'
 import { ApiError } from 'src/shared/api/types'
 import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 import type { MaterialInput, RequirementInput } from './types'
-import { optimizerApi } from './optimizerApi'
 
 const fullClientLabel = (c: Client) => {
   const name = [c.firstName, c.lastName].filter(Boolean).join(' ')
@@ -37,7 +34,6 @@ interface CreateQuoteModalProps {
   onClose: () => void
   materials: MaterialInput[]
   requirements: RequirementInput[]
-  optimizationHash?: string | null
   priceTierCode: string
   onPriceTierChange: (code: string) => void
   // Se invoca tras crear la orden con éxito (p. ej. para limpiar el autosave del optimizer).
@@ -49,7 +45,6 @@ const CreateQuoteModal = ({
   onClose,
   materials,
   requirements,
-  optimizationHash,
   priceTierCode,
   onPriceTierChange,
   onCreated,
@@ -104,8 +99,6 @@ const CreateQuoteModal = ({
       },
     )
   }
-
-  const canPreviewProforma = !!optimizationHash && !!selectedClientId && !missingPhone
 
   const isPending = createPreOrder.isPending
   const mutationError = createPreOrder.error
@@ -187,35 +180,17 @@ const CreateQuoteModal = ({
           </CAlert>
         )}
       </CModalBody>
-      <CModalFooter className="d-flex justify-content-between">
-        <CButton
-          color="secondary"
-          variant="ghost"
-          disabled={!canPreviewProforma}
-          onClick={() =>
-            optimizationHash &&
-            optimizerApi.downloadOptimizationProforma(
-              optimizationHash,
-              Number(selectedClientId),
-              priceTierCode,
-            )
-          }
-        >
-          <CIcon icon={cilCloudDownload} className="me-1" />
-          Ver proforma
+      <CModalFooter>
+        <CButton color="secondary" onClick={onClose}>
+          Cancelar
         </CButton>
-        <div className="d-flex gap-2">
-          <CButton color="secondary" onClick={onClose}>
-            Cancelar
-          </CButton>
-          <CButton
-            color="primary"
-            disabled={!selectedClientId || missingPhone || isPending || (isAdmin && !branchId)}
-            onClick={handleCreate}
-          >
-            {isPending ? <CSpinner size="sm" /> : 'Crear cotización'}
-          </CButton>
-        </div>
+        <CButton
+          color="primary"
+          disabled={!selectedClientId || missingPhone || isPending || (isAdmin && !branchId)}
+          onClick={handleCreate}
+        >
+          {isPending ? <CSpinner size="sm" /> : 'Crear cotización'}
+        </CButton>
       </CModalFooter>
     </CModal>
   )

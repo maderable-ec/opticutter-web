@@ -177,8 +177,8 @@ const EdgeBandingModal = ({
         </div>
 
         {missingProduct && (
-          <CAlert color="warning" className="mt-3 mb-0 py-2 small">
-            Seleccioná un producto de tapacanto o el tapacanto no se aplicará.
+          <CAlert color="info" className="mt-3 mb-0 py-2 small">
+            Sin producto se calcula la longitud del canto; el tapacanto se elige al cotizar.
           </CAlert>
         )}
       </CModalBody>
