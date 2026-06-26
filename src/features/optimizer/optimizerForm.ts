@@ -86,7 +86,7 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
   EDGE_SIDES.filter((s) => eb.sides[s.key]).map((s) => s.key)
 
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean =>
-  eb.productId !== '' && selectedSides(eb).length > 0
+  selectedSides(eb).length > 0
 
 // uids de materiales válidos: las piezas solo pueden referenciar a uno de estos.
 export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
@@ -181,10 +181,10 @@ export const buildPayload = (
 
   const mappedReqs: RequirementInput[] = validReqs.map((r) => {
     const sides = selectedSides(r.edgeBanding)
-    const edgeBanding =
-      r.edgeBanding.productId && sides.length
-        ? { productId: Number(r.edgeBanding.productId), sides }
-        : undefined
+    const pid = Number(r.edgeBanding.productId) || undefined
+    const edgeBanding = sides.length
+      ? { sides, ...(pid ? { productId: pid } : {}) }
+      : undefined
     return {
       materialKey: r.materialUid,
       height: Number(r.height),

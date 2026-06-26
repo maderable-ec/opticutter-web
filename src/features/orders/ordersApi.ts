@@ -35,8 +35,8 @@ export const ordersApi = {
   getBandingQueue: () => httpClient.get<BandingQueueItem[]>(`${BASE}/banding-queue`),
   patchBanding: (id: string, data: BandingPayload) =>
     httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
-  downloadProforma: async (id: string) => {
-    const blob = await httpClient.download(`${BASE}/${id}/proforma?format=pdf`)
+  downloadOrderDocument: async (id: string) => {
+    const blob = await httpClient.download(`${BASE}/${id}/document?format=pdf`)
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank')
     setTimeout(() => URL.revokeObjectURL(url), 10_000)

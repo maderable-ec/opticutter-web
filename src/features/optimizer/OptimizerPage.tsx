@@ -282,7 +282,6 @@ const OptimizerPage = () => {
         onClose={() => setShowQuote(false)}
         materials={built.materials}
         requirements={built.requirements}
-        optimizationHash={optimize.data?.optimizationHash}
         priceTierCode={priceTierCode}
         onPriceTierChange={setPriceTierCode}
         onCreated={clearAutosave}

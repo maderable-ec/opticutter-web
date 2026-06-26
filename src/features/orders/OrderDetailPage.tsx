@@ -110,7 +110,7 @@ interface TransitionModalState {
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // Operador puede ver la orden, proforma y el plan de corte, pero no cambiar estado ni facturar.
+  // Operador puede ver la orden, el documento y el plan de corte, pero no cambiar estado ni facturar.
   const canManage = useHasRole('administrador', 'vendedor')
   // El operador no usa el detalle: su flujo es el taller. Lo redirigimos allí (también por URL directa).
   const isOperator = useHasRole('operador')
@@ -507,10 +507,10 @@ const OrderDetailPage = () => {
               color="secondary"
               variant="outline"
               size="sm"
-              onClick={() => id && ordersApi.downloadProforma(id)}
+              onClick={() => id && ordersApi.downloadOrderDocument(id)}
             >
               <CIcon icon={cilExternalLink} className="me-1" />
-              Proforma PDF
+              Orden de pedido PDF
             </CButton>
             <CButton
               color="secondary"
