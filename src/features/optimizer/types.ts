@@ -23,10 +23,10 @@ export interface OptimizeMaterialSheet {
 export interface PlacedPieceEdges {
   // Lados con tapacanto, en espacio geométrico (post-rotación).
   sides: EdgeSide[]
-  product_id: number
-  code: string
-  color: string
-  notation: string
+  product_id: number | null
+  code: string | null
+  color: string | null
+  notation: string | null
 }
 
 export interface PlacedPiece {
@@ -82,11 +82,11 @@ export interface MaterialSummary {
 }
 
 export interface EdgeBandingSummary {
-  productId: number
-  productCode: string
-  productName: string
-  thickness: number
-  color?: string
+  productId: number | null
+  productCode: string | null
+  productName: string | null
+  thickness: number | null
+  color?: string | null
   netLinearM: number
   linearM: number
   billedLinearM: number
@@ -150,8 +150,8 @@ export interface InlineMaterialInput {
 export type MaterialInput = CatalogMaterialInput | InlineMaterialInput
 
 export interface EdgeBandingSpec {
-  productId: number
   sides: EdgeSide[]
+  productId?: number
 }
 
 export interface RequirementInput {
