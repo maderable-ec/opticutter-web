@@ -47,6 +47,12 @@ export const ordersApi = {
     window.open(url, '_blank')
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
   },
+  downloadDispatchSheet: async (id: string) => {
+    const blob = await httpClient.download(`${BASE}/${id}/dispatch-sheet?format=pdf`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  },
 }
 
 export const clientsApiMin = {

@@ -37,6 +37,7 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: 'cutting', label: 'En corte' },
   { value: 'cut', label: 'Cortada' },
   { value: 'completed', label: 'Completada' },
+  { value: 'despachado', label: 'Despachada' },
   { value: 'cancelled', label: 'Cancelada' },
 ]
 

@@ -47,7 +47,7 @@ interface StatusTransition {
   roles: string[]
 }
 
-const TERMINAL_STATES: OrderStatus[] = ['completed', 'cancelled']
+const TERMINAL_STATES: OrderStatus[] = ['despachado', 'cancelled']
 
 // Estados donde el plan de corte es relevante: en cola (interactivo en el taller) y posteriores
 // (solo-lectura, auditoría de lo cortado).
@@ -81,6 +81,14 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
       label: 'Marcar como completada',
       color: 'success',
       roles: ['administrador', 'vendedor'],
+    },
+  ],
+  completed: [
+    {
+      to: 'despachado',
+      label: 'Despachar',
+      color: 'success',
+      roles: ['administrador', 'vendedor', 'operador', 'canteador'],
     },
   ],
 }
@@ -312,6 +320,27 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
+      {/* Despacho — congelado al transicionar a despachado */}
+      {order.status === 'despachado' && (
+        <CCard className="mb-3 border-success">
+          <CCardBody className="bg-success bg-opacity-10 py-2">
+            <div className="fw-semibold text-success-emphasis mb-1">Despachada</div>
+            {order.dispatchedByLabel && (
+              <div className="small">
+                <span className="text-body-secondary">Despachado por:</span>{' '}
+                <strong>{order.dispatchedByLabel}</strong>
+              </div>
+            )}
+            {order.dispatchedAt && (
+              <div className="small">
+                <span className="text-body-secondary">Fecha:</span>{' '}
+                {fmtDateTime(order.dispatchedAt)}
+              </div>
+            )}
+          </CCardBody>
+        </CCard>
+      )}
+
       {/* Status actions */}
       {!isTerminal && transitions.length > 0 && (
         <CCard className="mb-3">
@@ -521,6 +550,17 @@ const OrderDetailPage = () => {
               <CIcon icon={cilExternalLink} className="me-1" />
               Hoja de producción PDF
             </CButton>
+            {order.status === 'despachado' && (
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={() => id && ordersApi.downloadDispatchSheet(id)}
+              >
+                <CIcon icon={cilExternalLink} className="me-1" />
+                Hoja de despacho PDF
+              </CButton>
+            )}
             {canManage && (
               <CButton
                 color="primary"
