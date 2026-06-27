@@ -7,6 +7,7 @@ const STATUS_CONFIG: Record<OrderStatus, { color: string; label: string }> = {
   cutting: { color: 'warning', label: 'En corte' },
   cut: { color: 'info', label: 'Cortada' },
   completed: { color: 'success', label: 'Completada' },
+  despachado: { color: 'dark', label: 'Despachada' },
   cancelled: { color: 'danger', label: 'Cancelada' },
 }
 

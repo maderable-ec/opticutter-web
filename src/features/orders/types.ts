@@ -2,7 +2,7 @@ import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
-export type OrderStatus = 'confirmed' | 'queued' | 'cutting' | 'cut' | 'completed' | 'cancelled'
+export type OrderStatus = 'confirmed' | 'queued' | 'cutting' | 'cut' | 'completed' | 'despachado' | 'cancelled'
 
 // Pista de canteado (tapacantos), ortogonal al corte: una orden puede estar `cutting` y
 // `bandingStatus: 'in_progress'` a la vez. `not_applicable` = la orden no lleva tapacantos.
@@ -74,6 +74,10 @@ export interface Order {
   bandingFinishedAt?: string | null
   bandingFinishedBy?: number | null
   bandingFinishedByLabel?: string | null
+  // Despacho: congelados en la transición completed → despachado.
+  dispatchedAt?: string
+  dispatchedBy?: number
+  dispatchedByLabel?: string
 }
 
 export interface OrderListParams {
