@@ -6,13 +6,9 @@ import { cilCart, cilCheckAlt, cilFolderOpen, cilPlus, cilSave } from '@coreui/i
 import { useBoards, useEdgeBandings, useOptimize } from './useOptimizer'
 import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
-import {
-  buildPayload,
-  emptyCatalogMaterial,
-  isRequirementEmpty,
-} from './optimizerForm'
+import { buildPayload, emptyCatalogMaterial, isRequirementEmpty } from './optimizerForm'
 import type { MaterialForm } from './optimizerForm'
-import type { OptimizerDraftPayload } from './types'
+import type { OptimizerDraftPayload, PackingStrategy } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
 import { downloadCsv, requirementsToCsv } from './piecesCsv'
 import { usePiecesEditor } from './usePiecesEditor'
@@ -21,6 +17,7 @@ import PiecesTable from './PiecesTable'
 import OptimizationPreview from './OptimizationPreview'
 import ImportPiecesModal from './ImportPiecesModal'
 import CreateQuoteModal from './CreateQuoteModal'
+import StrategySelect from './StrategySelect'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
 const OptimizerPage = () => {
@@ -40,6 +37,7 @@ const OptimizerPage = () => {
   const [showDrafts, setShowDrafts] = useState(false)
   const [showSaveDraft, setShowSaveDraft] = useState(false)
   const [priceTierCode, setPriceTierCode] = useState('consumidor')
+  const [strategy, setStrategy] = useState<PackingStrategy>('default')
   const [restored, setRestored] = useState(!!bootstrap)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
@@ -179,9 +177,26 @@ const OptimizerPage = () => {
     }
   }
 
+  const handleStrategyChange = (newStrategy: PackingStrategy) => {
+    setStrategy(newStrategy)
+    if (optimize.data && canOptimize) {
+      optimize.mutate({
+        materials: built.materials,
+        requirements: built.requirements,
+        priceTierCode,
+        strategy: newStrategy,
+      })
+    }
+  }
+
   const handleOptimize = () => {
     if (!canOptimize) return
-    optimize.mutate({ materials: built.materials, requirements: built.requirements, priceTierCode })
+    optimize.mutate({
+      materials: built.materials,
+      requirements: built.requirements,
+      priceTierCode,
+      strategy,
+    })
   }
 
   const handleExport = () =>
@@ -254,6 +269,15 @@ const OptimizerPage = () => {
         onExport={handleExport}
       />
 
+      <div className="mb-3" style={{ maxWidth: 280 }}>
+        <label className="form-label">Heurística de corte</label>
+        <StrategySelect
+          value={strategy}
+          onChange={handleStrategyChange}
+          disabled={optimize.isPending}
+        />
+      </div>
+
       <OptimizationPreview
         result={optimize.data}
         isPending={optimize.isPending}
@@ -284,6 +308,7 @@ const OptimizerPage = () => {
         requirements={built.requirements}
         priceTierCode={priceTierCode}
         onPriceTierChange={setPriceTierCode}
+        strategy={strategy}
         onCreated={clearAutosave}
       />
 
