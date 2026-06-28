@@ -3,6 +3,7 @@ import type { BranchRef } from 'src/features/branches/types'
 import type {
   MaterialInput,
   OptimizeResponse,
+  PackingStrategy,
   RequirementInput,
 } from 'src/features/optimizer/types'
 
@@ -56,6 +57,7 @@ export interface PreOrder extends PreOrderSummary {
   sentAt: string | null
   confirmedAt: string | null
   priceTierCode?: string
+  strategy?: PackingStrategy
   // Always present in GET /preorders/{id} and PUT responses
   materials: MaterialInput[]
   requirements: RequirementInput[]
@@ -68,6 +70,7 @@ export interface PreOrderCreate {
   notes?: string
   source?: string
   priceTierCode?: string
+  strategy?: PackingStrategy
   materials: MaterialInput[]
   requirements: RequirementInput[]
   // Operador: lo omite (backend usa su sucursal). Vendedor: opcional, backend usa su base si se omite.

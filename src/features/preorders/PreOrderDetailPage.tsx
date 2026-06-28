@@ -46,12 +46,14 @@ import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optim
 import type {
   MaterialInput,
   OptimizeResponse,
+  PackingStrategy,
   RequirementInput,
 } from 'src/features/optimizer/types'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { ApiError } from 'src/shared/api/types'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PriceTierSelect from 'src/features/settings/PriceTierSelect'
+import StrategySelect from 'src/features/optimizer/StrategySelect'
 
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import {
@@ -164,6 +166,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   )
   const [notes, setNotes] = useState(preOrder.notes ?? '')
   const [priceTierCode, setPriceTierCode] = useState(preOrder.priceTierCode ?? 'consumidor')
+  const [strategy, setStrategy] = useState<PackingStrategy>(
+    preOrder.optimization.strategy ?? 'default',
+  )
   const [showImport, setShowImport] = useState(false)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
@@ -188,7 +193,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     updatePreOrder.mutate(
       {
         id: preOrder.id,
-        data: { materials: mInputs, requirements: rInputs, notes: notes || undefined, priceTierCode },
+        data: {
+          materials: mInputs,
+          requirements: rInputs,
+          notes: notes || undefined,
+          priceTierCode,
+          strategy,
+        },
       },
       {
         onSuccess: (updated) => {
@@ -259,9 +270,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               {isGlobalBranch && (
                 <div className="text-body-secondary small">
                   Sucursal: <strong>{preOrder.branch.name}</strong>
-                  {preOrder.branch.code && (
-                    <span> ({preOrder.branch.code})</span>
-                  )}
+                  {preOrder.branch.code && <span> ({preOrder.branch.code})</span>}
                 </div>
               )}
               {preOrder.source && (
@@ -448,6 +457,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             <strong>Notas</strong>
           </CCardHeader>
           <CCardBody>
+            <div className="mb-3">
+              <label className="form-label">Heurística de corte</label>
+              <StrategySelect
+                value={strategy}
+                onChange={setStrategy}
+                disabled={updatePreOrder.isPending}
+              />
+            </div>
             <div className="mb-3">
               <label className="form-label">Nivel de precio</label>
               <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
