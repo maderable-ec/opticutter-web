@@ -22,7 +22,7 @@ import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { ApiError } from 'src/shared/api/types'
 import PriceTierSelect from 'src/features/settings/PriceTierSelect'
-import type { MaterialInput, RequirementInput } from './types'
+import type { MaterialInput, PackingStrategy, RequirementInput } from './types'
 
 const fullClientLabel = (c: Client) => {
   const name = [c.firstName, c.lastName].filter(Boolean).join(' ')
@@ -36,6 +36,7 @@ interface CreateQuoteModalProps {
   requirements: RequirementInput[]
   priceTierCode: string
   onPriceTierChange: (code: string) => void
+  strategy: PackingStrategy
   // Se invoca tras crear la orden con éxito (p. ej. para limpiar el autosave del optimizer).
   onCreated?: () => void
 }
@@ -47,6 +48,7 @@ const CreateQuoteModal = ({
   requirements,
   priceTierCode,
   onPriceTierChange,
+  strategy,
   onCreated,
 }: CreateQuoteModalProps) => {
   const navigate = useNavigate()
@@ -62,9 +64,7 @@ const CreateQuoteModal = ({
   const { data: branches = [] } = useActiveBranches()
 
   // Admin: sin preselección (campo obligatorio). Vendedor: preselecciona su sucursal base.
-  const [branchId, setBranchId] = useState(() =>
-    isAdmin ? '' : String(user?.branchId ?? ''),
-  )
+  const [branchId, setBranchId] = useState(() => (isAdmin ? '' : String(user?.branchId ?? '')))
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(clientSearch), 350)
@@ -86,6 +86,7 @@ const CreateQuoteModal = ({
         source: 'dashboard',
         notes: notes || undefined,
         priceTierCode,
+        strategy,
         materials,
         requirements,
         branchId: isGlobalBranch && branchId ? Number(branchId) : undefined,

@@ -509,7 +509,7 @@ const SheetDetailModal = ({ group, materialName, colorFor, onClose }: SheetDetai
           {materialName ? ` · ${materialName}` : ''}
         </CModalTitle>
       </CModalHeader>
-      <CModalBody>
+      <CModalBody style={{ scrollbarGutter: 'stable' }}>
         {layout && stats && (
           <CRow className="g-3">
             <CCol

@@ -5,6 +5,8 @@ import type { MaterialForm, RequirementForm } from './optimizerForm'
 // Tipos de la respuesta de POST /api/v1/optimize/. El contrato es determinista y cacheado por
 // hash del input; ver la spec del endpoint para detalles de cada campo.
 
+export type PackingStrategy = 'default' | 'longOffcuts'
+
 export type MaterialSourceKind = 'catalog' | 'companyOffcut' | 'clientOffcut' | 'manual'
 
 export type EdgeSide = 'top' | 'bottom' | 'left' | 'right'
@@ -127,6 +129,7 @@ export interface OptimizeResponse {
   edgeBandingsSummary: EdgeBandingSummary[]
   layoutGroups: LayoutGroup[]
   pricing?: PricingData
+  strategy?: PackingStrategy
 }
 
 // --- Inputs del request (lo que envía el frontend) ---
@@ -170,6 +173,7 @@ export interface OptimizePayload {
   requirements: RequirementInput[]
   clientId?: number
   priceTierCode?: string
+  strategy?: PackingStrategy
 }
 
 // --- Borradores del optimizador (persistencia) ---
