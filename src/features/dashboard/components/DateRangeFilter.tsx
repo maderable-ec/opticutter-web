@@ -50,10 +50,12 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
 interface DateRangeFilterProps {
   from: string
   to: string
-  granularity: Granularity
   onFromChange: (value: string) => void
   onToChange: (value: string) => void
-  onGranularityChange: (value: Granularity) => void
+  // Granularidad opcional: el grupo de botones sólo se muestra si se provee el
+  // callback (las vistas sin buckets temporales no lo usan).
+  granularity?: Granularity
+  onGranularityChange?: (value: Granularity) => void
   // Filtro de sucursal opcional (sólo el dashboard admin lo provee). '' = todas.
   branches?: { id: number; name: string }[]
   branchId?: string
@@ -129,21 +131,23 @@ const DateRangeFilter = ({
               ))}
             </CButtonGroup>
           </CCol>
-          <CCol xs={12} md="auto">
-            <CFormLabel className="small fw-semibold mb-1 d-block">Granularidad</CFormLabel>
-            <CButtonGroup>
-              {GRANULARITIES.map((g) => (
-                <CButton
-                  key={g.value}
-                  size="sm"
-                  color={granularity === g.value ? 'primary' : 'outline-secondary'}
-                  onClick={() => onGranularityChange(g.value)}
-                >
-                  {g.label}
-                </CButton>
-              ))}
-            </CButtonGroup>
-          </CCol>
+          {onGranularityChange && (
+            <CCol xs={12} md="auto">
+              <CFormLabel className="small fw-semibold mb-1 d-block">Granularidad</CFormLabel>
+              <CButtonGroup>
+                {GRANULARITIES.map((g) => (
+                  <CButton
+                    key={g.value}
+                    size="sm"
+                    color={granularity === g.value ? 'primary' : 'outline-secondary'}
+                    onClick={() => onGranularityChange(g.value)}
+                  >
+                    {g.label}
+                  </CButton>
+                ))}
+              </CButtonGroup>
+            </CCol>
+          )}
         </CRow>
         {invalid && (
           <div className="text-danger small mt-2">
