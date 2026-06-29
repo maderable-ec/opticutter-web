@@ -136,6 +136,10 @@ const OrderDetailPage = () => {
   const [transitionNote, setTransitionNote] = useState('')
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
+  const [paymentModal, setPaymentModal] = useState(false)
+  const [cashInput, setCashInput] = useState('')
+  const [creditInput, setCreditInput] = useState('')
+  const [paymentNote, setPaymentNote] = useState('')
 
   const openTransition = (transition: StatusTransition) => {
     setTransitionNote('')
@@ -152,6 +156,30 @@ const OrderDetailPage = () => {
     updateStatus.mutate(
       { id, data: { status: transition.to, note: transitionNote || undefined } },
       { onSuccess: closeTransition },
+    )
+  }
+
+  const openPayment = () => {
+    setCashInput('')
+    setCreditInput('')
+    setPaymentNote('')
+    updateStatus.reset()
+    setPaymentModal(true)
+  }
+  const closePayment = () => {
+    setPaymentModal(false)
+    updateStatus.reset()
+  }
+  const confirmPayment = () => {
+    if (!id) return
+    const cash = parseFloat(cashInput) || 0
+    const credit = parseFloat(creditInput) || 0
+    const payment: { cashAmount?: number; creditAmount?: number } = {}
+    if (cash > 0) payment.cashAmount = cash
+    if (credit > 0) payment.creditAmount = credit
+    updateStatus.mutate(
+      { id, data: { status: 'queued', payment, note: paymentNote || undefined } },
+      { onSuccess: closePayment },
     )
   }
 
@@ -341,6 +369,33 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
+      {/* Forma de pago — congelada en la transición confirmed → queued */}
+      {(order.paymentCashAmount != null || order.paymentCreditAmount != null) && (
+        <CCard className="mb-3 border-primary">
+          <CCardBody className="bg-primary bg-opacity-10 py-2">
+            <div className="fw-semibold text-primary-emphasis mb-1">Forma de pago</div>
+            {order.paymentCashAmount != null && order.paymentCashAmount > 0 && (
+              <div className="small">
+                <span className="text-body-secondary">Efectivo:</span>{' '}
+                <strong>{fmt(order.paymentCashAmount)}</strong>
+              </div>
+            )}
+            {order.paymentCreditAmount != null && order.paymentCreditAmount > 0 && (
+              <div className="small">
+                <span className="text-body-secondary">A crédito:</span>{' '}
+                <strong>{fmt(order.paymentCreditAmount)}</strong>
+              </div>
+            )}
+            <div className="small">
+              <span className="text-body-secondary">Total:</span>{' '}
+              <strong>
+                {fmt((order.paymentCashAmount ?? 0) + (order.paymentCreditAmount ?? 0))}
+              </strong>
+            </div>
+          </CCardBody>
+        </CCard>
+      )}
+
       {/* Status actions */}
       {!isTerminal && transitions.length > 0 && (
         <CCard className="mb-3">
@@ -365,7 +420,7 @@ const OrderDetailPage = () => {
                     size="sm"
                     disabled={blocked}
                     title={title}
-                    onClick={() => openTransition(t)}
+                    onClick={() => (t.to === 'queued' ? openPayment() : openTransition(t))}
                   >
                     {t.label}
                   </CButton>
@@ -575,6 +630,80 @@ const OrderDetailPage = () => {
           </div>
         </CCardBody>
       </CCard>
+
+      {/* Payment modal — confirmed → queued */}
+      <CModal visible={paymentModal} onClose={closePayment}>
+        <CModalHeader>
+          <CModalTitle>Forma de pago</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          {(() => {
+            const cash = parseFloat(cashInput) || 0
+            const credit = parseFloat(creditInput) || 0
+            const total = cash + credit
+            const invalid = total <= 0
+            return (
+              <>
+                <div className="mb-3">
+                  <CFormLabel>Efectivo (USD)</CFormLabel>
+                  <CFormInput
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={cashInput}
+                    onChange={(e) => setCashInput(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="mb-3">
+                  <CFormLabel>A crédito (USD)</CFormLabel>
+                  <CFormInput
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={creditInput}
+                    onChange={(e) => setCreditInput(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="fw-semibold small mb-3">Total: {fmt(total)}</div>
+                {invalid && (
+                  <div className="text-warning small mb-2">
+                    Ingresá al menos un monto mayor a 0.
+                  </div>
+                )}
+                <div className="mb-2">
+                  <CFormLabel>Nota (opcional)</CFormLabel>
+                  <CFormTextarea
+                    rows={2}
+                    maxLength={512}
+                    value={paymentNote}
+                    onChange={(e) => setPaymentNote(e.target.value)}
+                    placeholder="Motivo o comentario…"
+                  />
+                </div>
+                {updateStatus.error && (
+                  <div className="text-danger small mt-2">
+                    {updateStatus.error.message || 'Error al cambiar estado.'}
+                  </div>
+                )}
+              </>
+            )
+          })()}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={closePayment}>
+            Cancelar
+          </CButton>
+          <CButton
+            color="primary"
+            onClick={confirmPayment}
+            disabled={updateStatus.isPending || (parseFloat(cashInput) || 0) + (parseFloat(creditInput) || 0) <= 0}
+          >
+            {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
 
       {/* Transition confirmation modal */}
       <CModal visible={transitionModal.visible} onClose={closeTransition}>
