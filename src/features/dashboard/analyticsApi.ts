@@ -1,10 +1,14 @@
 import { httpClient } from 'src/shared/api/httpClient'
+import type { Role } from 'src/features/auth/types'
 import type {
   AnalyticsSummary,
+  AttendanceData,
+  BottlenecksData,
   Granularity,
   OperationsStats,
   StatusBreakdownData,
   Timeseries,
+  UsersProductivityData,
 } from './types'
 
 type QsParams = Record<string, string | number | null | undefined>
@@ -37,5 +41,20 @@ export const analyticsApi = {
   branchBreakdown: (from?: string, to?: string, branchId?: number) =>
     httpClient.get<StatusBreakdownData>(
       `/api/v1/analytics/breakdown/branch${buildQs({ from, to, branchId })}`,
+    ),
+  // Cuellos de botella (#1): etapas (mediana/p90) + serie temporal por etapa.
+  bottlenecks: (from?: string, to?: string, branchId?: number, granularity: Granularity = 'day') =>
+    httpClient.get<BottlenecksData>(
+      `/api/v1/analytics/bottlenecks${buildQs({ from, to, branchId, granularity })}`,
+    ),
+  // Productividad por usuario (#2).
+  users: (from?: string, to?: string, branchId?: number, role?: Role) =>
+    httpClient.get<UsersProductivityData>(
+      `/api/v1/analytics/users${buildQs({ from, to, branchId, role })}`,
+    ),
+  // Asistencia / hora de entrada (#3).
+  attendance: (from?: string, to?: string, branchId?: number, role?: Role) =>
+    httpClient.get<AttendanceData>(
+      `/api/v1/analytics/attendance${buildQs({ from, to, branchId, role })}`,
     ),
 }
