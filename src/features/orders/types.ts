@@ -78,6 +78,9 @@ export interface Order {
   dispatchedAt?: string
   dispatchedBy?: number
   dispatchedByLabel?: string
+  // Pago: congelados en la transición confirmed → queued.
+  paymentCashAmount?: number | null
+  paymentCreditAmount?: number | null
 }
 
 export interface OrderListParams {
@@ -92,6 +95,7 @@ export interface OrderListParams {
 export interface UpdateStatusPayload {
   status: OrderStatus
   note?: string
+  payment?: { cashAmount?: number; creditAmount?: number }
 }
 
 // --- Canteado ---
