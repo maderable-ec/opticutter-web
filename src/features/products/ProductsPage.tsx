@@ -25,9 +25,11 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
+import { cilCloudUpload, cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
+import { useQueryClient } from '@tanstack/react-query'
 
 import ProductForm from './ProductForm'
+import ImportProductsModal from './ImportProductsModal'
 import { useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct } from './useProducts'
 import { useHasRole } from 'src/features/auth/useAuth'
 import type {
@@ -63,6 +65,7 @@ interface ProductModalState {
 
 const ProductsPage = () => {
   const isReadOnly = useHasRole('vendedor')
+  const queryClient = useQueryClient()
   const [rawSearch, setRawSearch] = useState('')
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<ProductType | ''>('')
@@ -72,6 +75,7 @@ const ProductsPage = () => {
     visible: false,
     product: null,
   })
+  const [importModal, setImportModal] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -262,10 +266,16 @@ const ProductsPage = () => {
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Productos</strong>
           {!isReadOnly && (
-            <CButton color="primary" size="sm" onClick={openCreate}>
-              <CIcon icon={cilPlus} className="me-1" />
-              Nuevo producto
-            </CButton>
+            <div className="d-flex gap-2">
+              <CButton color="secondary" variant="outline" size="sm" onClick={() => setImportModal(true)}>
+                <CIcon icon={cilCloudUpload} className="me-1" />
+                Importar CSV
+              </CButton>
+              <CButton color="primary" size="sm" onClick={openCreate}>
+                <CIcon icon={cilPlus} className="me-1" />
+                Nuevo producto
+              </CButton>
+            </div>
           )}
         </CCardHeader>
         <CCardBody>
@@ -384,6 +394,12 @@ const ProductsPage = () => {
           </CButton>
         </CModalFooter>
       </CModal>
+
+      <ImportProductsModal
+        visible={importModal}
+        onClose={() => setImportModal(false)}
+        onImported={() => queryClient.invalidateQueries({ queryKey: ['products'] })}
+      />
     </>
   )
 }
