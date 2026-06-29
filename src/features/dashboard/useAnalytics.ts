@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { Role } from 'src/features/auth/types'
 import { analyticsApi } from './analyticsApi'
 import type { Granularity } from './types'
 
@@ -36,4 +37,27 @@ export const useBranchBreakdown = (from?: string, to?: string, branchId?: number
   useQuery({
     queryKey: ['analytics', 'branch-breakdown', { from, to, branchId }],
     queryFn: () => analyticsApi.branchBreakdown(from, to, branchId),
+  })
+
+export const useBottlenecks = (
+  from?: string,
+  to?: string,
+  branchId?: number,
+  granularity?: Granularity,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'bottlenecks', { from, to, branchId, granularity }],
+    queryFn: () => analyticsApi.bottlenecks(from, to, branchId, granularity),
+  })
+
+export const useUsersProductivity = (from?: string, to?: string, branchId?: number, role?: Role) =>
+  useQuery({
+    queryKey: ['analytics', 'users', { from, to, branchId, role }],
+    queryFn: () => analyticsApi.users(from, to, branchId, role),
+  })
+
+export const useAttendance = (from?: string, to?: string, branchId?: number, role?: Role) =>
+  useQuery({
+    queryKey: ['analytics', 'attendance', { from, to, branchId, role }],
+    queryFn: () => analyticsApi.attendance(from, to, branchId, role),
   })
