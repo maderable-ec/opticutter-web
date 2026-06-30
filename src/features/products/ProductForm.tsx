@@ -251,7 +251,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               </CCol>
               <CCol xs={4}>
                 <CFormLabel>
-                  Alto (mm) <span className="text-danger">*</span>
+                  Largo (mm) <span className="text-danger">*</span>
                 </CFormLabel>
                 <CFormInput
                   type="number"

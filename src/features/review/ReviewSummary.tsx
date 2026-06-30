@@ -33,7 +33,7 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
               <CTableRow>
                 <CTableHeaderCell className="bg-body-tertiary">Etiqueta</CTableHeaderCell>
                 <CTableHeaderCell className="bg-body-tertiary text-end">
-                  Medida (alto × ancho mm)
+                  Medida (largo × ancho mm)
                 </CTableHeaderCell>
                 <CTableHeaderCell className="bg-body-tertiary text-end">Cant.</CTableHeaderCell>
                 <CTableHeaderCell className="bg-body-tertiary">Cantos</CTableHeaderCell>

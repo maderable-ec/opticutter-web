@@ -103,7 +103,7 @@ const MaterialsPanel = ({ materials, boards, onAdd, onRemove, onUpdate }: Materi
                       />
                     </CCol>
                     <CCol xs={4} md={1}>
-                      <CFormLabel className="small mb-1">Alto</CFormLabel>
+                      <CFormLabel className="small mb-1">Largo</CFormLabel>
                       <CFormInput
                         size="sm"
                         type="number"

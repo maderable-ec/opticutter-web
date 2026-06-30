@@ -41,7 +41,7 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
   const [text, setText] = useState('')
   const [stage, setStage] = useState<Stage>('input')
   const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [result, setResult] = useState({ imported: 0, errors: 0 })
+  const [result, setResult] = useState({ created: 0, updated: 0, errors: 0 })
   const abortRef = useRef(false)
 
   const { rows, warnings } = useMemo(() => parseProducts(text), [text])
@@ -50,7 +50,7 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
     setText('')
     setStage('input')
     setProgress({ done: 0, total: 0 })
-    setResult({ imported: 0, errors: 0 })
+    setResult({ created: 0, updated: 0, errors: 0 })
     abortRef.current = false
   }
 
@@ -78,22 +78,29 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
     setStage('importing')
     setProgress({ done: 0, total: rows.length })
 
-    let imported = 0
+    let created = 0
+    let updated = 0
     let errors = 0
     for (let i = 0; i < rows.length; i++) {
       if (abortRef.current) break
       try {
-        await productsApi.create(rows[i])
-        imported++
+        const { id, ...payload } = rows[i]
+        if (id) {
+          await productsApi.update(id, payload)
+          updated++
+        } else {
+          await productsApi.create(payload)
+          created++
+        }
       } catch {
         errors++
       }
       setProgress({ done: i + 1, total: rows.length })
     }
 
-    setResult({ imported, errors })
+    setResult({ created, updated, errors })
     setStage('done')
-    if (imported > 0) onImported()
+    if (created > 0 || updated > 0) onImported()
   }
 
   const handleDone = () => {
@@ -113,7 +120,8 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
           <>
             <p className="text-body-secondary small mb-2">
               Pega un rango de Excel/Google Sheets o sube un archivo CSV. Columnas esperadas:{' '}
-              <strong>{PRODUCT_CSV_COLUMNS.join(' · ')}</strong>.
+              <strong>{PRODUCT_CSV_COLUMNS.join(' · ')}</strong>. Si el CSV incluye columna{' '}
+              <strong>ID</strong>, las filas existentes se actualizarán en lugar de crear nuevas.
             </p>
 
             <CFormTextarea
@@ -134,7 +142,12 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
                   onChange={handleFile}
                 />
               </div>
-              <CButton size="sm" color="secondary" variant="outline" onClick={downloadProductTemplate}>
+              <CButton
+                size="sm"
+                color="secondary"
+                variant="outline"
+                onClick={downloadProductTemplate}
+              >
                 <CIcon icon={cilCloudDownload} className="me-1" />
                 Descargar plantilla
               </CButton>
@@ -202,10 +215,23 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
         {stage === 'done' && (
           <div className="text-center py-4">
             <p className="mb-0">
-              <strong>{result.imported}</strong> producto{result.imported !== 1 ? 's' : ''} importado
-              {result.imported !== 1 ? 's' : ''}
+              {result.created > 0 && (
+                <>
+                  <strong>{result.created}</strong> producto{result.created !== 1 ? 's' : ''} creado
+                  {result.created !== 1 ? 's' : ''}
+                </>
+              )}
+              {result.created > 0 && result.updated > 0 && ', '}
+              {result.updated > 0 && (
+                <>
+                  <strong>{result.updated}</strong> actualizado{result.updated !== 1 ? 's' : ''}
+                </>
+              )}
+              {result.created === 0 && result.updated === 0 && 'Sin cambios'}
               {result.errors > 0 && (
-                <>, <span className="text-danger">{result.errors} con error</span></>
+                <>
+                  , <span className="text-danger">{result.errors} con error</span>
+                </>
               )}
               .
             </p>

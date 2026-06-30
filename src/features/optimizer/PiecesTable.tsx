@@ -495,8 +495,8 @@ const PiecesTable = ({
                   {renderFill('materialUid', 'Igualar material')}
                 </CTableHeaderCell>
                 <CTableHeaderCell>
-                  Alto (mm)
-                  {renderFill('height', 'Igualar alto')}
+                  Largo (mm)
+                  {renderFill('height', 'Igualar largo')}
                 </CTableHeaderCell>
                 <CTableHeaderCell>
                   Ancho (mm)

@@ -9,7 +9,7 @@ import type { MaterialForm, RequirementForm } from './optimizerForm'
 // Column order matches the visual order of the table.
 export const CSV_COLUMNS = [
   'Material',
-  'Alto',
+  'Largo',
   'Ancho',
   'Cantidad',
   'Prioridad',
@@ -160,7 +160,7 @@ export const parsePieces = (
     else if (FALSE_WORDS.has(rot)) req.canRotate = rot === '' ? req.canRotate : false
 
     if (Number(req.height) <= 0 || Number(req.width) <= 0) {
-      warnings.push(`Fila ${lineNo}: medidas inválidas (alto/ancho).`)
+      warnings.push(`Fila ${lineNo}: medidas inválidas (largo/ancho).`)
     }
     rows.push(req)
   })
