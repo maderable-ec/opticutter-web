@@ -11,6 +11,9 @@ yarn.lock
 # production
 /build
 
+# claude code
+.claude/
+
 # misc
 .eslintcache
 .DS_Store
