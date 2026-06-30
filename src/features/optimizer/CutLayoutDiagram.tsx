@@ -273,59 +273,62 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
 
   return (
     <svg
-      viewBox={`${-pad} ${-pad} ${w + 2 * pad} ${h + 2 * pad}`}
+      viewBox={`${-pad} ${-pad} ${h + 2 * pad} ${w + 2 * pad}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ width: '100%', height: 180, display: 'block' }}
       role="img"
       aria-label={`Pieza ${piece.originalWidth}×${piece.originalHeight} mm`}
     >
-      <rect
-        x={0}
-        y={0}
-        width={w}
-        height={h}
-        fill={color}
-        fillOpacity={0.85}
-        stroke="rgba(0,0,0,0.35)"
-        strokeWidth={1}
-        vectorEffect="non-scaling-stroke"
-      />
+      {/* Piece geometry and edge banding rotated 90° CW */}
+      <g transform={boardRotation(h)}>
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          fill={color}
+          fillOpacity={0.85}
+          stroke="rgba(0,0,0,0.35)"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
 
-      {/* Edge banding */}
-      {bandedSides(piece).map((side) => {
-        const l = bandLine(side, w, h, gap, inset)
-        return (
-          <line
-            key={side}
-            x1={l.x1}
-            y1={l.y1}
-            x2={l.x2}
-            y2={l.y2}
-            stroke={EDGE_COLOR}
-            strokeWidth={bar}
-            strokeLinecap="round"
-          />
-        )
-      })}
+        {/* Edge banding */}
+        {bandedSides(piece).map((side) => {
+          const l = bandLine(side, w, h, gap, inset)
+          return (
+            <line
+              key={side}
+              x1={l.x1}
+              y1={l.y1}
+              x2={l.x2}
+              y2={l.y2}
+              stroke={EDGE_COLOR}
+              strokeWidth={bar}
+              strokeLinecap="round"
+            />
+          )
+        })}
+      </g>
 
-      {/* Dimensions inside the piece: width at bottom, height on the left */}
+      {/* Dimensions in rotated space: width on left (vertical), height on top (horizontal) */}
       <g fill="#212529" style={{ userSelect: 'none', pointerEvents: 'none' }}>
         <text
-          x={w / 2}
-          y={h - dimInset}
+          x={dimInset}
+          y={w / 2}
           fontSize={dimSize}
           textAnchor="middle"
           dominantBaseline="central"
+          transform={uprightText(dimInset, w / 2)}
         >
           {Math.round(w)}
         </text>
         <text
-          x={dimInset}
-          y={h / 2}
+          x={h / 2}
+          y={dimInset}
           fontSize={dimSize}
           textAnchor="middle"
           dominantBaseline="central"
-          transform={`rotate(-90 ${dimInset} ${h / 2})`}
         >
           {Math.round(h)}
         </text>
@@ -334,8 +337,8 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
       {/* Edge notation centered */}
       {notation && (
         <text
-          x={w / 2}
-          y={h / 2}
+          x={h / 2}
+          y={w / 2}
           fontSize={noteSize}
           textAnchor="middle"
           dominantBaseline="central"
@@ -445,11 +448,11 @@ const GroupedPiecesList = ({ pieces, colorFor, hoverSig, onHover }: GroupedPiece
       <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
         Piezas por medida
       </div>
-      <div className="d-flex flex-column gap-1">
+      <div className="d-flex flex-wrap gap-1">
         {groups.map(({ sig, count }) => (
-          <div
+          <span
             key={sig}
-            className="d-flex align-items-center gap-2 px-2 py-1 rounded"
+            className="d-inline-flex align-items-center gap-1 px-2 py-1 rounded border small"
             style={{
               cursor: 'default',
               background: hoverSig === sig ? 'var(--cui-tertiary-bg)' : undefined,
@@ -460,16 +463,16 @@ const GroupedPiecesList = ({ pieces, colorFor, hoverSig, onHover }: GroupedPiece
           >
             <span
               style={{
-                width: 12,
-                height: 12,
+                width: 8,
+                height: 8,
                 borderRadius: 2,
                 background: colorFor(sig),
                 display: 'inline-block',
+                flexShrink: 0,
               }}
             />
-            <span className="small">{sig} mm</span>
-            <span className="small text-body-secondary ms-auto">×{count}</span>
-          </div>
+            {sig} mm ×{count}
+          </span>
         ))}
       </div>
     </div>
