@@ -1,5 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CSSProperties, ClipboardEvent, KeyboardEvent } from 'react'
+import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
+import {
+  CANTO_NOTATIONS,
+  CANTO_NOTATION_RE,
+  emptyRequirement,
+  isRequirementEmpty,
+  isRequirementValid,
+  materialLabel,
+  notationFromSides,
+  piecesSummary,
+  sidesFromNotation,
+  validMaterialUids,
+} from './optimizerForm'
 import {
   CButton,
   CButtonGroup,
@@ -16,7 +27,8 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
+import type { CSSProperties, ClipboardEvent, KeyboardEvent } from 'react'
+import type { FillableField, PiecesEditor } from './usePiecesEditor'
 import {
   cilArrowBottom,
   cilCloudDownload,
@@ -25,24 +37,12 @@ import {
   cilPlus,
   cilTrash,
 } from '@coreui/icons'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
-import {
-  CANTO_NOTATION_RE,
-  CANTO_NOTATIONS,
-  emptyRequirement,
-  isRequirementEmpty,
-  isRequirementValid,
-  materialLabel,
-  notationFromSides,
-  piecesSummary,
-  sidesFromNotation,
-  validMaterialUids,
-} from './optimizerForm'
+import CIcon from '@coreui/icons-react'
 import type { EdgeSide } from './types'
 import type { MaterialForm } from './optimizerForm'
 import { parsePieces } from './piecesCsv'
-import type { FillableField, PiecesEditor } from './usePiecesEditor'
 
 interface PiecesTableProps {
   editor: PiecesEditor
@@ -53,12 +53,12 @@ interface PiecesTableProps {
   onExport: () => void
 }
 
-const areaFmt = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 })
+const areaFmt = new Intl.NumberFormat('es-EC', { maximumFractionDigits: 2 })
 
-// Campos en los que se puede pegar una columna de valores para crear filas.
+// Fields that accept a pasted column of values to create rows.
 const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'priority', 'label'])
 
-// Mapeo data-col → campo. Cols 6 y 7 (canto y tapacanto) ambas propagan 'edgeBanding'.
+// data-col → field mapping. Cols 6 and 7 (banding sides and product) both propagate 'edgeBanding'.
 const COL_FIELDS: FillableField[] = [
   'materialUid', // col 0
   'height',      // col 1
@@ -66,11 +66,11 @@ const COL_FIELDS: FillableField[] = [
   'quantity',    // col 3
   'priority',    // col 4
   'label',       // col 5
-  'edgeBandingSides',     // col 6 — Canto (solo lados)
-  'edgeBandingProductId', // col 7 — Tapacanto (solo producto)
+  'edgeBandingSides',     // col 6 — banding sides only
+  'edgeBandingProductId', // col 7 — banding product only
 ]
 
-// Tirador ("fill handle") en la esquina inferior-derecha de la celda activa.
+// Fill handle shown in the bottom-right corner of the active cell.
 const handleStyle: CSSProperties = {
   position: 'absolute',
   right: 1,
@@ -85,9 +85,9 @@ const handleStyle: CSSProperties = {
   zIndex: 3,
 }
 
-// Parsea formato rápido: "720x400", "720x400x4", "720x400x4 Etiqueta", "720x400x4 Etiqueta 1L2C".
-// Separador: x, X, ×, *. Decimal: punto o coma.
-// La notación de canto (1L, 2L, 1C, 2C, 1L1C, 1L2C, 2L1C, 4L) va al FINAL, después de la etiqueta.
+// Parses quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C".
+// Separator: x, X, ×, *. Decimal: dot or comma.
+// Edge notation (1L, 2L, 1C, 2C, 1L1C, 1L2C, 2L1C, 4L) goes LAST, after the label.
 const QUICK_REGEX =
   /^(\d+(?:[.,]\d+)?)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)(?:\s*[xX×*]\s*(\d+(?:[.,]\d+)?))?(?:\s+(.+))?$/
 
@@ -117,9 +117,9 @@ const parseQuickEntry = (
   }
 }
 
-// Miniatura SVG: la pieza se muestra girada 90° en sentido horario, por lo que
-// los lados largos (L = left/right de la pieza) quedan como barras horizontales top/bottom,
-// y los lados cortos (C = top/bottom de la pieza) quedan como barras verticales left/right.
+// SVG thumbnail: the piece is displayed rotated 90° clockwise, so
+// long sides (L = left/right of the piece) appear as horizontal bars top/bottom,
+// and short sides (C = top/bottom of the piece) appear as vertical bars left/right.
 const CantoPreview = ({ sides }: { sides: Record<EdgeSide, boolean> }) => (
   <svg width="28" height="18" viewBox="0 0 28 18" style={{ flexShrink: 0 }}>
     <rect x="1" y="1" width="26" height="16" fill="none" stroke="#adb5bd" strokeWidth="1" />
@@ -164,12 +164,12 @@ const PiecesTable = ({
   const containerRef = useRef<HTMLDivElement>(null)
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
-  // Celda donde se muestra el tirador de arrastre (sigue al foco, como el "active cell" de Excel).
+  // Cell showing the fill handle (follows focus, like Excel's "active cell").
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null)
-  // Arrastre en curso del tirador. `targetRow` es la fila bajo el puntero (clampeada a la lista).
+  // Active fill drag. `targetRow` is the row under the pointer (clamped to the list).
   const [drag, setDrag] = useState<{ srcRow: number; col: number; targetRow: number } | null>(null)
 
-  // Foco programático a una celda por posición (data-row / data-col).
+  // Programmatically focus a cell by position (data-row / data-col).
   const focusCell = useCallback((row: number, col: number) => {
     const el = containerRef.current?.querySelector<HTMLElement>(
       `[data-row="${row}"][data-col="${col}"]`,
@@ -178,14 +178,14 @@ const PiecesTable = ({
     if (el instanceof HTMLInputElement) el.select()
   }, [])
 
-  // Tras agregar una fila, enfoca su primer input de medida para seguir tipeando sin tocar el mouse.
+  // After adding a row, focus its first dimension input so the user can keep typing without touching the mouse.
   useEffect(() => {
     if (focusRow == null) return
     focusCell(focusRow, 1)
     clearFocus()
   }, [focusRow, focusCell, clearFocus])
 
-  // Ctrl+Z / Cmd+Z: deshace la última operación estructural (no aplica cuando el foco está en un input).
+  // Ctrl+Z / Cmd+Z: undoes the last structural operation (no-op when an input is focused).
   useEffect(() => {
     const handler = (e: globalThis.KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key !== 'z') return
@@ -201,28 +201,28 @@ const PiecesTable = ({
   const validUids = validMaterialUids(materials)
   const summary = piecesSummary(requirements, materials)
   const allSelected = requirements.length > 0 && selected.size === requirements.length
-  // Sin selección el fill-down/acciones aplican a todas; con selección, solo a las marcadas.
+  // No selection: fill-down/actions apply to all rows. With selection: only to marked rows.
   const fillScope = selected.size > 0 ? 'selected' : 'all'
   const hasSelection = selected.size > 0
 
-  // Navegación con teclado en la grid de piezas.
-  // Col 0 = material (select), 1 = alto, 2 = ancho, 3 = cant, 4 = prior, 5 = etiqueta,
-  // 6 = canto (select), 7 = tapacanto (select).
-  // ArrowUp/Down en cols select (0, 6, 7) se dejan al browser.
-  // ArrowLeft/Right en col 5 (texto) solo navegan si el cursor está en el borde de la cadena.
+  // Keyboard navigation in the pieces grid.
+  // Col 0 = material (select), 1 = height, 2 = width, 3 = qty, 4 = priority, 5 = label,
+  // 6 = banding sides (select), 7 = banding product (select).
+  // ArrowUp/Down on select cols (0, 6, 7) are left to the browser.
+  // ArrowLeft/Right on col 5 (text) only navigate when the cursor is at the string boundary.
   const LAST_COL = 7
   const SELECT_COLS = new Set([0, 6, 7])
   const handleKeyDown = (e: KeyboardEvent<HTMLElement>, rowIndex: number, colIndex: number) => {
     switch (e.key) {
       case 'Enter':
-        if (SELECT_COLS.has(colIndex)) return // los selects usan Enter para abrir/cerrar
+        if (SELECT_COLS.has(colIndex)) return // selects use Enter to open/close
         e.preventDefault()
         if (rowIndex === requirements.length - 1) add()
         else focusCell(rowIndex + 1, colIndex)
         break
 
       case 'ArrowDown':
-        if (SELECT_COLS.has(colIndex)) return // select navega sus propias opciones
+        if (SELECT_COLS.has(colIndex)) return // select navigates its own options
         e.preventDefault()
         focusCell(rowIndex + 1, colIndex)
         break
@@ -240,7 +240,7 @@ const PiecesTable = ({
           break
         }
         if (colIndex === 5) {
-          // Input de texto: solo salir cuando el cursor ya está al final
+          // Text input: only leave when the cursor is already at the end
           const inp = e.currentTarget as HTMLInputElement
           if (inp.selectionStart !== inp.value.length) return
         }
@@ -251,7 +251,7 @@ const PiecesTable = ({
 
       case 'ArrowLeft': {
         if (colIndex === 5) {
-          // Input de texto: solo salir cuando el cursor ya está al inicio
+          // Text input: only leave when the cursor is already at the start
           const inp = e.currentTarget as HTMLInputElement
           if (inp.selectionStart !== 0) return
           e.preventDefault()
@@ -259,7 +259,7 @@ const PiecesTable = ({
           break
         }
         if (colIndex === 0) {
-          // Select: ir al último campo de la fila anterior
+          // Select: go to the last field of the previous row
           e.preventDefault()
           if (rowIndex > 0) focusCell(rowIndex - 1, LAST_COL)
           break
@@ -271,8 +271,8 @@ const PiecesTable = ({
     }
   }
 
-  // Paste sobre la tabla: sobreescribe desde la fila activa y crea filas nuevas si hacen falta.
-  // Multi-columna (TSV) → pasteRows; columna única → pasteIntoField.
+  // Table paste: overwrites from the active row and creates new rows as needed.
+  // Multi-column (TSV) → pasteRows; single column → pasteIntoField.
   const handleTablePaste = useCallback(
     (e: ClipboardEvent) => {
       const text = e.clipboardData.getData('text')
@@ -288,14 +288,14 @@ const PiecesTable = ({
       const startRow = isNaN(rawRow) ? 0 : rawRow
 
       if (text.includes('\t')) {
-        // Rango multi-columna copiado de hoja de cálculo → sobreescribir desde startRow.
+        // Multi-column range copied from a spreadsheet → overwrite from startRow.
         e.preventDefault()
         const { rows } = parsePieces(text, materials, boards)
         if (rows.length) pasteRows(startRow, rows)
         return
       }
 
-      // Columna única: sobreescribir el campo activo en filas existentes y crear las que faltan.
+      // Single column: overwrite the active field in existing rows and create missing ones.
       if (!(active instanceof HTMLInputElement)) return
       const field = active.dataset.field as 'height' | 'width' | 'quantity' | 'priority' | 'label'
       if (!field || !PASTEABLE_FIELDS.has(field) || isNaN(rawRow)) return
@@ -305,7 +305,7 @@ const PiecesTable = ({
     [materials, boards, pasteRows, pasteIntoField],
   )
 
-  // Campo de ingreso rápido: "720×400×4 Etiqueta 1L2C" → agrega pieza al presionar Enter.
+  // Quick-entry field: "720×400×4 Label 1L2C" → adds a piece on Enter.
   const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     if (!quickText.trim()) return
@@ -332,7 +332,7 @@ const PiecesTable = ({
     setQuickError('')
   }
 
-  // Fila bajo la coordenada Y del puntero (clampeada al rango de filas existentes).
+  // Row under the pointer's Y coordinate (clamped to the existing row range).
   const rowFromY = (y: number): number => {
     const rows = containerRef.current?.querySelectorAll('tbody tr')
     if (!rows || rows.length === 0) return 0
@@ -342,20 +342,20 @@ const PiecesTable = ({
     return rows.length - 1
   }
 
-  // ¿La celda (col, fila i) está dentro del rango que se está arrastrando?
+  // Is cell (col, row i) within the active fill-drag range?
   const inFillRange = (col: number, i: number): boolean => {
     if (!drag || drag.col !== col) return false
     return i >= Math.min(drag.srcRow, drag.targetRow) && i <= Math.max(drag.srcRow, drag.targetRow)
   }
 
-  // Estilo de celda editable: posición relativa para anclar el tirador + resaltado del rango.
+  // Editable cell style: relative position to anchor the fill handle + range highlight.
   const cellStyle = (col: number, i: number, minWidth: number): CSSProperties => ({
     minWidth,
     position: 'relative',
     ...(inFillRange(col, i) ? { boxShadow: 'inset 0 0 0 2px var(--cui-primary)' } : {}),
   })
 
-  // Tirador arrastrable en la celda activa. Usa Pointer Events (mouse + touch) con captura de puntero.
+  // Draggable fill handle in the active cell. Uses Pointer Events (mouse + touch) with pointer capture.
   const renderHandle = (i: number, col: number) => {
     if (!activeCell || activeCell.row !== i || activeCell.col !== col) return null
     return (
@@ -381,7 +381,7 @@ const PiecesTable = ({
     )
   }
 
-  // Helper de render (no es componente): botón "rellenar hacia abajo" en una cabecera de columna.
+  // Render helper (not a component): "fill down" button in a column header.
   const renderFill = (field: FillableField, title: string) => (
     <CButton
       size="sm"
@@ -716,7 +716,7 @@ const PiecesTable = ({
           </CTable>
         </div>
 
-        {/* Ingreso rápido: "720×400×4 Etiqueta 1L2C" → agrega pieza al presionar Enter */}
+        {/* Quick entry: "720×400×4 Label 1L2C" → adds a piece on Enter */}
         <div className="d-flex align-items-center gap-2 mt-2">
           <CFormInput
             size="sm"

@@ -17,7 +17,7 @@ const BASE = '/api/v1/orders'
 export const ordersApi = {
   list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) => {
     const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
-    // Varios estados → `status` repetido (?status=a&status=b); uno solo → un único `status`.
+    // Multiple statuses → repeated `status` params (?status=a&status=b); single status → one param.
     if (Array.isArray(status)) status.forEach((s) => params.append('status', s))
     else if (status) params.set('status', status)
     if (branchId) params.set('branchId', String(branchId))
@@ -31,7 +31,7 @@ export const ordersApi = {
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
-  // Canteado: la cola devuelve `{ data: [...], meta: {} }` (sin paginación) → `get`, no `list`.
+  // Banding queue: response is `{ data: [...], meta: {} }` with no pagination → use `get`, not `list`.
   getBandingQueue: () => httpClient.get<BandingQueueItem[]>(`${BASE}/banding-queue`),
   patchBanding: (id: string, data: BandingPayload) =>
     httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),

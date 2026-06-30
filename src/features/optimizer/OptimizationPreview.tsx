@@ -69,7 +69,7 @@ const OptimizationPreview = ({
         )}
         {!result && !error && (
           <div className="text-body-secondary small">
-            Definí materiales y piezas, luego presioná “Optimizar” para ver tableros, costo,
+            Define materiales y piezas, luego presiona “Optimizar” para ver tableros, costo,
             eficiencia y el diagrama de cortes — sin crear nada.
           </div>
         )}

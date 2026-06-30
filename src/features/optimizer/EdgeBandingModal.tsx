@@ -42,7 +42,7 @@ const EdgeBandingModal = ({
   const setAll = (on: boolean) =>
     onChange({ ...value, sides: { top: on, bottom: on, left: on, right: on } })
 
-  // Helper de render (no es un componente) para evitar recrear componentes en cada render.
+  // Render helper (not a component) to avoid recreating components on every render.
   const renderSide = (side: EdgeSide) => {
     const active = value.sides[side]
     return (
@@ -92,7 +92,7 @@ const EdgeBandingModal = ({
           </div>
         </div>
 
-        {/* Cruz: botones de lado alrededor de un cuadro de vista previa con la orientación. */}
+        {/* Cross layout: side buttons around a preview square showing edge banding orientation. */}
         <div
           style={{
             display: 'grid',

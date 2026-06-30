@@ -16,18 +16,17 @@ import type { CutBoard, CutPiece } from './types'
 interface WorkshopBoardSvgProps {
   board: CutBoard
   colorFor: (sig: string) => string
-  // Solo se puede tocar/marcar piezas con la orden en corte (`cutting`). En otros estados es solo-lectura.
+  // Pieces can only be tapped/marked when the order is in `cutting` state. Other states are read-only.
   interactive: boolean
-  // Un clic marca la pieza como cortada; un doble clic la desmarca (sin confirmación).
+  // Single tap marks the piece as cut; double-tap unmarks it (no confirmation).
   onPieceTap: (piece: CutPiece) => void
   onPieceUntap: (piece: CutPiece) => void
 }
 
 const CHECK_COLOR = '#2b8a3e' // verde del ✓ de pieza cortada
 
-// Dibuja un tablero físico del plan de corte con la misma geometría que el optimizador, agregando el
-// estado de corte por pieza (atenuada + ✓), los sobrantes rayados y el área táctil sobre todo el
-// rectángulo.
+// Renders a physical board from the cutting plan using the same geometry as the optimizer, adding
+// per-piece cut state (dimmed + ✓), hatched waste areas, and a tap target over each full rectangle.
 const WorkshopBoardSvg = ({
   board,
   colorFor,
@@ -41,8 +40,8 @@ const WorkshopBoardSvg = ({
   const rawId = useId()
   const wasteId = `waste-${rawId.replace(/:/g, '')}`
 
-  // Zoom para inspeccionar/tocar piezas pequeñas. doubleClickZoom apagado: el doble toque no debe
-  // interferir con "tocar = marcar cortada".
+  // Zoom for inspecting/tapping small pieces. doubleClickZoom disabled: double-tap must not
+  // interfere with the "tap = mark as cut" interaction.
   const { svgRef, groupTransform, scale, isZoomed, zoomIn, zoomOut, reset } = useZoomPan({
     doubleClickZoom: false,
   })
@@ -58,8 +57,8 @@ const WorkshopBoardSvg = ({
           height: 'auto',
           display: 'block',
           maxHeight: '72vh',
-          // Sin zoom: deja el scroll vertical de la página al navegador (pinch sigue siendo nuestro).
-          // Con zoom: tomamos el control total para desplazar el diagrama con un dedo.
+          // Not zoomed: let the browser handle vertical page scroll (pinch is still ours).
+          // Zoomed: take full control to pan the diagram with one finger.
           touchAction: isZoomed ? 'none' : 'pan-y',
           cursor: isZoomed ? 'grab' : undefined,
         }}
@@ -73,7 +72,7 @@ const WorkshopBoardSvg = ({
           </pattern>
         </defs>
 
-        {/* El tablero se gira 90° en horario (paisaje); el texto se contra-rota para seguir legible. */}
+        {/* Board rotated 90° clockwise (landscape); text counter-rotated to stay readable. */}
         <g transform={`${groupTransform} ${boardRotation(H)}`}>
           {/* Tablero */}
           <rect
@@ -87,7 +86,7 @@ const WorkshopBoardSvg = ({
             vectorEffect="non-scaling-stroke"
           />
 
-          {/* Sobrantes / desperdicio (zonas libres rayadas, para distinguir pieza vs. sobrante) */}
+          {/* Remainders / waste (hatched free areas to distinguish piece vs. waste) */}
           {(board.remainders ?? []).map((r, idx) => (
             <rect
               key={`rem-${idx}`}
@@ -110,7 +109,7 @@ const WorkshopBoardSvg = ({
             const minSide = Math.min(p.width, p.height)
             const fontSize = clamp(minSide / 5, 22, 90)
             const checkSize = clamp(minSide * 0.55, 36, 220)
-            // Al acercar, las piezas pequeñas revelan su medida (umbral según escala efectiva).
+            // When zoomed in, small pieces reveal their dimensions (threshold based on effective scale).
             const showText = p.width * scale > 130 && p.height * scale > 90
             const cx = p.x + p.width / 2
             const cy = p.y + p.height / 2
@@ -130,7 +129,7 @@ const WorkshopBoardSvg = ({
                   {p.cut && p.cutByLabel ? ` por ${p.cutByLabel}` : ''}
                 </title>
 
-                {/* Visual de la pieza: atenuado cuando ya está cortada */}
+                {/* Piece visual: dimmed when already cut */}
                 <g opacity={p.cut ? 0.35 : 1}>
                   <rect
                     x={p.x}
@@ -144,7 +143,7 @@ const WorkshopBoardSvg = ({
                     vectorEffect="non-scaling-stroke"
                   />
 
-                  {/* Tapacanto: banda gruesa hacia dentro de la pieza (no pisa la línea de corte) */}
+                  {/* Edge banding: thick inset band (does not overlap the cut line) */}
                   {bandedSides(p).map((side) => {
                     const l = insetSideLine(side, p.x, p.y, p.width, p.height, edgeWidth)
                     return (
@@ -178,7 +177,7 @@ const WorkshopBoardSvg = ({
                   )}
                 </g>
 
-                {/* ✓ a opacidad plena por encima del atenuado, para que la pieza cortada se lea de un vistazo */}
+                {/* ✓ at full opacity above the dimmed layer, so the cut state reads at a glance */}
                 {p.cut && (
                   <text
                     x={cx}

@@ -69,7 +69,7 @@ const UsersPage = () => {
   const users = usersData?.items ?? []
   const pagination = usersData?.pagination
 
-  // Resolver branchId → nombre (incluye inactivas para no perder la etiqueta de staff históricos).
+  // Resolve branchId → name (includes inactive branches to preserve labels for historical staff).
   const { data: branchesData } = useBranches({ limit: 100 })
   const branchName = useMemo(
     () => new Map((branchesData?.items ?? []).map((b) => [b.id, b.name])),

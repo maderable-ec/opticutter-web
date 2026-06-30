@@ -12,7 +12,7 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: 'rgba(13, 202, 240, 0.7)',
   approved: 'rgba(13, 202, 240, 0.85)',
   queued: 'rgba(255, 193, 7, 0.7)',
-  in_production: 'rgba(255, 193, 7, 0.7)', // histórico (renombrado a `queued`)
+  in_production: 'rgba(255, 193, 7, 0.7)', // legacy (renamed to `queued`)
   cut: 'rgba(255, 193, 7, 0.85)',
   completed: 'rgba(25, 135, 84, 0.8)',
   despachado: 'rgba(32, 165, 110, 0.8)',

@@ -1,8 +1,8 @@
 import { CAlert } from '@coreui/react'
 import { ApiError } from 'src/shared/api/types'
 
-// Detecta el `403 FORBIDDEN` que el backend devuelve cuando un staff quedó sin sucursal asignada
-// (estado inválido que corrige el admin). Se usa para mostrar un aviso en vez de romper la pantalla.
+// Detects the `403 FORBIDDEN` the backend returns when a staff member has no branch assigned
+// (invalid state, corrected by an admin). Used to show a notice instead of breaking the screen.
 export const isNoBranchError = (error: unknown): boolean =>
   error instanceof ApiError && error.status === 403
 

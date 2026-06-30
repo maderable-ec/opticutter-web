@@ -4,8 +4,8 @@ import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
 export type OrderStatus = 'confirmed' | 'queued' | 'cutting' | 'cut' | 'completed' | 'despachado' | 'cancelled'
 
-// Pista de canteado (tapacantos), ortogonal al corte: una orden puede estar `cutting` y
-// `bandingStatus: 'in_progress'` a la vez. `not_applicable` = la orden no lleva tapacantos.
+// Banding track (edge banding), orthogonal to cutting: an order can be `cutting` and
+// `bandingStatus: 'in_progress'` simultaneously. `not_applicable` = order has no edge banding.
 export type BandingStatus = 'not_applicable' | 'pending' | 'in_progress' | 'done'
 
 export interface OrderLine {
@@ -21,10 +21,10 @@ export interface OrderLine {
 
 export interface OrderHistoryEntry {
   id: string
-  // Auditoría (PR #39): `actor` es el TIPO de quien actuó, no un nombre libre.
+  // `actor` is the TYPE of the entity that acted, not a free-form name.
   actor?: 'staff' | 'client' | 'system'
   actorUserId?: number | null
-  actorLabel?: string | null // nombre congelado del actor al momento de la acción
+  actorLabel?: string | null // actor's display name frozen at the time of the action
   createdAt: string
   fromStatus?: OrderStatus
   toStatus: OrderStatus
@@ -54,7 +54,7 @@ export interface Order {
   discountRate?: number
   discountAmount?: number
   client: Client
-  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  // Owning branch (mandatory FK): always present in list and detail responses.
   branch: BranchRef
   lines: OrderLine[]
   pieces?: OrderPiece[]
@@ -65,8 +65,8 @@ export interface Order {
   assignedToId?: number | null
   assignedAt?: string | null
   assignedToLabel?: string | null
-  // Pista de canteado (paralela al corte). Los `*Label` son nombres congelados al momento de la
-  // acción (mismo patrón que `assignedToLabel`).
+  // Banding track (parallel to cutting). `*Label` fields are names frozen at the time of the action
+  // (same pattern as `assignedToLabel`).
   bandingStatus?: BandingStatus
   bandingStartedAt?: string | null
   bandingStartedBy?: number | null
@@ -74,19 +74,19 @@ export interface Order {
   bandingFinishedAt?: string | null
   bandingFinishedBy?: number | null
   bandingFinishedByLabel?: string | null
-  // Despacho: congelados en la transición completed → despachado.
+  // Dispatch: fields frozen at the completed → despachado transition.
   dispatchedAt?: string
   dispatchedBy?: number
   dispatchedByLabel?: string
-  // Pago: congelados en la transición confirmed → queued.
+  // Payment: fields frozen at the confirmed → queued transition.
   paymentCashAmount?: number | null
   paymentCreditAmount?: number | null
 }
 
 export interface OrderListParams {
-  // Uno o varios estados; con varios el backend recibe `status` repetido (?status=a&status=b).
+  // One or more statuses; with multiple the backend receives repeated `status` params (?status=a&status=b).
   status?: OrderStatus | OrderStatus[]
-  // Filtro efectivo para roles globales (admin y vendedor); el operador queda acotado a su sucursal.
+  // Effective filter for global roles (admin and vendedor); operador is implicitly scoped to their branch.
   branchId?: number
   offset?: number
   limit?: number
@@ -98,14 +98,14 @@ export interface UpdateStatusPayload {
   payment?: { cashAmount?: number; creditAmount?: number }
 }
 
-// --- Canteado ---
-// El cuerpo del PATCH avanza la pista forward-only (pending → in_progress → done).
+// --- Banding ---
+// PATCH body advances the track forward-only (pending → in_progress → done).
 export interface BandingPayload {
   status: 'in_progress' | 'done'
   note?: string
 }
 
-// Respuesta del PATCH /orders/{id}/banding (subconjunto: sin precios ni piezas).
+// Response from PATCH /orders/{id}/banding (subset: no prices or pieces).
 export interface BandingResult {
   orderId: number
   orderCode: string
@@ -114,8 +114,8 @@ export interface BandingResult {
   bandingFinishedAt: string | null
 }
 
-// Una orden en la cola de canteado (GET /orders/banding-queue). Sin precios ni detalle de piezas;
-// solo lo necesario para identificarla físicamente y mostrar su estado.
+// An order in the banding queue (GET /orders/banding-queue). No prices or piece details;
+// only what's needed to physically identify the order and show its banding status.
 export interface BandingQueueItem {
   orderId: number
   orderCode: string
@@ -138,18 +138,18 @@ export interface ReviewLinkInfo {
   usedAt?: string
 }
 
-// --- Plan de corte (vista de taller) ---
-// Llega ya expandido por tablero físico desde GET /orders/{id}/cutting-plan; cada pieza trae su `id`
-// persistente para marcarla y la misma geometría que `placedPieces` del optimizador.
+// --- Cutting plan (workshop view) ---
+// Returned already expanded by physical board from GET /orders/{id}/cutting-plan; each piece carries
+// its persistent `id` for marking and the same geometry as `placedPieces` in the optimizer.
 
 export interface CutProgress {
   cutPieces: number
   totalPieces: number
 }
 
-// Una pieza física dentro de un tablero. La geometría es idéntica a PlacedPiece (optimizer); además
-// trae el estado de corte. `id` (numérico) es el identificador persistente para el PATCH; `pieceId`
-// (`label#N`) es la identidad legible de la instancia.
+// A physical piece within a board. Geometry is identical to PlacedPiece (optimizer); additionally
+// carries the cut state. `id` (numeric) is the persistent identifier for PATCH; `pieceId`
+// (`label#N`) is the human-readable instance identity.
 export interface CutPiece {
   id: number
   pieceId: string
@@ -164,14 +164,14 @@ export interface CutPiece {
   edges?: PlacedPieceEdges | null
   cut: boolean
   cutAt: string | null
-  // Auditoría (PR #39): quién marcó la pieza como cortada.
+  // Who marked the piece as cut.
   cutBy?: number | null
   cutByLabel?: string | null
 }
 
-// Un recorrido real de la sierra (guillotina) calculado por el optimizador: nace en (x, y) y corre
-// `length` mm en horizontal (isHorizontal: true, hacia +x) o vertical (false, hacia +y). No se infiere
-// en el front: requeriría kerf/trims/regla de partición que no viajan en la respuesta.
+// An actual saw (guillotine) cut path calculated by the optimizer: starts at (x, y) and runs
+// `length` mm horizontally (isHorizontal: true, toward +x) or vertically (false, toward +y).
+// Not inferred client-side: it would require kerf/trims/partition rules not included in the response.
 export interface BoardCut {
   x: number
   y: number
@@ -179,8 +179,8 @@ export interface BoardCut {
   isHorizontal: boolean
 }
 
-// Un tablero físico real (una hoja). `sheetNumber` es secuencial 1..N en toda la orden; dos hojas
-// idénticas aparecen dos veces (sin deduplicar por patrón).
+// A real physical board (one sheet). `sheetNumber` is sequential 1..N across the whole order;
+// identical sheets appear twice (not deduplicated by pattern).
 export interface CutBoard {
   id: number
   sheetNumber: number
@@ -192,10 +192,10 @@ export interface CutBoard {
   thickness: number
   progress: CutProgress
   pieces: CutPiece[]
-  // Rectángulos sobrantes del tablero (misma forma que en el optimizador), para distinguir pieza vs.
-  // sobrante. Opcionales por compatibilidad con respuestas previas al cambio de contrato.
+  // Leftover rectangles on the board (same shape as in the optimizer), to distinguish piece vs. waste.
+  // Optional for backward compatibility with responses before the contract change.
   remainders?: Remainder[]
-  // Recorridos de la sierra de punta a punta (guía principal contra la confusión en guillotina).
+  // Full saw-path cuts end-to-end (primary aid against guillotine confusion in the workshop).
   cuts?: BoardCut[]
 }
 
@@ -207,7 +207,7 @@ export interface CuttingPlan {
   boards: CutBoard[]
 }
 
-// Respuesta del PATCH de marcado: pieza actualizada + avance recalculado (global y del tablero).
+// Response from the mark PATCH: updated piece + recalculated progress (global and per board).
 export interface MarkPieceResponse {
   piece: CutPiece
   progress: CutProgress

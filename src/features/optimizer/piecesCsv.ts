@@ -2,11 +2,11 @@ import type { BoardProduct } from 'src/features/products/types'
 import { emptyRequirement, materialLabel } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 
-// Importación/exportación de la lista de piezas como CSV/TSV. Sin dependencias: el parser cubre el
-// pegado desde Excel/Sheets (delimitado por tabs) y archivos CSV (coma o punto y coma). El tapacanto
-// no viaja por este formato (es producto + lados); se edita por fila en su modal.
+// CSV/TSV import and export for the pieces list. No dependencies: the parser handles
+// paste from Excel/Sheets (tab-delimited) and CSV files (comma or semicolon).
+// Edge banding is not included in this format (it's a product + sides); it is edited per-row in its modal.
 
-// Orden de columnas del formato (coincide con el orden visual de la tabla).
+// Column order matches the visual order of the table.
 export const CSV_COLUMNS = [
   'Material',
   'Alto',
@@ -17,7 +17,7 @@ export const CSV_COLUMNS = [
   'Rotar',
 ] as const
 
-// Palabras de encabezado reconocidas para detectar (y saltar) una fila de cabecera.
+// Known header words used to detect (and skip) a header row.
 const HEADER_WORDS = [
   'material',
   'alto',
@@ -45,7 +45,7 @@ const FALSE_WORDS = new Set(['no', '0', 'false', 'falso', ''])
 
 const normalize = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
-// Convierte texto a número aceptando coma decimal (locale es). Devuelve '' si no es un número.
+// Converts text to a number, accepting comma as decimal separator. Returns '' if not a number.
 const parseNum = (s: string): number | string => {
   const t = s.trim().replace(',', '.')
   if (t === '') return ''
@@ -53,7 +53,7 @@ const parseNum = (s: string): number | string => {
   return Number.isFinite(n) ? n : ''
 }
 
-// Detecta el delimitador: tab (pegado de hoja de cálculo) tiene prioridad; si no, ';' o ','.
+// Detects the delimiter: tab (spreadsheet paste) takes priority; otherwise ';' or ','.
 const detectDelimiter = (text: string): string => {
   if (text.includes('\t')) return '\t'
   const firstLine = text.split(/\r?\n/, 1)[0] ?? ''
@@ -62,7 +62,7 @@ const detectDelimiter = (text: string): string => {
   return semis > commas ? ';' : ','
 }
 
-// Divide una línea respetando comillas dobles ("a,b" no se parte) y comillas escapadas ("").
+// Splits a line respecting double-quoted fields ("a,b" stays intact) and escaped quotes ("").
 const splitLine = (line: string, delimiter: string): string[] => {
   const cells: string[] = []
   let cur = ''
@@ -87,15 +87,15 @@ const splitLine = (line: string, delimiter: string): string[] => {
   return cells.map((c) => c.trim())
 }
 
-// Es encabezado si ≥2 celdas coinciden exactamente con una palabra conocida (evita falsos positivos
-// con etiquetas que contienen "alto", "ancho", etc.).
+// Treat as a header if ≥2 cells exactly match a known word (avoids false positives
+// for labels that happen to contain "alto", "ancho", etc.).
 const looksLikeHeader = (cells: string[]): boolean => {
   const words = new Set(HEADER_WORDS)
   const hits = cells.filter((c) => words.has(normalize(c))).length
   return hits >= 2
 }
 
-// Resuelve el texto de la columna Material contra los materiales cargados. Sin match → primero + aviso.
+// Resolves the Material column text against the loaded materials. No match → first material + warning.
 const resolveMaterialUid = (
   text: string,
   materials: MaterialForm[],
@@ -118,7 +118,7 @@ export interface ParseResult {
   warnings: string[]
 }
 
-// Parsea texto pegado o de archivo a piezas resueltas contra `materials`. Acumula avisos legibles.
+// Parses pasted or file text into pieces resolved against `materials`. Collects human-readable warnings.
 export const parsePieces = (
   text: string,
   materials: MaterialForm[],
@@ -133,7 +133,7 @@ export const parsePieces = (
 
   lines.forEach((line, idx) => {
     const cells = splitLine(line, delimiter)
-    if (idx === 0 && looksLikeHeader(cells)) return // salta encabezado
+    if (idx === 0 && looksLikeHeader(cells)) return // skip header row
 
     const [material = '', alto = '', ancho = '', cant = '', prior = '', etiqueta = '', rotar = ''] =
       cells
@@ -170,11 +170,11 @@ export const parsePieces = (
 
 const csvCell = (v: string | number): string => {
   const s = String(v)
-  // Entrecomilla si contiene separadores o comillas (formato CSV estándar).
+  // Wrap in quotes if the value contains delimiters or quotes (standard CSV).
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-// Serializa la lista actual a CSV (coma, decimales con punto, rotar como sí/no).
+// Serializes the current list to CSV (comma-delimited, dot decimals, rotate as sí/no).
 export const requirementsToCsv = (
   requirements: RequirementForm[],
   materials: MaterialForm[],
@@ -192,7 +192,7 @@ export const requirementsToCsv = (
   return [header, ...lines].join('\n')
 }
 
-// Dispara la descarga de un CSV sin librerías (Blob + ancla temporal).
+// Triggers a CSV download without external libraries (Blob + temporary anchor).
 export const downloadCsv = (filename: string, csv: string): void => {
   const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)

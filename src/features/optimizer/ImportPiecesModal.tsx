@@ -65,7 +65,7 @@ const ImportPiecesModal = ({
     const reader = new FileReader()
     reader.onload = () => setText(String(reader.result ?? ''))
     reader.readAsText(file)
-    e.target.value = '' // permite re-seleccionar el mismo archivo
+    e.target.value = '' // allows re-selecting the same file
   }
 
   const confirm = () => {
@@ -81,7 +81,7 @@ const ImportPiecesModal = ({
       </CModalHeader>
       <CModalBody>
         <p className="text-body-secondary small mb-2">
-          Pegá un rango copiado de Excel/Google Sheets o subí un archivo CSV. Columnas esperadas:{' '}
+          Pega un rango copiado de Excel/Google Sheets o sube un archivo CSV. Columnas esperadas:{' '}
           <strong>{CSV_COLUMNS.join(' · ')}</strong>. El tapacanto se configura aparte por pieza.
         </p>
 

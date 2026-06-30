@@ -8,8 +8,8 @@ export const useBranches = (params?: BranchListParams) =>
     queryFn: () => branchesApi.list(params),
   })
 
-// Hook ligero reutilizable por los selectores de sucursal (#2, #3, #4, #5): trae el listado
-// con un límite alto y devuelve sólo las activas. `data` ya es un `Branch[]`.
+// Lightweight hook reused by branch selectors across the app: fetches up to 100 branches
+// and returns only the active ones. `data` is already typed as `Branch[]`.
 export const useActiveBranches = () =>
   useQuery({
     queryKey: ['branches', 'active'],

@@ -112,7 +112,7 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
         {stage === 'input' && (
           <>
             <p className="text-body-secondary small mb-2">
-              Pegá un rango de Excel/Google Sheets o subí un archivo CSV. Columnas esperadas:{' '}
+              Pega un rango de Excel/Google Sheets o sube un archivo CSV. Columnas esperadas:{' '}
               <strong>{PRODUCT_CSV_COLUMNS.join(' · ')}</strong>.
             </p>
 

@@ -8,7 +8,7 @@ export const useOptimize = () =>
     mutationFn: optimizerApi.optimize,
   })
 
-// Tableros del catálogo (productos type=board). `select` los estrecha a BoardProduct[].
+// Catalog boards (products type=board). `select` narrows them to BoardProduct[].
 export const useBoards = () =>
   useQuery({
     queryKey: ['boards'],
@@ -17,7 +17,7 @@ export const useBoards = () =>
     select: (data) => data.items.filter((p): p is BoardProduct => p.type === 'board'),
   })
 
-// Tapacantos del catálogo (productos type=edge_banding).
+// Catalog edge bandings (products type=edge_banding).
 export const useEdgeBandings = () =>
   useQuery({
     queryKey: ['edge-bandings'],

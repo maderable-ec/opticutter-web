@@ -51,7 +51,7 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
     }
   }
 
-  // `409 CONFLICT` (código duplicado) y demás errores del API llegan vía ApiError.
+  // 409 CONFLICT (duplicate code) and other API errors are surfaced via ApiError.
   const errorMsg =
     error instanceof ApiError
       ? (error.errors[0]?.message ?? error.message)

@@ -37,22 +37,22 @@ export const analyticsApi = {
     httpClient.get<OperationsStats>(
       `/api/v1/analytics/operations${buildQs({ from, to, branchId })}`,
     ),
-  // Comparativo por almacén (mismo shape que el breakdown de estados).
+  // Per-branch comparison (same shape as the status breakdown).
   branchBreakdown: (from?: string, to?: string, branchId?: number) =>
     httpClient.get<StatusBreakdownData>(
       `/api/v1/analytics/breakdown/branch${buildQs({ from, to, branchId })}`,
     ),
-  // Cuellos de botella (#1): etapas (mediana/p90) + serie temporal por etapa.
+  // Bottlenecks (#1): stages (median/p90) + per-stage timeseries.
   bottlenecks: (from?: string, to?: string, branchId?: number, granularity: Granularity = 'day') =>
     httpClient.get<BottlenecksData>(
       `/api/v1/analytics/bottlenecks${buildQs({ from, to, branchId, granularity })}`,
     ),
-  // Productividad por usuario (#2).
+  // User productivity (#2).
   users: (from?: string, to?: string, branchId?: number, role?: Role) =>
     httpClient.get<UsersProductivityData>(
       `/api/v1/analytics/users${buildQs({ from, to, branchId, role })}`,
     ),
-  // Asistencia / hora de entrada (#3).
+  // Attendance / check-in time (#3).
   attendance: (from?: string, to?: string, branchId?: number, role?: Role) =>
     httpClient.get<AttendanceData>(
       `/api/v1/analytics/attendance${buildQs({ from, to, branchId, role })}`,

@@ -1,6 +1,6 @@
 import type { Role } from './types'
 
-// Roles que ven y operan sobre todas las sucursales (eje sucursal global).
+// Roles that see and operate across all branches (global branch axis).
 export const GLOBAL_BRANCH_ROLES = ['administrador', 'vendedor'] as const
 export const isGlobalBranchRole = (role?: string): boolean =>
   GLOBAL_BRANCH_ROLES.includes(role as any)
@@ -21,8 +21,8 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
 export const canAccess = (role: Role | undefined, key: string): boolean =>
   !role ? false : (ROUTE_ROLES[key] ?? []).includes(role)
 
-// Pantalla de inicio por rol. El dashboard es admin-only, así que cada rol aterriza en una ruta a la
-// que sí tiene acceso; esto evita el bucle de redirección (/ → /dashboard → / …) para no-admins.
+// Landing path per role. The dashboard is admin-only, so each role lands on a route it can access;
+// this prevents the redirect loop (/ → /dashboard → / …) for non-admins.
 export const homePathForRole = (role: Role | undefined): string => {
   switch (role) {
     case 'administrador':
@@ -32,8 +32,8 @@ export const homePathForRole = (role: Role | undefined): string => {
     case 'operador':
       return '/orders'
     case 'canteador':
-      return '/banding' // su única vista: la cola de canteado
+      return '/banding' // only view for this role: the banding queue
     default:
-      return '/orders' // ruta accesible para todos los roles autenticados
+      return '/orders' // accessible to all authenticated roles
   }
 }

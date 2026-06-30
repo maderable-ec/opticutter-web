@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   CButton,
   CFormInput,
@@ -12,13 +11,15 @@ import {
   CSpinner,
 } from '@coreui/react'
 import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
-import { useActiveBranches } from 'src/features/branches/useBranches'
+
 import { ApiError } from 'src/shared/api/types'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { useState } from 'react'
 
 interface SaveDraftModalProps {
   visible: boolean
   isSaving: boolean
-  // El admin (global) debe elegir sucursal; para staff llega null y no se envía.
+  // Global admin must pick a branch; for non-admin staff this is null and not sent.
   onSave: (name: string, branchId: number | null) => void
   onClose: () => void
   error?: Error | null
@@ -26,9 +27,9 @@ interface SaveDraftModalProps {
 
 const NAME_MAX = 128
 
-// Sugerencia por defecto: "Borrador 14/06/2026".
+// Default suggestion: "Borrador 14/06/2026".
 const suggestedName = () =>
-  `Borrador ${new Date().toLocaleDateString('es-AR', {
+  `Borrador ${new Date().toLocaleDateString('es-EC', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -42,12 +43,12 @@ const SaveDraftModal = ({ visible, isSaving, onSave, onClose, error }: SaveDraft
   const isGlobalBranch = useIsGlobalBranchRole()
   const { data: branches = [] } = useActiveBranches()
 
-  // Admin: sin preselección (campo obligatorio). Vendedor: preselecciona su sucursal base.
+  // Admin: no pre-selection (required field). Non-admin: pre-selects their home branch.
   const defaultBranchId = isAdmin ? '' : String(user?.branchId ?? '')
   const [branchId, setBranchId] = useState(defaultBranchId)
 
-  // Reinicia el estado cada vez que se abre el modal (patrón "ajustar estado al cambiar una
-  // prop" durante el render, en vez de un efecto: https://react.dev/learn/you-might-not-need-an-effect).
+  // Reset state each time the modal opens ("adjust state during render" pattern instead of an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect).
   const [wasVisible, setWasVisible] = useState(visible)
   if (visible !== wasVisible) {
     setWasVisible(visible)

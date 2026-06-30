@@ -19,25 +19,24 @@ export type FillScope = 'all' | 'selected'
 
 const MAX_HISTORY = 20
 
-// Encapsula la lista de piezas y todas las operaciones de edición masiva (pegar, duplicar, fill-down,
-// selección múltiple, foco, historial para undo). Sigue el estilo del proyecto: estado plano +
-// actualizaciones inmutables.
+// Encapsulates the piece list and all bulk editing operations (paste, duplicate, fill-down,
+// multi-select, focus, undo history). Follows the project style: flat state + immutable updates.
 export const usePiecesEditor = (materials: MaterialForm[], initial?: RequirementForm[]) => {
   const firstUid = () => materials[0]?.uid ?? ''
-  // `initial` solo se usa para hidratar el estado inicial (p. ej. desde el autosave). Pasarlo en
-  // renders posteriores no reinicia la lista: la edición posterior manda.
+  // `initial` is only used to hydrate the initial state (e.g. from autosave). Passing it in
+  // subsequent renders does not reset the list: later edits take precedence.
   const [requirements, setRequirements] = useState<RequirementForm[]>(() =>
     initial && initial.length ? initial : [emptyRequirement(firstUid())],
   )
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
-  // Índice de fila a enfocar tras agregar (lo consume la tabla y luego lo limpia).
+  // Row index to focus after adding (consumed by the table and then cleared).
   const [focusRow, setFocusRow] = useState<number | null>(null)
-  // Stack de historial para undo. Guarda snapshots antes de operaciones estructurales (no por keystroke).
+  // Undo history stack. Stores snapshots before structural operations (not on every keystroke).
   const [history, setHistory] = useState<RequirementForm[][]>([])
 
   const clearFocus = useCallback(() => setFocusRow(null), [])
 
-  // Guarda el estado actual en el historial y aplica el updater. No usar en `update` (keystroke).
+  // Saves current state to history then applies the updater. Do not use in `update` (keystroke).
   const applyWithHistory = (updater: (rs: RequirementForm[]) => RequirementForm[]) => {
     setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), requirements])
     setRequirements(updater)
@@ -51,7 +50,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }, [history])
 
-  // Agrega una fila vacía heredando el material de la última (o el primero disponible).
+  // Adds a blank row inheriting the material from the last row (or the first available).
   const add = () => {
     applyWithHistory((rs) => {
       const inheritUid = rs[rs.length - 1]?.materialUid || firstUid()
@@ -61,8 +60,8 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
-  // Agrega filas importadas/pegadas. `replace` sustituye la lista; si no, las anexa (reemplazando una
-  // única fila en blanco si fuera el caso).
+  // Adds imported/pasted rows. `replace` replaces the list; otherwise appends (replacing a single
+  // blank row if that is all that exists).
   const addMany = (rows: RequirementForm[], replace: boolean) => {
     applyWithHistory((rs) => {
       if (replace) return rows.length ? rows : [emptyRequirement(firstUid())]
@@ -112,7 +111,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     value: RequirementForm[K],
   ) => setRequirements((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
 
-  // Aplica el valor de la fila origen (primera, o primera seleccionada) al resto del alcance.
+  // Applies the value from the source row (first, or first selected) to the rest of the scope.
   const fillDown = (field: FillableField, scope: FillScope) => {
     applyWithHistory((rs) => {
       const hasSel = scope === 'selected' && selected.size > 0
@@ -139,9 +138,9 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     })
   }
 
-  // Copia el valor del campo de la fila `srcIndex` a las filas entre srcIndex y targetIndex
-  // (inclusive), sin tocar el origen. Acotado a filas existentes (no crea nuevas). Lo usa el
-  // tirador de arrastre ("fill handle") de la tabla.
+  // Copies the field value from row `srcIndex` to rows between srcIndex and targetIndex (inclusive),
+  // without touching the source. Clamped to existing rows (no new rows are created). Used by the
+  // table's drag fill handle.
   const fillRange = (srcIndex: number, targetIndex: number, field: FillableField) => {
     if (srcIndex === targetIndex) return
     applyWithHistory((rs) => {
@@ -174,8 +173,8 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
-  // Pega una columna de valores en el campo `field` empezando en `startIndex`. Sobreescribe las
-  // filas existentes y crea nuevas (clonadas de la fila de origen) solo cuando se acaban.
+  // Pastes a column of values into `field` starting at `startIndex`. Overwrites existing rows and
+  // creates new ones (cloned from the source row) only when the existing rows run out.
   const pasteIntoField = (
     startIndex: number,
     field: 'height' | 'width' | 'quantity' | 'priority' | 'label',
@@ -203,7 +202,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
-  // Pega filas completas empezando en `startIndex`. Sobreescribe las existentes y agrega al final.
+  // Pastes complete rows starting at `startIndex`. Overwrites existing rows and appends at the end.
   const pasteRows = (startIndex: number, rows: RequirementForm[]) => {
     applyWithHistory((rs) => {
       if (rows.length === 0) return rs
@@ -232,7 +231,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   const selectAll = (checked: boolean) =>
     setSelected(checked ? new Set(requirements.map((_, i) => i)) : new Set())
 
-  // Reapunta las piezas cuando se elimina un material (espeja la lógica previa de OptimizerPage).
+  // Reassigns pieces when a material is removed (mirrors the previous OptimizerPage logic).
   const reassignOnMaterialRemoval = (removedUid: string, remaining: MaterialForm[]) =>
     setRequirements((rs) =>
       rs.map((r) => {

@@ -52,11 +52,11 @@ interface DateRangeFilterProps {
   to: string
   onFromChange: (value: string) => void
   onToChange: (value: string) => void
-  // Granularidad opcional: el grupo de botones sólo se muestra si se provee el
-  // callback (las vistas sin buckets temporales no lo usan).
+  // Optional granularity: the button group is only shown when the callback is provided
+  // (views without time buckets don't use it).
   granularity?: Granularity
   onGranularityChange?: (value: Granularity) => void
-  // Filtro de sucursal opcional (sólo el dashboard admin lo provee). '' = todas.
+  // Optional branch filter (only the admin dashboard provides it). '' = all branches.
   branches?: { id: number; name: string }[]
   branchId?: string
   onBranchChange?: (value: string) => void

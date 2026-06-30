@@ -38,23 +38,23 @@ const isDone = ({ cutPieces, totalPieces }: CutProgress) =>
 const WorkshopPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // El operador no tiene detalle de orden: vuelve al listado en vez de a /orders/:id.
+  // Operador has no order detail view: back button goes to the list instead of /orders/:id.
   const isOperator = useHasRole('operador')
   const isAdminOrOperator = useHasRole('administrador', 'operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
-  // El plan de corte no trae datos de canteado; traemos la orden para mostrar el chip (solo lectura).
+  // The cutting plan does not include banding data; we fetch the order to show the banding badge (read-only).
   const { data: order } = useOrder(id)
   const markPiece = useMarkPiece(id ?? '')
   const updateStatus = useUpdateOrderStatus()
 
   const [cutModal, setCutModal] = useState(false)
-  // Tablero en pantalla (uno a la vez). Se identifica por id persistente para sobrevivir a refetchs.
+  // Board currently on screen (one at a time). Identified by persistent id to survive refetches.
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
   const stripRef = useRef<HTMLDivElement>(null)
 
-  // Color estable por firma de dimensión recorriendo todas las piezas de todos los tableros, para
-  // que piezas iguales compartan color entre hojas (igual criterio que el optimizador).
+  // Stable color keyed by dimension signature across all boards, so identical pieces share
+  // the same color across sheets (same logic as the optimizer).
   const colorFor = useMemo(() => {
     const colors = new Map<string, string>()
     for (const board of plan?.boards ?? []) {
@@ -66,8 +66,8 @@ const WorkshopPage = () => {
     return (sig: string) => colors.get(sig) ?? PALETTE[0]
   }, [plan])
 
-  // Mantener el chip activo a la vista al cambiar de tablero (centrado horizontal, sin saltos verticales).
-  // Los chips son los hijos directos de la tira, en el mismo orden que boards.
+  // Keep the active chip visible when switching boards (centered horizontally, no vertical jumps).
+  // Chips are direct children of the strip in the same order as boards.
   useEffect(() => {
     if (!plan) return
     const idx = Math.max(
@@ -79,13 +79,13 @@ const WorkshopPage = () => {
 
   const interactive = plan?.status === 'cutting'
 
-  // Un clic solo marca; sobre una pieza ya cortada no hace nada (se desmarca con doble clic).
+  // Single tap marks a piece as cut; tapping an already-cut piece does nothing (double-tap unmarks it).
   const onPieceTap = (piece: CutPiece) => {
     if (!id || piece.cut) return
     markPiece.mutate({ pieceId: piece.id, cut: true })
   }
 
-  // Doble clic = desmarcar, sin confirmación.
+  // Double-tap = unmark, no confirmation required.
   const onPieceUntap = (piece: CutPiece) => {
     if (!id || !piece.cut) return
     markPiece.mutate({ pieceId: piece.id, cut: false })
@@ -120,10 +120,10 @@ const WorkshopPage = () => {
 
   const boards = plan.boards
 
-  // Selección por defecto sin efecto: si la selección actual es inválida (inicio o tablero que ya no
-  // existe tras un refetch), aterrizar en el primer tablero pendiente. Patrón de ajuste de estado en
-  // render de React: converge (al fijar un id válido, la condición deja de cumplirse) y no auto-avanza
-  // al completar un tablero, porque ese id sigue existiendo.
+  // Default selection with no side effect: if the current selection is invalid (first render or board
+  // removed after a refetch), fall back to the first pending board. React render-phase state adjustment
+  // pattern: converges (once a valid id is set the condition stops being true) and does not auto-advance
+  // when a board is completed, because its id still exists.
   if (selectedBoardId == null || !boards.some((b) => b.id === selectedBoardId)) {
     const fallback = (boards.find((b) => hasPending(b.progress)) ?? boards[0])?.id ?? null
     if (fallback !== selectedBoardId) setSelectedBoardId(fallback)
@@ -136,7 +136,7 @@ const WorkshopPage = () => {
   const current = boards[safeIndex]
   const goTo = (i: number) => setSelectedBoardId(boards[i].id)
 
-  // Siguiente tablero con piezas pendientes (a partir del actual, con wrap), para el CTA "ir al siguiente".
+  // Next board with pending pieces (starting from the current one, with wrap-around) for the "go to next" CTA.
   const pendingNext = (() => {
     for (let k = 1; k <= boards.length; k++) {
       const b = boards[(safeIndex + k) % boards.length]
@@ -183,7 +183,7 @@ const WorkshopPage = () => {
     <>
       {header}
 
-      {/* Controles pegajosos: avance total + selector de tablero, siempre a mano al cortar */}
+      {/* Sticky controls: overall progress + board selector, always accessible while cutting */}
       <div
         className="bg-body border-bottom mb-3 pt-2 pb-2 px-2"
         style={{ position: 'sticky', top: '4rem', zIndex: 1020 }}
@@ -201,7 +201,7 @@ const WorkshopPage = () => {
           {isDone(plan.progress) && <span className="text-success fw-semibold">¡Completo!</span>}
         </div>
 
-        {/* Tira de chips por tablero (scroll horizontal); tap = ir a ese tablero */}
+        {/* Horizontal chip strip per board (scroll); tap = navigate to that board */}
         <div ref={stripRef} className="d-flex gap-2 overflow-auto pb-1">
           {boards.map((b, i) => {
             const active = b.id === current.id
@@ -226,7 +226,7 @@ const WorkshopPage = () => {
         </div>
       </div>
 
-      {/* Cola de espera: el operador aún no tomó la orden */}
+      {/* Waiting queue: operador has not yet taken the order */}
       {plan.status === 'queued' && isAdminOrOperator && (
         <CCard className="mb-3 border-primary">
           <CCardBody>
@@ -249,9 +249,9 @@ const WorkshopPage = () => {
         </CCard>
       )}
 
-      {/* Cerrar el corte: habilitado solo cuando todas las piezas están marcadas. El API es la
-          garantía real (422 si faltan piezas); deshabilitar es UX. Al pasar a 'cut', el plan se
-          refresca y la vista queda en solo-lectura. */}
+      {/* Close cut: enabled only when all pieces are marked. The API is the authoritative guard
+          (422 if pieces are missing); disabling is UX only. When moving to 'cut', the plan
+          refreshes and the view becomes read-only. */}
       {interactive && (
         <div className="mb-3">
           <CButton
@@ -300,7 +300,7 @@ const WorkshopPage = () => {
         </CAlert>
       )}
 
-      {/* Tablero en foco (uno a la vez) */}
+      {/* Focused board (one at a time) */}
       <CCard className="mb-3">
         <CCardHeader>
           <div className="d-flex justify-content-between align-items-start gap-2">
@@ -342,7 +342,7 @@ const WorkshopPage = () => {
           </CProgress>
         </CCardHeader>
         <CCardBody>
-          {/* CTA de baja fricción: al terminar un tablero, un toque para saltar al siguiente pendiente */}
+          {/* Low-friction CTA: when a board is done, one tap jumps to the next pending board */}
           {!hasPending(current.progress) && pendingNext && (
             <CButton
               color="success"
@@ -365,7 +365,7 @@ const WorkshopPage = () => {
         </CCardBody>
       </CCard>
 
-      {/* Confirmar cierre del corte (orden → cortada) */}
+      {/* Confirm cut close (order → cortada) */}
       <CModal visible={cutModal} onClose={() => setCutModal(false)}>
         <CModalHeader>
           <CModalTitle>Marcar como cortada</CModalTitle>
