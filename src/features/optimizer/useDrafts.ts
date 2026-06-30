@@ -5,14 +5,14 @@ import type { OptimizerDraftPayload } from './types'
 
 const LIST_KEY = ['optimization-drafts']
 
-// Listado de borradores guardados (nombre + fechas, sin payload). `branchId` filtra (roles globales).
+// List of saved drafts (name + dates, no payload). `branchId` filters by branch (global roles only).
 export const useDrafts = (branchId?: number) =>
   useQuery({
     queryKey: [...LIST_KEY, { branchId }],
     queryFn: () => draftsApi.list(branchId),
   })
 
-// Detalle de un borrador (incluye payload). `enabled` evita disparar sin id.
+// Draft detail (includes payload). `enabled` prevents firing without an id.
 export const useDraft = (id?: number) =>
   useQuery({
     queryKey: ['optimization-drafts', id],
@@ -24,11 +24,11 @@ interface SaveDraftVars {
   id?: number | null
   name: string
   payload: OptimizerDraftPayload
-  // Solo en creación (POST); en PUT la sucursal ya quedó fijada y no se reenvía.
+  // Creation only (POST); on PUT the branch is already fixed and not re-sent.
   branchId?: number | null
 }
 
-// Crea (POST) o actualiza (PUT) según haya `id`. Invalida la lista al terminar.
+// Creates (POST) or updates (PUT) based on whether `id` is present. Invalidates the list on success.
 export const useSaveDraft = () => {
   const qc = useQueryClient()
   return useMutation({

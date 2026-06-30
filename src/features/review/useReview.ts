@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { reviewApi } from './reviewApi'
 
-// El token es la única credencial; el 404 (token inexistente/revocado) es definitivo → sin retry.
+// The token is the sole credential; a 404 (non-existent/revoked token) is final → no retry.
 export const useReview = (token?: string) =>
   useQuery({
     queryKey: ['review', token],
@@ -14,7 +14,7 @@ export const useConfirmReview = (token: string) => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (note?: string) => reviewApi.confirm(token, note),
-    // La respuesta del POST ya trae el estado nuevo: renderizamos desde ahí.
+    // The POST response already carries the new state: we render from it directly.
     onSuccess: (data) => qc.setQueryData(['review', token], data),
   })
 }

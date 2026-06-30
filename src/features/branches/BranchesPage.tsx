@@ -73,7 +73,7 @@ const BranchesPage = () => {
     }
   }
 
-  // Baja lógica: el toggle "Activa" mapea a isActive vía PUT (no se usa DELETE para no romper FKs).
+  // Soft-delete: the "Activa" toggle maps to isActive via PUT — DELETE is avoided to preserve FK integrity.
   const toggleActive = (branch: Branch) =>
     updateMutation.mutate({ id: branch.id, data: { isActive: !branch.isActive } })
 

@@ -1,7 +1,7 @@
 import { CBadge } from '@coreui/react'
 import type { Role } from 'src/features/auth/types'
 
-// Mismos colores/etiquetas que UsersPage para mantener consistencia visual.
+// Same colors/labels as UsersPage for visual consistency.
 const ROLE_LABELS: Record<Role, string> = {
   administrador: 'Admin',
   vendedor: 'Vendedor',

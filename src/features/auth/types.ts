@@ -9,7 +9,7 @@ export interface User {
   role: Role
   isActive: boolean
   createdAt: string
-  // Sucursal del staff. Obligatoria para vendedor/operador/canteador; null para administrador (es global).
+  // Staff branch. Required for vendedor/operador/canteador; null for administrador (global role).
   branchId: number | null
 }
 

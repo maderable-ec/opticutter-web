@@ -22,7 +22,7 @@ const DashboardPage = () => {
   const [granularity, setGranularity] = useState<Granularity>('day')
   const [branch, setBranch] = useState('')
 
-  // El dashboard ya es admin-only, así que el selector de sucursal se muestra siempre. '' = todas.
+  // Dashboard is already admin-only, so the branch selector is always shown. '' = all branches.
   const { data: branches = [] } = useActiveBranches()
   const branchId = branch ? Number(branch) : undefined
 

@@ -2,8 +2,8 @@ import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 
-// Tipos de la respuesta de POST /api/v1/optimize/. El contrato es determinista y cacheado por
-// hash del input; ver la spec del endpoint para detalles de cada campo.
+// Response types for POST /api/v1/optimize/. The contract is deterministic and cached by
+// input hash; see the endpoint spec for field details.
 
 export type PackingStrategy = 'default' | 'longOffcuts'
 
@@ -11,7 +11,7 @@ export type MaterialSourceKind = 'catalog' | 'companyOffcut' | 'clientOffcut' | 
 
 export type EdgeSide = 'top' | 'bottom' | 'left' | 'right'
 
-// El material físico de una hoja, tal como vuelve en cada Layout.
+// Physical material of a sheet, as returned in each Layout.
 export interface OptimizeMaterialSheet {
   materialKey: string
   sheetNumber: number
@@ -21,9 +21,9 @@ export interface OptimizeMaterialSheet {
   area: number
 }
 
-// Tapacanto de una pieza. Las claves llegan en snake_case desde el servidor.
+// Edge banding for a piece. Keys arrive in snake_case from the server.
 export interface PlacedPieceEdges {
-  // Lados con tapacanto, en espacio geométrico (post-rotación).
+  // Banded sides in geometric space (post-rotation).
   sides: EdgeSide[]
   product_id: number | null
   code: string | null
@@ -40,7 +40,7 @@ export interface PlacedPiece {
   rotated: boolean
   originalHeight: number
   originalWidth: number
-  // Tapacanto aplicado a la pieza, o null si no tiene. Ver PlacedPieceEdges.
+  // Edge banding applied to the piece, or null if none. See PlacedPieceEdges.
   edges?: PlacedPieceEdges | null
 }
 
@@ -96,7 +96,7 @@ export interface EdgeBandingSummary {
   totalCost: number
 }
 
-// Agrupa hojas con el mismo patrón de corte (deduplicado para el diagrama).
+// Groups sheets sharing the same cut pattern (deduplicated for the diagram).
 export interface LayoutGroup {
   patternId: number
   count: number
@@ -132,7 +132,7 @@ export interface OptimizeResponse {
   strategy?: PackingStrategy
 }
 
-// --- Inputs del request (lo que envía el frontend) ---
+// --- Request inputs (what the frontend sends) ---
 
 export interface CatalogMaterialInput {
   key: string
@@ -176,29 +176,29 @@ export interface OptimizePayload {
   strategy?: PackingStrategy
 }
 
-// --- Borradores del optimizador (persistencia) ---
+// --- Optimizer drafts (persistence) ---
 
-// Lo que se persiste es el ESTADO DEL FORMULARIO tal cual (con sus `uid`), no el contrato
-// `buildPayload()`. Así se reconstruye el estado idéntico, incluidas filas incompletas/inválidas.
-// El backend trata `payload` como JSON opaco; `version` permite migraciones futuras.
+// What gets persisted is the RAW FORM STATE (including `uid` values), not the `buildPayload()` contract.
+// This allows the form to be reconstructed exactly, including incomplete/invalid rows.
+// The backend treats `payload` as opaque JSON; `version` allows future migrations.
 export interface OptimizerDraftPayload {
   version: 1
   materials: MaterialForm[]
   requirements: RequirementForm[]
 }
 
-// Listado (sin payload).
+// List item (no payload).
 export interface DraftSummary {
   id: number
   name: string
   clientId: number | null
-  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  // Owning branch (required FK): always present in list and detail responses.
   branch: BranchRef
   createdAt: string
   updatedAt: string
 }
 
-// Detalle (incluye payload).
+// Detail item (includes payload).
 export interface Draft extends DraftSummary {
   payload: OptimizerDraftPayload
 }

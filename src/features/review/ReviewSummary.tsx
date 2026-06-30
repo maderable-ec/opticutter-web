@@ -17,7 +17,7 @@ interface ReviewSummaryProps {
   data: ReviewPreOrder
 }
 
-// Muestra la lista de corte (piezas, no se cobra por pieza) y el detalle de cobro (lines).
+// Displays the cut list (pieces, not billed per piece) and the billing detail (lines).
 const ReviewSummary = ({ data }: ReviewSummaryProps) => {
   const currency = data.currency ?? 'USD'
 

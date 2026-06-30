@@ -1,13 +1,13 @@
 import type { BoardProduct } from 'src/features/products/types'
 import type { EdgeSide, MaterialInput, MaterialSourceKind, RequirementInput } from './types'
 
-// --- Modelo del formulario (en edición; los números pueden ser '' mientras se escriben) ---
+// --- Form model (during editing; numbers may be '' while the user is typing) ---
 
 export interface MaterialForm {
   uid: string
   source: MaterialSourceKind
-  boardId: string // catálogo: id del producto board
-  label: string // inline (manual/retazos)
+  boardId: string // catalog: board product id
+  label: string // inline sources (manual/offcut)
   height: number | string
   width: number | string
   thickness: number | string
@@ -15,7 +15,7 @@ export interface MaterialForm {
 }
 
 export interface EdgeBandingForm {
-  productId: string // '' = sin tapacanto
+  productId: string // '' = no edge banding product selected
   sides: Record<EdgeSide, boolean>
 }
 
@@ -37,7 +37,7 @@ export const SOURCE_LABELS: Record<MaterialSourceKind, string> = {
   clientOffcut: 'Retazo cliente',
 }
 
-// Lados en el orden nominal del contrato (top,bottom,left,right) con su etiqueta legible.
+// Sides in the canonical contract order (top, bottom, left, right) with their display labels.
 export const EDGE_SIDES: { key: EdgeSide; label: string }[] = [
   { key: 'top', label: 'Superior' },
   { key: 'bottom', label: 'Inferior' },
@@ -88,29 +88,29 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean =>
   selectedSides(eb).length > 0
 
-// uids de materiales válidos: las piezas solo pueden referenciar a uno de estos.
+// Valid material uids: pieces may only reference one of these.
 export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
   new Set(materials.filter(isMaterialValid).map((m) => m.uid))
 
-// Una pieza es válida (entra a la optimización) si referencia un material válido y tiene medidas > 0.
+// A piece is valid (included in optimization) if it references a valid material and has dimensions > 0.
 export const isRequirementValid = (r: RequirementForm, validUids: Set<string>): boolean =>
   validUids.has(r.materialUid) && Number(r.height) > 0 && Number(r.width) > 0
 
-// Fila "en blanco" (recién agregada, sin tocar): no se resalta como error aunque sea inválida.
+// A "blank" row (just added, untouched): not highlighted as an error even if invalid.
 export const isRequirementEmpty = (r: RequirementForm): boolean =>
   r.height === '' && r.width === '' && !r.label.trim() && !hasEdgeBanding(r.edgeBanding)
 
-// Clon profundo de una pieza (edgeBanding.sides es objeto) para duplicar filas.
+// Deep clone of a piece (edgeBanding.sides is an object) used when duplicating rows.
 export const cloneRequirement = (r: RequirementForm): RequirementForm => ({
   ...r,
   edgeBanding: { productId: r.edgeBanding.productId, sides: { ...r.edgeBanding.sides } },
 })
 
 export interface PiecesSummary {
-  pieces: number // filas válidas
-  units: number // Σ cantidad de las filas válidas
-  areaM2: number // Σ alto·ancho·cant / 1e6
-  invalid: number // filas con datos pero inválidas
+  pieces: number // valid rows
+  units: number // Σ quantity of valid rows
+  areaM2: number // Σ height·width·qty / 1e6
+  invalid: number // rows with data but invalid
 }
 
 export const piecesSummary = (
@@ -135,10 +135,10 @@ export const piecesSummary = (
   return { pieces, units, areaM2, invalid }
 }
 
-// Nombre legible de un material para el dropdown de piezas y el diagrama.
+// Human-readable label for a material, used in the pieces dropdown and diagram.
 export const materialLabel = (m: MaterialForm, boards: BoardProduct[]): string => {
   if (m.source === 'catalog') {
-    // El id del producto puede llegar como número en runtime; comparamos como string.
+    // Product id may arrive as a number at runtime; compare as string to be safe.
     const b = boards.find((x) => String(x.id) === String(m.boardId))
     return b ? `${b.name} (${b.code})` : 'Tablero sin elegir'
   }
@@ -153,9 +153,8 @@ export interface BuiltPayload {
   validCount: number
 }
 
-// Construye materials[] + requirements[] del contrato a partir del formulario. Cada material usa su
-// `uid` como `key`; las piezas lo referencian por `materialKey`. Solo se incluyen materiales
-// realmente referenciados por alguna pieza válida.
+// Builds the contract's materials[] + requirements[] from form state. Each material uses its `uid`
+// as `key`; pieces reference it via `materialKey`. Only materials actually used by a valid piece are included.
 export const buildPayload = (
   materials: MaterialForm[],
   requirements: RequirementForm[],
@@ -203,9 +202,9 @@ export const buildPayload = (
   return { materials: materialsUsed, requirements: mappedReqs, validCount: mappedReqs.length }
 }
 
-// --- Nomenclatura de canto (negocio) ---
-// L = lado largo = left/right (los lados a lo largo de la pieza)
-// C = lado corto = top/bottom (los lados a lo ancho de la pieza)
+// --- Edge banding notation (business domain) ---
+// L = long side = left/right (sides running along the length of the piece)
+// C = short side = top/bottom (sides running along the width of the piece)
 
 export const CANTO_NOTATIONS = ['—', '1L', '2L', '1C', '2C', '1L1C', '1L2C', '2L1C', '4L'] as const
 export type CantoNotation = (typeof CANTO_NOTATIONS)[number]

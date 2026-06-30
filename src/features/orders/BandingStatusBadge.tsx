@@ -1,8 +1,8 @@
 import { CBadge } from '@coreui/react'
 import type { BandingStatus } from './types'
 
-// Chip de la pista de canteado (paralela al corte). `not_applicable` normalmente se oculta;
-// quien lo muestre debe decidir el caso (aquí lo rinde como "Sin canteado" en tono neutro).
+// Badge for the banding track (parallel to cutting). `not_applicable` is normally hidden;
+// the caller decides how to handle it (here rendered as "Sin canteado" in a neutral tone).
 const BANDING_CONFIG: Record<BandingStatus, { color: string; label: string }> = {
   not_applicable: { color: 'light', label: 'Sin canteado' },
   pending: { color: 'secondary', label: 'Canteado pendiente' },

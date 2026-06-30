@@ -166,7 +166,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
     <CForm onSubmit={handleSubmit}>
       <CModalBody>
         <CRow className="g-3">
-          {/* Type */}
           <CCol xs={12}>
             <CFormLabel>
               Tipo <span className="text-danger">*</span>
@@ -180,7 +179,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             </CFormSelect>
           </CCol>
 
-          {/* Code */}
           <CCol xs={6}>
             <CFormLabel>
               Código <span className="text-danger">*</span>
@@ -195,7 +193,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             <FieldError name="code" fieldErrors={fieldErrors} />
           </CCol>
 
-          {/* Price */}
           <CCol xs={6}>
             <CFormLabel>
               Precio <span className="text-danger">*</span>
@@ -212,7 +209,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             <FieldError name="price" fieldErrors={fieldErrors} />
           </CCol>
 
-          {/* Name */}
           <CCol xs={12}>
             <CFormLabel>
               Nombre <span className="text-danger">*</span>
@@ -227,7 +223,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             <FieldError name="name" fieldErrors={fieldErrors} />
           </CCol>
 
-          {/* Description */}
           <CCol xs={12}>
             <CFormLabel>Descripción</CFormLabel>
             <CFormTextarea
@@ -240,7 +235,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             <FieldError name="description" fieldErrors={fieldErrors} />
           </CCol>
 
-          {/* isActive */}
           <CCol xs={12}>
             <CFormSwitch
               label="Activo"
@@ -249,7 +243,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             />
           </CCol>
 
-          {/* Board attributes */}
           {type === 'board' && (
             <>
               <CCol xs={12}>
@@ -310,7 +303,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             </>
           )}
 
-          {/* Edge banding attributes */}
           {type === 'edge_banding' && (
             <>
               <CCol xs={12}>
@@ -374,7 +366,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             </>
           )}
 
-          {/* Generic error fallback */}
           {hasGenericError && (
             <CCol xs={12}>
               <div className="text-danger small">

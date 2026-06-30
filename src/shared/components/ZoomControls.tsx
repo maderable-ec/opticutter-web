@@ -9,8 +9,8 @@ interface ZoomControlsProps {
   isZoomed: boolean
 }
 
-// Botones grandes de zoom como overlay sobre el diagrama. Alternativa descubrible al pinch/rueda,
-// pensada para dedos en tablet (taller). Debe ir dentro de un contenedor con position: relative.
+// Large zoom buttons overlaid on the diagram. Discoverable alternative to pinch/scroll wheel,
+// designed for finger use on a tablet (workshop). Must be inside a position: relative container.
 const ZoomControls = ({ onZoomIn, onZoomOut, onReset, isZoomed }: ZoomControlsProps) => (
   <CButtonGroup
     vertical

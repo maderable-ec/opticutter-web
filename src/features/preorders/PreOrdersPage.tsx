@@ -1,6 +1,3 @@
-import { useState } from 'react'
-import type { ChangeEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   CButton,
   CCard,
@@ -17,15 +14,18 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPlus } from '@coreui/icons'
-
-import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
-import { useActiveBranches } from 'src/features/branches/useBranches'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
-import { usePreOrders } from './usePreOrders'
-import PreOrderStatusBadge from './PreOrderStatusBadge'
+
+import CIcon from '@coreui/icons-react'
+import type { ChangeEvent } from 'react'
 import type { PreOrderStatus } from './types'
+import PreOrderStatusBadge from './PreOrderStatusBadge'
+import { cilPlus } from '@coreui/icons'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { usePreOrders } from './usePreOrders'
+import { useState } from 'react'
 
 const LIMIT = 20
 
@@ -44,7 +44,7 @@ const ACTIVE_STATES: PreOrderStatus[] = ['draft', 'sent', 'changes_requested']
 
 const fmtDate = (iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleDateString('es-AR', {
+    ? new Date(iso).toLocaleDateString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

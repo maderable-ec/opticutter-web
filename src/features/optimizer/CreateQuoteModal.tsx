@@ -37,7 +37,7 @@ interface CreateQuoteModalProps {
   priceTierCode: string
   onPriceTierChange: (code: string) => void
   strategy: PackingStrategy
-  // Se invoca tras crear la orden con éxito (p. ej. para limpiar el autosave del optimizer).
+  // Called after the order is successfully created (e.g. to clear the optimizer autosave).
   onCreated?: () => void
 }
 
@@ -63,7 +63,7 @@ const CreateQuoteModal = ({
   const isGlobalBranch = useIsGlobalBranchRole()
   const { data: branches = [] } = useActiveBranches()
 
-  // Admin: sin preselección (campo obligatorio). Vendedor: preselecciona su sucursal base.
+  // Admin: no pre-selection (required field). Sales rep: pre-selects their home branch.
   const [branchId, setBranchId] = useState(() => (isAdmin ? '' : String(user?.branchId ?? '')))
 
   useEffect(() => {

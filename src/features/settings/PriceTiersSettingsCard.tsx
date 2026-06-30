@@ -168,7 +168,7 @@ const PriceTiersSettingsCard = () => {
             )}
             {genericError && (
               <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intentá nuevamente.'}
+                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
               </CAlert>
             )}
 

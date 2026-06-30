@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Hook genérico de zoom + desplazamiento (pan) para un SVG. Aplica un transform a un <g> que envuelve
-// el contenido (no toca el viewBox), de modo que los trazos con vectorEffect="non-scaling-stroke"
-// siguen nítidos y el texto en unidades de usuario crece al acercar — útil para ver piezas pequeñas.
+// Generic zoom + pan hook for an SVG. Applies a transform to a <g> wrapping the content
+// (does not touch the viewBox), so strokes with vectorEffect="non-scaling-stroke" stay crisp
+// and user-space text grows when zoomed in — useful for inspecting small pieces.
 //
-// Usa Pointer Events (unifica mouse/touch/lápiz). Distingue tap de arrastre por un umbral de
-// movimiento y, tras un pan/pinch, traga el `click` en fase de captura: así un gesto de zoom nunca
-// dispara el onClick de una pieza (clave para el "tocar = marcar cortada" del taller).
+// Uses Pointer Events (unifies mouse/touch/stylus). Distinguishes tap from drag via a movement
+// threshold; after a pan/pinch, swallows the `click` in the capture phase so a zoom gesture
+// never fires the onClick of a piece (critical for the "tap = mark as cut" interaction in the workshop).
 
 export interface UseZoomPanOptions {
-  /** Acercamiento máximo respecto al encuadre (1 = ajustado). */
+  /** Maximum zoom relative to the fitted view (1 = fitted). */
   maxScale?: number
-  /** Factor por paso de los botones +/− y de la rueda. */
+  /** Scale factor per step for the +/− buttons and scroll wheel. */
   step?: number
-  /** Doble click/tap alterna acercar/ajustar. Apagar donde el tap tiene otra acción (taller). */
+  /** Double-click/tap toggles zoom in/fit. Disable when tap has another action (workshop). */
   doubleClickZoom?: boolean
-  /** No registra gestos (el contenido queda en su encuadre). */
+  /** Disables all gestures (content stays at the fitted view). */
   disabled?: boolean
 }
 
@@ -26,12 +26,12 @@ interface Transform {
 }
 
 const IDENTITY: Transform = { k: 1, tx: 0, ty: 0 }
-const MOVE_THRESHOLD = 8 // px: por debajo de esto un puntero cuenta como "tap", no como arrastre
+const MOVE_THRESHOLD = 8 // px: below this a pointer counts as a "tap", not a drag
 
 const clampScale = (k: number, max: number) => Math.max(1, Math.min(max, k))
 
-// Convierte un punto de pantalla (clientX/Y) a coordenadas del viewBox del SVG. getScreenCTM maneja el
-// "letterboxing" de preserveAspectRatio="xMidYMid meet" automáticamente.
+// Converts a screen point (clientX/Y) to SVG viewBox coordinates. getScreenCTM handles the
+// preserveAspectRatio="xMidYMid meet" letterboxing automatically.
 const toUserSpace = (svg: SVGSVGElement, clientX: number, clientY: number) => {
   const ctm = svg.getScreenCTM()
   if (!ctm) return { x: 0, y: 0 }
@@ -42,7 +42,7 @@ const toUserSpace = (svg: SVGSVGElement, clientX: number, clientY: number) => {
   return { x: p.x, y: p.y }
 }
 
-// Acota la traslación para que el contenido (la región del viewBox) nunca deje hueco blanco con k >= 1.
+// Clamps the translation so the content (viewBox region) never leaves white space at k >= 1.
 const clampTranslate = (svg: SVGSVGElement, k: number, tx: number, ty: number) => {
   const vb = svg.viewBox.baseVal
   const minTx = (vb.x + vb.width) * (1 - k)
@@ -70,7 +70,7 @@ const useZoomPan = ({
     setTransform(next)
   }, [])
 
-  // Zoom hacia un punto de pantalla, manteniéndolo fijo bajo el cursor/dedo.
+  // Zoom toward a screen point, keeping it fixed under the cursor/finger.
   const zoomToward = useCallback(
     (factor: number, clientX: number, clientY: number) => {
       const svg = svgRef.current
@@ -109,16 +109,16 @@ const useZoomPan = ({
   useEffect(() => {
     const svg = svgRef.current
     if (!svg || disabled) return
-    const activePointers = pointers.current // estable (useRef), capturado para el cleanup
+    const activePointers = pointers.current // stable (useRef), captured for cleanup
 
-    // Captura el puntero SOLO cuando ya hay un arrastre/pinch en curso. No capturar en un tap es clave:
-    // con captura activa, el navegador redirige el `click` al elemento que captura (el <svg>) en vez de
-    // a la pieza de abajo, y entonces el onClick de la pieza (marcar cortada) nunca se dispararía.
+    // Capture the pointer ONLY once a drag/pinch is in progress. Not capturing during a tap is critical:
+    // with an active capture, the browser redirects the `click` to the capturing element (the <svg>)
+    // instead of the piece beneath it, so the piece's onClick (mark as cut) would never fire.
     const ensureCapture = (id: number) => {
       try {
         if (!svg.hasPointerCapture(id)) svg.setPointerCapture(id)
       } catch {
-        /* el navegador puede rechazar la captura; el gesto sigue funcionando sin ella */
+        /* browser may reject capture; gesture still works without it */
       }
     }
 
@@ -139,7 +139,7 @@ const useZoomPan = ({
       if (!prev) return
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
-      // Pinch (dos dedos): escala según la distancia, centrada en el punto medio.
+      // Pinch (two fingers): scale by the distance ratio, centered on the midpoint.
       if (pointers.current.size >= 2) {
         ensureCapture(e.pointerId)
         const [a, b] = [...pointers.current.values()]
@@ -160,11 +160,11 @@ const useZoomPan = ({
       ) {
         moved.current = true
       }
-      // Sin zoom no hay nada que desplazar (deja pasar el scroll de página según touch-action).
+      // Not zoomed: nothing to pan (let touch-action handle page scroll).
       if (tRef.current.k <= 1) return
-      // Por debajo del umbral es un tap (con micro-temblor): no capturar, para que el click marque.
+      // Below the threshold it's a tap (with micro-tremor): don't capture, so the click can mark.
       if (!moved.current) return
-      ensureCapture(e.pointerId) // arrastre real con zoom: ahora sí capturamos para no perder eventos
+      ensureCapture(e.pointerId) // real drag while zoomed: capture now to avoid losing pointer events
       const vPrev = toUserSpace(svg, prev.x, prev.y)
       const vNow = toUserSpace(svg, e.clientX, e.clientY)
       const cur = tRef.current
@@ -193,7 +193,7 @@ const useZoomPan = ({
       zoomToward(e.deltaY < 0 ? step : 1 / step, e.clientX, e.clientY)
     }
 
-    // Captura: si hubo arrastre/pinch, descarta el click para que no marque/active una pieza.
+    // Capture phase: if a drag/pinch occurred, swallow the click so it doesn't mark/activate a piece.
     const onClickCapture = (e: MouseEvent) => {
       if (moved.current) {
         e.stopPropagation()

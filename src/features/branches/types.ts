@@ -1,4 +1,4 @@
-// Sucursal (almacén) — recurso del modelo multi-sucursal del API.
+// Branch (store location) — top-level resource of the multi-branch API model.
 export interface Branch {
   id: number
   code: string
@@ -8,8 +8,8 @@ export interface Branch {
   isActive: boolean
 }
 
-// Referencia compacta incrustada en órdenes, pre-órdenes y borradores (la FK es obligatoria,
-// por eso nunca es opcional en esos documentos). Es el tipo compartido de "sucursal dueña".
+// Compact branch reference embedded in orders, pre-orders, and drafts. The FK is mandatory
+// in those documents, so it is never optional. Shared type for the "owning branch" pattern.
 export interface BranchRef {
   id: number
   code: string

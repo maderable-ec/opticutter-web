@@ -8,7 +8,7 @@ import { homePathForRole } from 'src/features/auth/permissions'
 
 const AppContent = () => {
   const userRole = useAuthStore((s) => s.user?.role)
-  // Home según rol: a una ruta accesible para el rol, para no caer en el bucle / → /dashboard → /.
+  // Role-based home path: lands on an accessible route to avoid the / → /dashboard → / redirect loop.
   const home = homePathForRole(userRole)
 
   return (

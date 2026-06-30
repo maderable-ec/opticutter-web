@@ -26,7 +26,7 @@ const formatBucketLabel = (bucket: string, granularity: Granularity) => {
   return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
-// Paleta estable para las 6 etapas en el gráfico temporal (orden de proceso).
+// Stable color palette for the 6 stages in the time chart (in process order).
 const SERIES_COLORS = [
   () => getStyle('--cui-primary'),
   () => getStyle('--cui-info'),
@@ -99,7 +99,7 @@ const BottlenecksPage = () => {
                       s.sampleCount === 0
                         ? GRAY
                         : i === 0
-                          ? `rgba(${getStyle('--cui-danger-rgb')}, 0.85)` // cuello de botella
+                          ? `rgba(${getStyle('--cui-danger-rgb')}, 0.85)` // worst bottleneck
                           : `rgba(${getStyle('--cui-info-rgb')}, 0.75)`,
                     ),
                     borderRadius: 4,
@@ -107,7 +107,7 @@ const BottlenecksPage = () => {
                     grouped: false,
                   },
                   {
-                    // Banda p90: barra flotante [mediana, p90] detrás de la mediana.
+                    // p90 band: floating bar [median, p90] rendered behind the median bar.
                     label: 'p90',
                     data: stages.map((s): [number, number] => [s.medianHours, s.p90Hours]),
                     backgroundColor: 'rgba(130, 130, 130, 0.25)',
@@ -122,7 +122,7 @@ const BottlenecksPage = () => {
                 plugins: {
                   legend: { display: true, position: 'top' },
                   tooltip: {
-                    // Un solo bloque por etapa (evita duplicar al solapar datasets).
+                    // Single tooltip block per stage (prevents duplication when datasets overlap).
                     filter: (item) => item.datasetIndex === 0,
                     callbacks: {
                       label: (ctx) => {

@@ -1,5 +1,3 @@
-import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
   CButton,
@@ -18,7 +16,21 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
+import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
+import type {
+  MaterialInput,
+  OptimizeResponse,
+  PackingStrategy,
+  RequirementInput,
+} from 'src/features/optimizer/types'
+import type { PreOrder, PreOrderStatus } from './types'
+import {
+  buildPayload,
+  emptyCatalogMaterial,
+  emptyEdgeBanding,
+  nextUid,
+  piecesSummary,
+} from 'src/features/optimizer/optimizerForm'
 import {
   cilArrowLeft,
   cilCloudDownload,
@@ -27,35 +39,8 @@ import {
   cilSave,
   cilTrash,
 } from '@coreui/icons'
-
-import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
-import MaterialsPanel from 'src/features/optimizer/MaterialsPanel'
-import PiecesTable from 'src/features/optimizer/PiecesTable'
-import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
-import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
-import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
-import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
-import {
-  buildPayload,
-  emptyCatalogMaterial,
-  emptyEdgeBanding,
-  nextUid,
-  piecesSummary,
-} from 'src/features/optimizer/optimizerForm'
-import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
-import type {
-  MaterialInput,
-  OptimizeResponse,
-  PackingStrategy,
-  RequirementInput,
-} from 'src/features/optimizer/types'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
-import { ApiError } from 'src/shared/api/types'
-import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
-import PriceTierSelect from 'src/features/settings/PriceTierSelect'
-import StrategySelect from 'src/features/optimizer/StrategySelect'
-
-import PreOrderStatusBadge from './PreOrderStatusBadge'
+import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import {
   useCreatePreOrderReviewLink,
   useDeletePreOrder,
@@ -63,8 +48,22 @@ import {
   usePreOrderReviewLinkInfo,
   useUpdatePreOrder,
 } from './usePreOrders'
+import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+
+import { ApiError } from 'src/shared/api/types'
+import CIcon from '@coreui/icons-react'
+import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
+import MaterialsPanel from 'src/features/optimizer/MaterialsPanel'
+import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
+import PiecesTable from 'src/features/optimizer/PiecesTable'
+import PreOrderStatusBadge from './PreOrderStatusBadge'
+import PriceTierSelect from 'src/features/settings/PriceTierSelect'
+import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
+import StrategySelect from 'src/features/optimizer/StrategySelect'
 import { preordersApi } from './preordersApi'
-import type { PreOrder, PreOrderStatus } from './types'
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
+import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
 
 // Convert stored API format back to editable form state
 function formFromPreOrderData(
@@ -123,7 +122,7 @@ function formFromPreOrderData(
 
 const fmtDate = (iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleDateString('es-AR', {
+    ? new Date(iso).toLocaleDateString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -132,7 +131,7 @@ const fmtDate = (iso?: string | null) =>
 
 const fmtDateTime = (iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleString('es-AR', {
+    ? new Date(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -311,7 +310,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                     size="sm"
                     onClick={handleSave}
                     disabled={updatePreOrder.isPending || !canSave}
-                    title={!canSave ? 'Agregá al menos una pieza válida para guardar' : undefined}
+                    title={!canSave ? 'Agrega al menos una pieza válida para guardar' : undefined}
                   >
                     {updatePreOrder.isPending ? (
                       <CSpinner size="sm" />
@@ -384,7 +383,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                   className="mt-2 mb-0 py-2 small"
                 >
                   {isMissingPhone
-                    ? 'El cliente no tiene celular registrado. Registrá un número antes de generar el enlace.'
+                    ? 'El cliente no tiene celular registrado. Registra un número antes de generar el enlace.'
                     : createReviewLink.error.message || 'Error al generar el enlace.'}
                 </CAlert>
               )}
@@ -396,7 +395,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       {/* Status alerts */}
       {preOrder.status === 'changes_requested' && (
         <CAlert color="warning" className="mb-3">
-          <strong>El cliente solicitó cambios.</strong> Editá la cotización y volvé a generar el
+          <strong>El cliente solicitó cambios.</strong> Edita la cotización y vuelve a generar el
           enlace para que el cliente la revise.
           {preOrder.clientNote && (
             <div className="mt-2 p-2 bg-white bg-opacity-50 rounded small">
@@ -444,7 +443,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </CCard>
       )}
 
-      {/* Historial — autor (actorLabel) + tipo de actor (badge); ver StatusHistoryCard. */}
+      {/* Status history — actor label + actor type badge; see StatusHistoryCard. */}
       <StatusHistoryCard
         entries={preOrder.history ?? []}
         renderStatus={(s) => <PreOrderStatusBadge status={s as PreOrderStatus} />}
@@ -529,7 +528,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </>
       )}
 
-      {/* Optimization result — "Optimizar" actúa como Guardar+Recalcular en pre-órdenes */}
+      {/* Optimization result — "Optimizar" acts as Save+Recalculate in pre-orders */}
       <OptimizationPreview
         result={optimization}
         isPending={updatePreOrder.isPending}
@@ -557,7 +556,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </CModalHeader>
         <CModalBody>
           <CAlert color="warning" className="py-2 small">
-            Copiá este enlace ahora. Por seguridad, no se puede recuperar después de cerrar.
+            Copia este enlace ahora. Por seguridad, no se puede recuperar después de cerrar.
           </CAlert>
           <CInputGroup>
             <CFormInput value={generatedUrl ?? ''} readOnly />

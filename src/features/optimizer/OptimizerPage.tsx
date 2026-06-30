@@ -21,8 +21,8 @@ import StrategySelect from './StrategySelect'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
 const OptimizerPage = () => {
-  // Red de seguridad: leemos el autosave de la sesión anterior UNA vez (inicializador perezoso) y lo
-  // usamos para hidratar el estado inicial, en lugar de un efecto de montaje con setState.
+  // Safety net: read the previous session's autosave ONCE (lazy initializer) and use it
+  // to hydrate the initial state, instead of a mount effect with setState.
   const [bootstrap] = useState(loadAutosave)
 
   const [materials, setMaterials] = useState<MaterialForm[]>(
@@ -31,7 +31,7 @@ const OptimizerPage = () => {
   const [showQuote, setShowQuote] = useState(false)
   const [showImport, setShowImport] = useState(false)
 
-  // --- Persistencia de borradores ---
+  // --- Draft persistence ---
   const [draftId, setDraftId] = useState<number | null>(bootstrap?.draftId ?? null)
   const [draftName, setDraftName] = useState(bootstrap?.draftName ?? '')
   const [showDrafts, setShowDrafts] = useState(false)
@@ -49,7 +49,6 @@ const OptimizerPage = () => {
   const pieces = usePiecesEditor(materials, bootstrap?.requirements)
   const saveDraft = useSaveDraft()
 
-  // --- Materiales ---
   const addMaterial = () => setMaterials((ms) => [...ms, emptyCatalogMaterial()])
   const removeMaterial = (uid: string) => {
     const remaining = materials.filter((m) => m.uid !== uid)
@@ -65,15 +64,15 @@ const OptimizerPage = () => {
   const built = buildPayload(materials, pieces.requirements)
   const canOptimize = built.validCount > 0
 
-  // ¿Hay trabajo que se perdería al resetear? (más de un material, alguno con datos, o piezas no vacías)
+  // Is there work that would be lost on reset? (more than one material, any with data, or non-empty pieces)
   const hasWork =
     materials.length > 1 ||
     materials.some((m) => m.boardId || m.label || m.height !== '' || m.width !== '') ||
     pieces.requirements.some((r) => !isRequirementEmpty(r))
 
-  // --- Autosave debounced: persiste el estado del formulario tal cual (incluye filas incompletas).
-  // Si el formulario quedó vacío (p. ej. tras "Nuevo"/"Descartar"), limpia en vez de re-escribir un
-  // estado vacío, para que un refresh posterior no muestre el aviso de "restaurado" sin contenido.
+  // Debounced autosave: persists the form state as-is (including incomplete rows).
+  // If the form is empty (e.g. after "New"/"Discard"), clears instead of writing an empty state,
+  // so a later refresh does not show the "restored" notice with no content.
   useEffect(() => {
     const t = setTimeout(() => {
       if (hasWork) {
@@ -92,7 +91,7 @@ const OptimizerPage = () => {
     return () => clearTimeout(t)
   }, [materials, pieces.requirements, draftId, draftName, hasWork])
 
-  // Limpia el timer del flash "Guardado" al desmontar.
+  // Clean up the "Guardado" flash timer on unmount.
   useEffect(
     () => () => {
       if (flashTimer.current) clearTimeout(flashTimer.current)
@@ -135,7 +134,7 @@ const OptimizerPage = () => {
     setRestored(false)
   }
 
-  // "Guardar borrador": PUT si ya hay draftId; si no, pedir nombre y crear (POST).
+  // "Save draft": PUT if a draftId exists; otherwise prompt for a name and create (POST).
   const handleSaveDraft = () => {
     if (draftId) {
       saveDraft.mutate(
@@ -161,7 +160,7 @@ const OptimizerPage = () => {
     )
   }
 
-  // Cargar un borrador del servidor: trae el detalle y reconstruye el formulario idéntico.
+  // Load a draft from the server: fetches its detail and rebuilds the form exactly.
   const handleLoadDraft = async (id: number) => {
     setLoadingDraftId(id)
     try {
