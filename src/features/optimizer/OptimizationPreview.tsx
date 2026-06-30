@@ -1,5 +1,6 @@
 import {
   CAlert,
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -19,6 +20,7 @@ import { cilCalculator } from '@coreui/icons'
 
 import { fmtMoney } from 'src/features/review/format'
 import PricingBlock from 'src/shared/components/PricingBlock'
+import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import type { OptimizeResponse } from './types'
 import CutLayoutDiagram from './CutLayoutDiagram'
 
@@ -121,7 +123,8 @@ const OptimizationPreview = ({
                   {result.materialsSummary.map((m) => (
                     <CTableRow key={m.materialKey}>
                       <CTableDataCell>
-                        {m.productName ?? m.productCode ?? m.materialKey}
+                        {stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey}{' '}
+                        {m.halfBoard && <CBadge color="info">½ medio</CBadge>}
                       </CTableDataCell>
                       <CTableDataCell className="text-nowrap">
                         {m.width}×{m.height}×{m.thickness} mm

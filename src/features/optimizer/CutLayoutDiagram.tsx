@@ -12,6 +12,7 @@ import {
 
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import ZoomControls from 'src/shared/components/ZoomControls'
+import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import type { EdgeSide, Layout, LayoutGroup, MaterialSummary, PlacedPiece } from './types'
 import {
   EDGE_COLOR,
@@ -504,10 +505,13 @@ const SheetDetailModal = ({ group, materialName, colorFor, onClose }: SheetDetai
   return (
     <CModal visible={!!group} onClose={onClose} size="xl" scrollable alignment="center">
       <CModalHeader>
-        <CModalTitle>
-          {group ? `Patrón ${group.patternId}` : ''}
-          {group && group.count > 1 ? ` · ×${group.count} hojas` : ''}
-          {materialName ? ` · ${materialName}` : ''}
+        <CModalTitle className="d-flex align-items-center gap-2 flex-wrap">
+          <span>
+            {group ? `Patrón ${group.patternId}` : ''}
+            {group && group.count > 1 ? ` · ×${group.count} hojas` : ''}
+            {materialName ? ` · ${stripHalfSuffix(materialName)}` : ''}
+          </span>
+          {group?.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
         </CModalTitle>
       </CModalHeader>
       <CModalBody style={{ scrollbarGutter: 'stable' }}>
@@ -607,7 +611,10 @@ const PatternCard = ({
               </CBadge>
             )}
           </div>
-          <div className="text-body-secondary">{materialName}</div>
+          <div className="text-body-secondary d-flex align-items-center gap-1">
+            {stripHalfSuffix(materialName)}
+            {group.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
+          </div>
         </div>
         <div className="d-flex align-items-center gap-2">
           <CBadge color={efficiencyOk ? 'success' : 'warning'}>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -33,6 +34,7 @@ import type { Client } from 'src/features/clients/types'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
+import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
@@ -510,7 +512,10 @@ const OrderDetailPage = () => {
               <CTableBody>
                 {order.lines.map((l) => (
                   <CTableRow key={l.id}>
-                    <CTableDataCell>{l.productName ?? '—'}</CTableDataCell>
+                    <CTableDataCell>
+                      {stripHalfSuffix(l.productName) ?? '—'}{' '}
+                      {l.halfBoard && <CBadge color="info">½ medio</CBadge>}
+                    </CTableDataCell>
                     <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
                     <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
                     <CTableDataCell className="text-end">{fmt(l.unitPriceSnapshot)}</CTableDataCell>
@@ -698,7 +703,10 @@ const OrderDetailPage = () => {
           <CButton
             color="primary"
             onClick={confirmPayment}
-            disabled={updateStatus.isPending || (parseFloat(cashInput) || 0) + (parseFloat(creditInput) || 0) <= 0}
+            disabled={
+              updateStatus.isPending ||
+              (parseFloat(cashInput) || 0) + (parseFloat(creditInput) || 0) <= 0
+            }
           >
             {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
           </CButton>

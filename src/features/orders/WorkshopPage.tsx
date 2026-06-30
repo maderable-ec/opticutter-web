@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   CAlert,
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -20,6 +21,7 @@ import { cilArrowLeft, cilArrowRight, cilCheckAlt, cilPrint } from '@coreui/icon
 
 import { useHasRole } from 'src/features/auth/useAuth'
 import { PALETTE, pieceSig } from 'src/features/optimizer/cutDrawing'
+import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
@@ -309,7 +311,10 @@ const WorkshopPage = () => {
                 Tablero {current.sheetNumber} ({safeIndex + 1} de {boards.length}) —{' '}
                 {current.progress.cutPieces}/{current.progress.totalPieces}
               </strong>
-              <div className="text-body-secondary small">{current.productName}</div>
+              <div className="text-body-secondary small d-flex align-items-center gap-1">
+                {stripHalfSuffix(current.productName)}
+                {current.halfBoard && <CBadge color="info">½ medio</CBadge>}
+              </div>
             </div>
             <div className="d-flex gap-2 flex-shrink-0">
               <CButton

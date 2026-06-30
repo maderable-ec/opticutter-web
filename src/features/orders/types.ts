@@ -2,7 +2,14 @@ import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 
-export type OrderStatus = 'confirmed' | 'queued' | 'cutting' | 'cut' | 'completed' | 'despachado' | 'cancelled'
+export type OrderStatus =
+  | 'confirmed'
+  | 'queued'
+  | 'cutting'
+  | 'cut'
+  | 'completed'
+  | 'despachado'
+  | 'cancelled'
 
 // Banding track (edge banding), orthogonal to cutting: an order can be `cutting` and
 // `bandingStatus: 'in_progress'` simultaneously. `not_applicable` = order has no edge banding.
@@ -17,6 +24,7 @@ export interface OrderLine {
   lineTotal: number
   avgEfficiency?: number
   totalAreaM2?: number
+  halfBoard?: boolean
 }
 
 export interface OrderHistoryEntry {
@@ -192,6 +200,7 @@ export interface CutBoard {
   thickness: number
   progress: CutProgress
   pieces: CutPiece[]
+  halfBoard?: boolean
   // Leftover rectangles on the board (same shape as in the optimizer), to distinguish piece vs. waste.
   // Optional for backward compatibility with responses before the contract change.
   remainders?: Remainder[]
