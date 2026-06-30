@@ -1,4 +1,4 @@
-import type { ProductPayload } from './types'
+import type { Product, ProductPayload } from './types'
 
 export const PRODUCT_CSV_COLUMNS = [
   'Tipo',
@@ -7,10 +7,10 @@ export const PRODUCT_CSV_COLUMNS = [
   'Descripción',
   'Precio',
   'Activo',
-  'Alto',
+  'Largo',
   'Ancho',
   'Grosor',
-  'Largo',
+  'LargoTapacanto',
   'DireccionGrano',
   'TipoTapacanto',
   'Color',
@@ -26,9 +26,26 @@ const TYPE_MAP: Record<string, 'board' | 'edge_banding'> = {
 const TRUE_WORDS = new Set(['si', 'sí', 's', 'yes', '1', 'true', 'verdadero', '✓'])
 
 const HEADER_WORDS = [
-  'tipo', 'type', 'codigo', 'código', 'code', 'nombre', 'name', 'precio', 'price',
-  'activo', 'active', 'alto', 'height', 'ancho', 'width', 'grosor', 'thickness',
-  'largo', 'length', 'color',
+  'tipo',
+  'type',
+  'codigo',
+  'código',
+  'code',
+  'nombre',
+  'name',
+  'precio',
+  'price',
+  'activo',
+  'active',
+  'alto',
+  'height',
+  'ancho',
+  'width',
+  'grosor',
+  'thickness',
+  'largo',
+  'length',
+  'color',
 ]
 
 const normalize = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -56,8 +73,10 @@ const splitLine = (line: string, delimiter: string): string[] => {
     const ch = line[i]
     if (inQuotes) {
       if (ch === '"') {
-        if (line[i + 1] === '"') { cur += '"'; i++ }
-        else inQuotes = false
+        if (line[i + 1] === '"') {
+          cur += '"'
+          i++
+        } else inQuotes = false
       } else cur += ch
     } else if (ch === '"') {
       inQuotes = true
@@ -75,8 +94,12 @@ const looksLikeHeader = (cells: string[]): boolean => {
   return cells.filter((c) => words.has(normalize(c))).length >= 2
 }
 
+export interface ProductImportRow extends ProductPayload {
+  id?: string
+}
+
 export interface ProductParseResult {
-  rows: ProductPayload[]
+  rows: ProductImportRow[]
   warnings: string[]
 }
 
@@ -93,8 +116,19 @@ export const parseProducts = (text: string): ProductParseResult => {
     if (idx === 0 && looksLikeHeader(cells)) return
 
     const [
-      tipo = '', codigo = '', nombre = '', descripcion = '', precio = '', activo = '',
-      alto = '', ancho = '', grosor = '', largo = '', direccionGrano = '', tipoTapacanto = '', color = '',
+      tipo = '',
+      codigo = '',
+      nombre = '',
+      descripcion = '',
+      precio = '',
+      activo = '',
+      alto = '',
+      ancho = '',
+      grosor = '',
+      largo = '',
+      direccionGrano = '',
+      tipoTapacanto = '',
+      color = '',
     ] = cells
     const lineNo = idx + 1
 
@@ -129,7 +163,10 @@ export const parseProducts = (text: string): ProductParseResult => {
     const activoNorm = normalize(activo)
     const isActive = activoNorm === '' ? true : TRUE_WORDS.has(activoNorm)
 
-    const payload: ProductPayload = {
+    const id = cells[13]?.trim() || undefined
+
+    const row: ProductImportRow = {
+      id,
       code,
       name,
       description: descripcion.trim() || null,
@@ -153,7 +190,7 @@ export const parseProducts = (text: string): ProductParseResult => {
             },
     }
 
-    rows.push(payload)
+    rows.push(row)
   })
 
   return { rows, warnings }
@@ -165,11 +202,76 @@ const csvCell = (v: string | number | undefined | null): string => {
   return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
+const TYPE_EXPORT_LABELS: Record<string, string> = { board: 'tablero', edge_banding: 'tapacanto' }
+
+export const exportProductsCsv = (products: Product[]): void => {
+  const header = [...PRODUCT_CSV_COLUMNS, 'ID'].join(',')
+  const dataRows = products.map((p) => {
+    const a = (p.attributes ?? {}) as Record<string, unknown>
+    const isBoard = p.type === 'board'
+    const cells: Array<string | number | undefined | null> = [
+      TYPE_EXPORT_LABELS[p.type] ?? p.type,
+      p.code,
+      p.name,
+      p.description ?? '',
+      p.price,
+      p.isActive ? 'si' : 'no',
+      isBoard ? ((a.height as number | undefined) ?? '') : '',
+      (a.width as number | undefined) ?? '',
+      (a.thickness as number | undefined) ?? '',
+      isBoard ? '' : ((a.length as number | undefined) ?? ''),
+      isBoard ? ((a.grainDirection as string | undefined) ?? '') : '',
+      isBoard ? '' : ((a.bandType as string | undefined) ?? ''),
+      isBoard ? '' : ((a.color as string | undefined) ?? ''),
+      p.id,
+    ]
+    return cells.map(csvCell).join(',')
+  })
+  const csv = [header, ...dataRows].join('\n')
+  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'productos_export.csv'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 export const downloadProductTemplate = (): void => {
   const header = PRODUCT_CSV_COLUMNS.join(',')
   const exampleRows = [
-    ['tablero', 'TAB-001', 'Melamina Blanca', '', '15000', 'si', '2440', '1220', '18', '', 'longitudinal', '', ''],
-    ['tapacanto', 'TAP-001', 'Tapacanto Blanco 22mm', '', '500', 'si', '', '22', '0.5', '50', '', 'Soft', 'Blanco'],
+    [
+      'tablero',
+      'TAB-001',
+      'Melamina Blanca',
+      '',
+      '15000',
+      'si',
+      '2440',
+      '1220',
+      '18',
+      '',
+      'longitudinal',
+      '',
+      '',
+    ],
+    [
+      'tapacanto',
+      'TAP-001',
+      'Tapacanto Blanco 22mm',
+      '',
+      '500',
+      'si',
+      '',
+      '22',
+      '0.5',
+      '50',
+      '',
+      'Soft',
+      'Blanco',
+    ],
   ]
   const csv = [header, ...exampleRows.map((r) => r.map(csvCell).join(','))].join('\n')
   const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })

@@ -31,13 +31,22 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import { cilCloudUpload, cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
+import {
+  cilCloudDownload,
+  cilCloudUpload,
+  cilPencil,
+  cilPlus,
+  cilSearch,
+  cilTrash,
+} from '@coreui/icons'
 import { useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from './useProducts'
 import { useEffect, useState } from 'react'
 
 import CIcon from '@coreui/icons-react'
 import ImportProductsModal from './ImportProductsModal'
 import ProductForm from './ProductForm'
+import { exportProductsCsv } from './productsCsv'
+import { productsApi } from './productsApi'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -56,7 +65,7 @@ const TYPE_COLORS: Record<string, string> = {
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
 const fmtPrice = (n?: number) =>
-  typeof n === 'number' ? n.toLocaleString('es-EC', { style: 'currency', currency: 'ARS' }) : '—'
+  typeof n === 'number' ? n.toLocaleString('es-EC', { style: 'currency', currency: 'USD' }) : '—'
 
 interface ProductModalState {
   visible: boolean
@@ -76,6 +85,7 @@ const ProductsPage = () => {
     product: null,
   })
   const [importModal, setImportModal] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -118,6 +128,24 @@ const ProductsPage = () => {
   const handleDelete = () => {
     if (!deleteModal.product) return
     deleteMutation.mutate(deleteModal.product.id, { onSuccess: closeDelete })
+  }
+
+  const handleExport = async () => {
+    setIsExporting(true)
+    try {
+      const PAGE = 100
+      const all: Product[] = []
+      let offset = 0
+      while (true) {
+        const data = await productsApi.list({ ...queryParams, offset, limit: PAGE })
+        all.push(...data.items)
+        if (all.length >= data.pagination.total) break
+        offset += PAGE
+      }
+      exportProductsCsv(all)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
@@ -267,7 +295,26 @@ const ProductsPage = () => {
           <strong>Productos</strong>
           {!isReadOnly && (
             <div className="d-flex gap-2">
-              <CButton color="secondary" variant="outline" size="sm" onClick={() => setImportModal(true)}>
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={isExporting}
+              >
+                {isExporting ? (
+                  <CSpinner size="sm" className="me-1" />
+                ) : (
+                  <CIcon icon={cilCloudDownload} className="me-1" />
+                )}
+                Exportar CSV
+              </CButton>
+              <CButton
+                color="secondary"
+                variant="outline"
+                size="sm"
+                onClick={() => setImportModal(true)}
+              >
                 <CIcon icon={cilCloudUpload} className="me-1" />
                 Importar CSV
               </CButton>

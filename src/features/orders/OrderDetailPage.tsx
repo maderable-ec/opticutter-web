@@ -541,7 +541,7 @@ const OrderDetailPage = () => {
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Etiqueta</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">
-                    Alto (mm)
+                    Largo (mm)
                   </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-end">
                     Ancho (mm)

@@ -120,7 +120,7 @@ const ImportPiecesModal = ({
                 <CTableHead>
                   <CTableRow>
                     <CTableHeaderCell>Material</CTableHeaderCell>
-                    <CTableHeaderCell>Alto</CTableHeaderCell>
+                    <CTableHeaderCell>Largo</CTableHeaderCell>
                     <CTableHeaderCell>Ancho</CTableHeaderCell>
                     <CTableHeaderCell>Cant.</CTableHeaderCell>
                     <CTableHeaderCell>Etiqueta</CTableHeaderCell>
