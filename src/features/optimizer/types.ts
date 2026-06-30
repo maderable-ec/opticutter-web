@@ -19,6 +19,7 @@ export interface OptimizeMaterialSheet {
   width: number
   thickness: number
   area: number
+  halfBoard?: boolean
 }
 
 // Edge banding for a piece. Keys arrive in snake_case from the server.
@@ -81,6 +82,7 @@ export interface MaterialSummary {
   avgEfficiency: number
   costPerUnit: number
   totalCost: number
+  halfBoard?: boolean
 }
 
 export interface EdgeBandingSummary {

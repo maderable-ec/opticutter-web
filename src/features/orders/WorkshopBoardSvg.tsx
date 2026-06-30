@@ -63,7 +63,7 @@ const WorkshopBoardSvg = ({
           cursor: isZoomed ? 'grab' : undefined,
         }}
         role="img"
-        aria-label={`Tablero ${board.sheetNumber}: ${W}×${H} con ${board.pieces.length} piezas`}
+        aria-label={`Tablero ${board.sheetNumber}: ${W}×${H} con ${board.pieces.length} piezas${board.halfBoard ? ' (medio tablero)' : ''}`}
       >
         <defs>
           <pattern id={wasteId} patternUnits="userSpaceOnUse" width={48} height={48}>
