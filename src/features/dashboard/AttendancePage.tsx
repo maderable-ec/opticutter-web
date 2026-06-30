@@ -35,7 +35,7 @@ const subDays = (date: Date, n: number) => {
 }
 
 const fmtColDate = (date: string) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+  new Date(`${date}T00:00:00`).toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit' })
 
 const ROLE_FILTERS: { value: '' | Role; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -57,8 +57,8 @@ const AttendancePage = () => {
 
   const { data, isLoading, error } = useAttendance(from, to, branchId, role || undefined)
 
-  // Columnas = unión ordenada de todas las fechas con login. Por usuario, un map
-  // date → registro para buscar la celda en O(1).
+  // Columns = sorted union of all dates that have a login. Per user, a map
+  // date → record for O(1) cell lookup.
   const { dates, rows } = useMemo(() => {
     const dateSet = new Set<string>()
     const rows = (data?.users ?? []).map((u) => {

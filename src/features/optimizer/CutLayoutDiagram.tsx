@@ -26,7 +26,7 @@ import {
 } from './cutDrawing'
 import type { SideLine } from './cutDrawing'
 
-// --- SVG reutilizable de una hoja (se usa en la tarjeta pequeña y ampliado en el modal) ---
+// --- Reusable sheet SVG (used in the small card and expanded in the modal) ---
 
 interface SheetSvgProps {
   layout: Layout
@@ -36,9 +36,9 @@ interface SheetSvgProps {
   onPieceEnter?: (p: PlacedPiece) => void
   onPieceLeave?: () => void
   maxHeight?: number
-  // Muestra las medidas del tablero (ancho arriba, alto a la izquierda). Solo en la vista ampliada.
+  // Shows board dimensions (width at top, height on the left). Expanded view only.
   showDimensions?: boolean
-  // Habilita zoom + desplazamiento (pinch/rueda/arrastre + botones). Solo en la vista ampliada.
+  // Enables zoom + pan (pinch/wheel/drag + buttons). Expanded view only.
   enableZoom?: boolean
 }
 
@@ -62,7 +62,7 @@ const SheetSvg = ({
 
   const { svgRef, groupTransform, scale, isZoomed, zoomIn, zoomOut, reset } = useZoomPan()
 
-  // Margen reservado para las etiquetas de medida del tablero (solo vista ampliada).
+  // Extra margin reserved for the board dimension labels (expanded view only).
   const margin = showDimensions ? Math.max(W, H) * 0.07 : 0
   const labelSize = clamp(Math.max(W, H) * 0.028, 16, 44)
 
@@ -89,7 +89,7 @@ const SheetSvg = ({
         </pattern>
       </defs>
 
-      {/* Medidas del tablero: en espacio de paisaje, fuera de la rotación (arriba = H, lateral = W). */}
+      {/* Board dimensions: in landscape space, outside the rotation (top = H, side = W). */}
       {showDimensions && (
         <g
           transform={enableZoom ? groupTransform : undefined}
@@ -118,9 +118,8 @@ const SheetSvg = ({
         </g>
       )}
 
-      {/* Tablero y piezas girados 90° en horario (paisaje); el texto se contra-rota para seguir legible. */}
+      {/* Board and pieces rotated 90° clockwise (landscape); text is counter-rotated to stay readable. */}
       <g transform={enableZoom ? `${groupTransform} ${boardRotation(H)}` : boardRotation(H)}>
-        {/* Tablero */}
         <rect
           x={0}
           y={0}
@@ -132,7 +131,7 @@ const SheetSvg = ({
           vectorEffect="non-scaling-stroke"
         />
 
-        {/* Sobrantes / desperdicio */}
+        {/* Offcuts / waste */}
         {remainders.map((r, idx) => (
           <rect
             key={`rem-${idx}`}
@@ -148,7 +147,6 @@ const SheetSvg = ({
           />
         ))}
 
-        {/* Piezas */}
         {placedPieces.map((p) => {
           const sig = pieceSig(p)
           const color = colorFor(sig)
@@ -156,7 +154,7 @@ const SheetSvg = ({
             highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
           const minSide = Math.min(p.width, p.height)
           const fontSize = clamp(minSide / 5, 22, 90)
-          // Al acercar, las piezas pequeñas revelan su medida (umbral según escala efectiva).
+          // On zoom-in, small pieces reveal their dimensions (threshold based on effective scale).
           const showText = p.width * scale > 130 && p.height * scale > 90
 
           return (
@@ -182,7 +180,7 @@ const SheetSvg = ({
                 vectorEffect="non-scaling-stroke"
               />
 
-              {/* Tapacanto: banda gruesa hacia dentro de la pieza (no pisa la línea de corte) */}
+              {/* Edge banding: thick band inset from the piece border (does not overlap the cut line) */}
               {bandedSides(p).map((side) => {
                 const l = insetSideLine(side, p.x, p.y, p.width, p.height, edgeWidth)
                 return (
@@ -231,14 +229,14 @@ const SheetSvg = ({
   )
 }
 
-// --- Ampliación de una sola pieza (panel de detalle del modal) ---
+// --- Single-piece detail panel (shown inside the modal) ---
 
 interface PiecePreviewProps {
   piece: PlacedPiece
   colorFor: (sig: string) => string
 }
 
-// Línea de tapacanto paralela al lado pero desplazada hacia afuera, para no montarse sobre la pieza.
+// Edge banding line parallel to the side but offset outward, so it doesn't overlap the piece.
 const bandLine = (side: EdgeSide, w: number, h: number, gap: number, inset: number): SideLine => {
   switch (side) {
     case 'top':
@@ -252,8 +250,8 @@ const bandLine = (side: EdgeSide, w: number, h: number, gap: number, inset: numb
   }
 }
 
-// Render aislado de la pieza: medidas dentro (ancho abajo, alto a la izquierda),
-// notación de cantos al centro y el tapacanto como barras offset.
+// Standalone piece render: dimensions inside (width at bottom, height on the left),
+// edge notation centered, and banding as offset bars.
 const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
   const w = piece.width
   const h = piece.height
@@ -261,15 +259,15 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
   const maxDim = Math.max(w, h)
   const minDim = Math.min(w, h)
 
-  // Tapacanto como barra fina separada del borde por un gap; `pad` agranda el viewBox para que quepa.
+  // Edge banding as a thin bar separated from the border by a gap; `pad` enlarges the viewBox to fit.
   const bar = clamp(maxDim * 0.018, 4, 12)
   const gap = clamp(maxDim * 0.045, 8, 26)
   const inset = bar * 1.5
   const pad = gap + bar
 
-  const dimSize = clamp(minDim * 0.12, 14, 56) // medidas dentro de la pieza
-  const noteSize = clamp(minDim * 0.1, 14, 44) // notación central
-  const dimInset = dimSize * 0.95 // separación de la medida respecto al borde
+  const dimSize = clamp(minDim * 0.12, 14, 56) // dimension labels inside the piece
+  const noteSize = clamp(minDim * 0.1, 14, 44) // center notation
+  const dimInset = dimSize * 0.95 // offset of the dimension label from the edge
 
   const notation = piece.edges?.notation ?? ''
 
@@ -293,7 +291,7 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
         vectorEffect="non-scaling-stroke"
       />
 
-      {/* Tapacanto */}
+      {/* Edge banding */}
       {bandedSides(piece).map((side) => {
         const l = bandLine(side, w, h, gap, inset)
         return (
@@ -310,7 +308,7 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
         )
       })}
 
-      {/* Medidas dentro de la pieza: ancho abajo, alto a la izquierda */}
+      {/* Dimensions inside the piece: width at bottom, height on the left */}
       <g fill="#212529" style={{ userSelect: 'none', pointerEvents: 'none' }}>
         <text
           x={w / 2}
@@ -333,7 +331,7 @@ const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
         </text>
       </g>
 
-      {/* Notación de cantos al centro */}
+      {/* Edge notation centered */}
       {notation && (
         <text
           x={w / 2}
@@ -364,7 +362,7 @@ interface PieceDetailCardProps {
   colorFor: (sig: string) => string
 }
 
-// Panel que reemplaza a la tabla por pieza: muestra la pieza bajo el cursor con todos sus datos.
+// Panel replacing the per-piece table: shows the piece under the cursor with all its data.
 const PieceDetailCard = ({ piece, colorFor }: PieceDetailCardProps) => {
   const sides = piece ? bandedSides(piece) : []
   return (
@@ -416,14 +414,14 @@ const PieceDetailCard = ({ piece, colorFor }: PieceDetailCardProps) => {
           className="d-flex align-items-center justify-content-center text-body-secondary small text-center px-3"
           style={{ height: 180 }}
         >
-          Pasá el cursor sobre una pieza del diagrama para ver su detalle.
+          Pasa el cursor sobre una pieza del diagrama para ver su detalle.
         </div>
       )}
     </div>
   )
 }
 
-// --- Resumen de piezas agrupadas por medida (acotado, no crece con la cantidad de piezas) ---
+// --- Pieces grouped by dimension (compact summary, does not grow with piece count) ---
 
 interface GroupedPiecesListProps {
   pieces: PlacedPiece[]
@@ -478,7 +476,7 @@ const GroupedPiecesList = ({ pieces, colorFor, hoverSig, onHover }: GroupedPiece
   )
 }
 
-// --- Modal de detalle de una hoja ---
+// --- Sheet detail modal ---
 
 interface SheetDetailModalProps {
   group: LayoutGroup | null
@@ -562,7 +560,7 @@ const SheetDetailModal = ({ group, materialName, colorFor, onClose }: SheetDetai
   )
 }
 
-// --- Tarjeta de un patrón en la grilla ---
+// --- Pattern card in the grid ---
 
 interface PatternCardProps {
   group: LayoutGroup
@@ -628,7 +626,7 @@ const PatternCard = ({
         />
       </div>
 
-      {/* Barra de eficiencia */}
+      {/* Efficiency bar */}
       <div
         className="mt-2"
         style={{
@@ -662,7 +660,7 @@ const PatternCard = ({
   )
 }
 
-// --- Diagrama principal ---
+// --- Main diagram ---
 
 interface CutLayoutDiagramProps {
   layoutGroups: LayoutGroup[]
@@ -673,7 +671,7 @@ const CutLayoutDiagram = ({ layoutGroups, materialsSummary }: CutLayoutDiagramPr
   const [hoveredSig, setHoveredSig] = useState<string | null>(null)
   const [detail, setDetail] = useState<LayoutGroup | null>(null)
 
-  // Color estable por firma (orden de primera aparición) + conteo total para la leyenda.
+  // Stable color per signature (first-appearance order) + total count for the legend.
   const { colorFor, legend, hasEdgeBanding } = useMemo(() => {
     const colors = new Map<string, string>()
     const counts = new Map<string, number>()
@@ -682,7 +680,7 @@ const CutLayoutDiagram = ({ layoutGroups, materialsSummary }: CutLayoutDiagramPr
       for (const p of group.layout.placedPieces) {
         const sig = pieceSig(p)
         if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length])
-        // Cada grupo representa `count` hojas físicas idénticas.
+        // Each group represents `count` identical physical sheets.
         counts.set(sig, (counts.get(sig) ?? 0) + group.count)
         if (bandedSides(p).length > 0) banding = true
       }

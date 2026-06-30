@@ -1,6 +1,3 @@
-import { useState } from 'react'
-import type { ChangeEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   CButton,
   CCard,
@@ -17,16 +14,19 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPlus } from '@coreui/icons'
-
-import type { Client } from 'src/features/clients/types'
-import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
-import { useActiveBranches } from 'src/features/branches/useBranches'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
-import OrderStatusBadge from './OrderStatusBadge'
-import { useOrders } from './useOrders'
+import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
+
+import CIcon from '@coreui/icons-react'
+import type { ChangeEvent } from 'react'
+import type { Client } from 'src/features/clients/types'
 import type { OrderStatus } from './types'
+import OrderStatusBadge from './OrderStatusBadge'
+import { cilPlus } from '@coreui/icons'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { useNavigate } from 'react-router-dom'
+import { useOrders } from './useOrders'
+import { useState } from 'react'
 
 const LIMIT = 20
 
@@ -41,7 +41,7 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
-// Estados que el operador puede ver; su opción "Todos" (value '') equivale a este set completo.
+// Statuses visible to the operador; their "Todos" option (value '') maps to this full set.
 const OPERATOR_STATUSES: OrderStatus[] = ['queued', 'cutting', 'cut']
 
 const OPERATOR_STATUS_OPTIONS: { value: OrderStatus | ''; label: string }[] = [
@@ -56,7 +56,7 @@ const clientName = (c?: Client) =>
 
 const fmtDate = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleDateString('es-AR', {
+    ? new Date(iso).toLocaleDateString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -64,22 +64,22 @@ const fmtDate = (iso?: string) =>
     : '—'
 
 const fmt = (n?: number | null) =>
-  n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
+  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 const OrdersPage = () => {
   const navigate = useNavigate()
-  // Operador puede ver órdenes pero no crear cotizaciones (eso es del optimizador).
+  // Operador can view orders but cannot create quotes (that belongs to the optimizer).
   const canCreate = useHasRole('administrador', 'vendedor')
   const isGlobalBranch = useIsGlobalBranchRole()
-  // El operador trabaja en el piso: solo ve órdenes en producción/cortadas y entra directo al taller.
+  // Operador works on the floor: sees only in-production/cut orders and goes directly to the workshop.
   const isOperator = useHasRole('operador')
-  // Filtro acotado a sus estados visibles; arranca en "Todos" (los tres). El resto usa el set completo.
+  // Filter scoped to their visible statuses; starts at "Todos" (all three). Other roles use the full set.
   const statusOptions = isOperator ? OPERATOR_STATUS_OPTIONS : STATUSES
   const [status, setStatus] = useState<OrderStatus | ''>('')
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 
-  // "Todos" del operador (status '') = sus tres estados visibles; "Todos" del resto = sin filtro.
+  // Operador "Todos" (status '') = their three visible statuses; other roles "Todos" = no filter.
   const statusParam: OrderStatus | OrderStatus[] | undefined =
     status || (isOperator ? OPERATOR_STATUSES : undefined)
 

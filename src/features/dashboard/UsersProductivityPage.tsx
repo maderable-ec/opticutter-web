@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react'
 import {
   CButton,
   CButtonGroup,
@@ -13,13 +12,15 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import { useActiveBranches } from 'src/features/branches/useBranches'
-import { fmtMoney } from 'src/features/review/format'
-import type { Role } from 'src/features/auth/types'
+import { useMemo, useState } from 'react'
+
 import DateRangeFilter from './components/DateRangeFilter'
+import type { Role } from 'src/features/auth/types'
 import RoleBadge from './components/RoleBadge'
-import { useUsersProductivity } from './useAnalytics'
 import type { UserProductivity } from './types'
+import { fmtMoney } from 'src/features/review/format'
+import { useActiveBranches } from 'src/features/branches/useBranches'
+import { useUsersProductivity } from './useAnalytics'
 
 const formatDate = (date: Date) => date.toISOString().slice(0, 10)
 const subDays = (date: Date, n: number) => {
@@ -28,7 +29,7 @@ const subDays = (date: Date, n: number) => {
   return d
 }
 
-const fmtInt = (n: number) => n.toLocaleString('es-AR')
+const fmtInt = (n: number) => n.toLocaleString('es-EC')
 const fmtArea = (n: number) => `${n.toFixed(1)}`
 const fmtH1 = (n: number) => `${n.toFixed(1)} h`
 const fmtRate = (n: number) => n.toFixed(2)

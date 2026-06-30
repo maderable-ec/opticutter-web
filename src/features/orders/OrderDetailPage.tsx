@@ -49,8 +49,8 @@ interface StatusTransition {
 
 const TERMINAL_STATES: OrderStatus[] = ['despachado', 'cancelled']
 
-// Estados donde el plan de corte es relevante: en cola (interactivo en el taller) y posteriores
-// (solo-lectura, auditoría de lo cortado).
+// States where the cutting plan is relevant: queued (interactive in the workshop) and beyond
+// (read-only, auditing what was cut).
 const WORKSHOP_STATES: OrderStatus[] = ['queued', 'cutting', 'cut', 'completed']
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
@@ -94,11 +94,11 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
 }
 
 const fmt = (n?: number | null) =>
-  n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'USD' }).format(n) : '—'
+  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 const fmtDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString('es-AR', {
+    ? new Date(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -118,9 +118,9 @@ interface TransitionModalState {
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // Operador puede ver la orden, el documento y el plan de corte, pero no cambiar estado ni facturar.
+  // Operador can view the order, document, and cutting plan, but cannot change status or invoice.
   const canManage = useHasRole('administrador', 'vendedor')
-  // El operador no usa el detalle: su flujo es el taller. Lo redirigimos allí (también por URL directa).
+  // Operador doesn't use the detail view: their flow is the workshop. Redirect there (including direct URL).
   const isOperator = useHasRole('operador')
 
   const currentUser = useCurrentUser()
@@ -220,7 +220,7 @@ const OrderDetailPage = () => {
   const plan = cuttingPlan.data
   const showProduction = WORKSHOP_STATES.includes(order.status)
   const piecesPending = plan ? plan.progress.totalPieces - plan.progress.cutPieces : 0
-  // El API es la garantía (responde 422 si faltan piezas); deshabilitar el botón es solo UX.
+  // The API is the authoritative guard (returns 422 if pieces are missing); disabling the button is UX only.
   const cutGated = order.status === 'cutting' && !!plan && piecesPending > 0
   const planPct =
     plan && plan.progress.totalPieces > 0
@@ -229,8 +229,8 @@ const OrderDetailPage = () => {
   const planDone =
     !!plan && plan.progress.totalPieces > 0 && plan.progress.cutPieces >= plan.progress.totalPieces
 
-  // Canteado: bloque visible si la orden lleva tapacantos. El cierre (cut → completed) queda
-  // bloqueado mientras el canteado siga pendiente/en progreso (el API responde 422; deshabilitar es UX).
+  // Banding block: visible when the order has edge banding. The cut → completed transition is blocked
+  // while banding is still pending/in-progress (API returns 422; disabling is UX only).
   const showBanding = !!order.bandingStatus && order.bandingStatus !== 'not_applicable'
   const bandingPending = order.bandingStatus === 'pending' || order.bandingStatus === 'in_progress'
 
@@ -304,7 +304,7 @@ const OrderDetailPage = () => {
         </CCardBody>
       </CCard>
 
-      {/* Asignación del operador (cutting en curso o auditoría post-cut) */}
+      {/* Operator assignment (active cutting or post-cut audit) */}
       {(order.status === 'cutting' || order.status === 'cut') && order.assignedToLabel && (
         <CCard className="mb-3 border-warning">
           <CCardBody className="bg-warning bg-opacity-10 py-2">
@@ -322,7 +322,7 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* Canteado — pista paralela al corte. Se oculta si la orden no lleva tapacantos. */}
+      {/* Banding — parallel track to cutting. Hidden if the order has no edge banding. */}
       {showBanding && (
         <CCard className="mb-3 border-info">
           <CCardBody className="bg-info bg-opacity-10 py-2">
@@ -348,7 +348,7 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* Despacho — congelado al transicionar a despachado */}
+      {/* Dispatch — fields frozen when transitioning to despachado */}
       {order.status === 'despachado' && (
         <CCard className="mb-3 border-success">
           <CCardBody className="bg-success bg-opacity-10 py-2">
@@ -369,7 +369,7 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* Forma de pago — congelada en la transición confirmed → queued */}
+      {/* Payment method — frozen at the confirmed → queued transition */}
       {(order.paymentCashAmount != null || order.paymentCreditAmount != null) && (
         <CCard className="mb-3 border-primary">
           <CCardBody className="bg-primary bg-opacity-10 py-2">
@@ -429,7 +429,7 @@ const OrderDetailPage = () => {
             </div>
             {cutGated && (
               <div className="text-warning small mt-2">
-                Faltan {piecesPending} pieza(s) por cortar. Marcalas en el taller para habilitar el
+                Faltan {piecesPending} pieza(s) por cortar. Márcalas en el taller para habilitar el
                 corte.
               </div>
             )}
@@ -574,13 +574,13 @@ const OrderDetailPage = () => {
         </CCard>
       )}
 
-      {/* History — autor (actorLabel) + tipo de actor (badge); ver StatusHistoryCard. */}
+      {/* History — actor label + actor type badge; see StatusHistoryCard. */}
       <StatusHistoryCard
         entries={order.history ?? []}
         renderStatus={(s) => <OrderStatusBadge status={s as OrderStatus} />}
       />
 
-      {/* Documents & invoice — las órdenes nacen confirmadas, siempre tienen documentos. */}
+      {/* Documents & invoice — orders are created in confirmed state and always have documents. */}
       <CCard className="mb-3">
         <CCardHeader>
           <strong>Documentos y factura</strong>
@@ -669,7 +669,7 @@ const OrderDetailPage = () => {
                 <div className="fw-semibold small mb-3">Total: {fmt(total)}</div>
                 {invalid && (
                   <div className="text-warning small mb-2">
-                    Ingresá al menos un monto mayor a 0.
+                    Ingresa al menos un monto mayor a 0.
                   </div>
                 )}
                 <div className="mb-2">

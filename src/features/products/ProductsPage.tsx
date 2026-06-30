@@ -1,4 +1,11 @@
-import { useEffect, useState } from 'react'
+import type {
+  BoardAttributes,
+  EdgeBandingAttributes,
+  Product,
+  ProductListParams,
+  ProductPayload,
+  ProductType,
+} from './types'
 import {
   CBadge,
   CButton,
@@ -24,22 +31,15 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 import { cilCloudUpload, cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
-import { useQueryClient } from '@tanstack/react-query'
+import { useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from './useProducts'
+import { useEffect, useState } from 'react'
 
-import ProductForm from './ProductForm'
+import CIcon from '@coreui/icons-react'
 import ImportProductsModal from './ImportProductsModal'
-import { useProducts, useCreateProduct, useDeleteProduct, useUpdateProduct } from './useProducts'
+import ProductForm from './ProductForm'
 import { useHasRole } from 'src/features/auth/useAuth'
-import type {
-  BoardAttributes,
-  EdgeBandingAttributes,
-  Product,
-  ProductListParams,
-  ProductPayload,
-  ProductType,
-} from './types'
+import { useQueryClient } from '@tanstack/react-query'
 
 const LIMIT = 20
 
@@ -56,7 +56,7 @@ const TYPE_COLORS: Record<string, string> = {
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
 const fmtPrice = (n?: number) =>
-  typeof n === 'number' ? n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS' }) : '—'
+  typeof n === 'number' ? n.toLocaleString('es-EC', { style: 'currency', currency: 'ARS' }) : '—'
 
 interface ProductModalState {
   visible: boolean

@@ -32,7 +32,7 @@ export const useOperations = (from?: string, to?: string, branchId?: number) =>
     queryFn: () => analyticsApi.operations(from, to, branchId),
   })
 
-// Comparativo por sucursal (#5). El filtro `branchId` acota la comparación a una sola sucursal.
+// Per-branch comparison (#5). The `branchId` filter scopes the comparison to a single branch.
 export const useBranchBreakdown = (from?: string, to?: string, branchId?: number) =>
   useQuery({
     queryKey: ['analytics', 'branch-breakdown', { from, to, branchId }],

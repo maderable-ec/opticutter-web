@@ -1,14 +1,14 @@
 import { CAlert, CButton, CCard, CCardBody, CCol, CRow, CSpinner } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
 import { cilCheckAlt, cilMediaPlay } from '@coreui/icons'
-
-import BandingStatusBadge from './BandingStatusBadge'
 import { useBandingQueue, useUpdateBanding } from './useOrders'
+
 import type { BandingQueueItem } from './types'
+import BandingStatusBadge from './BandingStatusBadge'
+import CIcon from '@coreui/icons-react'
 
 const fmtDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString('es-AR', {
+    ? new Date(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         hour: '2-digit',
@@ -16,8 +16,8 @@ const fmtDateTime = (iso?: string) =>
       })
     : '—'
 
-// Vista táctil del canteador: solo la cola y un botón contextual por orden. Sin precios, sin
-// piezas, sin cliente — solo el código para identificar la orden físicamente.
+// Touch-first view for the canteador: queue list with one contextual button per order.
+// No prices, pieces, or client — just the order code for physical identification.
 const BandingQueuePage = () => {
   const { data: items = [], isLoading, error } = useBandingQueue()
   const updateBanding = useUpdateBanding()

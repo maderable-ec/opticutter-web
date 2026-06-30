@@ -1,10 +1,9 @@
-// Helpers de formato para las vistas de analítica.
-// Las duraciones llegan en horas (float). Los timestamps son UTC naive (sin
-// offset, p. ej. "2026-06-15T08:05:00") → hay que interpretarlos como UTC y
-// mostrarlos en hora local.
+// Format helpers for analytics views.
+// Durations arrive in hours (float). Timestamps are UTC naive (no offset,
+// e.g. "2026-06-15T08:05:00") → must be treated as UTC and displayed in local time.
 
-// Duración en horas → texto legible. `>=48h` se muestra en días; si no, en
-// horas y minutos (omitiendo el `0h`). Valores <= 0 caen a "0 m".
+// Duration in hours → human-readable text. `>=48h` is shown in days; otherwise
+// hours and minutes (omitting `0h`). Values <= 0 fall back to "0 m".
 export const fmtHours = (h: number): string => {
   if (h >= 48) {
     const days = Math.floor(h / 24)
@@ -19,18 +18,18 @@ export const fmtHours = (h: number): string => {
   return `${hh}h ${mm}m`
 }
 
-// Un timestamp UTC naive (sin sufijo `Z`) que `new Date(...)` interpretaría como
-// hora local. Le agregamos `Z` para forzar la lectura como UTC.
+// A UTC naive timestamp (no `Z` suffix) that `new Date(...)` would interpret as
+// local time. We append `Z` to force it to be read as UTC.
 const asUtc = (iso: string): Date => new Date(/[zZ]$/.test(iso) ? iso : `${iso}Z`)
 
-// Hora local "HH:MM" de un timestamp UTC naive (para mostrar la hora de entrada).
+// Local "HH:MM" time from a UTC naive timestamp (used to display check-in time).
 export const fmtLocalTime = (iso?: string | null): string =>
-  iso ? asUtc(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '—'
+  iso ? asUtc(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '—'
 
-// Fecha + hora local de un timestamp UTC naive.
+// Local date + time from a UTC naive timestamp.
 export const fmtLocalDateTime = (iso?: string | null): string =>
   iso
-    ? asUtc(iso).toLocaleString('es-AR', {
+    ? asUtc(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -39,8 +38,8 @@ export const fmtLocalDateTime = (iso?: string | null): string =>
       })
     : '—'
 
-// "HH:MM" en hora local (24h, zero-padded) para comparar contra un umbral de
-// tardanza también expresado como "HH:MM".
+// Local "HH:MM" in 24h zero-padded format, used to compare against a lateness
+// threshold also expressed as "HH:MM".
 export const localHHMM = (iso: string): string => {
   const d = asUtc(iso)
   const hh = String(d.getHours()).padStart(2, '0')

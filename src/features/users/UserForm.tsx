@@ -40,7 +40,7 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
   const [password, setPassword] = useState('')
   const [branchId, setBranchId] = useState<number | null>(user?.branchId ?? null)
 
-  // El admin es global: la sucursal sólo aplica (y es obligatoria) para vendedor/operador/canteador.
+  // Admin is global: branch only applies (and is required) for vendedor/operador/canteador.
   const isStaff = role !== 'administrador'
   const { data: branches = [] } = useActiveBranches()
 

@@ -85,7 +85,7 @@ const PreorderSettingsCard = () => {
     const errors: Record<string, string> = {}
     for (const key of allKeys) {
       const num = parseNum(f[key])
-      if (num === null) errors[key] = 'Ingresá un número válido.'
+      if (num === null) errors[key] = 'Ingresa un número válido.'
       else if (!Number.isInteger(num)) errors[key] = 'Debe ser un número entero.'
       else if (num < 1) errors[key] = 'Debe ser mayor o igual a 1.'
     }
@@ -179,7 +179,7 @@ const PreorderSettingsCard = () => {
             )}
             {genericError && (
               <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intentá nuevamente.'}
+                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
               </CAlert>
             )}
 

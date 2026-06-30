@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import {
   CBadge,
   CCard,
@@ -12,8 +11,10 @@ import {
   CTableRow,
 } from '@coreui/react'
 
-// Tipo de actor introducido por la auditoría (PR #39): ya no es un nombre libre sino el tipo de
-// quien realizó la acción. `actorLabel` es el nombre congelado del actor al momento del cambio.
+import type { ReactNode } from 'react'
+
+// Actor type: the type of entity that performed the action, not a free-form name.
+// `actorLabel` is the actor's display name frozen at the time of the status change.
 export type ActorType = 'staff' | 'client' | 'system'
 
 const ACTOR_TYPE_LABELS: Record<ActorType, string> = {
@@ -28,7 +29,7 @@ const ACTOR_TYPE_COLORS: Record<ActorType, string> = {
   system: 'secondary',
 }
 
-// Entrada genérica de historial de estados; sirve tanto para órdenes como para pre-órdenes.
+// Generic status history entry; used for both orders and pre-orders.
 export interface StatusHistoryEntry {
   id: string | number
   fromStatus?: string | null
@@ -42,14 +43,14 @@ export interface StatusHistoryEntry {
 
 interface StatusHistoryCardProps {
   entries: StatusHistoryEntry[]
-  // Cada feature pinta sus estados con su propio badge (OrderStatusBadge / PreOrderStatusBadge).
+  // Each feature renders statuses with its own badge (OrderStatusBadge / PreOrderStatusBadge).
   renderStatus: (status: string) => ReactNode
   title?: string
 }
 
 const fmtDateTime = (iso?: string) =>
   iso
-    ? new Date(iso).toLocaleString('es-AR', {
+    ? new Date(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

@@ -1,8 +1,8 @@
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 
-// Autosave del optimizer en localStorage: red de seguridad contra refresh accidental. Es una copia
-// de la sesión actual (este navegador), complementaria a los borradores nombrados del servidor.
-// La clave va versionada; si el esquema cambia, se sube el sufijo y se descarta lo viejo al leer.
+// Optimizer autosave in localStorage: safety net against accidental page refresh. Stores a copy of
+// the current session (this browser), complementary to named drafts on the server.
+// The key is versioned; if the schema changes, bump the suffix and stale data is discarded on read.
 const KEY = 'cutter:optimizer:autosave:v1'
 
 export interface OptimizerAutosave {
@@ -29,7 +29,7 @@ export const saveAutosave = (data: OptimizerAutosave): void => {
   try {
     localStorage.setItem(KEY, JSON.stringify(data))
   } catch {
-    /* cuota llena: ignorar */
+    /* storage quota exceeded: ignore */
   }
 }
 

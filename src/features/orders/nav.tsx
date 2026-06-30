@@ -13,7 +13,7 @@ export const ordersNav: NavItem[] = [
   },
 ]
 
-// Cola de canteado: única navegación del canteador (admin también la ve).
+// Banding queue: the only nav item for the canteador role (admin sees it too).
 export const bandingNav: NavItem[] = [
   {
     component: CNavItem,

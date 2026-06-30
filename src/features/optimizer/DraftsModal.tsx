@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   CButton,
   CFormSelect,
@@ -11,12 +10,13 @@ import {
   CModalTitle,
   CSpinner,
 } from '@coreui/react'
+import { useDeleteDraft, useDrafts } from './useDrafts'
+
 import CIcon from '@coreui/icons-react'
 import { cilTrash } from '@coreui/icons'
-
-import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
-import { useDeleteDraft, useDrafts } from './useDrafts'
+import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
+import { useState } from 'react'
 
 interface DraftsModalProps {
   visible: boolean
@@ -26,7 +26,7 @@ interface DraftsModalProps {
 }
 
 const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('es-AR', {
+  new Date(iso).toLocaleDateString('es-EC', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -72,7 +72,7 @@ const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) 
           </div>
         ) : drafts.length === 0 ? (
           <p className="text-body-secondary text-center py-4 mb-0">
-            No tenés borradores guardados todavía. Usá «Guardar borrador» para conservar tu trabajo
+            No tienes borradores guardados todavía. Usa «Guardar borrador» para conservar tu trabajo
             y retomarlo después.
           </p>
         ) : (

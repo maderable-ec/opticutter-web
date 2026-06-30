@@ -49,7 +49,7 @@ const LoginPage = () => {
               <CCardBody>
                 <CForm onSubmit={handleSubmit}>
                   <h1>Iniciar sesión</h1>
-                  <p className="text-body-secondary mb-4">Ingresá con tu cuenta</p>
+                  <p className="text-body-secondary mb-4">Ingresa con tu cuenta</p>
 
                   {errorMsg && (
                     <CAlert color="danger" className="py-2">

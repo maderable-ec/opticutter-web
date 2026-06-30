@@ -52,7 +52,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
     <>
       {confirm.error && (
         <CAlert color="danger" className="py-2 small">
-          {confirm.error.message || 'No se pudo confirmar. Intentá de nuevo.'}
+          {confirm.error.message || 'No se pudo confirmar. Intenta de nuevo.'}
         </CAlert>
       )}
       <div className="d-flex gap-2 flex-wrap">
@@ -83,14 +83,14 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CModalTitle>Solicitar cambios</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          <p>Indicá qué ajustes necesitás en la cotización. El taller recibirá tu nota.</p>
-          <CFormLabel>¿Qué querés cambiar? (opcional)</CFormLabel>
+          <p>Indica qué ajustes necesitas en la cotización. El taller recibirá tu nota.</p>
+          <CFormLabel>¿Qué quieres cambiar? (opcional)</CFormLabel>
           <CFormTextarea
             rows={3}
             maxLength={512}
             value={changesNote}
             onChange={(e) => setChangesNote(e.target.value)}
-            placeholder="Ej: cambiá las dimensiones de la pieza 2, agregá barniz…"
+            placeholder="Ej: cambia las dimensiones de la pieza 2, agrega barniz…"
           />
           {requestChanges.error && (
             <div className="text-danger small mt-2">
@@ -118,8 +118,8 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CModalTitle>Rechazar cotización</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          <p>¿Estás seguro de que querés rechazar esta cotización?</p>
-          <CFormLabel>¿Por qué lo rechazás? (opcional)</CFormLabel>
+          <p>¿Estás seguro de que deseas rechazar esta cotización?</p>
+          <CFormLabel>¿Por qué lo rechazas? (opcional)</CFormLabel>
           <CFormTextarea
             rows={3}
             maxLength={512}

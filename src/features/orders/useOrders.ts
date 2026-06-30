@@ -46,7 +46,7 @@ export const useAssociateInvoice = () => {
   })
 }
 
-// --- Canteado ---
+// --- Banding ---
 
 const BANDING_QUEUE_KEY = ['orders', 'banding-queue'] as const
 
@@ -56,8 +56,8 @@ export const useBandingQueue = () =>
     queryFn: () => ordersApi.getBandingQueue(),
   })
 
-// Avanza la pista de canteado y refresca la cola + el detalle/listado de la orden. Al pasar a
-// `done` la orden sale de la cola (el refetch la quita).
+// Advances the banding track and refreshes the queue + the order detail/list.
+// When moving to `done` the order leaves the queue on the next refetch.
 export const useUpdateBanding = () => {
   const qc = useQueryClient()
   return useMutation({
@@ -79,8 +79,8 @@ export const useClientsMin = (search?: string) =>
 
 const cuttingPlanKey = (id: string) => ['orders', id, 'cutting-plan']
 
-// Flip optimista de una pieza: ajusta los contadores de su tablero y el total solo si el estado
-// cambió de verdad (idempotente ante doble-tap o re-marcado).
+// Optimistic flip for a single piece: updates its board counters and the plan total only if the
+// state actually changed (idempotent against double-taps or re-marking).
 const applyCut = (plan: CuttingPlan, pieceId: number, cut: boolean): CuttingPlan => {
   let changed = false
   const boards = plan.boards.map((board) => {
@@ -107,7 +107,7 @@ const applyCut = (plan: CuttingPlan, pieceId: number, cut: boolean): CuttingPlan
   }
 }
 
-// Reconcilia el cache con la respuesta del PATCH (progress/boardProgress ya recalculados por el API).
+// Reconciles the cache with the PATCH response (progress/boardProgress already recalculated by the API).
 const reconcile = (plan: CuttingPlan, res: MarkPieceResponse): CuttingPlan => ({
   ...plan,
   progress: res.progress,
@@ -141,11 +141,11 @@ export const useMarkPiece = (orderId: string) => {
     },
     onError: (err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev)
-      // 404: el plan local quedó obsoleto (p. ej. orden recreada) → refrescar desde el server.
+      // 404: local plan is stale (e.g. order was recreated) → invalidate and refetch from server.
       if (err instanceof ApiError && err.status === 404) qc.invalidateQueries({ queryKey: key })
     },
     onSuccess: (res) => {
-      // Multi-operario (último escribe gana): sincronizamos con los contadores reales del API.
+      // Multi-operator (last write wins): sync with the real counters from the API response.
       qc.setQueryData<CuttingPlan>(key, (cur) => (cur ? reconcile(cur, res) : cur))
     },
   })

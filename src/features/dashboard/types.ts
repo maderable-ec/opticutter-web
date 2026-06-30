@@ -44,8 +44,8 @@ export interface OperationsStats {
   wasteEstimateM2: number
 }
 
-// --- Cuellos de botella (#1) -------------------------------------------------
-// Las 6 etapas del proceso (orden de proceso, no de duración).
+// --- Bottlenecks (#1) -------------------------------------------------------
+// The 6 process stages (in process order, not by duration).
 export type BottleneckStageKey =
   | 'confirm'
   | 'queue_wait'
@@ -63,7 +63,7 @@ export interface BottleneckStage {
   sampleCount: number
 }
 
-// Una serie temporal por etapa; `avgHours` es paralelo a `buckets`.
+// One timeseries per stage; `avgHours` is parallel to `buckets`.
 export interface BottleneckSeries {
   key: BottleneckStageKey
   label: string
@@ -71,42 +71,42 @@ export interface BottleneckSeries {
 }
 
 export interface BottlenecksData {
-  stages: BottleneckStage[] // SIEMPRE 6, ya ordenadas por medianHours desc
-  buckets: string[] // inicio de cada bucket (ISO)
-  series: BottleneckSeries[] // 6 etapas en orden de proceso
+  stages: BottleneckStage[] // always 6, pre-sorted by medianHours desc
+  buckets: string[] // start of each bucket (ISO)
+  series: BottleneckSeries[] // 6 stages in process order
 }
 
-// --- Productividad por usuario (#2) ------------------------------------------
-// Métricas que no aplican al rol quedan en 0 (nunca null). `branchName` es null
-// para administrador (sin sucursal).
+// --- User productivity (#2) --------------------------------------------------
+// Metrics that do not apply to a role are 0 (never null). `branchName` is null
+// for administrador (no branch).
 export interface UserProductivity {
   userId: number
   fullName: string
   role: Role
   branchName: string | null
-  // Corte (operador)
+  // Cutting (operador)
   piecesCut: number
   areaCutM2: number
   ordersCut: number
   cuttingHours: number
   piecesPerHour: number
-  // Canteado (canteador)
+  // Edge banding (canteador)
   ordersBanded: number
   bandingHours: number
-  // Comercial (vendedor)
+  // Sales (vendedor)
   ordersCreated: number
   revenueGenerated: number
 }
 
 export interface UsersProductivityData {
-  users: UserProductivity[] // ordenado por actividad total desc
+  users: UserProductivity[] // sorted by total activity desc
 }
 
-// --- Asistencia / hora de entrada (#3) ---------------------------------------
-// `firstLoginAt` es UTC naive (sin offset) → interpretar como UTC al mostrar.
+// --- Attendance / check-in time (#3) -----------------------------------------
+// `firstLoginAt` is UTC naive (no offset) → treat as UTC when displaying.
 export interface AttendanceDay {
   date: string // YYYY-MM-DD
-  firstLoginAt: string // UTC naive
+  firstLoginAt: string // UTC naive timestamp
   loginCount: number
 }
 
@@ -119,5 +119,5 @@ export interface AttendanceUser {
 }
 
 export interface AttendanceData {
-  users: AttendanceUser[] // solo usuarios con login en el rango
+  users: AttendanceUser[] // only users with a login in the date range
 }

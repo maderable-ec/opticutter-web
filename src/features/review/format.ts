@@ -1,14 +1,14 @@
-// Helpers de formato para la página pública de revisión.
-// Las fechas vienen en UTC sin sufijo de zona; las mostramos en formato local legible.
+// Format helpers for the public review page.
+// Dates arrive in UTC without a timezone suffix; we display them in human-readable local format.
 
 import type { ReviewEdges } from './types'
 
 export const fmtMoney = (n?: number | null, currency = 'USD') =>
-  n != null ? new Intl.NumberFormat('es-AR', { style: 'currency', currency }).format(n) : '—'
+  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency }).format(n) : '—'
 
 export const fmtDate = (iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleDateString('es-AR', {
+    ? new Date(iso).toLocaleDateString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -17,7 +17,7 @@ export const fmtDate = (iso?: string | null) =>
 
 export const fmtDateTime = (iso?: string | null) =>
   iso
-    ? new Date(iso).toLocaleString('es-AR', {
+    ? new Date(iso).toLocaleString('es-EC', {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
@@ -33,7 +33,7 @@ const SIDE_LABELS: Record<string, string> = {
   right: 'derecho',
 }
 
-// `edges` viene con claves en snake_case: { product_id, sides, band_type }.
+// `edges` arrives with snake_case keys: { product_id, sides, band_type }.
 export const edgesLabel = (edges?: ReviewEdges | null) => {
   if (!edges || !edges.sides?.length) return '—'
   const sides = edges.sides.map((s) => SIDE_LABELS[s] ?? s).join(', ')

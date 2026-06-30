@@ -69,7 +69,7 @@ const ChangePasswordPage = () => {
 
   const validate = (): Record<string, string> => {
     const errors: Record<string, string> = {}
-    if (!currentPassword) errors.currentPassword = 'Ingresá tu contraseña actual.'
+    if (!currentPassword) errors.currentPassword = 'Ingresa tu contraseña actual.'
     if (newPassword.length < MIN_LENGTH)
       errors.newPassword = `La nueva contraseña debe tener al menos ${MIN_LENGTH} caracteres.`
     if (confirmPassword !== newPassword) errors.confirmPassword = 'Las contraseñas no coinciden.'

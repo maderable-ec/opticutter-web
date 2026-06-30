@@ -5,7 +5,7 @@ import { CDropdown, CDropdownMenu, CDropdownToggle, CFormInput } from '@coreui/r
 export interface SelectOption {
   value: string
   label: string
-  sublabel?: string // texto secundario (p. ej. código), también buscable
+  sublabel?: string // secondary text (e.g. code), also searchable
 }
 
 interface SearchableSelectProps {
@@ -19,7 +19,7 @@ interface SearchableSelectProps {
   size?: 'sm' | 'lg'
 }
 
-// Normaliza para búsqueda insensible a mayúsculas y acentos (locale es).
+// Normalizes for case- and accent-insensitive search (Spanish locale).
 const norm = (s: string): string =>
   s
     .toLowerCase()
@@ -27,8 +27,8 @@ const norm = (s: string): string =>
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
 
-// Combobox con filtro por texto: toggle estilo <select> + buscador + lista filtrada. Reemplaza a
-// CFormSelect cuando la lista es larga (CoreUI free no trae un select con búsqueda).
+// Text-filter combobox: select-style toggle + search input + filtered list. Replaces CFormSelect
+// for long lists (CoreUI free does not ship a searchable select).
 const SearchableSelect = ({
   value,
   options,
@@ -54,7 +54,7 @@ const SearchableSelect = ({
     })
   }, [options, query])
 
-  // Al abrir, enfoca el buscador (el filtro se limpia en close()).
+  // On open, focus the search input (filter is cleared in close()).
   useEffect(() => {
     if (visible) inputRef.current?.focus()
   }, [visible])
@@ -95,8 +95,8 @@ const SearchableSelect = ({
       onShow={() => setVisible(true)}
       onHide={close}
     >
-      {/* `custom` clona este botón y le adjunta el toggle, evitando la clase .btn (borde transparente)
-          para que el borde gris de form-select se vea como en los demás campos. */}
+      {/* `custom` clones this button and attaches the toggle, bypassing the .btn class (transparent border)
+          so the grey form-select border appears like the rest of the form fields. */}
       <CDropdownToggle custom disabled={disabled}>
         <button
           type="button"

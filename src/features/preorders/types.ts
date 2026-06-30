@@ -19,7 +19,7 @@ export type PreOrderStatus =
 export interface PreOrderListParams {
   status?: PreOrderStatus
   clientId?: number
-  // Filtro efectivo para roles globales (admin y vendedor); el operador queda acotado a su sucursal.
+  // Effective filter for global roles (admin and vendedor); operador is always scoped to their branch.
   branchId?: number
   offset?: number
   limit?: number
@@ -29,7 +29,7 @@ export interface PreOrderSummary {
   id: number
   code: string
   client: Client
-  // Sucursal dueña (FK obligatoria): siempre presente en listado y detalle.
+  // Owning branch (required FK): always present in list and detail responses.
   branch: BranchRef
   status: PreOrderStatus
   source: string
@@ -39,7 +39,7 @@ export interface PreOrderSummary {
   expiresAt: string | null
 }
 
-// Auditoría (PR #39): línea de tiempo de cambios de estado de la pre-orden.
+// Audit log (PR #39): timeline of pre-order status changes.
 export interface PreOrderStatusHistoryEntry {
   id: number
   fromStatus?: PreOrderStatus
@@ -73,8 +73,8 @@ export interface PreOrderCreate {
   strategy?: PackingStrategy
   materials: MaterialInput[]
   requirements: RequirementInput[]
-  // Operador: lo omite (backend usa su sucursal). Vendedor: opcional, backend usa su base si se omite.
-  // Admin: obligatorio.
+  // Operador: omitted (backend uses their branch). Vendedor: optional (backend uses home branch if omitted).
+  // Admin: required.
   branchId?: number
 }
 

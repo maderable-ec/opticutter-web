@@ -164,7 +164,7 @@ const MaterialsPanel = ({ materials, boards, onAdd, onRemove, onUpdate }: Materi
           )
         })}
         {materials.length === 0 && (
-          <div className="text-body-secondary small">Agregá al menos un material.</div>
+          <div className="text-body-secondary small">Agrega al menos un material.</div>
         )}
       </CCardBody>
     </CCard>

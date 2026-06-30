@@ -48,11 +48,11 @@ const ReviewPage = () => {
 
   if (error) {
     const errStatus = error instanceof ApiError ? error.status : null
-    // 404 = token inexistente o revocado (definitivo, sin reintento ni detalles técnicos).
+    // 404 = token not found or revoked (final — no retry, no technical details shown).
     if (errStatus === 404) {
       return (
         <InfoView title="Enlace no válido">
-          Este enlace no es válido o fue reemplazado. Pedí a tu vendedor uno nuevo.
+          Este enlace no es válido o fue reemplazado. Pide a tu vendedor uno nuevo.
         </InfoView>
       )
     }
@@ -62,7 +62,7 @@ const ReviewPage = () => {
           <CCard>
             <CCardBody className="text-center py-5">
               <h5>No se pudo cargar</h5>
-              <div className="text-body-secondary mb-3">Revisá tu conexión e intentá de nuevo.</div>
+              <div className="text-body-secondary mb-3">Revisa tu conexión e intenta de nuevo.</div>
               <CButton color="primary" onClick={() => refetch()} disabled={isFetching}>
                 {isFetching ? <CSpinner size="sm" /> : 'Reintentar'}
               </CButton>
@@ -159,7 +159,7 @@ const ReviewPage = () => {
   if (status === 'expired') {
     return (
       <InfoView title="Cotización vencida">
-        Esta cotización venció{data.expiresAt ? ` el ${fmtDate(data.expiresAt)}` : ''}. Contactá a
+        Esta cotización venció{data.expiresAt ? ` el ${fmtDate(data.expiresAt)}` : ''}. Contacta a
         ventas para solicitar una nueva.
       </InfoView>
     )
@@ -168,7 +168,7 @@ const ReviewPage = () => {
   if (status === 'rejected') {
     return (
       <InfoView title="Cotización rechazada">
-        Esta cotización fue rechazada. Contactá a ventas para más información.
+        Esta cotización fue rechazada. Contacta a ventas para más información.
       </InfoView>
     )
   }
@@ -176,7 +176,7 @@ const ReviewPage = () => {
   if (status === 'cancelled') {
     return (
       <InfoView title="Cotización retirada">
-        Esta cotización ya no está disponible. Contactá a ventas para más información.
+        Esta cotización ya no está disponible. Contacta a ventas para más información.
       </InfoView>
     )
   }

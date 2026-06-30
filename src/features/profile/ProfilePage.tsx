@@ -63,7 +63,7 @@ const ProfilePage = () => {
     update.error instanceof ApiError
       ? (update.error.errors[0]?.message ?? update.error.message)
       : update.error
-        ? 'Error al guardar. Intentá nuevamente.'
+        ? 'Error al guardar. Intenta nuevamente.'
         : null
 
   return (

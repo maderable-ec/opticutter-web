@@ -1,7 +1,6 @@
-// Primitivas puras de dibujo del plan de corte, extraídas de CutLayoutDiagram.tsx para reusarlas en
-// la vista de taller de órdenes (orders/WorkshopBoardSvg). No contienen JSX ni estado: solo la
-// paleta, la firma por dimensión y la geometría de los lados/tapacanto. La lógica es idéntica a la
-// que vivía inline en el optimizador.
+// Pure drawing primitives for the cut plan, extracted from CutLayoutDiagram.tsx for reuse in the
+// workshop order view (orders/WorkshopBoardSvg). No JSX or state: just the color palette, the
+// dimension signature, and edge banding geometry. Logic is identical to what was inline in the optimizer.
 
 import type { EdgeSide, PlacedPieceEdges } from './types'
 
@@ -19,7 +18,7 @@ export const PALETTE = [
   '#86bcb6',
 ]
 
-export const EDGE_COLOR = '#d9480f' // color del tapacanto en el diagrama
+export const EDGE_COLOR = '#d9480f' // edge banding color in the diagram
 
 export const SIDE_LABELS_ES: Record<EdgeSide, string> = {
   top: 'Superior',
@@ -28,8 +27,8 @@ export const SIDE_LABELS_ES: Record<EdgeSide, string> = {
   right: 'Derecho',
 }
 
-// Forma estructural mínima que comparten PlacedPiece (optimizer) y CutPiece (orders): alcanza para
-// dibujar el rectángulo a escala, su color por firma y las bandas de tapacanto.
+// Minimal structural shape shared by PlacedPiece (optimizer) and CutPiece (orders): enough to
+// draw the scaled rectangle, its signature color, and the edge banding strips.
 export interface DrawablePiece {
   x: number
   y: number
@@ -41,18 +40,18 @@ export interface DrawablePiece {
   edges?: PlacedPieceEdges | null
 }
 
-// Las piezas iguales comparten dimensiones nominales (originalWidth×originalHeight).
+// Identical pieces share the same nominal dimensions (originalWidth×originalHeight).
 export const pieceSig = (p: Pick<DrawablePiece, 'originalWidth' | 'originalHeight'>) =>
   `${p.originalWidth}×${p.originalHeight}`
 
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
 
-// Rota el contenido del tablero 90° en horario y lo reubica en el cuadrante positivo (la caja
-// [0,W]×[0,H] pasa a [0,H]×[0,W]). Combinar con un viewBox de lados intercambiados (H ancho × W alto).
+// Rotates the board content 90° clockwise and repositions it in the positive quadrant (the box
+// [0,W]×[0,H] becomes [0,H]×[0,W]). Pair with a viewBox with swapped sides (H wide × W tall).
 export const boardRotation = (height: number) => `translate(${height} 0) rotate(90)`
 
-// Contra-rotación para que un <text> dentro del grupo rotado quede horizontal/legible, pivotando
-// sobre su propio ancla (usar con textAnchor="middle" / dominantBaseline="central").
+// Counter-rotation so a <text> inside the rotated group stays horizontal and readable, pivoting
+// on its own anchor (use with textAnchor="middle" / dominantBaseline="central").
 export const uprightText = (x: number, y: number) => `rotate(-90 ${x} ${y})`
 
 export const bandedSides = (p: Pick<DrawablePiece, 'edges'>): EdgeSide[] => p.edges?.sides ?? []
@@ -64,7 +63,7 @@ export interface SideLine {
   y2: number
 }
 
-// Coordenadas del lado geométrico de un rect (x,y,w,h). Los edges de la respuesta ya son geométricos.
+// Coordinates of a geometric side of a rect (x,y,w,h). Response edges are already in geometric space.
 export const sideLine = (side: EdgeSide, x: number, y: number, w: number, h: number): SideLine => {
   switch (side) {
     case 'top':
@@ -78,10 +77,10 @@ export const sideLine = (side: EdgeSide, x: number, y: number, w: number, h: num
   }
 }
 
-// Línea de tapacanto desplazada hacia DENTRO de la pieza: con offset t/2 el borde exterior del trazo
-// (grosor t) coincide con el lado de la pieza y la banda crece hacia el interior. Así se ve a qué pieza
-// pertenece el canto sin pisar la línea de corte ni invadir a la vecina. Usar con strokeLinecap="butt"
-// y el mismo grosor t; en cantos de dos lados contiguos las bandas se solapan limpias en la esquina.
+// Edge banding line offset INWARD: with offset t/2 the outer edge of the stroke (thickness t)
+// aligns with the piece boundary and the band grows inward. This shows which piece owns the edge
+// without overlapping the cut line or invading the neighbor. Use with strokeLinecap="butt" and the
+// same thickness t; adjacent two-side bands overlap cleanly at the corner.
 export const insetSideLine = (
   side: EdgeSide,
   x: number,
