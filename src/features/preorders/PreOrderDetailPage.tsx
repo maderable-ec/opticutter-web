@@ -31,14 +31,7 @@ import {
   nextUid,
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
-import {
-  cilArrowLeft,
-  cilCloudDownload,
-  cilCopy,
-  cilExternalLink,
-  cilSave,
-  cilTrash,
-} from '@coreui/icons'
+import { cilArrowLeft, cilCloudDownload, cilCopy, cilExternalLink, cilTrash } from '@coreui/icons'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import {
@@ -53,14 +46,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from 'src/shared/api/types'
 import CIcon from '@coreui/icons-react'
+import DeleteMaterialModal from 'src/features/optimizer/DeleteMaterialModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
-import MaterialsPanel from 'src/features/optimizer/MaterialsPanel'
+import MaterialGroups from 'src/features/optimizer/MaterialGroups'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
-import PiecesTable from 'src/features/optimizer/PiecesTable'
+import OptimizeActionBar from 'src/features/optimizer/OptimizeActionBar'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
-import StrategySelect from 'src/features/optimizer/StrategySelect'
 import { preordersApi } from './preordersApi'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
@@ -169,6 +162,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     preOrder.optimization.strategy ?? 'default',
   )
   const [showImport, setShowImport] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
   const [showRegenModal, setShowRegenModal] = useState(false)
@@ -206,6 +200,45 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         },
       },
     )
+  }
+
+  const addMaterial = () => setMaterials((ms) => [...ms, emptyCatalogMaterial()])
+
+  const updateMaterial = <K extends keyof MaterialForm>(
+    uid: string,
+    field: K,
+    value: MaterialForm[K],
+  ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
+
+  // Duplicates a material section together with all of its pieces (same behavior as the optimizer).
+  const duplicateMaterial = (m: MaterialForm) => {
+    const clone = { ...m, uid: nextUid() }
+    setMaterials((ms) => {
+      const i = ms.findIndex((x) => x.uid === m.uid)
+      return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]
+    })
+    editor.duplicateGroup(m.uid, clone.uid)
+  }
+
+  // Material removal is confirmed through DeleteMaterialModal: pieces are either moved to another
+  // material or deleted along with it.
+  const requestDeleteMaterial = (m: MaterialForm) => setDeleteTarget(m)
+
+  const handleMovePieces = (destUid: string) => {
+    if (!deleteTarget) return
+    editor.movePiecesTo(deleteTarget.uid, destUid)
+    setMaterials((ms) => ms.filter((m) => m.uid !== deleteTarget.uid))
+    setDeleteTarget(null)
+  }
+
+  const handleDeleteMaterialWithPieces = () => {
+    if (!deleteTarget) return
+    editor.removePiecesOf(deleteTarget.uid)
+    setMaterials((ms) => {
+      const remaining = ms.filter((m) => m.uid !== deleteTarget.uid)
+      return remaining.length ? remaining : [emptyCatalogMaterial()]
+    })
+    setDeleteTarget(null)
   }
 
   const handleGenerateLink = () => {
@@ -304,24 +337,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             </CCol>
             <CCol xs={12}>
               <div className="d-flex gap-2 flex-wrap mt-1">
-                {canEdit && (
-                  <CButton
-                    color="primary"
-                    size="sm"
-                    onClick={handleSave}
-                    disabled={updatePreOrder.isPending || !canSave}
-                    title={!canSave ? 'Agrega al menos una pieza válida para guardar' : undefined}
-                  >
-                    {updatePreOrder.isPending ? (
-                      <CSpinner size="sm" />
-                    ) : (
-                      <>
-                        <CIcon icon={cilSave} className="me-1" />
-                        Guardar
-                      </>
-                    )}
-                  </CButton>
-                )}
+                {/* Saving lives in the sticky "Actualizar cotización" action bar below, so there is
+                    no redundant save button up here. */}
                 {canEdit && (
                   <CButton
                     color="secondary"
@@ -457,14 +474,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           </CCardHeader>
           <CCardBody>
             <div className="mb-3">
-              <label className="form-label">Heurística de corte</label>
-              <StrategySelect
-                value={strategy}
-                onChange={setStrategy}
-                disabled={updatePreOrder.isPending}
-              />
-            </div>
-            <div className="mb-3">
               <label className="form-label">Nivel de precio</label>
               <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
             </div>
@@ -479,62 +488,58 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </CCard>
       )}
 
-      {/* Edit form: materials + pieces */}
+      {/* Edit form: grouped materials + pieces (same experience as the optimizer) */}
       {canEdit && (
-        <>
-          <CCard className="mb-3">
-            <CCardHeader>
-              <strong>Tableros (materiales)</strong>
-            </CCardHeader>
-            <CCardBody>
-              <MaterialsPanel
-                materials={materials}
-                boards={boards}
-                onAdd={() => setMaterials((ms) => [...ms, emptyCatalogMaterial()])}
-                onRemove={(uid) => {
-                  const remaining = materials.filter((m) => m.uid !== uid)
-                  setMaterials(remaining)
-                  editor.reassignOnMaterialRemoval(uid, remaining)
-                }}
-                onUpdate={(uid, field, value) =>
-                  setMaterials((ms) =>
-                    ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)),
-                  )
-                }
-              />
-            </CCardBody>
-          </CCard>
-
-          <CCard className="mb-3">
-            <CCardHeader>
-              <strong>Piezas</strong>
-            </CCardHeader>
-            <CCardBody className="p-0">
-              <PiecesTable
-                editor={editor}
-                materials={materials}
-                boards={boards}
-                edgeBandings={edgeBandings}
-                onImportOpen={() => setShowImport(true)}
-                onExport={() =>
-                  downloadCsv(
-                    'piezas.csv',
-                    requirementsToCsv(editor.requirements, materials, boards),
-                  )
-                }
-              />
-            </CCardBody>
-          </CCard>
-        </>
+        <MaterialGroups
+          editor={editor}
+          materials={materials}
+          boards={boards}
+          edgeBandings={edgeBandings}
+          onAddMaterial={addMaterial}
+          onUpdateMaterial={updateMaterial}
+          onRequestDeleteMaterial={requestDeleteMaterial}
+          onDuplicateMaterial={duplicateMaterial}
+          onImportOpen={() => setShowImport(true)}
+          onExport={() =>
+            downloadCsv('piezas.csv', requirementsToCsv(editor.requirements, materials, boards))
+          }
+        />
       )}
 
-      {/* Optimization result — "Optimizar" acts as Save+Recalculate in pre-orders */}
+      {/* Optimization result — the sticky action bar below drives "Optimizar" (Save+Recalculate) */}
       <OptimizationPreview
         result={optimization}
         isPending={updatePreOrder.isPending}
         error={updatePreOrder.error}
-        canOptimize={canEdit && canSave}
-        onOptimize={handleSave}
+      />
+
+      {/* Sticky action bar: cut heuristic + "Optimizar". In pre-orders this saves and recomputes
+          server-side; there is no separate "Crear cotización" (this view already is the quote). */}
+      {canEdit && (
+        <OptimizeActionBar
+          strategy={strategy}
+          onStrategyChange={setStrategy}
+          canOptimize={canSave}
+          isPending={updatePreOrder.isPending}
+          hasResult={!!optimization}
+          onOptimize={handleSave}
+          optimizeLabel="Actualizar cotización"
+        />
+      )}
+
+      {/* Delete material modal: move its pieces to another material or delete them together */}
+      <DeleteMaterialModal
+        material={deleteTarget}
+        pieceCount={
+          deleteTarget
+            ? editor.requirements.filter((r) => r.materialUid === deleteTarget.uid).length
+            : 0
+        }
+        otherMaterials={deleteTarget ? materials.filter((m) => m.uid !== deleteTarget.uid) : []}
+        boards={boards}
+        onMove={handleMovePieces}
+        onDeleteWithPieces={handleDeleteMaterialWithPieces}
+        onClose={() => setDeleteTarget(null)}
       />
 
       {/* Import pieces modal */}

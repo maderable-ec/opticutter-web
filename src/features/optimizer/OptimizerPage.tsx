@@ -6,7 +6,7 @@ import { cilCart, cilCheckAlt, cilFolderOpen, cilPlus, cilSave } from '@coreui/i
 import { useBoards, useEdgeBandings, useOptimize } from './useOptimizer'
 import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
-import { buildPayload, emptyCatalogMaterial, isRequirementEmpty } from './optimizerForm'
+import { buildPayload, emptyCatalogMaterial, isRequirementEmpty, nextUid } from './optimizerForm'
 import type { MaterialForm } from './optimizerForm'
 import type { OptimizerDraftPayload, PackingStrategy } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
@@ -56,6 +56,17 @@ const OptimizerPage = () => {
     field: K,
     value: MaterialForm[K],
   ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
+
+  // Duplicates a material section together with all of its pieces: a fresh-uid material clone is
+  // inserted right after the source, and its pieces are cloned and re-pointed to the new uid.
+  const duplicateMaterial = (m: MaterialForm) => {
+    const clone = { ...m, uid: nextUid() }
+    setMaterials((ms) => {
+      const i = ms.findIndex((x) => x.uid === m.uid)
+      return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]
+    })
+    pieces.duplicateGroup(m.uid, clone.uid)
+  }
 
   // Material removal is confirmed through DeleteMaterialModal: pieces are either moved to another
   // material or deleted along with it.
@@ -276,6 +287,7 @@ const OptimizerPage = () => {
         onAddMaterial={addMaterial}
         onUpdateMaterial={updateMaterial}
         onRequestDeleteMaterial={requestDeleteMaterial}
+        onDuplicateMaterial={duplicateMaterial}
         onImportOpen={() => setShowImport(true)}
         onExport={handleExport}
       />

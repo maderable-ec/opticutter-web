@@ -11,7 +11,11 @@ interface OptimizeActionBarProps {
   isPending: boolean
   hasResult: boolean
   onOptimize: () => void
-  onCreateQuote: () => void
+  // Optional: when omitted (e.g. in the pre-order view, which already is a quote) the button is hidden.
+  onCreateQuote?: () => void
+  // Primary button label. Defaults to "Optimizar"; pre-orders use "Actualizar cotización" since the
+  // action there saves and recomputes the quote rather than running a throwaway preview.
+  optimizeLabel?: string
 }
 
 const OPTIONS: { value: PackingStrategy; label: string }[] = [
@@ -29,6 +33,7 @@ const OptimizeActionBar = ({
   hasResult,
   onOptimize,
   onCreateQuote,
+  optimizeLabel = 'Optimizar',
 }: OptimizeActionBarProps) => (
   <div style={{ position: 'sticky', bottom: 0, zIndex: 1020 }} className="mb-3">
     <div className="d-flex flex-wrap align-items-center gap-3 p-2 border rounded-3 bg-body shadow-sm">
@@ -61,7 +66,7 @@ const OptimizeActionBar = ({
       </div>
 
       <div className="ms-auto d-flex align-items-center gap-2">
-        {hasResult && (
+        {hasResult && onCreateQuote && (
           <CButton color="secondary" variant="outline" type="button" onClick={onCreateQuote}>
             <CIcon icon={cilCart} className="me-1" />
             Crear cotización
@@ -79,7 +84,7 @@ const OptimizeActionBar = ({
           ) : (
             <CIcon icon={cilCalculator} className="me-1" />
           )}
-          Optimizar
+          {optimizeLabel}
         </CButton>
       </div>
     </div>

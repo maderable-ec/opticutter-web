@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { CBadge, CButton, CFormInput, CFormLabel, CFormSelect } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilChevronBottom, cilChevronRight, cilPlus, cilTrash } from '@coreui/icons'
+import { cilChevronBottom, cilChevronRight, cilCopy, cilPlus, cilTrash } from '@coreui/icons'
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
@@ -33,6 +33,7 @@ interface MaterialGroupCardProps {
   onToggle: () => void
   onUpdate: <K extends keyof MaterialForm>(uid: string, field: K, value: MaterialForm[K]) => void
   onRequestDelete: (m: MaterialForm) => void
+  onDuplicate: (m: MaterialForm) => void
 }
 
 const boardDims = (b?: BoardProduct): string | null => {
@@ -92,6 +93,7 @@ const MaterialGroupCard = ({
   onToggle,
   onUpdate,
   onRequestDelete,
+  onDuplicate,
 }: MaterialGroupCardProps) => {
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
@@ -247,6 +249,16 @@ const MaterialGroupCard = ({
               {invalidCount} incompletas
             </CBadge>
           )}
+          <CButton
+            size="sm"
+            variant="ghost"
+            color="secondary"
+            type="button"
+            title="Duplicar material y sus piezas"
+            onClick={() => onDuplicate(m)}
+          >
+            <CIcon icon={cilCopy} />
+          </CButton>
           <CButton
             size="sm"
             variant="ghost"
