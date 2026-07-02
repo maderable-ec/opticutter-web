@@ -17,16 +17,82 @@ export type FillableField =
   | 'edgeBandingProductId'
 export type FillScope = 'all' | 'selected'
 
+// Campos por los que se puede ordenar una tabla de grupo.
+export type SortField = 'height' | 'width' | 'quantity' | 'priority' | 'label'
+export type SortDir = 'asc' | 'desc'
+
 const MAX_HISTORY = 20
+
+// Clusters requirements so pieces of the same material are contiguous, in first-appearance order.
+// The grouped view (MaterialGroups) relies on each material occupying a single contiguous
+// flat-index range; the flat view (PiecesTable) is agnostic to order, so clustering is safe for both.
+const clusterByMaterial = (rs: RequirementForm[]): RequirementForm[] => {
+  const order: string[] = []
+  const buckets = new Map<string, RequirementForm[]>()
+  for (const r of rs) {
+    let bucket = buckets.get(r.materialUid)
+    if (!bucket) {
+      bucket = []
+      buckets.set(r.materialUid, bucket)
+      order.push(r.materialUid)
+    }
+    bucket.push(r)
+  }
+  return order.flatMap((uid) => buckets.get(uid) ?? [])
+}
+
+// Contiguous flat-index range [start, end) of a material's block (assumes the list is clustered).
+const rangeOf = (rs: RequirementForm[], uid: string): [number, number] => {
+  const start = rs.findIndex((r) => r.materialUid === uid)
+  if (start < 0) return [rs.length, rs.length]
+  let end = start
+  while (end < rs.length && rs[end].materialUid === uid) end++
+  return [start, end]
+}
+
+// Applies a single field value from `src` onto `r`. Edge-banding sub-fields are copied immutably.
+const applyField = (
+  r: RequirementForm,
+  src: RequirementForm,
+  field: FillableField,
+): RequirementForm => {
+  if (field === 'edgeBanding') {
+    return {
+      ...r,
+      edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
+    }
+  }
+  if (field === 'edgeBandingSides') {
+    return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
+  }
+  if (field === 'edgeBandingProductId') {
+    return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
+  }
+  return { ...r, [field]: src[field] }
+}
+
+// Comparator for a sortable field. Blank numeric cells sink to the bottom; labels sort locale-aware.
+const compareBy = (a: RequirementForm, b: RequirementForm, field: SortField): number => {
+  if (field === 'label') {
+    return a.label.trim().localeCompare(b.label.trim(), 'es', { sensitivity: 'base' })
+  }
+  const an = Number(a[field])
+  const bn = Number(b[field])
+  const av = Number.isFinite(an) ? an : Infinity
+  const bv = Number.isFinite(bn) ? bn : Infinity
+  return av - bv
+}
 
 // Encapsulates the piece list and all bulk editing operations (paste, duplicate, fill-down,
 // multi-select, focus, undo history). Follows the project style: flat state + immutable updates.
+// Serves both the flat table (PiecesTable) and the grouped view (MaterialGroups): the list is kept
+// clustered by material so each material owns a contiguous index range.
 export const usePiecesEditor = (materials: MaterialForm[], initial?: RequirementForm[]) => {
   const firstUid = () => materials[0]?.uid ?? ''
   // `initial` is only used to hydrate the initial state (e.g. from autosave). Passing it in
   // subsequent renders does not reset the list: later edits take precedence.
   const [requirements, setRequirements] = useState<RequirementForm[]>(() =>
-    initial && initial.length ? initial : [emptyRequirement(firstUid())],
+    clusterByMaterial(initial && initial.length ? initial : [emptyRequirement(firstUid())]),
   )
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   // Row index to focus after adding (consumed by the table and then cleared).
@@ -50,7 +116,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }, [history])
 
-  // Adds a blank row inheriting the material from the last row (or the first available).
+  // Flat table: adds a blank row inheriting the material from the last row (or the first available).
   const add = () => {
     applyWithHistory((rs) => {
       const inheritUid = rs[rs.length - 1]?.materialUid || firstUid()
@@ -60,13 +126,28 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // Grouped view: adds a blank row at the end of a specific material's group and focuses it.
+  const addTo = (materialUid: string) => {
+    const [, end] = rangeOf(requirements, materialUid)
+    applyWithHistory((rs) => {
+      const [, e] = rangeOf(rs, materialUid)
+      const copy = [...rs]
+      copy.splice(e, 0, emptyRequirement(materialUid))
+      return copy
+    })
+    setFocusRow(end)
+    setSelected(new Set())
+  }
+
   // Adds imported/pasted rows. `replace` replaces the list; otherwise appends (replacing a single
-  // blank row if that is all that exists).
+  // blank row if that is all that exists). The result is reclustered so multi-material imports group.
   const addMany = (rows: RequirementForm[], replace: boolean) => {
     applyWithHistory((rs) => {
-      if (replace) return rows.length ? rows : [emptyRequirement(firstUid())]
-      if (rs.length === 1 && isRequirementEmpty(rs[0])) return rows.length ? rows : rs
-      return [...rs, ...rows]
+      if (replace) return clusterByMaterial(rows.length ? rows : [emptyRequirement(firstUid())])
+      if (rs.length === 1 && isRequirementEmpty(rs[0])) {
+        return clusterByMaterial(rows.length ? rows : rs)
+      }
+      return clusterByMaterial([...rs, ...rows])
     })
     setSelected(new Set())
   }
@@ -111,7 +192,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     value: RequirementForm[K],
   ) => setRequirements((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
 
-  // Applies the value from the source row (first, or first selected) to the rest of the scope.
+  // Flat table: applies the value from the source row (first, or first selected) to the scope.
   const fillDown = (field: FillableField, scope: FillScope) => {
     applyWithHistory((rs) => {
       const hasSel = scope === 'selected' && selected.size > 0
@@ -119,28 +200,29 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
       const src = rs[srcIndex]
       if (!src) return rs
       const inTarget = (i: number) => (hasSel ? selected.has(i) : true)
-      return rs.map((r, i) => {
-        if (i === srcIndex || !inTarget(i)) return r
-        if (field === 'edgeBanding') {
-          return {
-            ...r,
-            edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
-          }
-        }
-        if (field === 'edgeBandingSides') {
-          return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
-        }
-        if (field === 'edgeBandingProductId') {
-          return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
-        }
-        return { ...r, [field]: src[field] }
-      })
+      return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))
+    })
+  }
+
+  // Grouped view: applies the value from the group's source row (first, or first selected in the
+  // group) to the rest of that material's group.
+  const fillDownGroup = (materialUid: string, field: FillableField, scope: FillScope) => {
+    applyWithHistory((rs) => {
+      const [start, end] = rangeOf(rs, materialUid)
+      if (start >= end) return rs
+      const selInGroup = [...selected].filter((i) => i >= start && i < end)
+      const hasSel = scope === 'selected' && selInGroup.length > 0
+      const srcIndex = hasSel ? Math.min(...selInGroup) : start
+      const src = rs[srcIndex]
+      if (!src) return rs
+      const inTarget = (i: number) => i >= start && i < end && (hasSel ? selected.has(i) : true)
+      return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))
     })
   }
 
   // Copies the field value from row `srcIndex` to rows between srcIndex and targetIndex (inclusive),
-  // without touching the source. Clamped to existing rows (no new rows are created). Used by the
-  // table's drag fill handle.
+  // without touching the source. Used by the drag fill handle. In the grouped view srcIndex and
+  // targetIndex are always within one contiguous group, so the fill stays inside that group.
   const fillRange = (srcIndex: number, targetIndex: number, field: FillableField) => {
     if (srcIndex === targetIndex) return
     applyWithHistory((rs) => {
@@ -148,22 +230,19 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
       if (!src) return rs
       const lo = Math.min(srcIndex, targetIndex)
       const hi = Math.max(srcIndex, targetIndex)
-      return rs.map((r, i) => {
-        if (i < lo || i > hi || i === srcIndex) return r
-        if (field === 'edgeBanding') {
-          return {
-            ...r,
-            edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
-          }
-        }
-        if (field === 'edgeBandingSides') {
-          return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
-        }
-        if (field === 'edgeBandingProductId') {
-          return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
-        }
-        return { ...r, [field]: src[field] }
-      })
+      return rs.map((r, i) => (i < lo || i > hi || i === srcIndex ? r : applyField(r, src, field)))
+    })
+    setSelected(new Set())
+  }
+
+  // Sorts only the rows of a material's group by a field, preserving the rest of the list.
+  const sortGroup = (materialUid: string, field: SortField, dir: SortDir) => {
+    applyWithHistory((rs) => {
+      const [start, end] = rangeOf(rs, materialUid)
+      if (end - start <= 1) return rs
+      const slice = rs.slice(start, end)
+      slice.sort((a, b) => (dir === 'asc' ? 1 : -1) * compareBy(a, b, field))
+      return [...rs.slice(0, start), ...slice, ...rs.slice(end)]
     })
     setSelected(new Set())
   }
@@ -173,8 +252,38 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // Reassigns pieces when a material is removed (flat view: reassign to the sole remaining material,
+  // otherwise orphan). Kept for the flat editor used by preorders.
+  const reassignOnMaterialRemoval = (removedUid: string, remaining: MaterialForm[]) =>
+    setRequirements((rs) =>
+      clusterByMaterial(
+        rs.map((r) => {
+          const orphaned = r.materialUid === removedUid || r.materialUid === ''
+          if (remaining.length === 1 && orphaned) return { ...r, materialUid: remaining[0].uid }
+          if (r.materialUid === removedUid) return { ...r, materialUid: '' }
+          return r
+        }),
+      ),
+    )
+
+  // Grouped view: moves every piece of `fromUid` to `toUid` (keep pieces when deleting a material).
+  const movePiecesTo = (fromUid: string, toUid: string) => {
+    applyWithHistory((rs) =>
+      clusterByMaterial(
+        rs.map((r) => (r.materialUid === fromUid ? { ...r, materialUid: toUid } : r)),
+      ),
+    )
+    setSelected(new Set())
+  }
+
+  // Grouped view: removes every piece of a material (delete a material together with its pieces).
+  const removePiecesOf = (uid: string) => {
+    applyWithHistory((rs) => rs.filter((r) => r.materialUid !== uid))
+    setSelected(new Set())
+  }
+
   // Pastes a column of values into `field` starting at `startIndex`. Overwrites existing rows and
-  // creates new ones (cloned from the source row) only when the existing rows run out.
+  // creates new ones (cloned from the source row) when they run out; reclusters to keep groups intact.
   const pasteIntoField = (
     startIndex: number,
     field: 'height' | 'width' | 'quantity' | 'priority' | 'label',
@@ -197,25 +306,25 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
           result.push({ ...cloneRequirement(src), [field]: toValue(val) })
         }
       })
-      return result
+      return clusterByMaterial(result)
     })
     setSelected(new Set())
   }
 
-  // Pastes complete rows starting at `startIndex`. Overwrites existing rows and appends at the end.
-  const pasteRows = (startIndex: number, rows: RequirementForm[]) => {
+  // Pastes complete rows starting at `startIndex`. Overwrites existing rows and appends the overflow.
+  // `forceMaterialUid` (grouped view) pins every pasted row to one material; the flat view keeps each
+  // row's parsed material. Reclusters so groups stay contiguous.
+  const pasteRows = (startIndex: number, rows: RequirementForm[], forceMaterialUid?: string) => {
     applyWithHistory((rs) => {
-      if (rows.length === 0) return rs
+      if (rows.length === 0 || startIndex >= rs.length) return rs
       const result = [...rs]
       rows.forEach((row, i) => {
+        const withUid = forceMaterialUid != null ? { ...row, materialUid: forceMaterialUid } : row
         const target = startIndex + i
-        if (target < result.length) {
-          result[target] = row
-        } else {
-          result.push(row)
-        }
+        if (target < result.length) result[target] = withUid
+        else result.push(withUid)
       })
-      return result
+      return clusterByMaterial(result)
     })
     setSelected(new Set())
   }
@@ -231,16 +340,13 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   const selectAll = (checked: boolean) =>
     setSelected(checked ? new Set(requirements.map((_, i) => i)) : new Set())
 
-  // Reassigns pieces when a material is removed (mirrors the previous OptimizerPage logic).
-  const reassignOnMaterialRemoval = (removedUid: string, remaining: MaterialForm[]) =>
-    setRequirements((rs) =>
-      rs.map((r) => {
-        const orphaned = r.materialUid === removedUid || r.materialUid === ''
-        if (remaining.length === 1 && orphaned) return { ...r, materialUid: remaining[0].uid }
-        if (r.materialUid === removedUid) return { ...r, materialUid: '' }
-        return r
-      }),
-    )
+  // Adds/removes a set of row indices from the selection (grouped view "select all in group").
+  const selectMany = (indices: number[], checked: boolean) =>
+    setSelected((s) => {
+      const next = new Set(s)
+      indices.forEach((i) => (checked ? next.add(i) : next.delete(i)))
+      return next
+    })
 
   return {
     requirements,
@@ -248,6 +354,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     focusRow,
     clearFocus,
     add,
+    addTo,
     addMany,
     remove,
     removeSelected,
@@ -255,15 +362,20 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     duplicateSelected,
     update,
     fillDown,
+    fillDownGroup,
     fillRange,
+    sortGroup,
     clear,
+    reassignOnMaterialRemoval,
+    movePiecesTo,
+    removePiecesOf,
     pasteIntoField,
     pasteRows,
     undo,
     canUndo: history.length > 0,
     toggleSelect,
     selectAll,
-    reassignOnMaterialRemoval,
+    selectMany,
   }
 }
 

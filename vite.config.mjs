@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'node:path'
 import autoprefixer from 'autoprefixer'
+import { defineConfig } from 'vite'
+import path from 'node:path'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig(() => {
   return {
@@ -28,6 +28,9 @@ export default defineConfig(() => {
     },
     server: {
       port: 3000,
+      // Allow tunneling the dev server through ngrok (the subdomain changes each session).
+      // A leading dot matches the domain and all its subdomains.
+      //allowedHosts: ['.ngrok-free.app', '.ngrok.app'],
       proxy: {
         '/api': { target: 'http://localhost:3000', changeOrigin: true },
       },
