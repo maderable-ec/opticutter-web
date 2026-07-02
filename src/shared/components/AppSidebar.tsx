@@ -6,6 +6,7 @@ import {
   CSidebarHeader,
   CSidebarToggler,
 } from '@coreui/react'
+import { bandingNav, ordersNav } from 'src/features/orders/nav'
 
 import { AppSidebarNav } from './AppSidebarNav'
 import CIcon from '@coreui/icons-react'
@@ -15,7 +16,6 @@ import { dashboardNav } from 'src/features/dashboard/nav'
 import { logo } from 'src/assets/brand/logo'
 import { memo } from 'react'
 import { optimizerNav } from 'src/features/optimizer/nav'
-import { bandingNav, ordersNav } from 'src/features/orders/nav'
 import { preordersNav } from 'src/features/preorders/nav'
 import { productsNav } from 'src/features/products/nav'
 import { settingsNav } from 'src/features/settings/nav'
@@ -57,9 +57,9 @@ const AppSidebar = () => {
       visible={sidebarShow}
       onVisibleChange={(visible) => setSidebarShow(visible)}
     >
-      <CSidebarHeader className="border-bottom">
+      <CSidebarHeader className="border-bottom justify-content-center">
         <CSidebarBrand>
-          <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />
+          <CIcon customClassName="sidebar-brand-full" icon={logo} height={48} />
           <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} />
         </CSidebarBrand>
         <CCloseButton className="d-lg-none" dark onClick={() => setSidebarShow(false)} />

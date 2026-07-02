@@ -172,6 +172,26 @@ const OrderDetailPage = () => {
     setPaymentModal(false)
     updateStatus.reset()
   }
+  const handleCashChange = (raw: string) => {
+    setCashInput(raw)
+    const cash = parseFloat(raw)
+    if (raw === '' || isNaN(cash)) {
+      setCreditInput('')
+      return
+    }
+    const remaining = Math.max((order?.total ?? 0) - cash, 0)
+    setCreditInput(remaining.toFixed(2))
+  }
+  const handleCreditChange = (raw: string) => {
+    setCreditInput(raw)
+    const credit = parseFloat(raw)
+    if (raw === '' || isNaN(credit)) {
+      setCashInput('')
+      return
+    }
+    const remaining = Math.max((order?.total ?? 0) - credit, 0)
+    setCashInput(remaining.toFixed(2))
+  }
   const confirmPayment = () => {
     if (!id) return
     const cash = parseFloat(cashInput) || 0
@@ -645,10 +665,30 @@ const OrderDetailPage = () => {
           {(() => {
             const cash = parseFloat(cashInput) || 0
             const credit = parseFloat(creditInput) || 0
-            const total = cash + credit
-            const invalid = total <= 0
+            const sum = cash + credit
+            const orderTotal = order.total
+            const empty = sum <= 0
+            const mismatch = !empty && Math.abs(sum - orderTotal) > 0.01
             return (
               <>
+                <div className="d-flex gap-2 mb-3">
+                  <CButton
+                    color="primary"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCashChange(orderTotal.toFixed(2))}
+                  >
+                    Todo efectivo
+                  </CButton>
+                  <CButton
+                    color="primary"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCreditChange(orderTotal.toFixed(2))}
+                  >
+                    Todo a crédito
+                  </CButton>
+                </div>
                 <div className="mb-3">
                   <CFormLabel>Efectivo (USD)</CFormLabel>
                   <CFormInput
@@ -656,7 +696,7 @@ const OrderDetailPage = () => {
                     min="0"
                     step="0.01"
                     value={cashInput}
-                    onChange={(e) => setCashInput(e.target.value)}
+                    onChange={(e) => handleCashChange(e.target.value)}
                     placeholder="0.00"
                   />
                 </div>
@@ -667,14 +707,21 @@ const OrderDetailPage = () => {
                     min="0"
                     step="0.01"
                     value={creditInput}
-                    onChange={(e) => setCreditInput(e.target.value)}
+                    onChange={(e) => handleCreditChange(e.target.value)}
                     placeholder="0.00"
                   />
                 </div>
-                <div className="fw-semibold small mb-3">Total: {fmt(total)}</div>
-                {invalid && (
+                <div className="fw-semibold small mb-3">
+                  Total ingresado: {fmt(sum)} / Total de la orden: {fmt(orderTotal)}
+                </div>
+                {empty && (
                   <div className="text-warning small mb-2">
                     Ingresa al menos un monto mayor a 0.
+                  </div>
+                )}
+                {mismatch && (
+                  <div className="text-danger small mb-2">
+                    La suma de los montos debe ser igual al total de la orden ({fmt(orderTotal)}).
                   </div>
                 )}
                 <div className="mb-2">
@@ -703,10 +750,12 @@ const OrderDetailPage = () => {
           <CButton
             color="primary"
             onClick={confirmPayment}
-            disabled={
-              updateStatus.isPending ||
-              (parseFloat(cashInput) || 0) + (parseFloat(creditInput) || 0) <= 0
-            }
+            disabled={(() => {
+              const cash = parseFloat(cashInput) || 0
+              const credit = parseFloat(creditInput) || 0
+              const sum = cash + credit
+              return updateStatus.isPending || sum <= 0 || Math.abs(sum - order.total) > 0.01
+            })()}
           >
             {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
           </CButton>
