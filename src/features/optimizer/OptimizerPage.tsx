@@ -12,12 +12,12 @@ import type { OptimizerDraftPayload, PackingStrategy } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
 import { downloadCsv, requirementsToCsv } from './piecesCsv'
 import { usePiecesEditor } from './usePiecesEditor'
-import MaterialsPanel from './MaterialsPanel'
-import PiecesTable from './PiecesTable'
+import MaterialGroups from './MaterialGroups'
 import OptimizationPreview from './OptimizationPreview'
+import OptimizeActionBar from './OptimizeActionBar'
+import DeleteMaterialModal from './DeleteMaterialModal'
 import ImportPiecesModal from './ImportPiecesModal'
 import CreateQuoteModal from './CreateQuoteModal'
-import StrategySelect from './StrategySelect'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
 const OptimizerPage = () => {
@@ -30,6 +30,7 @@ const OptimizerPage = () => {
   )
   const [showQuote, setShowQuote] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
 
   // --- Draft persistence ---
   const [draftId, setDraftId] = useState<number | null>(bootstrap?.draftId ?? null)
@@ -37,7 +38,7 @@ const OptimizerPage = () => {
   const [showDrafts, setShowDrafts] = useState(false)
   const [showSaveDraft, setShowSaveDraft] = useState(false)
   const [priceTierCode, setPriceTierCode] = useState('consumidor')
-  const [strategy, setStrategy] = useState<PackingStrategy>('default')
+  const [strategy, setStrategy] = useState<PackingStrategy>('longOffcuts')
   const [restored, setRestored] = useState(!!bootstrap)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
@@ -50,16 +51,32 @@ const OptimizerPage = () => {
   const saveDraft = useSaveDraft()
 
   const addMaterial = () => setMaterials((ms) => [...ms, emptyCatalogMaterial()])
-  const removeMaterial = (uid: string) => {
-    const remaining = materials.filter((m) => m.uid !== uid)
-    setMaterials(remaining)
-    pieces.reassignOnMaterialRemoval(uid, remaining)
-  }
   const updateMaterial = <K extends keyof MaterialForm>(
     uid: string,
     field: K,
     value: MaterialForm[K],
   ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
+
+  // Material removal is confirmed through DeleteMaterialModal: pieces are either moved to another
+  // material or deleted along with it.
+  const requestDeleteMaterial = (m: MaterialForm) => setDeleteTarget(m)
+
+  const handleMovePieces = (destUid: string) => {
+    if (!deleteTarget) return
+    pieces.movePiecesTo(deleteTarget.uid, destUid)
+    setMaterials((ms) => ms.filter((m) => m.uid !== deleteTarget.uid))
+    setDeleteTarget(null)
+  }
+
+  const handleDeleteMaterialWithPieces = () => {
+    if (!deleteTarget) return
+    pieces.removePiecesOf(deleteTarget.uid)
+    setMaterials((ms) => {
+      const remaining = ms.filter((m) => m.uid !== deleteTarget.uid)
+      return remaining.length ? remaining : [emptyCatalogMaterial()]
+    })
+    setDeleteTarget(null)
+  }
 
   const built = buildPayload(materials, pieces.requirements)
   const canOptimize = built.validCount > 0
@@ -251,46 +268,47 @@ const OptimizerPage = () => {
         </CAlert>
       )}
 
-      <MaterialsPanel
-        materials={materials}
-        boards={boards}
-        onAdd={addMaterial}
-        onRemove={removeMaterial}
-        onUpdate={updateMaterial}
-      />
-
-      <PiecesTable
+      <MaterialGroups
         editor={pieces}
         materials={materials}
         boards={boards}
         edgeBandings={edgeBandings}
+        onAddMaterial={addMaterial}
+        onUpdateMaterial={updateMaterial}
+        onRequestDeleteMaterial={requestDeleteMaterial}
         onImportOpen={() => setShowImport(true)}
         onExport={handleExport}
       />
-
-      <div className="mb-3" style={{ maxWidth: 280 }}>
-        <label className="form-label">Heurística de corte</label>
-        <StrategySelect
-          value={strategy}
-          onChange={handleStrategyChange}
-          disabled={optimize.isPending}
-        />
-      </div>
 
       <OptimizationPreview
         result={optimize.data}
         isPending={optimize.isPending}
         error={optimize.error}
-        canOptimize={canOptimize}
-        onOptimize={handleOptimize}
       />
 
-      <div className="d-flex justify-content-end mb-4">
-        <CButton color="primary" disabled={!canOptimize} onClick={() => setShowQuote(true)}>
-          <CIcon icon={cilCart} className="me-1" />
-          Crear cotización
-        </CButton>
-      </div>
+      <OptimizeActionBar
+        strategy={strategy}
+        onStrategyChange={handleStrategyChange}
+        canOptimize={canOptimize}
+        isPending={optimize.isPending}
+        hasResult={!!optimize.data}
+        onOptimize={handleOptimize}
+        onCreateQuote={() => setShowQuote(true)}
+      />
+
+      <DeleteMaterialModal
+        material={deleteTarget}
+        pieceCount={
+          deleteTarget
+            ? pieces.requirements.filter((r) => r.materialUid === deleteTarget.uid).length
+            : 0
+        }
+        otherMaterials={deleteTarget ? materials.filter((m) => m.uid !== deleteTarget.uid) : []}
+        boards={boards}
+        onMove={handleMovePieces}
+        onDeleteWithPieces={handleDeleteMaterialWithPieces}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       <ImportPiecesModal
         visible={showImport}

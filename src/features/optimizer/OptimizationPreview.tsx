@@ -28,11 +28,28 @@ interface OptimizationPreviewProps {
   result?: OptimizeResponse
   isPending: boolean
   error?: Error | null
-  canOptimize: boolean
-  onOptimize: () => void
+  // When provided, the header shows an "Optimizar" button (used by pre-orders as Save+Recalculate).
+  // The optimizer omits it and triggers optimization from its sticky action bar instead.
+  canOptimize?: boolean
+  onOptimize?: () => void
 }
 
 const meters = (n?: number | null) => (n != null ? `${n.toFixed(2)} m` : '—')
+
+interface KpiProps {
+  label: string
+  value: string | number
+}
+
+// Compact KPI tile with a subtle border, so the four headline metrics read as a scannable group.
+const Kpi = ({ label, value }: KpiProps) => (
+  <CCol xs={6} md={3}>
+    <div className="border rounded-3 p-2 h-100">
+      <div className="text-body-secondary small text-uppercase">{label}</div>
+      <div className="fs-5 fw-semibold">{value}</div>
+    </div>
+  </CCol>
+)
 
 const OptimizationPreview = ({
   result,
@@ -45,23 +62,32 @@ const OptimizationPreview = ({
     <CCard className="mb-3">
       <CCardHeader className="d-flex justify-content-between align-items-center">
         <strong>Vista previa de optimización</strong>
-        <CButton
-          size="sm"
-          color="secondary"
-          variant="outline"
-          type="button"
-          disabled={!canOptimize || isPending}
-          onClick={onOptimize}
-        >
-          {isPending ? (
-            <CSpinner size="sm" />
-          ) : (
-            <>
-              <CIcon icon={cilCalculator} className="me-1" />
-              Optimizar
-            </>
-          )}
-        </CButton>
+        {onOptimize ? (
+          <CButton
+            size="sm"
+            color="secondary"
+            variant="outline"
+            type="button"
+            disabled={!canOptimize || isPending}
+            onClick={onOptimize}
+          >
+            {isPending ? (
+              <CSpinner size="sm" />
+            ) : (
+              <>
+                <CIcon icon={cilCalculator} className="me-1" />
+                Optimizar
+              </>
+            )}
+          </CButton>
+        ) : (
+          isPending && (
+            <span className="text-body-secondary small d-flex align-items-center gap-2">
+              <CSpinner size="sm" />
+              Optimizando…
+            </span>
+          )
+        )}
       </CCardHeader>
       <CCardBody>
         {error && (
@@ -77,25 +103,14 @@ const OptimizationPreview = ({
         )}
         {result && (
           <>
-            <CRow className="g-3 mb-3">
-              <CCol xs={6} md={3}>
-                <div className="text-body-secondary small">Tableros usados</div>
-                <div className="fs-5 fw-semibold">{result.totalBoardsUsed}</div>
-              </CCol>
-              <CCol xs={6} md={3}>
-                <div className="text-body-secondary small">Costo estimado</div>
-                <div className="fs-5 fw-semibold">
-                  {fmtMoney((result.totalBoardsCost ?? 0) + (result.totalEdgeBandingCost ?? 0))}
-                </div>
-              </CCol>
-              <CCol xs={6} md={3}>
-                <div className="text-body-secondary small">Corte lineal</div>
-                <div className="fs-5 fw-semibold">{meters(result.totalCutLinearM)}</div>
-              </CCol>
-              <CCol xs={6} md={3}>
-                <div className="text-body-secondary small">Tapacanto lineal</div>
-                <div className="fs-5 fw-semibold">{meters(result.totalEdgeBandingLinearM)}</div>
-              </CCol>
+            <CRow className="g-2 mb-3">
+              <Kpi label="Tableros usados" value={result.totalBoardsUsed} />
+              <Kpi
+                label="Costo estimado"
+                value={fmtMoney((result.totalBoardsCost ?? 0) + (result.totalEdgeBandingCost ?? 0))}
+              />
+              <Kpi label="Corte lineal" value={meters(result.totalCutLinearM)} />
+              <Kpi label="Tapacanto lineal" value={meters(result.totalEdgeBandingLinearM)} />
             </CRow>
 
             {result.pricing && (

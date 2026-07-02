@@ -449,7 +449,7 @@ const GroupedPiecesList = ({ pieces, colorFor, hoverSig, onHover }: GroupedPiece
       <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
         Piezas por medida
       </div>
-      <div className="d-flex flex-wrap gap-1">
+      <div className="d-flex flex-wrap gap-1" style={{ maxHeight: 200, overflowY: 'auto' }}>
         {groups.map(({ sig, count }) => (
           <span
             key={sig}
@@ -719,7 +719,10 @@ const CutLayoutDiagram = ({ layoutGroups, materialsSummary }: CutLayoutDiagramPr
       <div className="d-flex justify-content-between align-items-center mb-2 gap-2">
         <strong className="small text-body-secondary text-uppercase">Diagrama de cortes</strong>
         {(legend.length > 0 || hasEdgeBanding) && (
-          <div className="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+          <div
+            className="d-flex flex-wrap gap-2 justify-content-end align-items-center"
+            style={{ maxHeight: 96, overflowY: 'auto' }}
+          >
             {legend.map((l) => (
               <span
                 key={l.sig}
