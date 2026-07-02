@@ -1,4 +1,7 @@
-import { useId } from 'react'
+import { useId, type CSSProperties } from 'react'
+import { CButton } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
+import { cilFullscreen, cilFullscreenExit } from '@coreui/icons'
 
 import {
   EDGE_COLOR,
@@ -10,6 +13,7 @@ import {
   uprightText,
 } from 'src/features/optimizer/cutDrawing'
 import useZoomPan from 'src/shared/hooks/useZoomPan'
+import useFullscreen from 'src/shared/hooks/useFullscreen'
 import ZoomControls from 'src/shared/components/ZoomControls'
 import type { CutBoard, CutPiece } from './types'
 
@@ -45,9 +49,26 @@ const WorkshopBoardSvg = ({
   const { svgRef, groupTransform, scale, isZoomed, zoomIn, zoomOut, reset } = useZoomPan({
     doubleClickZoom: false,
   })
+  const {
+    containerRef,
+    isFullscreen,
+    isSupported: fullscreenSupported,
+    toggle: toggleFullscreen,
+  } = useFullscreen<HTMLDivElement>()
+
+  const containerStyle: CSSProperties = { position: 'relative', overflow: 'hidden' }
+  if (isFullscreen) {
+    // Fullscreen element fills the viewport; center the (aspect-ratio constrained) SVG within it.
+    containerStyle.display = 'flex'
+    containerStyle.alignItems = 'center'
+    containerStyle.justifyContent = 'center'
+    containerStyle.height = '100vh'
+    containerStyle.background = 'var(--cui-body-bg)'
+    containerStyle.padding = '1rem'
+  }
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden' }}>
+    <div ref={containerRef} style={containerStyle}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${H} ${W}`}
@@ -56,7 +77,7 @@ const WorkshopBoardSvg = ({
           width: '100%',
           height: 'auto',
           display: 'block',
-          maxHeight: '72vh',
+          maxHeight: isFullscreen ? '94vh' : '72vh',
           // Not zoomed: let the browser handle vertical page scroll (pinch is still ours).
           // Zoomed: take full control to pan the diagram with one finger.
           touchAction: isZoomed ? 'none' : 'pan-y',
@@ -199,6 +220,19 @@ const WorkshopBoardSvg = ({
         </g>
       </svg>
       <ZoomControls onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={reset} isZoomed={isZoomed} />
+      {fullscreenSupported && (
+        <CButton
+          color="light"
+          size="lg"
+          className="shadow-sm"
+          title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }}
+          onClick={toggleFullscreen}
+        >
+          <CIcon icon={isFullscreen ? cilFullscreenExit : cilFullscreen} />
+        </CButton>
+      )}
     </div>
   )
 }
