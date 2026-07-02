@@ -252,20 +252,6 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
-  // Reassigns pieces when a material is removed (flat view: reassign to the sole remaining material,
-  // otherwise orphan). Kept for the flat editor used by preorders.
-  const reassignOnMaterialRemoval = (removedUid: string, remaining: MaterialForm[]) =>
-    setRequirements((rs) =>
-      clusterByMaterial(
-        rs.map((r) => {
-          const orphaned = r.materialUid === removedUid || r.materialUid === ''
-          if (remaining.length === 1 && orphaned) return { ...r, materialUid: remaining[0].uid }
-          if (r.materialUid === removedUid) return { ...r, materialUid: '' }
-          return r
-        }),
-      ),
-    )
-
   // Grouped view: moves every piece of `fromUid` to `toUid` (keep pieces when deleting a material).
   const movePiecesTo = (fromUid: string, toUid: string) => {
     applyWithHistory((rs) =>
@@ -279,6 +265,20 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   // Grouped view: removes every piece of a material (delete a material together with its pieces).
   const removePiecesOf = (uid: string) => {
     applyWithHistory((rs) => rs.filter((r) => r.materialUid !== uid))
+    setSelected(new Set())
+  }
+
+  // Grouped view: clones every piece of `fromUid` into a new material `toUid`, inserting the copies
+  // right after the source group's block (kept contiguous by clusterByMaterial).
+  const duplicateGroup = (fromUid: string, toUid: string) => {
+    applyWithHistory((rs) => {
+      const clones = rs
+        .filter((r) => r.materialUid === fromUid)
+        .map((r) => ({ ...cloneRequirement(r), materialUid: toUid }))
+      if (clones.length === 0) return rs
+      const [, end] = rangeOf(rs, fromUid)
+      return clusterByMaterial([...rs.slice(0, end), ...clones, ...rs.slice(end)])
+    })
     setSelected(new Set())
   }
 
@@ -366,9 +366,9 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     fillRange,
     sortGroup,
     clear,
-    reassignOnMaterialRemoval,
     movePiecesTo,
     removePiecesOf,
+    duplicateGroup,
     pasteIntoField,
     pasteRows,
     undo,

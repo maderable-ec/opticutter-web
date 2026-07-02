@@ -28,6 +28,7 @@ interface MaterialGroupsProps {
     value: MaterialForm[K],
   ) => void
   onRequestDeleteMaterial: (m: MaterialForm) => void
+  onDuplicateMaterial: (m: MaterialForm) => void
   onImportOpen: () => void
   onExport: () => void
 }
@@ -42,6 +43,7 @@ const MaterialGroups = ({
   onAddMaterial,
   onUpdateMaterial,
   onRequestDeleteMaterial,
+  onDuplicateMaterial,
   onImportOpen,
   onExport,
 }: MaterialGroupsProps) => {
@@ -204,6 +206,7 @@ const MaterialGroups = ({
               onToggle={() => toggle(m.uid)}
               onUpdate={onUpdateMaterial}
               onRequestDelete={onRequestDeleteMaterial}
+              onDuplicate={onDuplicateMaterial}
             />
           )
         })}

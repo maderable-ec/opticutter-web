@@ -28,10 +28,9 @@ export const useUpdatePreOrder = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<PreOrderCreate> }) =>
       preordersApi.update(id, data),
-    onSuccess: (_updated, { id }) => {
-      qc.invalidateQueries({ queryKey: ['preorders', id] })
-      qc.invalidateQueries({ queryKey: ['preorders'] })
-    },
+    // A single broad invalidation covers both the detail (['preorders', id]) and the list; also
+    // invalidating the exact detail key would refetch that same query a second time.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['preorders'] }),
   })
 }
 

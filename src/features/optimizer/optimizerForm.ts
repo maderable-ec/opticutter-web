@@ -155,6 +155,10 @@ export interface BuiltPayload {
 
 // Builds the contract's materials[] + requirements[] from form state. Each material uses its `uid`
 // as `key`; pieces reference it via `materialKey`. Only materials actually used by a valid piece are included.
+// Catalog materials pointing to the same board are merged into a single payload material so the
+// endpoint never receives duplicates (e.g. after duplicating a material or picking the same board in
+// two blocks); their pieces are re-pointed to the first block's key. Inline materials (offcuts) stay
+// distinct even when their dimensions coincide.
 export const buildPayload = (
   materials: MaterialForm[],
   requirements: RequirementForm[],
@@ -162,19 +166,40 @@ export const buildPayload = (
   const validMaterials = materials.filter(isMaterialValid)
   const validUids = validMaterialUids(materials)
 
-  const mappedMaterials: MaterialInput[] = validMaterials.map((m) =>
-    m.source === 'catalog'
-      ? { key: m.uid, source: 'catalog', productId: Number(m.boardId) }
-      : {
-          key: m.uid,
-          source: m.source,
-          height: Number(m.height),
-          width: Number(m.width),
-          thickness: Number(m.thickness),
-          costPerUnit: Number(m.costPerUnit) || 0,
-          label: m.label.trim() || undefined,
-        },
-  )
+  // Map each material uid to the key its pieces will reference. Catalog boards collapse onto the
+  // first block that uses that productId; everything else maps to itself.
+  const canonicalKey = new Map<string, string>()
+  const catalogCanonical = new Map<number, string>()
+  for (const m of validMaterials) {
+    if (m.source === 'catalog') {
+      const productId = Number(m.boardId)
+      const existing = catalogCanonical.get(productId)
+      if (existing) {
+        canonicalKey.set(m.uid, existing)
+      } else {
+        catalogCanonical.set(productId, m.uid)
+        canonicalKey.set(m.uid, m.uid)
+      }
+    } else {
+      canonicalKey.set(m.uid, m.uid)
+    }
+  }
+
+  const mappedMaterials: MaterialInput[] = validMaterials
+    .filter((m) => canonicalKey.get(m.uid) === m.uid)
+    .map((m) =>
+      m.source === 'catalog'
+        ? { key: m.uid, source: 'catalog', productId: Number(m.boardId) }
+        : {
+            key: m.uid,
+            source: m.source,
+            height: Number(m.height),
+            width: Number(m.width),
+            thickness: Number(m.thickness),
+            costPerUnit: Number(m.costPerUnit) || 0,
+            label: m.label.trim() || undefined,
+          },
+    )
 
   const validReqs = requirements.filter((r) => isRequirementValid(r, validUids))
 
@@ -185,7 +210,7 @@ export const buildPayload = (
       ? { sides, ...(pid ? { productId: pid } : {}) }
       : undefined
     return {
-      materialKey: r.materialUid,
+      materialKey: canonicalKey.get(r.materialUid) ?? r.materialUid,
       height: Number(r.height),
       width: Number(r.width),
       quantity: Number(r.quantity) || 1,
