@@ -32,7 +32,7 @@ const MM_FIELDS = [
   ['rightTrim', 'Recorte derecho'],
 ] as const
 
-type FormKey = (typeof MM_FIELDS)[number][0] | 'edgeBandingWasteFactor'
+type FormKey = (typeof MM_FIELDS)[number][0] | 'edgeBandingWasteFactor' | 'halfBoardMarkupPct'
 type FormState = Record<FormKey, string>
 
 // Round to drop floating-point noise from the percent<->fraction conversion.
@@ -48,6 +48,7 @@ const toForm = (s: CuttingSettings): FormState => ({
   leftTrim: String(s.leftTrim),
   rightTrim: String(s.rightTrim),
   edgeBandingWasteFactor: String(fractionToPercent(s.edgeBandingWasteFactor)),
+  halfBoardMarkupPct: String(fractionToPercent(s.halfBoardMarkupPct)),
 })
 
 const parseNum = (raw: string): number | null => {
@@ -59,7 +60,7 @@ const parseNum = (raw: string): number | null => {
 
 /** Server value for a given form key (waste is converted percent -> fraction). */
 const formValueAsApi = (key: FormKey, num: number) =>
-  key === 'edgeBandingWasteFactor' ? percentToFraction(num) : num
+  key === 'edgeBandingWasteFactor' || key === 'halfBoardMarkupPct' ? percentToFraction(num) : num
 
 const CuttingSettingsCard = () => {
   const { data, isLoading, isError, refetch } = useCuttingSettings()
@@ -88,7 +89,11 @@ const CuttingSettingsCard = () => {
     })
   }
 
-  const allKeys: FormKey[] = [...MM_FIELDS.map(([k]) => k), 'edgeBandingWasteFactor']
+  const allKeys: FormKey[] = [
+    ...MM_FIELDS.map(([k]) => k),
+    'edgeBandingWasteFactor',
+    'halfBoardMarkupPct',
+  ]
 
   // A field is dirty when its parsed value differs from the loaded server value.
   const isDirty =
@@ -235,6 +240,25 @@ const CuttingSettingsCard = () => {
                 </CInputGroup>
                 <FieldError name="edgeBandingWasteFactor" errors={fieldErrors} />
                 <div className="form-text">Ej.: 10 % = +10 % de material.</div>
+              </CCol>
+
+              <CCol xs={6} md={4}>
+                <CFormLabel>Recargo medio tablero</CFormLabel>
+                <CInputGroup>
+                  <CFormInput
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={form.halfBoardMarkupPct}
+                    onChange={onChange('halfBoardMarkupPct')}
+                    invalid={!!fieldErrors.halfBoardMarkupPct}
+                  />
+                  <CInputGroupText>%</CInputGroupText>
+                </CInputGroup>
+                <FieldError name="halfBoardMarkupPct" errors={fieldErrors} />
+                <div className="form-text">
+                  Ej.: 15 % = el medio tablero cuesta 50 % + 15 % adicional del precio completo.
+                </div>
               </CCol>
             </CRow>
           </>

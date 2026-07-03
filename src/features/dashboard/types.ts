@@ -90,6 +90,7 @@ export interface UserProductivity {
   ordersCut: number
   cuttingHours: number
   piecesPerHour: number
+  boardsCut: number
   // Edge banding (canteador)
   ordersBanded: number
   bandingHours: number
