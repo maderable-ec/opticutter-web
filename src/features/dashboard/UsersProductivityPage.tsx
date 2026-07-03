@@ -57,6 +57,7 @@ interface MetricCol {
 
 const METRIC_COLS: MetricCol[] = [
   { key: 'piecesCut', label: 'Piezas', group: 'corte', fmt: fmtInt, highlight: true },
+  { key: 'boardsCut', label: 'Tableros', group: 'corte', fmt: fmtInt, highlight: true },
   { key: 'areaCutM2', label: 'Área m²', group: 'corte', fmt: fmtArea, highlight: true },
   { key: 'ordersCut', label: 'Órdenes', group: 'corte', fmt: fmtInt },
   { key: 'cuttingHours', label: 'Horas', group: 'corte', fmt: fmtH1 },
@@ -170,7 +171,7 @@ const UsersProductivityPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary" rowSpan={2}>
                     Sucursal
                   </CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary text-center" colSpan={5}>
+                  <CTableHeaderCell className="bg-body-tertiary text-center" colSpan={6}>
                     Corte
                   </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary text-center" colSpan={2}>

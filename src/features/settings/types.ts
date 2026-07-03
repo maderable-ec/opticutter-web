@@ -9,6 +9,8 @@ export interface CuttingSettings {
   rightTrim: number
   /** Edge-banding waste as a fraction (0.10 = +10%). Shown to the user as a percentage. */
   edgeBandingWasteFactor: number
+  /** Half-board markup as a fraction (0.15 = +15%). Shown to the user as a percentage. */
+  halfBoardMarkupPct: number
 }
 
 export interface Branch {
