@@ -1,6 +1,20 @@
-import { CAlert, CButton, CCard, CCardBody, CCol, CRow, CSpinner } from '@coreui/react'
+import {
+  CAlert,
+  CButton,
+  CCard,
+  CCardBody,
+  CCol,
+  CModal,
+  CModalBody,
+  CModalFooter,
+  CModalHeader,
+  CModalTitle,
+  CRow,
+  CSpinner,
+} from '@coreui/react'
 import { cilCheckAlt, cilMediaPlay } from '@coreui/icons'
 import { useBandingQueue, useUpdateBanding } from './useOrders'
+import { useState } from 'react'
 
 import type { BandingQueueItem } from './types'
 import BandingStatusBadge from './BandingStatusBadge'
@@ -17,15 +31,22 @@ const fmtDateTime = (iso?: string) =>
     : '—'
 
 // Touch-first view for the canteador: queue list with one contextual button per order.
-// No prices, pieces, or client — just the order code for physical identification.
+// No prices or pieces — just the order code, client name, and boards for physical identification.
 const BandingQueuePage = () => {
   const { data: items = [], isLoading, error } = useBandingQueue()
   const updateBanding = useUpdateBanding()
   const pendingId = updateBanding.isPending ? updateBanding.variables?.id : undefined
+  const [confirmItem, setConfirmItem] = useState<BandingQueueItem | null>(null)
 
   const advance = (item: BandingQueueItem) => {
     const next = item.bandingStatus === 'pending' ? 'in_progress' : 'done'
     updateBanding.mutate({ id: String(item.orderId), data: { status: next } })
+  }
+
+  const confirmAdvance = () => {
+    if (!confirmItem) return
+    advance(confirmItem)
+    setConfirmItem(null)
   }
 
   return (
@@ -58,6 +79,21 @@ const BandingQueuePage = () => {
                         <span className="fs-4 fw-bold">{item.orderCode}</span>
                         <BandingStatusBadge status={item.bandingStatus} />
                       </div>
+                      <div className="fw-semibold">
+                        {item.client.firstName} {item.client.lastName}
+                      </div>
+                      {item.boardNames.length > 0 && (
+                        <div className="d-flex flex-wrap gap-1">
+                          {item.boardNames.map((name) => (
+                            <span
+                              key={name}
+                              className="badge bg-secondary-subtle text-body-secondary"
+                            >
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="text-body-secondary small">
                         En cola desde {fmtDateTime(item.createdAt)}
                       </div>
@@ -66,7 +102,7 @@ const BandingQueuePage = () => {
                         size="lg"
                         className="w-100 mt-auto"
                         disabled={busy}
-                        onClick={() => advance(item)}
+                        onClick={() => setConfirmItem(item)}
                       >
                         {busy ? (
                           <CSpinner size="sm" />
@@ -90,6 +126,29 @@ const BandingQueuePage = () => {
           </CRow>
         )}
       </CCardBody>
+
+      <CModal visible={!!confirmItem} onClose={() => setConfirmItem(null)}>
+        <CModalHeader>
+          <CModalTitle>Confirmar acción</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p className="mb-0">
+            ¿{confirmItem?.bandingStatus === 'pending' ? 'Iniciar' : 'Terminar'} el canteado de la
+            orden <strong>{confirmItem?.orderCode}</strong>?
+          </p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setConfirmItem(null)}>
+            Cancelar
+          </CButton>
+          <CButton
+            color={confirmItem?.bandingStatus === 'pending' ? 'primary' : 'success'}
+            onClick={confirmAdvance}
+          >
+            Confirmar
+          </CButton>
+        </CModalFooter>
+      </CModal>
     </CCard>
   )
 }

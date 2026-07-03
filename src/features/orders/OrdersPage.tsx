@@ -26,6 +26,7 @@ import { cilPlus } from '@coreui/icons'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useNavigate } from 'react-router-dom'
 import { useOrders } from './useOrders'
+import useOrdersFilterStore from './ordersFilterStore'
 import { useState } from 'react'
 
 const LIMIT = 20
@@ -75,7 +76,8 @@ const OrdersPage = () => {
   const isOperator = useHasRole('operador')
   // Filter scoped to their visible statuses; starts at "Todos" (all three). Other roles use the full set.
   const statusOptions = isOperator ? OPERATOR_STATUS_OPTIONS : STATUSES
-  const [status, setStatus] = useState<OrderStatus | ''>('')
+  const status = useOrdersFilterStore((s) => s.status)
+  const setStatus = useOrdersFilterStore((s) => s.setStatus)
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 

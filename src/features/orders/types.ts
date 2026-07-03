@@ -130,6 +130,10 @@ export interface BandingQueueItem {
   status: OrderStatus
   bandingStatus: Extract<BandingStatus, 'pending' | 'in_progress'>
   createdAt: string
+  client: Client
+  // Distinct board names used by the order, in first-appearance order. Falls back to product code,
+  // then raw materialKey, for boards outside the catalog. Display only — not deduplicated across the queue.
+  boardNames: string[]
 }
 
 export interface AssociateInvoicePayload {
