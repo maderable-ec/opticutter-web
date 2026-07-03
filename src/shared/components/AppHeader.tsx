@@ -16,18 +16,11 @@ import {
   useColorModes,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import {
-  cilBell,
-  cilContrast,
-  cilEnvelopeOpen,
-  cilList,
-  cilMenu,
-  cilMoon,
-  cilSun,
-} from '@coreui/icons'
+import { cilContrast, cilEnvelopeOpen, cilList, cilMenu, cilMoon, cilSun } from '@coreui/icons'
 
 import AppBreadcrumb from './AppBreadcrumb'
 import AppHeaderDropdown from './AppHeaderDropdown'
+import NotificationBell from 'src/features/notifications/NotificationBell'
 
 const AppHeader = () => {
   const headerRef = useRef<HTMLDivElement>(null)
@@ -84,11 +77,7 @@ const AppHeader = () => {
           ))}
         </CHeaderNav>
         <CHeaderNav className="ms-auto">
-          <CNavItem>
-            <CNavLink href="#">
-              <CIcon icon={cilBell} size="lg" />
-            </CNavLink>
-          </CNavItem>
+          <NotificationBell />
           <CNavItem>
             <CNavLink href="#">
               <CIcon icon={cilList} size="lg" />
