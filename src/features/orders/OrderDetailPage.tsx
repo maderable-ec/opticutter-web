@@ -82,7 +82,7 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
       to: 'completed',
       label: 'Marcar como completada',
       color: 'success',
-      roles: ['administrador', 'vendedor'],
+      roles: ['administrador', 'vendedor', 'operador', 'canteador'],
     },
   ],
   completed: [

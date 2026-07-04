@@ -6,7 +6,7 @@ import {
   CSidebarHeader,
   CSidebarToggler,
 } from '@coreui/react'
-import { bandingNav, ordersNav } from 'src/features/orders/nav'
+import { ordersNav, workshopBoardNav } from 'src/features/orders/nav'
 
 import { AppSidebarNav } from './AppSidebarNav'
 import CIcon from '@coreui/icons-react'
@@ -29,7 +29,7 @@ const allNavItems = [
   ...optimizerNav,
   ...preordersNav,
   ...ordersNav,
-  ...bandingNav,
+  ...workshopBoardNav,
   ...clientsNav,
   ...productsNav,
   ...branchesNav,
