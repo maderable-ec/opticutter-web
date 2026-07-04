@@ -41,8 +41,8 @@ const AppHeader = () => {
       { label: 'Cotizaciones', to: '/preorders' },
       { label: 'Órdenes', to: '/orders' },
     ],
-    operador: [{ label: 'Órdenes', to: '/orders' }],
-    canteador: [{ label: 'Canteado', to: '/banding' }],
+    operador: [{ label: 'Tablero', to: '/workshop-board' }],
+    canteador: [{ label: 'Tablero', to: '/workshop-board' }],
   }
 
   const links = (userRole && navLinks[userRole]) ?? []

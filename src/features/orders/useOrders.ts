@@ -10,6 +10,8 @@ import type {
   MarkPieceResponse,
 } from './types'
 
+const WORKSHOP_QUEUE_KEY = ['orders', 'workshop-queue'] as const
+
 export const useOrders = (params?: OrderListParams) =>
   useQuery({
     queryKey: ['orders', params],
@@ -31,9 +33,18 @@ export const useUpdateOrderStatus = () => {
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: ['orders', id] })
       qc.invalidateQueries({ queryKey: ['orders'] })
+      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
     },
   })
 }
+
+// --- Workshop board (shared by operador + canteador) ---
+
+export const useWorkshopQueue = () =>
+  useQuery({
+    queryKey: WORKSHOP_QUEUE_KEY,
+    queryFn: () => ordersApi.getWorkshopQueue(),
+  })
 
 export const useAssociateInvoice = () => {
   const qc = useQueryClient()
@@ -48,23 +59,15 @@ export const useAssociateInvoice = () => {
 
 // --- Banding ---
 
-const BANDING_QUEUE_KEY = ['orders', 'banding-queue'] as const
-
-export const useBandingQueue = () =>
-  useQuery({
-    queryKey: BANDING_QUEUE_KEY,
-    queryFn: () => ordersApi.getBandingQueue(),
-  })
-
-// Advances the banding track and refreshes the queue + the order detail/list.
-// When moving to `done` the order leaves the queue on the next refetch.
+// Advances the banding track and refreshes the workshop board + the order detail/list.
+// When moving to `done` the banding action disappears from the board on the next refetch.
 export const useUpdateBanding = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: BandingPayload }) =>
       ordersApi.patchBanding(id, data),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: BANDING_QUEUE_KEY })
+      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
       qc.invalidateQueries({ queryKey: ['orders', id] })
       qc.invalidateQueries({ queryKey: ['orders'] })
     },

@@ -42,16 +42,6 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
-// Statuses visible to the operador; their "Todos" option (value '') maps to this full set.
-const OPERATOR_STATUSES: OrderStatus[] = ['queued', 'cutting', 'cut']
-
-const OPERATOR_STATUS_OPTIONS: { value: OrderStatus | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'queued', label: 'En cola' },
-  { value: 'cutting', label: 'En corte' },
-  { value: 'cut', label: 'Cortada' },
-]
-
 const clientName = (c?: Client) =>
   [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
@@ -72,18 +62,12 @@ const OrdersPage = () => {
   // Operador can view orders but cannot create quotes (that belongs to the optimizer).
   const canCreate = useHasRole('administrador', 'vendedor')
   const isGlobalBranch = useIsGlobalBranchRole()
-  // Operador works on the floor: sees only in-production/cut orders and goes directly to the workshop.
-  const isOperator = useHasRole('operador')
-  // Filter scoped to their visible statuses; starts at "Todos" (all three). Other roles use the full set.
-  const statusOptions = isOperator ? OPERATOR_STATUS_OPTIONS : STATUSES
   const status = useOrdersFilterStore((s) => s.status)
   const setStatus = useOrdersFilterStore((s) => s.setStatus)
   const [branchId, setBranchId] = useState('')
   const [offset, setOffset] = useState(0)
 
-  // Operador "Todos" (status '') = their three visible statuses; other roles "Todos" = no filter.
-  const statusParam: OrderStatus | OrderStatus[] | undefined =
-    status || (isOperator ? OPERATOR_STATUSES : undefined)
+  const statusParam: OrderStatus | OrderStatus[] | undefined = status || undefined
 
   const { data: branches = [] } = useActiveBranches()
   const {
@@ -124,7 +108,7 @@ const OrdersPage = () => {
           <CRow className="mb-3">
             <CCol xs={12} sm={6} md={4}>
               <CFormSelect value={status} onChange={handleStatusChange}>
-                {statusOptions.map((s) => (
+                {STATUSES.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
@@ -165,30 +149,20 @@ const OrdersPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Cliente</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Estado</CTableHeaderCell>
-                  {!isOperator && (
-                    <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
-                  )}
+                  <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Creado</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {orders.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell
-                      colSpan={isOperator ? 5 : 6}
-                      className="text-center text-body-secondary py-5"
-                    >
+                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
                 ) : (
                   orders.map((o) => (
-                    <CTableRow
-                      key={o.id}
-                      onClick={() =>
-                        navigate(isOperator ? `/orders/${o.id}/workshop` : `/orders/${o.id}`)
-                      }
-                    >
+                    <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
                       <CTableDataCell>
                         <strong>{o.code ?? '—'}</strong>
                       </CTableDataCell>
@@ -203,11 +177,9 @@ const OrdersPage = () => {
                       <CTableDataCell>
                         <OrderStatusBadge status={o.status} />
                       </CTableDataCell>
-                      {!isOperator && (
-                        <CTableDataCell className="text-end text-nowrap">
-                          {fmt(o.total)}
-                        </CTableDataCell>
-                      )}
+                      <CTableDataCell className="text-end text-nowrap">
+                        {fmt(o.total)}
+                      </CTableDataCell>
                       <CTableDataCell className="text-nowrap">
                         {fmtDate(o.createdAt)}
                       </CTableDataCell>

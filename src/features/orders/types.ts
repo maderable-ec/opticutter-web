@@ -122,18 +122,18 @@ export interface BandingResult {
   bandingFinishedAt: string | null
 }
 
-// An order in the banding queue (GET /orders/banding-queue). No prices or piece details;
-// only what's needed to physically identify the order and show its banding status.
-export interface BandingQueueItem {
+// An order in the shared workshop board (GET /orders/workshop-queue), used by operador,
+// canteador, and administrador. Distinct board names are in first-appearance order, falling
+// back to product code then raw materialKey for boards outside the catalog.
+export interface WorkshopQueueItem {
   orderId: number
-  orderCode: string
-  status: OrderStatus
-  bandingStatus: Extract<BandingStatus, 'pending' | 'in_progress'>
+  orderCode: string | null
+  status: Extract<OrderStatus, 'queued' | 'cutting' | 'cut'>
+  bandingStatus: BandingStatus
   createdAt: string
   client: Client
-  // Distinct board names used by the order, in first-appearance order. Falls back to product code,
-  // then raw materialKey, for boards outside the catalog. Display only — not deduplicated across the queue.
   boardNames: string[]
+  progress: CutProgress
 }
 
 export interface AssociateInvoicePayload {

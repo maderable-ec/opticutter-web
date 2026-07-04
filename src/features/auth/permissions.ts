@@ -11,8 +11,8 @@ export const ROUTE_ROLES: Record<string, Role[]> = {
   products: ['administrador', 'vendedor'],
   optimizer: ['administrador', 'vendedor'],
   preorders: ['administrador', 'vendedor'],
-  orders: ['administrador', 'vendedor', 'operador'],
-  banding: ['administrador', 'canteador'],
+  orders: ['administrador', 'vendedor'],
+  workshopBoard: ['administrador', 'operador', 'canteador'],
   settings: ['administrador'],
   users: ['administrador'],
   branches: ['administrador'],
@@ -30,9 +30,9 @@ export const homePathForRole = (role: Role | undefined): string => {
     case 'vendedor':
       return '/optimizer'
     case 'operador':
-      return '/orders'
+      return '/workshop-board'
     case 'canteador':
-      return '/banding' // only view for this role: the banding queue
+      return '/workshop-board' // only view for this role: the shared workshop board
     default:
       return '/orders' // accessible to all authenticated roles
   }

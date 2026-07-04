@@ -3,13 +3,13 @@ import type { Client } from 'src/features/clients/types'
 import type {
   AssociateInvoicePayload,
   BandingPayload,
-  BandingQueueItem,
   BandingResult,
   CuttingPlan,
   MarkPieceResponse,
   Order,
   OrderListParams,
   UpdateStatusPayload,
+  WorkshopQueueItem,
 } from './types'
 
 const BASE = '/api/v1/orders'
@@ -31,8 +31,8 @@ export const ordersApi = {
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
-  // Banding queue: response is `{ data: [...], meta: {} }` with no pagination → use `get`, not `list`.
-  getBandingQueue: () => httpClient.get<BandingQueueItem[]>(`${BASE}/banding-queue`),
+  // Workshop board: response is `{ data: [...], meta: {} }` with no pagination → use `get`, not `list`.
+  getWorkshopQueue: () => httpClient.get<WorkshopQueueItem[]>(`${BASE}/workshop-queue`),
   patchBanding: (id: string, data: BandingPayload) =>
     httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
   downloadOrderDocument: async (id: string) => {

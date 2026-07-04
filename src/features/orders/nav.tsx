@@ -1,5 +1,5 @@
 import CIcon from '@coreui/icons-react'
-import { cilLayers, cilTask } from '@coreui/icons'
+import { cilGrid, cilTask } from '@coreui/icons'
 import { CNavItem } from '@coreui/react'
 import type { NavItem } from 'src/shared/components/AppSidebarNav'
 
@@ -9,17 +9,17 @@ export const ordersNav: NavItem[] = [
     name: 'Órdenes',
     to: '/orders',
     icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
-    roles: ['administrador', 'vendedor', 'operador'],
+    roles: ['administrador', 'vendedor'],
   },
 ]
 
-// Banding queue: the only nav item for the canteador role (admin sees it too).
-export const bandingNav: NavItem[] = [
+// Shared workshop board: card queue for operador (cutting) and canteador (banding); admin sees it too.
+export const workshopBoardNav: NavItem[] = [
   {
     component: CNavItem,
-    name: 'Canteado',
-    to: '/banding',
-    icon: <CIcon icon={cilLayers} customClassName="nav-icon" />,
-    roles: ['administrador', 'canteador'],
+    name: 'Tablero',
+    to: '/workshop-board',
+    icon: <CIcon icon={cilGrid} customClassName="nav-icon" />,
+    roles: ['administrador', 'operador', 'canteador'],
   },
 ]
