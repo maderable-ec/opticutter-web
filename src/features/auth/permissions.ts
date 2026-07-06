@@ -3,7 +3,7 @@ import type { Role } from './types'
 // Roles that see and operate across all branches (global branch axis).
 export const GLOBAL_BRANCH_ROLES = ['administrador', 'vendedor'] as const
 export const isGlobalBranchRole = (role?: string): boolean =>
-  GLOBAL_BRANCH_ROLES.includes(role as any)
+  (GLOBAL_BRANCH_ROLES as readonly string[]).includes(role ?? '')
 
 export const ROUTE_ROLES: Record<string, Role[]> = {
   dashboard: ['administrador'],

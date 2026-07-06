@@ -15,6 +15,16 @@ export type OrderStatus =
 // `bandingStatus: 'in_progress'` simultaneously. `not_applicable` = order has no edge banding.
 export type BandingStatus = 'not_applicable' | 'pending' | 'in_progress' | 'done'
 
+// Order attachment (anexo): PDF/PNG/JPEG uploaded against an order.
+export interface Attachment {
+  id: number
+  filename: string
+  contentType: string
+  sizeBytes: number
+  createdAt: string
+  createdBy: number | null
+}
+
 export interface OrderLine {
   id: string
   productCode: string

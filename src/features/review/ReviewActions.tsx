@@ -105,7 +105,9 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
           <CButton
             color="warning"
             disabled={requestChanges.isPending}
-            onClick={() => requestChanges.mutate(changesNote || undefined, { onSuccess: closeChanges })}
+            onClick={() =>
+              requestChanges.mutate(changesNote || undefined, { onSuccess: closeChanges })
+            }
           >
             {requestChanges.isPending ? <CSpinner size="sm" /> : 'Enviar solicitud'}
           </CButton>

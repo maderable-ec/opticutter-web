@@ -85,8 +85,7 @@ export const isMaterialValid = (m: MaterialForm): boolean =>
 export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
   EDGE_SIDES.filter((s) => eb.sides[s.key]).map((s) => s.key)
 
-export const hasEdgeBanding = (eb: EdgeBandingForm): boolean =>
-  selectedSides(eb).length > 0
+export const hasEdgeBanding = (eb: EdgeBandingForm): boolean => selectedSides(eb).length > 0
 
 // Valid material uids: pieces may only reference one of these.
 export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
@@ -206,9 +205,7 @@ export const buildPayload = (
   const mappedReqs: RequirementInput[] = validReqs.map((r) => {
     const sides = selectedSides(r.edgeBanding)
     const pid = Number(r.edgeBanding.productId) || undefined
-    const edgeBanding = sides.length
-      ? { sides, ...(pid ? { productId: pid } : {}) }
-      : undefined
+    const edgeBanding = sides.length ? { sides, ...(pid ? { productId: pid } : {}) } : undefined
     return {
       materialKey: canonicalKey.get(r.materialUid) ?? r.materialUid,
       height: Number(r.height),
@@ -235,15 +232,15 @@ export const CANTO_NOTATIONS = ['—', '1L', '2L', '1C', '2C', '1L1C', '1L2C', '
 export type CantoNotation = (typeof CANTO_NOTATIONS)[number]
 
 const NOTATION_TO_SIDES: Record<CantoNotation, Record<EdgeSide, boolean>> = {
-  '—':    { top: false, bottom: false, left: false, right: false },
-  '1L':   { top: false, bottom: false, left: true,  right: false },
-  '2L':   { top: false, bottom: false, left: true,  right: true  },
-  '1C':   { top: true,  bottom: false, left: false, right: false },
-  '2C':   { top: true,  bottom: true,  left: false, right: false },
-  '1L1C': { top: true,  bottom: false, left: true,  right: false },
-  '1L2C': { top: true,  bottom: true,  left: true,  right: false },
-  '2L1C': { top: true,  bottom: false, left: true,  right: true  },
-  '4L':   { top: true,  bottom: true,  left: true,  right: true  },
+  '—': { top: false, bottom: false, left: false, right: false },
+  '1L': { top: false, bottom: false, left: true, right: false },
+  '2L': { top: false, bottom: false, left: true, right: true },
+  '1C': { top: true, bottom: false, left: false, right: false },
+  '2C': { top: true, bottom: true, left: false, right: false },
+  '1L1C': { top: true, bottom: false, left: true, right: false },
+  '1L2C': { top: true, bottom: true, left: true, right: false },
+  '2L1C': { top: true, bottom: false, left: true, right: true },
+  '4L': { top: true, bottom: true, left: true, right: true },
 }
 
 export function notationFromSides(sides: Record<EdgeSide, boolean>): CantoNotation {

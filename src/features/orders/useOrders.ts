@@ -38,6 +38,33 @@ export const useUpdateOrderStatus = () => {
   })
 }
 
+// --- Attachments (anexos) ---
+
+const attachmentsKey = (id: string) => ['orders', id, 'attachments'] as const
+
+export const useAttachments = (id?: string) =>
+  useQuery({
+    queryKey: ['orders', id, 'attachments'],
+    queryFn: () => ordersApi.listAttachments(id as string),
+    enabled: !!id,
+  })
+
+export const useUploadAttachment = (orderId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (file: File) => ordersApi.uploadAttachment(orderId, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: attachmentsKey(orderId) }),
+  })
+}
+
+export const useDeleteAttachment = (orderId: string) => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (attachmentId: number) => ordersApi.deleteAttachment(orderId, attachmentId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: attachmentsKey(orderId) }),
+  })
+}
+
 // --- Workshop board (shared by operador + canteador) ---
 
 export const useWorkshopQueue = () =>
