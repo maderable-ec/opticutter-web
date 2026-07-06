@@ -38,7 +38,15 @@ import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
-import { useAssociateInvoice, useCuttingPlan, useOrder, useUpdateOrderStatus } from './useOrders'
+import {
+  useAssociateInvoice,
+  useAttachments,
+  useCuttingPlan,
+  useDeleteAttachment,
+  useOrder,
+  useUpdateOrderStatus,
+  useUploadAttachment,
+} from './useOrders'
 import { ordersApi } from './ordersApi'
 import type { OrderStatus } from './types'
 
@@ -54,6 +62,18 @@ const TERMINAL_STATES: OrderStatus[] = ['despachado', 'cancelled']
 // States where the cutting plan is relevant: queued (interactive in the workshop) and beyond
 // (read-only, auditing what was cut).
 const WORKSHOP_STATES: OrderStatus[] = ['queued', 'cutting', 'cut', 'completed']
+
+// States where attachments are frozen (matches the backend 422 gate). Note this includes
+// `completed`, unlike TERMINAL_STATES which only covers despachado/cancelled.
+const ATTACHMENTS_LOCKED: OrderStatus[] = ['completed', 'despachado', 'cancelled']
+const ATTACH_MAX_MB = 10
+const ATTACH_TYPES = ['application/pdf', 'image/png', 'image/jpeg']
+const humanSize = (b: number) =>
+  b < 1024
+    ? `${b} B`
+    : b < 1_048_576
+      ? `${(b / 1024).toFixed(0)} KB`
+      : `${(b / 1_048_576).toFixed(1)} MB`
 
 const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   confirmed: [
@@ -90,7 +110,7 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
       to: 'despachado',
       label: 'Despachar',
       color: 'success',
-      roles: ['administrador', 'vendedor', 'operador', 'canteador'],
+      roles: ['administrador', 'vendedor'],
     },
   ],
 }
@@ -130,7 +150,11 @@ const OrderDetailPage = () => {
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
+  const attachments = useAttachments(id)
+  const uploadAtt = useUploadAttachment(id!)
+  const deleteAtt = useDeleteAttachment(id!)
 
+  const [attachError, setAttachError] = useState<string | null>(null)
   const [transitionModal, setTransitionModal] = useState<TransitionModalState>({
     visible: false,
     transition: null,
@@ -218,6 +242,23 @@ const OrderDetailPage = () => {
     )
   }
 
+  // Client-side pre-check is UX only; the API is the authority and returns 422 on bad type/size.
+  const onPickFile = (file?: File | null) => {
+    if (!file) return
+    if (!ATTACH_TYPES.includes(file.type)) return setAttachError('Solo PDF, PNG o JPEG.')
+    if (file.size > ATTACH_MAX_MB * 1024 * 1024)
+      return setAttachError(`Máximo ${ATTACH_MAX_MB} MB.`)
+    setAttachError(null)
+    uploadAtt.reset()
+    uploadAtt.mutate(file)
+  }
+
+  const onDeleteAttachment = (attachmentId: number, filename: string) => {
+    if (!window.confirm(`¿Eliminar el anexo "${filename}"?`)) return
+    deleteAtt.reset()
+    deleteAtt.mutate(attachmentId)
+  }
+
   if (isOperator) {
     return <Navigate to={`/orders/${id}/workshop`} replace />
   }
@@ -238,6 +279,7 @@ const OrderDetailPage = () => {
     t.roles.includes(currentUser?.role ?? ''),
   )
   const isTerminal = TERMINAL_STATES.includes(order.status)
+  const attachmentsLocked = ATTACHMENTS_LOCKED.includes(order.status)
 
   const plan = cuttingPlan.data
   const showProduction = WORKSHOP_STATES.includes(order.status)
@@ -630,6 +672,15 @@ const OrderDetailPage = () => {
               <CIcon icon={cilExternalLink} className="me-1" />
               Hoja de producción PDF
             </CButton>
+            <CButton
+              color="secondary"
+              variant="outline"
+              size="sm"
+              onClick={() => id && ordersApi.downloadConsolidated(id)}
+            >
+              <CIcon icon={cilExternalLink} className="me-1" />
+              PDF consolidado
+            </CButton>
             {order.status === 'despachado' && (
               <CButton
                 color="secondary"
@@ -653,6 +704,101 @@ const OrderDetailPage = () => {
               </CButton>
             )}
           </div>
+        </CCardBody>
+      </CCard>
+
+      {/* Attachments (anexos) — upload/delete gated to admin/vendedor and non-terminal orders. */}
+      <CCard className="mb-3">
+        <CCardHeader>
+          <strong>Anexos</strong>
+        </CCardHeader>
+        <CCardBody>
+          {canManage && !attachmentsLocked && (
+            <div className="mb-3">
+              <CFormInput
+                type="file"
+                accept="application/pdf,image/png,image/jpeg"
+                disabled={uploadAtt.isPending}
+                onChange={(e) => {
+                  onPickFile(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+              <div className="text-body-secondary small mt-1">
+                PDF, PNG o JPEG · máx {ATTACH_MAX_MB} MB.
+                {uploadAtt.isPending && <CSpinner size="sm" className="ms-2" />}
+              </div>
+              {(attachError || uploadAtt.error) && (
+                <div className="text-danger small mt-1">
+                  {attachError ?? uploadAtt.error?.message}
+                </div>
+              )}
+            </div>
+          )}
+          {attachmentsLocked && (
+            <div className="text-body-secondary small mb-2">
+              La orden está cerrada: no se pueden agregar ni quitar anexos.
+            </div>
+          )}
+          {attachments.isLoading ? (
+            <CSpinner size="sm" />
+          ) : attachments.data && attachments.data.length > 0 ? (
+            <CTable small responsive hover className="mb-0 align-middle">
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell>Archivo</CTableHeaderCell>
+                  <CTableHeaderCell>Tamaño</CTableHeaderCell>
+                  <CTableHeaderCell>Fecha</CTableHeaderCell>
+                  <CTableHeaderCell className="text-end">Acciones</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {attachments.data.map((att) => (
+                  <CTableRow key={att.id}>
+                    <CTableDataCell>
+                      <CBadge
+                        color={att.contentType === 'application/pdf' ? 'danger' : 'info'}
+                        className="me-2"
+                      >
+                        {att.contentType.split('/')[1]?.toUpperCase() ?? 'ARCHIVO'}
+                      </CBadge>
+                      {att.filename}
+                    </CTableDataCell>
+                    <CTableDataCell>{humanSize(att.sizeBytes)}</CTableDataCell>
+                    <CTableDataCell>{fmtDateTime(att.createdAt)}</CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      <CButton
+                        color="secondary"
+                        variant="outline"
+                        size="sm"
+                        className="me-2"
+                        onClick={() => id && ordersApi.downloadAttachment(id, att.id)}
+                      >
+                        <CIcon icon={cilExternalLink} className="me-1" />
+                        Ver
+                      </CButton>
+                      {canManage && !attachmentsLocked && (
+                        <CButton
+                          color="danger"
+                          variant="outline"
+                          size="sm"
+                          disabled={deleteAtt.isPending}
+                          onClick={() => onDeleteAttachment(att.id, att.filename)}
+                        >
+                          Borrar
+                        </CButton>
+                      )}
+                    </CTableDataCell>
+                  </CTableRow>
+                ))}
+              </CTableBody>
+            </CTable>
+          ) : (
+            <div className="text-body-secondary small">Sin anexos.</div>
+          )}
+          {deleteAtt.error && (
+            <div className="text-danger small mt-2">{deleteAtt.error.message}</div>
+          )}
         </CCardBody>
       </CCard>
 

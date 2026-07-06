@@ -93,10 +93,7 @@ const PriceTiersSettingsCard = () => {
       return
     }
     setClientErrors({})
-    update.mutate(
-      { priceTiers: rows.map(toTier) },
-      { onSuccess: () => flashSaved() },
-    )
+    update.mutate({ priceTiers: rows.map(toTier) }, { onSuccess: () => flashSaved() })
   }
 
   const handleDiscard = () => {

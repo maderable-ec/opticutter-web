@@ -19,8 +19,10 @@ const buildError = (status: number, body: ErrorBody): ApiError => {
   return new ApiError(status, message, body.errors ?? [], body.meta?.requestId ?? '')
 }
 
-const buildHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+const buildHeaders = (json = true): Record<string, string> => {
+  const headers: Record<string, string> = {}
+  // For FormData the browser must set Content-Type (with the multipart boundary), so we skip it.
+  if (json) headers['Content-Type'] = 'application/json'
   const token = useAuthStore.getState().token
   if (token) headers['Authorization'] = `Bearer ${token}`
   return headers
@@ -29,7 +31,7 @@ const buildHeaders = (): Record<string, string> => {
 const send = async (path: string, options: RequestOptions): Promise<Response> =>
   fetch(`${BASE_URL}${path}`, {
     ...options,
-    headers: { ...buildHeaders(), ...options.headers },
+    headers: { ...buildHeaders(!(options.body instanceof FormData)), ...options.headers },
   })
 
 // Session endpoints never trigger a refresh-retry: login/refresh/logout are public
@@ -97,6 +99,15 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
   return body.data as T
 }
 
+// Like `request`, but sends FormData (the 401→refresh→retry still works: FormData is replayable).
+const requestUpload = async <T>(path: string, form: FormData): Promise<T> => {
+  const res = await fetchWithRefresh(path, { method: 'POST', body: form })
+  if (res.status === 204) return null as T
+  const body = await res.json()
+  if (!res.ok) throw buildError(res.status, body)
+  return body.data as T
+}
+
 const requestList = async <T>(
   path: string,
   options: RequestOptions = {},
@@ -118,4 +129,5 @@ export const httpClient = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   list: <T>(path: string) => requestList<T>(path),
   download: (path: string) => requestBlob(path),
+  upload: <T>(path: string, form: FormData) => requestUpload<T>(path, form),
 }

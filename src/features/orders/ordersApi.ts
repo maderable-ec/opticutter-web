@@ -2,6 +2,7 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type { Client } from 'src/features/clients/types'
 import type {
   AssociateInvoicePayload,
+  Attachment,
   BandingPayload,
   BandingResult,
   CuttingPlan,
@@ -49,6 +50,28 @@ export const ordersApi = {
   },
   downloadDispatchSheet: async (id: string) => {
     const blob = await httpClient.download(`${BASE}/${id}/dispatch-sheet?format=pdf`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  },
+  // Attachments: response is `{ data: Attachment[] }` with no pagination → use `get`, not `list`.
+  listAttachments: (id: string) => httpClient.get<Attachment[]>(`${BASE}/${id}/attachments`),
+  uploadAttachment: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return httpClient.upload<Attachment>(`${BASE}/${id}/attachments`, form)
+  },
+  deleteAttachment: (id: string, attachmentId: number) =>
+    httpClient.delete<null>(`${BASE}/${id}/attachments/${attachmentId}`),
+  // Opens the attachment inline in a new tab. Same pattern as downloadOrderDocument.
+  downloadAttachment: async (id: string, attachmentId: number) => {
+    const blob = await httpClient.download(`${BASE}/${id}/attachments/${attachmentId}`)
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  },
+  downloadConsolidated: async (id: string) => {
+    const blob = await httpClient.download(`${BASE}/${id}/consolidated?format=pdf`)
     const url = URL.createObjectURL(blob)
     window.open(url, '_blank')
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
