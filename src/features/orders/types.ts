@@ -116,6 +116,12 @@ export interface UpdateStatusPayload {
   payment?: { cashAmount?: number; creditAmount?: number }
 }
 
+// --- Change branch (rebalancing before the workshop starts cutting) ---
+export interface ChangeBranchPayload {
+  branchId: number
+  note?: string
+}
+
 // --- Banding ---
 // PATCH body advances the track forward-only (pending → in_progress → done).
 export interface BandingPayload {
@@ -134,7 +140,9 @@ export interface BandingResult {
 
 // An order in the shared workshop board (GET /orders/workshop-queue), used by operador,
 // canteador, and administrador. Distinct board names are in first-appearance order, falling
-// back to product code then raw materialKey for boards outside the catalog.
+// back to product code then raw materialKey for boards outside the catalog. `bandingNames`
+// follows the same first-appearance-order rule but for edge banding materials, already
+// formatted as "Nombre (Suave|Duro)"; empty when the order has no edge banding.
 export interface WorkshopQueueItem {
   orderId: number
   orderCode: string | null
@@ -143,6 +151,7 @@ export interface WorkshopQueueItem {
   createdAt: string
   client: Client
   boardNames: string[]
+  bandingNames: string[]
   progress: CutProgress
 }
 

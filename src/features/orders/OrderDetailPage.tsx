@@ -10,6 +10,7 @@ import {
   CCol,
   CFormInput,
   CFormLabel,
+  CFormSelect,
   CFormTextarea,
   CModal,
   CModalBody,
@@ -32,6 +33,7 @@ import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import type { Client } from 'src/features/clients/types'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
+import { useActiveBranches } from 'src/features/branches/useBranches'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
@@ -41,6 +43,7 @@ import BandingStatusBadge from './BandingStatusBadge'
 import {
   useAssociateInvoice,
   useAttachments,
+  useChangeOrderBranch,
   useCuttingPlan,
   useDeleteAttachment,
   useOrder,
@@ -150,6 +153,8 @@ const OrderDetailPage = () => {
   const cuttingPlan = useCuttingPlan(id, !!order && WORKSHOP_STATES.includes(order.status))
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
+  const changeBranch = useChangeOrderBranch()
+  const { data: activeBranches = [] } = useActiveBranches()
   const attachments = useAttachments(id)
   const uploadAtt = useUploadAttachment(id!)
   const deleteAtt = useDeleteAttachment(id!)
@@ -162,6 +167,9 @@ const OrderDetailPage = () => {
   const [transitionNote, setTransitionNote] = useState('')
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
+  const [branchModal, setBranchModal] = useState(false)
+  const [targetBranchId, setTargetBranchId] = useState('')
+  const [branchNote, setBranchNote] = useState('')
   const [paymentModal, setPaymentModal] = useState(false)
   const [cashInput, setCashInput] = useState('')
   const [creditInput, setCreditInput] = useState('')
@@ -242,6 +250,24 @@ const OrderDetailPage = () => {
     )
   }
 
+  const openBranchModal = () => {
+    setTargetBranchId('')
+    setBranchNote('')
+    changeBranch.reset()
+    setBranchModal(true)
+  }
+  const closeBranchModal = () => {
+    setBranchModal(false)
+    changeBranch.reset()
+  }
+  const confirmBranchChange = () => {
+    if (!id || !targetBranchId) return
+    changeBranch.mutate(
+      { id, data: { branchId: Number(targetBranchId), note: branchNote || undefined } },
+      { onSuccess: closeBranchModal },
+    )
+  }
+
   // Client-side pre-check is UX only; the API is the authority and returns 422 on bad type/size.
   const onPickFile = (file?: File | null) => {
     if (!file) return
@@ -278,6 +304,8 @@ const OrderDetailPage = () => {
   const transitions = (STATUS_TRANSITIONS[order.status] ?? []).filter((t) =>
     t.roles.includes(currentUser?.role ?? ''),
   )
+  const canChangeBranch = canManage && (order.status === 'confirmed' || order.status === 'queued')
+  const branchOptions = activeBranches.filter((b) => b.id !== order.branch.id)
   const isTerminal = TERMINAL_STATES.includes(order.status)
   const attachmentsLocked = ATTACHMENTS_LOCKED.includes(order.status)
 
@@ -461,7 +489,7 @@ const OrderDetailPage = () => {
       )}
 
       {/* Status actions */}
-      {!isTerminal && transitions.length > 0 && (
+      {!isTerminal && (transitions.length > 0 || canChangeBranch) && (
         <CCard className="mb-3">
           <CCardHeader>
             <strong>Acciones</strong>
@@ -484,13 +512,24 @@ const OrderDetailPage = () => {
                     size="sm"
                     disabled={blocked}
                     title={title}
-                    onClick={() => (t.to === 'queued' ? openPayment() : openTransition(t))}
+                    onClick={() =>
+                      order.status === 'confirmed' && t.to === 'queued'
+                        ? openPayment()
+                        : openTransition(t)
+                    }
                   >
                     {t.label}
                   </CButton>
                 )
               })}
             </div>
+            {canChangeBranch && (
+              <div className="mt-2">
+                <CButton color="secondary" variant="outline" size="sm" onClick={openBranchModal}>
+                  Cambiar sucursal
+                </CButton>
+              </div>
+            )}
             {cutGated && (
               <div className="text-warning small mt-2">
                 Faltan {piecesPending} pieza(s) por cortar. Márcalas en el taller para habilitar el
@@ -974,6 +1013,49 @@ const OrderDetailPage = () => {
             disabled={associateInvoice.isPending || !invoiceId.trim()}
           >
             {associateInvoice.isPending ? <CSpinner size="sm" /> : 'Asociar'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Change branch modal — rebalancing before the workshop starts cutting */}
+      <CModal visible={branchModal} onClose={closeBranchModal}>
+        <CModalHeader>
+          <CModalTitle>Cambiar sucursal</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <CFormLabel>Sucursal destino</CFormLabel>
+          <CFormSelect value={targetBranchId} onChange={(e) => setTargetBranchId(e.target.value)}>
+            <option value="">— Seleccionar sucursal —</option>
+            {branchOptions.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name} ({b.code})
+              </option>
+            ))}
+          </CFormSelect>
+          <CFormLabel className="mt-3">Motivo/nota (opcional)</CFormLabel>
+          <CFormTextarea
+            rows={2}
+            maxLength={512}
+            value={branchNote}
+            onChange={(e) => setBranchNote(e.target.value)}
+            placeholder="Motivo o comentario…"
+          />
+          {changeBranch.error && (
+            <div className="text-danger small mt-2">
+              {changeBranch.error.message || 'No se pudo cambiar la sucursal.'}
+            </div>
+          )}
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={closeBranchModal}>
+            Cancelar
+          </CButton>
+          <CButton
+            color="primary"
+            onClick={confirmBranchChange}
+            disabled={!targetBranchId || changeBranch.isPending}
+          >
+            {changeBranch.isPending ? <CSpinner size="sm" /> : 'Mover'}
           </CButton>
         </CModalFooter>
       </CModal>
