@@ -5,6 +5,7 @@ import type {
   Attachment,
   BandingPayload,
   BandingResult,
+  ChangeBranchPayload,
   CuttingPlan,
   MarkPieceResponse,
   Order,
@@ -27,6 +28,8 @@ export const ordersApi = {
   get: (id: string) => httpClient.get<Order>(`${BASE}/${id}`),
   updateStatus: (id: string, data: UpdateStatusPayload) =>
     httpClient.patch<Order>(`${BASE}/${id}/status`, data),
+  changeBranch: (id: string, data: ChangeBranchPayload) =>
+    httpClient.patch<Order>(`${BASE}/${id}/branch`, data),
   associateInvoice: (id: string, data: AssociateInvoicePayload) =>
     httpClient.post<Order>(`${BASE}/${id}/invoice`, data),
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),

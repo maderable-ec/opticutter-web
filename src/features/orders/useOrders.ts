@@ -6,6 +6,7 @@ import type {
   UpdateStatusPayload,
   AssociateInvoicePayload,
   BandingPayload,
+  ChangeBranchPayload,
   CuttingPlan,
   MarkPieceResponse,
 } from './types'
@@ -30,6 +31,20 @@ export const useUpdateOrderStatus = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusPayload }) =>
       ordersApi.updateStatus(id, data),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ['orders', id] })
+      qc.invalidateQueries({ queryKey: ['orders'] })
+      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+    },
+  })
+}
+
+// Rebalancing: moves an order to another branch before the workshop starts cutting.
+export const useChangeOrderBranch = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ChangeBranchPayload }) =>
+      ordersApi.changeBranch(id, data),
     onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: ['orders', id] })
       qc.invalidateQueries({ queryKey: ['orders'] })

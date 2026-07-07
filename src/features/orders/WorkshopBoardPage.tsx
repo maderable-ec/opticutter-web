@@ -221,6 +221,16 @@ const WorkshopBoardPage = () => {
                           ))}
                         </div>
                       )}
+                      {item.bandingNames.length > 0 && (
+                        <div className="d-flex flex-wrap align-items-center gap-1">
+                          <span className="text-body-secondary small">Tapacantos:</span>
+                          {item.bandingNames.map((name) => (
+                            <span key={name} className="badge bg-info-subtle text-info-emphasis">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {item.progress.totalPieces > 0 && (
                         <div>
                           <CProgress className="mb-1">
