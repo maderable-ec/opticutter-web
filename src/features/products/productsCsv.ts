@@ -1,4 +1,5 @@
 import type { Product, ProductPayload } from './types'
+import { downloadBlob } from 'src/shared/utils/download'
 
 export const PRODUCT_CSV_COLUMNS = [
   'Tipo',
@@ -228,15 +229,7 @@ export const exportProductsCsv = (products: Product[]): void => {
     return cells.map(csvCell).join(',')
   })
   const csv = [header, ...dataRows].join('\n')
-  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'productos_export.csv'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' }), 'productos_export.csv')
 }
 
 export const downloadProductTemplate = (): void => {
@@ -274,13 +267,8 @@ export const downloadProductTemplate = (): void => {
     ],
   ]
   const csv = [header, ...exampleRows.map((r) => r.map(csvCell).join(','))].join('\n')
-  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'plantilla_productos.csv'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(
+    new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' }),
+    'plantilla_productos.csv',
+  )
 }

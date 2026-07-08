@@ -17,6 +17,7 @@ import { cilTrash } from '@coreui/icons'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useState } from 'react'
+import { fmtDate } from 'src/shared/utils/format'
 
 interface DraftsModalProps {
   visible: boolean
@@ -24,13 +25,6 @@ interface DraftsModalProps {
   onLoad: (id: number) => void
   onClose: () => void
 }
-
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('es-EC', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
 
 const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) => {
   const isGlobalBranch = useIsGlobalBranchRole()
@@ -88,7 +82,7 @@ const DraftsModal = ({ visible, loadingId, onLoad, onClose }: DraftsModalProps) 
                   <div style={{ minWidth: 0 }}>
                     <div className="fw-semibold text-truncate">{d.name}</div>
                     <div className="small text-body-secondary">
-                      {d.branch.name} · Actualizado el {formatDate(d.updatedAt)}
+                      {d.branch.name} · Actualizado el {fmtDate(d.updatedAt)}
                     </div>
                   </div>
                   <div className="d-flex gap-2 flex-shrink-0">

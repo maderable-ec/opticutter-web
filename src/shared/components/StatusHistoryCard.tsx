@@ -12,6 +12,7 @@ import {
 } from '@coreui/react'
 
 import type { ReactNode } from 'react'
+import { fmtDateTime } from 'src/shared/utils/format'
 
 // Actor type: the type of entity that performed the action, not a free-form name.
 // `actorLabel` is the actor's display name frozen at the time of the status change.
@@ -47,17 +48,6 @@ interface StatusHistoryCardProps {
   renderStatus: (status: string) => ReactNode
   title?: string
 }
-
-const fmtDateTime = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—'
 
 const StatusHistoryCard = ({
   entries,

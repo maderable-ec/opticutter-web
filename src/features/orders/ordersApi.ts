@@ -1,4 +1,6 @@
 import { httpClient } from 'src/shared/api/httpClient'
+import { toQuery } from 'src/shared/api/crudApi'
+import { openInNewTab } from 'src/shared/utils/download'
 import type { Client } from 'src/features/clients/types'
 import type {
   AssociateInvoicePayload,
@@ -17,14 +19,9 @@ import type {
 const BASE = '/api/v1/orders'
 
 export const ordersApi = {
-  list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) => {
-    const params = new URLSearchParams({ offset: String(offset), limit: String(limit) })
-    // Multiple statuses → repeated `status` params (?status=a&status=b); single status → one param.
-    if (Array.isArray(status)) status.forEach((s) => params.append('status', s))
-    else if (status) params.set('status', status)
-    if (branchId) params.set('branchId', String(branchId))
-    return httpClient.list<Order>(`${BASE}/?${params}`)
-  },
+  // `status` may be an array → repeated params (?status=a&status=b); `toQuery` handles that.
+  list: ({ status, branchId, offset = 0, limit = 20 }: OrderListParams = {}) =>
+    httpClient.list<Order>(`${BASE}/?${toQuery({ status, branchId, offset, limit })}`),
   get: (id: string) => httpClient.get<Order>(`${BASE}/${id}`),
   updateStatus: (id: string, data: UpdateStatusPayload) =>
     httpClient.patch<Order>(`${BASE}/${id}/status`, data),
@@ -40,22 +37,13 @@ export const ordersApi = {
   patchBanding: (id: string, data: BandingPayload) =>
     httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
   downloadOrderDocument: async (id: string) => {
-    const blob = await httpClient.download(`${BASE}/${id}/document?format=pdf`)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    openInNewTab(await httpClient.download(`${BASE}/${id}/document?format=pdf`))
   },
   downloadProductionSheet: async (id: string) => {
-    const blob = await httpClient.download(`${BASE}/${id}/production-sheet?format=pdf`)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    openInNewTab(await httpClient.download(`${BASE}/${id}/production-sheet?format=pdf`))
   },
   downloadDispatchSheet: async (id: string) => {
-    const blob = await httpClient.download(`${BASE}/${id}/dispatch-sheet?format=pdf`)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    openInNewTab(await httpClient.download(`${BASE}/${id}/dispatch-sheet?format=pdf`))
   },
   // Attachments: response is `{ data: Attachment[] }` with no pagination → use `get`, not `list`.
   listAttachments: (id: string) => httpClient.get<Attachment[]>(`${BASE}/${id}/attachments`),
@@ -66,25 +54,16 @@ export const ordersApi = {
   },
   deleteAttachment: (id: string, attachmentId: number) =>
     httpClient.delete<null>(`${BASE}/${id}/attachments/${attachmentId}`),
-  // Opens the attachment inline in a new tab. Same pattern as downloadOrderDocument.
+  // Opens the attachment inline in a new tab.
   downloadAttachment: async (id: string, attachmentId: number) => {
-    const blob = await httpClient.download(`${BASE}/${id}/attachments/${attachmentId}`)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    openInNewTab(await httpClient.download(`${BASE}/${id}/attachments/${attachmentId}`))
   },
   downloadConsolidated: async (id: string) => {
-    const blob = await httpClient.download(`${BASE}/${id}/consolidated?format=pdf`)
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+    openInNewTab(await httpClient.download(`${BASE}/${id}/consolidated?format=pdf`))
   },
 }
 
 export const clientsApiMin = {
-  list: (search?: string) => {
-    const params = new URLSearchParams({ offset: '0', limit: '50' })
-    if (search) params.set('search', search)
-    return httpClient.list<Client>(`/api/v1/clients/?${params}`)
-  },
+  list: (search?: string) =>
+    httpClient.list<Client>(`/api/v1/clients/?${toQuery({ search, offset: 0, limit: 50 })}`),
 }

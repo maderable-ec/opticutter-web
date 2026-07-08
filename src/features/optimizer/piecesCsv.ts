@@ -1,6 +1,7 @@
 import type { BoardProduct } from 'src/features/products/types'
 import { emptyRequirement, materialLabel } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
+import { downloadBlob } from 'src/shared/utils/download'
 
 // CSV/TSV import and export for the pieces list. No dependencies: the parser handles
 // paste from Excel/Sheets (tab-delimited) and CSV files (comma or semicolon).
@@ -194,13 +195,5 @@ export const requirementsToCsv = (
 
 // Triggers a CSV download without external libraries (Blob + temporary anchor).
 export const downloadCsv = (filename: string, csv: string): void => {
-  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(url)
+  downloadBlob(new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' }), filename)
 }

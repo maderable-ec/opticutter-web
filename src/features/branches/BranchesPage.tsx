@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   CButton,
   CCard,
@@ -25,8 +25,8 @@ import { cilPencil, cilPlus, cilSearch } from '@coreui/icons'
 import BranchForm from './BranchForm'
 import { useBranches, useCreateBranch, useUpdateBranch } from './useBranches'
 import type { Branch, BranchPayload, BranchUpdatePayload } from './types'
-
-const LIMIT = 20
+import { PAGE_SIZE } from 'src/shared/constants'
+import { useDebounce } from 'src/shared/hooks/useDebounce'
 
 interface ModalState {
   visible: boolean
@@ -35,19 +35,11 @@ interface ModalState {
 
 const BranchesPage = () => {
   const [rawSearch, setRawSearch] = useState('')
-  const [search, setSearch] = useState('')
+  const search = useDebounce(rawSearch)
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, branch: null })
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(rawSearch)
-      setOffset(0)
-    }, 350)
-    return () => clearTimeout(t)
-  }, [rawSearch])
-
-  const { data, isLoading } = useBranches({ search, offset, limit: LIMIT })
+  const { data, isLoading } = useBranches({ search, offset, limit: PAGE_SIZE })
   const branches = data?.items ?? []
   const pagination = data?.pagination
   const createMutation = useCreateBranch()
@@ -80,7 +72,7 @@ const BranchesPage = () => {
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -100,7 +92,10 @@ const BranchesPage = () => {
             <CFormInput
               placeholder="Buscar por código o nombre…"
               value={rawSearch}
-              onChange={(e) => setRawSearch(e.target.value)}
+              onChange={(e) => {
+                setRawSearch(e.target.value)
+                setOffset(0)
+              }}
             />
           </CInputGroup>
 
@@ -165,7 +160,7 @@ const BranchesPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -173,7 +168,7 @@ const BranchesPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>

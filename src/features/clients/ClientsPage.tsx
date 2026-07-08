@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   CButton,
   CCard,
@@ -26,10 +26,9 @@ import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
 import ClientForm from './ClientForm'
 import { useClients, useCreateClient, useDeleteClient, useUpdateClient } from './useClients'
 import type { Client, ClientPayload } from './types'
-
-const LIMIT = 20
-
-const fullName = (c: Client) => [c.firstName, c.lastName].filter(Boolean).join(' ') || '—'
+import { PAGE_SIZE } from 'src/shared/constants'
+import { useDebounce } from 'src/shared/hooks/useDebounce'
+import { clientName } from 'src/shared/utils/format'
 
 interface ModalState {
   visible: boolean
@@ -38,20 +37,12 @@ interface ModalState {
 
 const ClientsPage = () => {
   const [rawSearch, setRawSearch] = useState('')
-  const [search, setSearch] = useState('')
+  const search = useDebounce(rawSearch)
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, client: null })
   const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, client: null })
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(rawSearch)
-      setOffset(0)
-    }, 350)
-    return () => clearTimeout(t)
-  }, [rawSearch])
-
-  const { data: clientsData, isLoading } = useClients({ search, offset, limit: LIMIT })
+  const { data: clientsData, isLoading } = useClients({ search, offset, limit: PAGE_SIZE })
   const clients = clientsData?.items ?? []
   const pagination = clientsData?.pagination
   const createMutation = useCreateClient()
@@ -85,7 +76,7 @@ const ClientsPage = () => {
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -105,7 +96,10 @@ const ClientsPage = () => {
             <CFormInput
               placeholder="Buscar por nombre o identificador…"
               value={rawSearch}
-              onChange={(e) => setRawSearch(e.target.value)}
+              onChange={(e) => {
+                setRawSearch(e.target.value)
+                setOffset(0)
+              }}
             />
           </CInputGroup>
 
@@ -140,7 +134,7 @@ const ClientsPage = () => {
                       <CTableDataCell>
                         <strong>{c.identifier}</strong>
                       </CTableDataCell>
-                      <CTableDataCell>{fullName(c)}</CTableDataCell>
+                      <CTableDataCell>{clientName(c)}</CTableDataCell>
                       <CTableDataCell>{c.phone ?? '—'}</CTableDataCell>
                       <CTableDataCell>{c.email ?? '—'}</CTableDataCell>
                       <CTableDataCell>{c.source ?? '—'}</CTableDataCell>
@@ -176,7 +170,7 @@ const ClientsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -184,7 +178,7 @@ const ClientsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>
@@ -212,7 +206,7 @@ const ClientsPage = () => {
           <CModalTitle>Eliminar cliente</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          ¿Eliminar a <strong>{deleteModal.client && fullName(deleteModal.client)}</strong> (
+          ¿Eliminar a <strong>{deleteModal.client && clientName(deleteModal.client)}</strong> (
           {deleteModal.client?.identifier})? Esta acción no se puede deshacer.
         </CModalBody>
         <CModalFooter>

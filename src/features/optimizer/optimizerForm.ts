@@ -75,8 +75,6 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   edgeBanding: emptyEdgeBanding(),
 })
 
-export const isInlineSource = (source: MaterialSourceKind): boolean => source !== 'catalog'
-
 export const isMaterialValid = (m: MaterialForm): boolean =>
   m.source === 'catalog'
     ? !!m.boardId

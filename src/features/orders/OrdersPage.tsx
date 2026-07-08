@@ -19,7 +19,6 @@ import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 
 import CIcon from '@coreui/icons-react'
 import type { ChangeEvent } from 'react'
-import type { Client } from 'src/features/clients/types'
 import type { OrderStatus } from './types'
 import OrderStatusBadge from './OrderStatusBadge'
 import { cilPlus } from '@coreui/icons'
@@ -28,8 +27,8 @@ import { useNavigate } from 'react-router-dom'
 import { useOrders } from './useOrders'
 import useOrdersFilterStore from './ordersFilterStore'
 import { useState } from 'react'
-
-const LIMIT = 20
+import { PAGE_SIZE } from 'src/shared/constants'
+import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
 
 const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -41,21 +40,6 @@ const STATUSES: { value: OrderStatus | ''; label: string }[] = [
   { value: 'despachado', label: 'Despachada' },
   { value: 'cancelled', label: 'Cancelada' },
 ]
-
-const clientName = (c?: Client) =>
-  [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
-
-const fmtDate = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleDateString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : '—'
-
-const fmt = (n?: number | null) =>
-  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n) : '—'
 
 const OrdersPage = () => {
   const navigate = useNavigate()
@@ -78,7 +62,7 @@ const OrdersPage = () => {
     status: statusParam,
     branchId: branchId ? Number(branchId) : undefined,
     offset,
-    limit: LIMIT,
+    limit: PAGE_SIZE,
   })
   const orders = ordersData?.items ?? []
   const pagination = ordersData?.pagination
@@ -90,7 +74,7 @@ const OrdersPage = () => {
   }
 
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -178,7 +162,7 @@ const OrdersPage = () => {
                         <OrderStatusBadge status={o.status} />
                       </CTableDataCell>
                       <CTableDataCell className="text-end text-nowrap">
-                        {fmt(o.total)}
+                        {fmtMoney(o.total)}
                       </CTableDataCell>
                       <CTableDataCell className="text-nowrap">
                         {fmtDate(o.createdAt)}
@@ -196,7 +180,7 @@ const OrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -204,7 +188,7 @@ const OrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>

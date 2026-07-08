@@ -26,13 +26,7 @@ import type { Role } from 'src/features/auth/types'
 import RoleBadge from './components/RoleBadge'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useAttendance } from './useAnalytics'
-
-const formatDate = (date: Date) => date.toISOString().slice(0, 10)
-const subDays = (date: Date, n: number) => {
-  const d = new Date(date)
-  d.setDate(d.getDate() - n)
-  return d
-}
+import { formatDate, subDays } from 'src/shared/utils/date'
 
 const fmtColDate = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit' })

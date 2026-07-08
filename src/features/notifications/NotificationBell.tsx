@@ -20,17 +20,7 @@ import {
   useUnreadNotificationCount,
 } from './useNotifications'
 import type { Notification } from './types'
-
-const relativeTime = (iso: string): string => {
-  const diffMs = Date.now() - new Date(iso).getTime()
-  const min = Math.round(diffMs / 60_000)
-  if (min < 1) return 'ahora'
-  if (min < 60) return `hace ${min} min`
-  const hours = Math.round(min / 60)
-  if (hours < 24) return `hace ${hours} h`
-  const days = Math.round(hours / 24)
-  return `hace ${days} d`
-}
+import { relativeTime } from 'src/shared/utils/date'
 
 const NotificationBell = () => {
   const navigate = useNavigate()

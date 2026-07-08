@@ -1,34 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createCrudHooks } from 'src/shared/hooks/createCrudHooks'
 import { productsApi } from './productsApi'
-import type { ProductListParams, ProductPayload } from './types'
+import type { Product, ProductListParams, ProductPayload } from './types'
 
-export const useProducts = (params?: ProductListParams) =>
-  useQuery({
-    queryKey: ['products', params],
-    queryFn: () => productsApi.list(params),
-  })
+const hooks = createCrudHooks<Product, ProductListParams, ProductPayload, ProductPayload, string>(
+  'products',
+  productsApi,
+)
 
-export const useCreateProduct = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: productsApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  })
-}
-
-export const useUpdateProduct = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ProductPayload }) =>
-      productsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  })
-}
-
-export const useDeleteProduct = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: productsApi.remove,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['products'] }),
-  })
-}
+export const useProducts = hooks.useList
+export const useCreateProduct = hooks.useCreate
+export const useUpdateProduct = hooks.useUpdate
+export const useDeleteProduct = hooks.useDelete

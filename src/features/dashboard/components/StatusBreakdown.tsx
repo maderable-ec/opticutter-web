@@ -2,9 +2,7 @@ import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
 import { CChartBar } from '@coreui/react-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useStatusBreakdown } from '../useAnalytics'
-
-const fmtUSD = (n: number) =>
-  '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+import { fmtMoney } from 'src/shared/utils/format'
 
 // Color per status key. The chart renders dynamically from the API `items`; unknown keys
 // fall back to neutral gray (see the lookup below).
@@ -75,7 +73,7 @@ const StatusBreakdown = ({ from, to, branchId }: StatusBreakdownProps) => {
               callbacks: {
                 afterLabel: (ctx) => {
                   const revenue = items[ctx.dataIndex]?.revenue ?? 0
-                  return revenue > 0 ? `Ingresos: ${fmtUSD(revenue)}` : ''
+                  return revenue > 0 ? `Ingresos: ${fmtMoney(revenue)}` : ''
                 },
               },
             },

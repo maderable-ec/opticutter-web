@@ -1,7 +1,6 @@
 import type { ComponentType, LazyExoticComponent } from 'react'
 import type { Role } from 'src/features/auth/types'
 import { dashboardRoutes } from 'src/features/dashboard/routes'
-import { widgetsRoutes } from 'src/features/widgets/routes'
 import { clientsRoutes } from 'src/features/clients/routes'
 import { ordersRoutes } from 'src/features/orders/routes'
 import { preordersRoutes } from 'src/features/preorders/routes'
@@ -25,7 +24,6 @@ export const routes: AppRoute[] = [
   ...usersRoutes,
   ...branchesRoutes,
   ...dashboardRoutes,
-  ...widgetsRoutes,
   ...clientsRoutes,
   ...ordersRoutes,
   ...preordersRoutes,

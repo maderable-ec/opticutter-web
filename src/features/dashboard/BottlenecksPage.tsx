@@ -5,26 +5,9 @@ import { getStyle } from '@coreui/utils'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import DateRangeFilter from './components/DateRangeFilter'
 import { useBottlenecks } from './useAnalytics'
-import { fmtHours } from './format'
+import { fmtBucketLabel, fmtHours } from './format'
+import { formatDate, subDays } from 'src/shared/utils/date'
 import type { Granularity } from './types'
-
-const formatDate = (date: Date) => date.toISOString().slice(0, 10)
-const subDays = (date: Date, n: number) => {
-  const d = new Date(date)
-  d.setDate(d.getDate() - n)
-  return d
-}
-
-const formatBucketLabel = (bucket: string, granularity: Granularity) => {
-  const date = new Date(`${bucket}T00:00:00`)
-  if (granularity === 'month') {
-    return date.toLocaleDateString('es', { month: 'short', year: 'numeric' })
-  }
-  if (granularity === 'week') {
-    return `Sem. del ${date.toLocaleDateString('es', { day: 'numeric', month: 'short' })}`
-  }
-  return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
-}
 
 // Stable color palette for the 6 stages in the time chart (in process order).
 const SERIES_COLORS = [
@@ -176,7 +159,7 @@ const BottlenecksPage = () => {
             <CChartLine
               style={{ height: '320px' }}
               data={{
-                labels: buckets.map((b) => formatBucketLabel(b, granularity)),
+                labels: buckets.map((b) => fmtBucketLabel(b, granularity)),
                 datasets: series.map((s, i) => {
                   const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0])()
                   return {
