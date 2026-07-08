@@ -26,8 +26,8 @@ import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { usePreOrders } from './usePreOrders'
 import { useState } from 'react'
-
-const LIMIT = 20
+import { PAGE_SIZE } from 'src/shared/constants'
+import { clientName, fmtDate } from 'src/shared/utils/format'
 
 const STATUSES: { value: PreOrderStatus | ''; label: string }[] = [
   { value: '', label: 'Todos los estados' },
@@ -42,26 +42,11 @@ const STATUSES: { value: PreOrderStatus | ''; label: string }[] = [
 
 const ACTIVE_STATES: PreOrderStatus[] = ['draft', 'sent', 'changes_requested']
 
-const fmtDate = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleDateString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : '—'
-
 const isExpiringSoon = (expiresAt: string | null | undefined, status: PreOrderStatus) => {
   if (!expiresAt || !ACTIVE_STATES.includes(status)) return false
   const diff = new Date(expiresAt).getTime() - Date.now()
   return diff > 0 && diff <= 3 * 24 * 60 * 60 * 1000
 }
-
-const clientLabel = (c: {
-  firstName?: string | null
-  lastName?: string | null
-  identifier?: string
-}) => [c.firstName, c.lastName].filter(Boolean).join(' ') || c.identifier || '—'
 
 const PreOrdersPage = () => {
   const navigate = useNavigate()
@@ -75,7 +60,7 @@ const PreOrdersPage = () => {
     status: status || undefined,
     branchId: branchId ? Number(branchId) : undefined,
     offset,
-    limit: LIMIT,
+    limit: PAGE_SIZE,
   })
   const items = data?.items ?? []
   const pagination = data?.pagination
@@ -87,7 +72,7 @@ const PreOrdersPage = () => {
   }
 
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -165,7 +150,7 @@ const PreOrdersPage = () => {
                           <strong>{po.code}</strong>
                         </CTableDataCell>
                         <CTableDataCell>
-                          <div>{clientLabel(po.client)}</div>
+                          <div>{clientName(po.client)}</div>
                           <div className="text-body-secondary small">@{po.client.identifier}</div>
                         </CTableDataCell>
                         <CTableDataCell>
@@ -199,7 +184,7 @@ const PreOrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -207,7 +192,7 @@ const PreOrdersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>

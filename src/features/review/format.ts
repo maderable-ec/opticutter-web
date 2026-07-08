@@ -1,30 +1,9 @@
 // Format helpers for the public review page.
-// Dates arrive in UTC without a timezone suffix; we display them in human-readable local format.
+// Money/date formatting is shared app-wide; `edgesLabel` is review-specific.
 
 import type { ReviewEdges } from './types'
 
-export const fmtMoney = (n?: number | null, currency = 'USD') =>
-  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency }).format(n) : '—'
-
-export const fmtDate = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleDateString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : '—'
-
-export const fmtDateTime = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—'
+export { fmtMoney, fmtDate, fmtDateTime } from 'src/shared/utils/format'
 
 const SIDE_LABELS: Record<string, string> = {
   top: 'superior',

@@ -8,13 +8,7 @@ import StatusBreakdown from './components/StatusBreakdown'
 import BranchBreakdown from './components/BranchBreakdown'
 import OperationsPanel from './components/OperationsPanel'
 import type { Granularity } from './types'
-
-const formatDate = (date: Date) => date.toISOString().slice(0, 10)
-const subDays = (date: Date, n: number) => {
-  const d = new Date(date)
-  d.setDate(d.getDate() - n)
-  return d
-}
+import { formatDate, subDays } from 'src/shared/utils/date'
 
 const DashboardPage = () => {
   const [from, setFrom] = useState(() => formatDate(subDays(new Date(), 30)))

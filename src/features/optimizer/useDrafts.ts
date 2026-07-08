@@ -12,14 +12,6 @@ export const useDrafts = (branchId?: number) =>
     queryFn: () => draftsApi.list(branchId),
   })
 
-// Draft detail (includes payload). `enabled` prevents firing without an id.
-export const useDraft = (id?: number) =>
-  useQuery({
-    queryKey: ['optimization-drafts', id],
-    queryFn: () => draftsApi.get(id as number),
-    enabled: !!id,
-  })
-
 interface SaveDraftVars {
   id?: number | null
   name: string

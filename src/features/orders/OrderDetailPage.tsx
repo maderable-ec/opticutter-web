@@ -31,12 +31,12 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
-import type { Client } from 'src/features/clients/types'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
+import { clientName, fmtDateTime, fmtMoney } from 'src/shared/utils/format'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
@@ -117,23 +117,6 @@ const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
     },
   ],
 }
-
-const fmt = (n?: number | null) =>
-  n != null ? new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(n) : '—'
-
-const fmtDateTime = (iso?: string) =>
-  iso
-    ? new Date(iso).toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—'
-
-const clientName = (c?: Client) =>
-  [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.identifier || '—'
 
 interface TransitionModalState {
   visible: boolean
@@ -384,7 +367,7 @@ const OrderDetailPage = () => {
                   }
                 />
               ) : (
-                <div className="fs-5 fw-semibold">Total: {fmt(order.total)}</div>
+                <div className="fs-5 fw-semibold">Total: {fmtMoney(order.total)}</div>
               )}
               {order.externalInvoiceId && (
                 <div className="text-body-secondary small">
@@ -469,19 +452,19 @@ const OrderDetailPage = () => {
             {order.paymentCashAmount != null && order.paymentCashAmount > 0 && (
               <div className="small">
                 <span className="text-body-secondary">Efectivo:</span>{' '}
-                <strong>{fmt(order.paymentCashAmount)}</strong>
+                <strong>{fmtMoney(order.paymentCashAmount)}</strong>
               </div>
             )}
             {order.paymentCreditAmount != null && order.paymentCreditAmount > 0 && (
               <div className="small">
                 <span className="text-body-secondary">A crédito:</span>{' '}
-                <strong>{fmt(order.paymentCreditAmount)}</strong>
+                <strong>{fmtMoney(order.paymentCreditAmount)}</strong>
               </div>
             )}
             <div className="small">
               <span className="text-body-secondary">Total:</span>{' '}
               <strong>
-                {fmt((order.paymentCashAmount ?? 0) + (order.paymentCreditAmount ?? 0))}
+                {fmtMoney((order.paymentCashAmount ?? 0) + (order.paymentCreditAmount ?? 0))}
               </strong>
             </div>
           </CCardBody>
@@ -619,8 +602,10 @@ const OrderDetailPage = () => {
                     </CTableDataCell>
                     <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
                     <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
-                    <CTableDataCell className="text-end">{fmt(l.unitPriceSnapshot)}</CTableDataCell>
-                    <CTableDataCell className="text-end">{fmt(l.lineTotal)}</CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      {fmtMoney(l.unitPriceSnapshot)}
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">{fmtMoney(l.lineTotal)}</CTableDataCell>
                     <CTableDataCell className="text-end">
                       {l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : '—'}
                     </CTableDataCell>
@@ -897,7 +882,7 @@ const OrderDetailPage = () => {
                   />
                 </div>
                 <div className="fw-semibold small mb-3">
-                  Total ingresado: {fmt(sum)} / Total de la orden: {fmt(orderTotal)}
+                  Total ingresado: {fmtMoney(sum)} / Total de la orden: {fmtMoney(orderTotal)}
                 </div>
                 {empty && (
                   <div className="text-warning small mb-2">
@@ -906,7 +891,8 @@ const OrderDetailPage = () => {
                 )}
                 {mismatch && (
                   <div className="text-danger small mb-2">
-                    La suma de los montos debe ser igual al total de la orden ({fmt(orderTotal)}).
+                    La suma de los montos debe ser igual al total de la orden (
+                    {fmtMoney(orderTotal)}).
                   </div>
                 )}
                 <div className="mb-2">

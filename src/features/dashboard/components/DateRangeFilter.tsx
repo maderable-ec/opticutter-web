@@ -10,22 +10,16 @@ import {
   CRow,
 } from '@coreui/react'
 import type { Granularity } from '../types'
+import { formatDate, subDays } from 'src/shared/utils/date'
 
-const today = () => {
-  const d = new Date()
-  return d.toISOString().slice(0, 10)
-}
+const today = () => formatDate(new Date())
 
-const daysAgo = (n: number) => {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
-}
+const daysAgo = (n: number) => formatDate(subDays(new Date(), n))
 
 const startOfMonth = () => {
   const d = new Date()
   d.setDate(1)
-  return d.toISOString().slice(0, 10)
+  return formatDate(d)
 }
 
 interface Preset {

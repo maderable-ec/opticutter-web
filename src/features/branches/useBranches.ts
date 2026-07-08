@@ -1,12 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
+import { createCrudHooks } from 'src/shared/hooks/createCrudHooks'
 import { branchesApi } from './branchesApi'
-import type { Branch, BranchListParams, BranchUpdatePayload } from './types'
+import type { Branch, BranchListParams, BranchPayload, BranchUpdatePayload } from './types'
 
-export const useBranches = (params?: BranchListParams) =>
-  useQuery({
-    queryKey: ['branches', params],
-    queryFn: () => branchesApi.list(params),
-  })
+const hooks = createCrudHooks<Branch, BranchListParams, BranchPayload, BranchUpdatePayload, number>(
+  'branches',
+  branchesApi,
+)
+
+export const useBranches = hooks.useList
+export const useCreateBranch = hooks.useCreate
+export const useUpdateBranch = hooks.useUpdate
 
 // Lightweight hook reused by branch selectors across the app: fetches up to 100 branches
 // and returns only the active ones. `data` is already typed as `Branch[]`.
@@ -16,28 +20,3 @@ export const useActiveBranches = () =>
     queryFn: () => branchesApi.list({ limit: 100 }),
     select: (res): Branch[] => res.items.filter((b) => b.isActive),
   })
-
-export const useCreateBranch = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: branchesApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
-  })
-}
-
-export const useUpdateBranch = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: BranchUpdatePayload }) =>
-      branchesApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
-  })
-}
-
-export const useDeleteBranch = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: branchesApi.remove,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['branches'] }),
-  })
-}

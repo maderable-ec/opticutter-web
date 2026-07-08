@@ -40,7 +40,7 @@ import {
   cilTrash,
 } from '@coreui/icons'
 import { useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from './useProducts'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import CIcon from '@coreui/icons-react'
 import ImportProductsModal from './ImportProductsModal'
@@ -49,8 +49,9 @@ import { exportProductsCsv } from './productsCsv'
 import { productsApi } from './productsApi'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
-
-const LIMIT = 20
+import { PAGE_SIZE } from 'src/shared/constants'
+import { useDebounce } from 'src/shared/hooks/useDebounce'
+import { fmtMoney } from 'src/shared/utils/format'
 
 const TYPE_LABELS: Record<string, string> = {
   board: 'Tablero',
@@ -64,9 +65,6 @@ const TYPE_COLORS: Record<string, string> = {
 }
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
-const fmtPrice = (n?: number) =>
-  typeof n === 'number' ? n.toLocaleString('es-EC', { style: 'currency', currency: 'USD' }) : '—'
-
 interface ProductModalState {
   visible: boolean
   product: Product | null
@@ -76,7 +74,7 @@ const ProductsPage = () => {
   const isReadOnly = useHasRole('vendedor')
   const queryClient = useQueryClient()
   const [rawSearch, setRawSearch] = useState('')
-  const [search, setSearch] = useState('')
+  const search = useDebounce(rawSearch)
   const [typeFilter, setTypeFilter] = useState<ProductType | ''>('')
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ProductModalState>({ visible: false, product: null })
@@ -87,15 +85,7 @@ const ProductsPage = () => {
   const [importModal, setImportModal] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(rawSearch)
-      setOffset(0)
-    }, 350)
-    return () => clearTimeout(t)
-  }, [rawSearch])
-
-  const queryParams: ProductListParams = { search, offset, limit: LIMIT }
+  const queryParams: ProductListParams = { search, offset, limit: PAGE_SIZE }
   if (typeFilter) queryParams.type = typeFilter
 
   const { data: productsData, isLoading } = useProducts(queryParams)
@@ -151,7 +141,7 @@ const ProductsPage = () => {
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   const renderHeaders = () => {
     if (typeFilter === 'board') {
@@ -234,7 +224,7 @@ const ProductsPage = () => {
             <strong>{p.code}</strong>
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
-          <CTableDataCell>{fmtPrice(p.price)}</CTableDataCell>
+          <CTableDataCell>{fmtMoney(p.price)}</CTableDataCell>
           <CTableDataCell>
             {a.height && a.width ? `${a.height} × ${a.width} mm` : '—'}
           </CTableDataCell>
@@ -254,7 +244,7 @@ const ProductsPage = () => {
             <strong>{p.code}</strong>
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
-          <CTableDataCell>{fmtPrice(p.price)}</CTableDataCell>
+          <CTableDataCell>{fmtMoney(p.price)}</CTableDataCell>
           <CTableDataCell>{a.thickness != null ? `${a.thickness} mm` : '—'}</CTableDataCell>
           <CTableDataCell>{a.width ? `${a.width} mm` : '—'}</CTableDataCell>
           <CTableDataCell>
@@ -279,7 +269,7 @@ const ProductsPage = () => {
           <strong>{p.code}</strong>
         </CTableDataCell>
         <CTableDataCell>{p.name}</CTableDataCell>
-        <CTableDataCell>{fmtPrice(p.price)}</CTableDataCell>
+        <CTableDataCell>{fmtMoney(p.price)}</CTableDataCell>
         <CTableDataCell>{statusBadge}</CTableDataCell>
         {actions}
       </CTableRow>
@@ -349,7 +339,10 @@ const ProductsPage = () => {
                 <CFormInput
                   placeholder="Buscar por código o nombre…"
                   value={rawSearch}
-                  onChange={(e) => setRawSearch(e.target.value)}
+                  onChange={(e) => {
+                    setRawSearch(e.target.value)
+                    setOffset(0)
+                  }}
                 />
               </CInputGroup>
             </CCol>
@@ -387,7 +380,7 @@ const ProductsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -395,7 +388,7 @@ const ProductsPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>

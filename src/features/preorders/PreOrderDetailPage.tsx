@@ -45,6 +45,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from 'src/shared/api/types'
+import { clientName, fmtDate, fmtDateTime } from 'src/shared/utils/format'
 import CIcon from '@coreui/icons-react'
 import DeleteMaterialModal from 'src/features/optimizer/DeleteMaterialModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
@@ -112,26 +113,6 @@ function formFromPreOrderData(
   }))
   return { materials: matForms, requirements: reqForms }
 }
-
-const fmtDate = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleDateString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      })
-    : null
-
-const fmtDateTime = (iso?: string | null) =>
-  iso
-    ? new Date(iso).toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : null
 
 const LINK_STATUS_LABELS: Record<string, string> = {
   active: 'Activo',
@@ -274,9 +255,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     (createReviewLink.error.message?.toLowerCase().includes('celular') ||
       createReviewLink.error.errors?.some((e) => e.message?.toLowerCase().includes('celular')))
 
-  const clientLabel =
-    [preOrder.client.firstName, preOrder.client.lastName].filter(Boolean).join(' ') ||
-    preOrder.client.identifier
+  const clientLabel = clientName(preOrder.client)
 
   return (
     <>

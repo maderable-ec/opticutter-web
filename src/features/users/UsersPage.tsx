@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   CBadge,
   CButton,
@@ -29,21 +29,9 @@ import { useUsers, useCreateUser, useDeleteUser, useUpdateUser } from './useUser
 import { useBranches } from 'src/features/branches/useBranches'
 import type { User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
-
-const LIMIT = 20
-
-const ROLE_LABELS: Record<string, string> = {
-  administrador: 'Admin',
-  vendedor: 'Vendedor',
-  operador: 'Operador',
-  canteador: 'Canteador',
-}
-const ROLE_COLORS: Record<string, string> = {
-  administrador: 'danger',
-  vendedor: 'primary',
-  operador: 'secondary',
-  canteador: 'info',
-}
+import { ROLE_COLORS, ROLE_SHORT_LABELS } from 'src/features/auth/roleLabels'
+import { PAGE_SIZE } from 'src/shared/constants'
+import { useDebounce } from 'src/shared/hooks/useDebounce'
 
 interface ModalState {
   visible: boolean
@@ -52,20 +40,12 @@ interface ModalState {
 
 const UsersPage = () => {
   const [rawSearch, setRawSearch] = useState('')
-  const [search, setSearch] = useState('')
+  const search = useDebounce(rawSearch)
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, user: null })
   const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, user: null })
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(rawSearch)
-      setOffset(0)
-    }, 350)
-    return () => clearTimeout(t)
-  }, [rawSearch])
-
-  const { data: usersData, isLoading } = useUsers({ search, offset, limit: LIMIT })
+  const { data: usersData, isLoading } = useUsers({ search, offset, limit: PAGE_SIZE })
   const users = usersData?.items ?? []
   const pagination = usersData?.pagination
 
@@ -109,7 +89,7 @@ const UsersPage = () => {
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
   const showPrev = offset > 0
-  const showNext = pagination ? offset + LIMIT < pagination.total : false
+  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -129,7 +109,10 @@ const UsersPage = () => {
             <CFormInput
               placeholder="Buscar por nombre o email…"
               value={rawSearch}
-              onChange={(e) => setRawSearch(e.target.value)}
+              onChange={(e) => {
+                setRawSearch(e.target.value)
+                setOffset(0)
+              }}
             />
           </CInputGroup>
 
@@ -165,7 +148,7 @@ const UsersPage = () => {
                       <CTableDataCell>{u.fullName ?? '—'}</CTableDataCell>
                       <CTableDataCell>
                         <CBadge color={ROLE_COLORS[u.role] ?? 'secondary'}>
-                          {ROLE_LABELS[u.role] ?? u.role}
+                          {ROLE_SHORT_LABELS[u.role] ?? u.role}
                         </CBadge>
                       </CTableDataCell>
                       <CTableDataCell>
@@ -212,7 +195,7 @@ const UsersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Anterior
               </CButton>
@@ -220,7 +203,7 @@ const UsersPage = () => {
                 size="sm"
                 color="secondary"
                 disabled={!showNext}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Siguiente
               </CButton>

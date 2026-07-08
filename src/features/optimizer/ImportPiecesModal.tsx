@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { PREVIEW_LIMIT } from 'src/shared/constants'
 import {
   CAlert,
   CButton,
@@ -31,8 +32,6 @@ interface ImportPiecesModalProps {
   onImport: (rows: RequirementForm[], replace: boolean) => void
   onClose: () => void
 }
-
-const PREVIEW_LIMIT = 8
 
 const ImportPiecesModal = ({
   visible,

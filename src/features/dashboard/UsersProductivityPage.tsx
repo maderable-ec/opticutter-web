@@ -21,13 +21,7 @@ import type { UserProductivity } from './types'
 import { fmtMoney } from 'src/features/review/format'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useUsersProductivity } from './useAnalytics'
-
-const formatDate = (date: Date) => date.toISOString().slice(0, 10)
-const subDays = (date: Date, n: number) => {
-  const d = new Date(date)
-  d.setDate(d.getDate() - n)
-  return d
-}
+import { formatDate, subDays } from 'src/shared/utils/date'
 
 const fmtInt = (n: number) => n.toLocaleString('es-EC')
 const fmtArea = (n: number) => `${n.toFixed(1)}`

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { PREVIEW_LIMIT } from 'src/shared/constants'
 import {
   CAlert,
   CButton,
@@ -30,8 +31,6 @@ interface ImportProductsModalProps {
   onClose: () => void
   onImported: () => void
 }
-
-const PREVIEW_LIMIT = 8
 
 type Stage = 'input' | 'importing' | 'done'
 

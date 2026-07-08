@@ -1,11 +1,10 @@
 import type { ReactNode } from 'react'
 import { CCard, CCardBody, CCardHeader, CCol, CRow, CSpinner } from '@coreui/react'
 import { useSummary } from '../useAnalytics'
+import { fmtMoney } from 'src/shared/utils/format'
 
 const fmtPct = (rate: number) => `${(rate * 100).toFixed(1)} %`
 const fmtEff = (val: number) => `${val.toFixed(1)} %`
-const fmtUSD = (n: number) =>
-  '$ ' + n.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtM2 = (n: number) => `${n.toFixed(1)} m²`
 
 interface StatCardProps {
@@ -99,12 +98,12 @@ const KpiCards = ({ from, to, branchId }: KpiCardsProps) => {
             <CCol xs={6} md={3}>
               <StatCard
                 label="Ingresos realizados"
-                value={fmtUSD(s.realizedRevenue)}
+                value={fmtMoney(s.realizedRevenue)}
                 color="success"
               />
             </CCol>
             <CCol xs={6} md={3}>
-              <StatCard label="Ticket promedio" value={fmtUSD(s.averageTicket)} color="info" />
+              <StatCard label="Ticket promedio" value={fmtMoney(s.averageTicket)} color="info" />
             </CCol>
             <CCol xs={6} md={3}>
               <StatCard label="Total de órdenes" value={s.orderCount} color="secondary" />

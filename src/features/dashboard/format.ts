@@ -2,6 +2,20 @@
 // Durations arrive in hours (float). Timestamps are UTC naive (no offset,
 // e.g. "2026-06-15T08:05:00") → must be treated as UTC and displayed in local time.
 
+import type { Granularity } from './types'
+
+// A time-bucket 'YYYY-MM-DD' → human label depending on the chart granularity.
+export const fmtBucketLabel = (bucket: string, granularity: Granularity): string => {
+  const date = new Date(`${bucket}T00:00:00`)
+  if (granularity === 'month') {
+    return date.toLocaleDateString('es', { month: 'short', year: 'numeric' })
+  }
+  if (granularity === 'week') {
+    return `Sem. del ${date.toLocaleDateString('es', { day: 'numeric', month: 'short' })}`
+  }
+  return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
+}
+
 // Duration in hours → human-readable text. `>=48h` is shown in days; otherwise
 // hours and minutes (omitting `0h`). Values <= 0 fall back to "0 m".
 export const fmtHours = (h: number): string => {
@@ -25,18 +39,6 @@ const asUtc = (iso: string): Date => new Date(/[zZ]$/.test(iso) ? iso : `${iso}Z
 // Local "HH:MM" time from a UTC naive timestamp (used to display check-in time).
 export const fmtLocalTime = (iso?: string | null): string =>
   iso ? asUtc(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '—'
-
-// Local date + time from a UTC naive timestamp.
-export const fmtLocalDateTime = (iso?: string | null): string =>
-  iso
-    ? asUtc(iso).toLocaleString('es-EC', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '—'
 
 // Local "HH:MM" in 24h zero-padded format, used to compare against a lateness
 // threshold also expressed as "HH:MM".

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDebounce } from 'src/shared/hooks/useDebounce'
 import {
   CAlert,
   CButton,
@@ -54,7 +55,7 @@ const CreateQuoteModal = ({
   const navigate = useNavigate()
 
   const [clientSearch, setClientSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const debouncedSearch = useDebounce(clientSearch)
   const [selectedClientId, setSelectedClientId] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -65,11 +66,6 @@ const CreateQuoteModal = ({
 
   // Admin: no pre-selection (required field). Sales rep: pre-selects their home branch.
   const [branchId, setBranchId] = useState(() => (isAdmin ? '' : String(user?.branchId ?? '')))
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(clientSearch), 350)
-    return () => clearTimeout(t)
-  }, [clientSearch])
 
   const { data: clientsData } = useClientsMin(debouncedSearch)
   const clients = clientsData?.items ?? []

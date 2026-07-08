@@ -6,7 +6,6 @@ import { authApi } from 'src/features/auth/authApi'
 
 import { CSpinner, useColorModes } from '@coreui/react'
 import './scss/style.scss'
-import './scss/examples.scss'
 
 import { authRoutes } from 'src/features/auth/routes'
 import { reviewRoutes } from 'src/features/review/routes'

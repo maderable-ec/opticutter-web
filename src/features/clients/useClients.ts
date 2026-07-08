@@ -1,33 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createCrudHooks } from 'src/shared/hooks/createCrudHooks'
 import { clientsApi } from './clientsApi'
-import type { ClientListParams, ClientPayload } from './types'
+import type { Client, ClientListParams, ClientPayload } from './types'
 
-export const useClients = (params?: ClientListParams) =>
-  useQuery({
-    queryKey: ['clients', params],
-    queryFn: () => clientsApi.list(params),
-  })
+const hooks = createCrudHooks<Client, ClientListParams, ClientPayload, ClientPayload, string>(
+  'clients',
+  clientsApi,
+)
 
-export const useCreateClient = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: clientsApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
-  })
-}
-
-export const useUpdateClient = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ClientPayload }) => clientsApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
-  })
-}
-
-export const useDeleteClient = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: clientsApi.remove,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
-  })
-}
+export const useClients = hooks.useList
+export const useCreateClient = hooks.useCreate
+export const useUpdateClient = hooks.useUpdate
+export const useDeleteClient = hooks.useDelete

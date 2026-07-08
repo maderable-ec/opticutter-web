@@ -1,34 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createCrudHooks } from 'src/shared/hooks/createCrudHooks'
 import { usersApi } from './usersApi'
-import type { UserListParams, UserUpdatePayload } from './types'
+import type { User } from 'src/features/auth/types'
+import type { UserListParams, UserPayload, UserUpdatePayload } from './types'
 
-export const useUsers = (params?: UserListParams) =>
-  useQuery({
-    queryKey: ['users', params],
-    queryFn: () => usersApi.list(params),
-  })
+const hooks = createCrudHooks<User, UserListParams, UserPayload, UserUpdatePayload, number>(
+  'users',
+  usersApi,
+)
 
-export const useCreateUser = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: usersApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
-  })
-}
-
-export const useUpdateUser = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UserUpdatePayload }) =>
-      usersApi.update(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
-  })
-}
-
-export const useDeleteUser = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: usersApi.remove,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
-  })
-}
+export const useUsers = hooks.useList
+export const useCreateUser = hooks.useCreate
+export const useUpdateUser = hooks.useUpdate
+export const useDeleteUser = hooks.useDelete

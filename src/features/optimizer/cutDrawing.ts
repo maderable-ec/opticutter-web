@@ -63,20 +63,6 @@ export interface SideLine {
   y2: number
 }
 
-// Coordinates of a geometric side of a rect (x,y,w,h). Response edges are already in geometric space.
-export const sideLine = (side: EdgeSide, x: number, y: number, w: number, h: number): SideLine => {
-  switch (side) {
-    case 'top':
-      return { x1: x, y1: y, x2: x + w, y2: y }
-    case 'bottom':
-      return { x1: x, y1: y + h, x2: x + w, y2: y + h }
-    case 'left':
-      return { x1: x, y1: y, x2: x, y2: y + h }
-    case 'right':
-      return { x1: x + w, y1: y, x2: x + w, y2: y + h }
-  }
-}
-
 // Edge banding line offset INWARD: with offset t/2 the outer edge of the stroke (thickness t)
 // aligns with the piece boundary and the band grows inward. This shows which piece owns the edge
 // without overlapping the cut line or invading the neighbor. Use with strokeLinecap="butt" and the

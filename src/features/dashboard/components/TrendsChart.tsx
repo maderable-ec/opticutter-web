@@ -3,6 +3,7 @@ import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
 import { CChartLine } from '@coreui/react-chartjs'
 import { getStyle } from '@coreui/utils'
 import { useTimeseries } from '../useAnalytics'
+import { fmtBucketLabel } from '../format'
 import type { Granularity } from '../types'
 
 // Minimal shape we mutate on theme change; the full Chart.js scale type is a
@@ -10,17 +11,6 @@ import type { Granularity } from '../types'
 type MutableScale = {
   grid: { color: string | undefined }
   ticks: { color: string | undefined }
-}
-
-const formatBucketLabel = (bucket: string, granularity: Granularity) => {
-  const date = new Date(bucket + 'T00:00:00')
-  if (granularity === 'month') {
-    return date.toLocaleDateString('es', { month: 'short', year: 'numeric' })
-  }
-  if (granularity === 'week') {
-    return `Sem. del ${date.toLocaleDateString('es', { day: 'numeric', month: 'short' })}`
-  }
-  return date.toLocaleDateString('es', { day: 'numeric', month: 'short' })
 }
 
 interface TrendsChartProps {
@@ -77,7 +67,7 @@ const TrendsChart = ({ from, to, granularity, branchId }: TrendsChartProps) => {
       )
     }
 
-    const labels = data.buckets.map((b) => formatBucketLabel(b, granularity))
+    const labels = data.buckets.map((b) => fmtBucketLabel(b, granularity))
     const { revenue, orderCount, boardsConsumed, newClients } = data.series
 
     return (
