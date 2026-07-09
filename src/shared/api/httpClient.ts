@@ -42,7 +42,7 @@ const send = async (path: string, options: RequestOptions): Promise<Response> =>
 const isSessionRoute = (path: string): boolean => /\/auth\/(login|refresh|logout)/.test(path)
 
 const redirectToLogin = () => {
-  window.location.hash = '#/login'
+  window.location.assign('/login')
 }
 
 // Single-flight refresh: concurrent 401s share one in-flight refresh promise.

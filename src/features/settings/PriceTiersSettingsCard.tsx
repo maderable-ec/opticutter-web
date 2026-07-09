@@ -64,7 +64,11 @@ const PriceTiersSettingsCard = () => {
       const target = index + dir
       if (target < 0 || target >= rs.length) return rs
       const next = [...rs]
-      ;[next[index], next[target]] = [next[target]!, next[index]!]
+      const a = next[index]
+      const b = next[target]
+      if (a === undefined || b === undefined) return rs
+      next[index] = b
+      next[target] = a
       return next
     })
   }

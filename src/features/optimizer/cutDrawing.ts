@@ -16,7 +16,7 @@ export const PALETTE = [
   '#ff9da7',
   '#9c755f',
   '#86bcb6',
-]
+] as const
 
 export const EDGE_COLOR = '#d9480f' // edge banding color in the diagram
 

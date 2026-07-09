@@ -142,7 +142,11 @@ const CompanySettingsCard = () => {
       const target = index + dir
       if (target < 0 || target >= f.branches.length) return f
       const branches = [...f.branches]
-      ;[branches[index], branches[target]] = [branches[target]!, branches[index]!]
+      const a = branches[index]
+      const b = branches[target]
+      if (a === undefined || b === undefined) return f
+      branches[index] = b
+      branches[target] = a
       return { ...f, branches }
     })
     clearBranchErrors()

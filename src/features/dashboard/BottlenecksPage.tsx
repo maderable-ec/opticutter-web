@@ -17,7 +17,7 @@ const SERIES_COLORS = [
   () => getStyle('--cui-success'),
   () => getStyle('--cui-danger'),
   () => '#8a5cf6',
-]
+] as const
 
 const GRAY = 'rgba(108, 117, 125, 0.4)'
 
@@ -162,7 +162,7 @@ const BottlenecksPage = () => {
               data={{
                 labels: buckets.map((b) => fmtBucketLabel(b, granularity)),
                 datasets: series.map((s, i) => {
-                  const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0]!)()
+                  const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0])()
                   return {
                     label: s.label,
                     data: s.avgHours,
