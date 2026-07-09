@@ -19,11 +19,11 @@ export const useLogout = () => {
     const { refreshToken, clearSession } = useAuthStore.getState()
     const done = () => {
       clearSession()
-      navigate('/login')
+      void navigate('/login')
     }
     // Revoke the refresh token server-side, but log out locally regardless.
     if (refreshToken) {
-      authApi.logout(refreshToken).finally(done)
+      void authApi.logout(refreshToken).finally(done)
     } else {
       done()
     }

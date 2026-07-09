@@ -15,8 +15,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilCheckAlt, cilSave } from '@coreui/icons'
 
-import FieldError from './FieldError'
-import { fieldErrorsFromApiError, hasGenericError } from './fieldErrors'
+import FieldError from 'src/shared/components/FieldError'
+import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { usePreorderSettings, useUpdatePreorderSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { PreorderPayload, PreorderSettings } from './types'
@@ -157,7 +157,7 @@ const PreorderSettingsCard = () => {
             {isError ? (
               <div className="text-body-secondary">
                 No se pudieron cargar los parámetros.{' '}
-                <CButton size="sm" color="link" onClick={() => refetch()}>
+                <CButton size="sm" color="link" onClick={() => void refetch()}>
                   Reintentar
                 </CButton>
               </div>

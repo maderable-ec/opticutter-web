@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createCrudHooks } from 'src/shared/hooks/createCrudHooks'
+import { REFERENCE_STALE_TIME } from 'src/shared/constants'
 import { branchesApi } from './branchesApi'
 import type { Branch, BranchListParams, BranchPayload, BranchUpdatePayload } from './types'
 
@@ -19,4 +20,5 @@ export const useActiveBranches = () =>
     queryKey: ['branches', 'active'],
     queryFn: () => branchesApi.list({ limit: 100 }),
     select: (res): Branch[] => res.items.filter((b) => b.isActive),
+    staleTime: REFERENCE_STALE_TIME,
   })

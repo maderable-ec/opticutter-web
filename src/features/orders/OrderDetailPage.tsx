@@ -312,7 +312,12 @@ const OrderDetailPage = () => {
   return (
     <>
       <div className="d-flex align-items-center gap-2 mb-3">
-        <CButton variant="ghost" color="secondary" size="sm" onClick={() => navigate('/orders')}>
+        <CButton
+          variant="ghost"
+          color="secondary"
+          size="sm"
+          onClick={() => void navigate('/orders')}
+        >
           <CIcon icon={cilArrowLeft} className="me-1" />
           Volver
         </CButton>
@@ -553,7 +558,7 @@ const OrderDetailPage = () => {
                 <CProgress className="mb-3" height={12}>
                   <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
                 </CProgress>
-                <CButton color="primary" onClick={() => navigate(`/orders/${id}/workshop`)}>
+                <CButton color="primary" onClick={() => void navigate(`/orders/${id}/workshop`)}>
                   {order.status === 'queued' || order.status === 'cutting'
                     ? 'Abrir taller'
                     : 'Ver corte'}
@@ -682,7 +687,9 @@ const OrderDetailPage = () => {
               color="secondary"
               variant="outline"
               size="sm"
-              onClick={() => id && ordersApi.downloadOrderDocument(id)}
+              onClick={() => {
+                if (id) void ordersApi.downloadOrderDocument(id)
+              }}
             >
               <CIcon icon={cilExternalLink} className="me-1" />
               Orden de pedido PDF
@@ -691,7 +698,9 @@ const OrderDetailPage = () => {
               color="secondary"
               variant="outline"
               size="sm"
-              onClick={() => id && ordersApi.downloadProductionSheet(id)}
+              onClick={() => {
+                if (id) void ordersApi.downloadProductionSheet(id)
+              }}
             >
               <CIcon icon={cilExternalLink} className="me-1" />
               Hoja de producción PDF
@@ -700,7 +709,9 @@ const OrderDetailPage = () => {
               color="secondary"
               variant="outline"
               size="sm"
-              onClick={() => id && ordersApi.downloadConsolidated(id)}
+              onClick={() => {
+                if (id) void ordersApi.downloadConsolidated(id)
+              }}
             >
               <CIcon icon={cilExternalLink} className="me-1" />
               PDF consolidado
@@ -710,7 +721,9 @@ const OrderDetailPage = () => {
                 color="secondary"
                 variant="outline"
                 size="sm"
-                onClick={() => id && ordersApi.downloadDispatchSheet(id)}
+                onClick={() => {
+                  if (id) void ordersApi.downloadDispatchSheet(id)
+                }}
               >
                 <CIcon icon={cilExternalLink} className="me-1" />
                 Hoja de despacho PDF
@@ -796,7 +809,9 @@ const OrderDetailPage = () => {
                         variant="outline"
                         size="sm"
                         className="me-2"
-                        onClick={() => id && ordersApi.downloadAttachment(id, att.id)}
+                        onClick={() => {
+                          if (id) void ordersApi.downloadAttachment(id, att.id)
+                        }}
                       >
                         <CIcon icon={cilExternalLink} className="me-1" />
                         Ver

@@ -16,6 +16,7 @@ import {
 } from '@coreui/react'
 
 import { ApiError } from 'src/shared/api/types'
+import FieldError from 'src/shared/components/FieldError'
 import type { Product, ProductPayload, ProductType } from './types'
 
 const TYPES: { value: ProductType; label: string }[] = [
@@ -85,14 +86,6 @@ const mapServerErrors = (error: Error | null): Record<string, string> => {
   }
   return out
 }
-
-const FieldError = ({
-  name,
-  fieldErrors,
-}: {
-  name: string
-  fieldErrors: Record<string, string>
-}) => (fieldErrors[name] ? <div className="text-danger small mt-1">{fieldErrors[name]}</div> : null)
 
 interface ProductFormProps {
   product: Product | null
@@ -190,7 +183,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               maxLength={32}
               placeholder="Ej: MDP-SL-CSH-15"
             />
-            <FieldError name="code" fieldErrors={fieldErrors} />
+            <FieldError name="code" errors={fieldErrors} />
           </CCol>
 
           <CCol xs={6}>
@@ -206,7 +199,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               step="0.01"
               placeholder="0.00"
             />
-            <FieldError name="price" fieldErrors={fieldErrors} />
+            <FieldError name="price" errors={fieldErrors} />
           </CCol>
 
           <CCol xs={12}>
@@ -220,7 +213,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               maxLength={128}
               placeholder="Ej: MDP 15mm Cashmere"
             />
-            <FieldError name="name" fieldErrors={fieldErrors} />
+            <FieldError name="name" errors={fieldErrors} />
           </CCol>
 
           <CCol xs={12}>
@@ -232,7 +225,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               rows={2}
               placeholder="Opcional"
             />
-            <FieldError name="description" fieldErrors={fieldErrors} />
+            <FieldError name="description" errors={fieldErrors} />
           </CCol>
 
           <CCol xs={12}>
@@ -262,7 +255,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   step={1}
                   placeholder="2800"
                 />
-                <FieldError name="height" fieldErrors={fieldErrors} />
+                <FieldError name="height" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
                 <CFormLabel>
@@ -277,7 +270,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   step={1}
                   placeholder="2070"
                 />
-                <FieldError name="width" fieldErrors={fieldErrors} />
+                <FieldError name="width" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
                 <CFormLabel>
@@ -288,7 +281,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   <option value="15">15 mm</option>
                   <option value="36">36 mm</option>
                 </CFormSelect>
-                <FieldError name="thickness" fieldErrors={fieldErrors} />
+                <FieldError name="thickness" errors={fieldErrors} />
               </CCol>
               <CCol xs={12}>
                 <CFormLabel>Dirección de veta</CFormLabel>
@@ -298,7 +291,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   maxLength={4}
                   placeholder="Ej: H (opcional)"
                 />
-                <FieldError name="grainDirection" fieldErrors={fieldErrors} />
+                <FieldError name="grainDirection" errors={fieldErrors} />
               </CCol>
             </>
           )}
@@ -319,7 +312,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   <option value="1.0">1.0 mm</option>
                   <option value="1.5">1.5 mm</option>
                 </CFormSelect>
-                <FieldError name="thickness" fieldErrors={fieldErrors} />
+                <FieldError name="thickness" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
                 <CFormLabel>
@@ -330,7 +323,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   <option value="19">19 mm</option>
                   <option value="40">40 mm</option>
                 </CFormSelect>
-                <FieldError name="width" fieldErrors={fieldErrors} />
+                <FieldError name="width" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
                 <CFormLabel>Tipo de canto</CFormLabel>
@@ -339,7 +332,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   <option value="Soft">Suave (Soft)</option>
                   <option value="Hard">Duro (Hard)</option>
                 </CFormSelect>
-                <FieldError name="bandType" fieldErrors={fieldErrors} />
+                <FieldError name="bandType" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
                 <CFormLabel>Color / Diseño</CFormLabel>
@@ -349,7 +342,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   maxLength={64}
                   placeholder="Ej: Cashmere"
                 />
-                <FieldError name="color" fieldErrors={fieldErrors} />
+                <FieldError name="color" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
                 <CFormLabel>Largo del rollo (mm)</CFormLabel>
@@ -361,7 +354,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   step={1}
                   placeholder="Opcional"
                 />
-                <FieldError name="length" fieldErrors={fieldErrors} />
+                <FieldError name="length" errors={fieldErrors} />
               </CCol>
             </>
           )}

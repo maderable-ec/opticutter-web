@@ -243,7 +243,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const handleDelete = () => {
     deletePreOrder.mutate(preOrder.id, {
-      onSuccess: () => navigate('/preorders'),
+      onSuccess: () => void navigate('/preorders'),
     })
   }
 
@@ -260,7 +260,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   return (
     <>
       <div className="d-flex align-items-center gap-2 mb-3">
-        <CButton variant="ghost" color="secondary" size="sm" onClick={() => navigate('/preorders')}>
+        <CButton
+          variant="ghost"
+          color="secondary"
+          size="sm"
+          onClick={() => void navigate('/preorders')}
+        >
           <CIcon icon={cilArrowLeft} className="me-1" />
           Volver
         </CButton>
@@ -341,7 +346,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                   color="secondary"
                   variant="outline"
                   size="sm"
-                  onClick={() => preordersApi.downloadProforma(preOrder.id)}
+                  onClick={() => void preordersApi.downloadProforma(preOrder.id)}
                 >
                   <CIcon icon={cilCloudDownload} className="me-1" />
                   Proforma PDF
@@ -351,7 +356,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
                     color="success"
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/orders/${preOrder.orderId}`)}
+                    onClick={() => void navigate(`/orders/${preOrder.orderId}`)}
                   >
                     <CIcon icon={cilExternalLink} className="me-1" />
                     Ver orden
@@ -544,7 +549,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           </CAlert>
           <CInputGroup>
             <CFormInput value={generatedUrl ?? ''} readOnly />
-            <CButton color="primary" onClick={handleCopy}>
+            <CButton color="primary" onClick={() => void handleCopy()}>
               <CIcon icon={cilCopy} className="me-1" />
               {copied ? '¡Copiado!' : 'Copiar'}
             </CButton>

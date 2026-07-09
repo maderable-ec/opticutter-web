@@ -9,12 +9,15 @@ type RequestOptions = Omit<RequestInit, 'headers'> & {
   headers?: Record<string, string>
 }
 
-interface ErrorBody {
+// The standard response envelope. `res.json()` is typed `any`, so we assert to this shape
+// and treat payloads as `unknown` until each caller narrows them to a concrete `T`.
+interface ApiEnvelope {
+  data?: unknown
   errors?: ApiErrorItem[]
-  meta?: { requestId?: string }
+  meta?: { requestId?: string; pagination?: Pagination }
 }
 
-const buildError = (status: number, body: ErrorBody): ApiError => {
+const buildError = (status: number, body: ApiEnvelope): ApiError => {
   const message = body.errors?.[0]?.message ?? `HTTP ${status}`
   return new ApiError(status, message, body.errors ?? [], body.meta?.requestId ?? '')
 }
@@ -53,7 +56,7 @@ const doRefresh = async (): Promise<string> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
   })
-  const body = await res.json().catch(() => ({}))
+  const body = (await res.json().catch(() => ({}))) as ApiEnvelope
   if (!res.ok) throw buildError(res.status, body)
   const data = body.data as TokenResponse
   // Rotation: always replace the stored pair with the freshly issued one.
@@ -85,7 +88,7 @@ const fetchWithRefresh = async (path: string, options: RequestOptions): Promise<
 const requestBlob = async (path: string): Promise<Blob> => {
   const res = await fetchWithRefresh(path, {})
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
+    const body = (await res.json().catch(() => ({}))) as ApiEnvelope
     throw buildError(res.status, body)
   }
   return res.blob()
@@ -94,7 +97,7 @@ const requestBlob = async (path: string): Promise<Blob> => {
 const request = async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
   const res = await fetchWithRefresh(path, options)
   if (res.status === 204) return null as T
-  const body = await res.json()
+  const body = (await res.json()) as ApiEnvelope
   if (!res.ok) throw buildError(res.status, body)
   return body.data as T
 }
@@ -103,7 +106,7 @@ const request = async <T>(path: string, options: RequestOptions = {}): Promise<T
 const requestUpload = async <T>(path: string, form: FormData): Promise<T> => {
   const res = await fetchWithRefresh(path, { method: 'POST', body: form })
   if (res.status === 204) return null as T
-  const body = await res.json()
+  const body = (await res.json()) as ApiEnvelope
   if (!res.ok) throw buildError(res.status, body)
   return body.data as T
 }
@@ -113,9 +116,9 @@ const requestList = async <T>(
   options: RequestOptions = {},
 ): Promise<PaginatedResult<T>> => {
   const res = await fetchWithRefresh(path, options)
-  const body = await res.json()
+  const body = (await res.json()) as ApiEnvelope
   if (!res.ok) throw buildError(res.status, body)
-  return { items: body.data as T[], pagination: body.meta.pagination as Pagination }
+  return { items: body.data as T[], pagination: body.meta?.pagination as Pagination }
 }
 
 export const httpClient = {

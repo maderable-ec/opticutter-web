@@ -13,6 +13,7 @@ import {
 import type { Role, User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
 import { ApiError } from 'src/shared/api/types'
+import { apiErrorMessage } from 'src/shared/api/errors'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 
 interface UserFormProps {
@@ -68,12 +69,7 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
       ? error.errors.find((e) => e.field === 'branchId')?.message
       : undefined
 
-  const errorMsg =
-    error instanceof ApiError
-      ? (error.errors[0]?.message ?? error.message)
-      : error
-        ? 'Error inesperado. Intente nuevamente.'
-        : null
+  const errorMsg = apiErrorMessage(error)
 
   return (
     <form onSubmit={handleSubmit}>

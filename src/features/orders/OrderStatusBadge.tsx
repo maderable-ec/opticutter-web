@@ -1,7 +1,7 @@
-import { CBadge } from '@coreui/react'
+import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import type { OrderStatus } from './types'
 
-const STATUS_CONFIG: Record<OrderStatus, { color: string; label: string }> = {
+const STATUS_CONFIG: Record<OrderStatus, StatusConfigEntry> = {
   confirmed: { color: 'primary', label: 'Confirmada' },
   queued: { color: 'info', label: 'En cola' },
   cutting: { color: 'warning', label: 'En corte' },
@@ -15,9 +15,8 @@ interface OrderStatusBadgeProps {
   status: OrderStatus
 }
 
-const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => {
-  const config = STATUS_CONFIG[status] ?? { color: 'secondary', label: status }
-  return <CBadge color={config.color}>{config.label}</CBadge>
-}
+const OrderStatusBadge = ({ status }: OrderStatusBadgeProps) => (
+  <StatusBadge config={STATUS_CONFIG} value={status} />
+)
 
 export default OrderStatusBadge

@@ -5,15 +5,9 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
-  CFormInput,
-  CInputGroup,
-  CInputGroupText,
   CModal,
-  CModalBody,
-  CModalFooter,
   CModalHeader,
   CModalTitle,
-  CSpinner,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -22,16 +16,20 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
+import { cilPencil, cilPlus, cilTrash } from '@coreui/icons'
 
 import UserForm from './UserForm'
 import { useUsers, useCreateUser, useDeleteUser, useUpdateUser } from './useUsers'
 import { useBranches } from 'src/features/branches/useBranches'
 import type { User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
-import { ROLE_COLORS, ROLE_SHORT_LABELS } from 'src/features/auth/roleLabels'
+import { ROLE_BADGE_CONFIG } from 'src/features/auth/roleLabels'
 import { PAGE_SIZE } from 'src/shared/constants'
-import { useDebounce } from 'src/shared/hooks/useDebounce'
+import SearchInput from 'src/shared/components/SearchInput'
+import Pagination from 'src/shared/components/Pagination'
+import QueryState from 'src/shared/components/QueryState'
+import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
+import StatusBadge from 'src/shared/components/StatusBadge'
 
 interface ModalState {
   visible: boolean
@@ -39,13 +37,21 @@ interface ModalState {
 }
 
 const UsersPage = () => {
-  const [rawSearch, setRawSearch] = useState('')
-  const search = useDebounce(rawSearch)
+  const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, user: null })
   const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, user: null })
 
-  const { data: usersData, isLoading } = useUsers({ search, offset, limit: PAGE_SIZE })
+  const {
+    data: usersData,
+    isLoading,
+    isError,
+    refetch,
+  } = useUsers({
+    search,
+    offset,
+    limit: PAGE_SIZE,
+  })
   const users = usersData?.items ?? []
   const pagination = usersData?.pagination
 
@@ -58,6 +64,11 @@ const UsersPage = () => {
   const createMutation = useCreateUser()
   const updateMutation = useUpdateUser()
   const deleteMutation = useDeleteUser()
+
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setOffset(0)
+  }
 
   const openCreate = () => setFormModal({ visible: true, user: null })
   const openEdit = (user: User) => setFormModal({ visible: true, user })
@@ -72,10 +83,7 @@ const UsersPage = () => {
   const handleSubmit = (data: UserPayload | UserUpdatePayload) => {
     const { user } = formModal
     if (user) {
-      updateMutation.mutate(
-        { id: user.id, data: data as UserUpdatePayload },
-        { onSuccess: closeForm },
-      )
+      updateMutation.mutate({ id: user.id, data: data }, { onSuccess: closeForm })
     } else {
       createMutation.mutate(data as UserPayload, { onSuccess: closeForm })
     }
@@ -88,8 +96,6 @@ const UsersPage = () => {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
-  const showPrev = offset > 0
-  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -102,25 +108,14 @@ const UsersPage = () => {
           </CButton>
         </CCardHeader>
         <CCardBody>
-          <CInputGroup className="mb-3" style={{ maxWidth: 320 }}>
-            <CInputGroupText>
-              <CIcon icon={cilSearch} />
-            </CInputGroupText>
-            <CFormInput
-              placeholder="Buscar por nombre o email…"
-              value={rawSearch}
-              onChange={(e) => {
-                setRawSearch(e.target.value)
-                setOffset(0)
-              }}
-            />
-          </CInputGroup>
+          <SearchInput
+            onChange={handleSearch}
+            placeholder="Buscar por nombre o email…"
+            className="mb-3"
+            style={{ maxWidth: 320 }}
+          />
 
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
-            </div>
-          ) : (
+          <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
             <CTable align="middle" hover responsive>
               <CTableHead>
                 <CTableRow>
@@ -147,9 +142,7 @@ const UsersPage = () => {
                       <CTableDataCell>{u.email}</CTableDataCell>
                       <CTableDataCell>{u.fullName ?? '—'}</CTableDataCell>
                       <CTableDataCell>
-                        <CBadge color={ROLE_COLORS[u.role] ?? 'secondary'}>
-                          {ROLE_SHORT_LABELS[u.role] ?? u.role}
-                        </CBadge>
+                        <StatusBadge config={ROLE_BADGE_CONFIG} value={u.role} />
                       </CTableDataCell>
                       <CTableDataCell>
                         {u.role === 'administrador'
@@ -187,28 +180,14 @@ const UsersPage = () => {
                 )}
               </CTableBody>
             </CTable>
-          )}
+          </QueryState>
 
-          {(showPrev || showNext) && (
-            <div className="d-flex justify-content-end gap-2 mt-2">
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                Anterior
-              </CButton>
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showNext}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                Siguiente
-              </CButton>
-            </div>
-          )}
+          <Pagination
+            offset={offset}
+            limit={PAGE_SIZE}
+            total={pagination?.total}
+            onChange={setOffset}
+          />
         </CCardBody>
       </CCard>
 
@@ -226,23 +205,16 @@ const UsersPage = () => {
         />
       </CModal>
 
-      <CModal visible={deleteModal.visible} onClose={closeDelete}>
-        <CModalHeader>
-          <CModalTitle>Eliminar usuario</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Eliminar a <strong>{deleteModal.user?.fullName ?? deleteModal.user?.email}</strong>? Esta
-          acción no se puede deshacer.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={closeDelete}>
-            Cancelar
-          </CButton>
-          <CButton color="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-            {deleteMutation.isPending ? <CSpinner size="sm" /> : 'Eliminar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <DeleteConfirmModal
+        visible={deleteModal.visible}
+        title="Eliminar usuario"
+        onClose={closeDelete}
+        onConfirm={handleDelete}
+        isPending={deleteMutation.isPending}
+      >
+        ¿Eliminar a <strong>{deleteModal.user?.fullName ?? deleteModal.user?.email}</strong>? Esta
+        acción no se puede deshacer.
+      </DeleteConfirmModal>
     </>
   )
 }

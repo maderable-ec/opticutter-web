@@ -14,6 +14,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 import { ApiError } from 'src/shared/api/types'
+import FieldError from 'src/shared/components/FieldError'
 import { useAuthStore } from 'src/shared/store/authStore'
 import { useCurrentUser, useLogin } from 'src/features/auth/useAuth'
 import { useChangePassword } from './useProfile'
@@ -21,9 +22,6 @@ import { useChangePassword } from './useProfile'
 const MIN_LENGTH = 8
 
 type FieldKey = 'currentPassword' | 'newPassword' | 'confirmPassword'
-
-const FieldError = ({ name, errors }: { name: FieldKey; errors: Record<string, string> }) =>
-  errors[name] ? <div className="text-danger small mt-1">{errors[name]}</div> : null
 
 // Maps the change-password error to per-field messages: 401 → wrong current password,
 // 422 → backend field validation (body.<field>).
@@ -94,10 +92,10 @@ const ChangePasswordPage = () => {
           relogin.mutate(
             { email: user.email, password: newPassword },
             {
-              onSuccess: () => navigate('/profile', { state: { passwordChanged: true } }),
+              onSuccess: () => void navigate('/profile', { state: { passwordChanged: true } }),
               onError: () => {
                 clearSession()
-                navigate('/login')
+                void navigate('/login')
               },
             },
           )
@@ -163,7 +161,7 @@ const ChangePasswordPage = () => {
                   variant="outline"
                   type="button"
                   disabled={busy}
-                  onClick={() => navigate('/profile')}
+                  onClick={() => void navigate('/profile')}
                 >
                   Cancelar
                 </CButton>

@@ -79,7 +79,7 @@ const PreOrdersPage = () => {
       <CCard>
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Cotizaciones</strong>
-          <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
+          <CButton color="primary" size="sm" onClick={() => void navigate('/optimizer')}>
             <CIcon icon={cilPlus} className="me-1" />
             Nueva cotización
           </CButton>
@@ -145,7 +145,7 @@ const PreOrdersPage = () => {
                   items.map((po) => {
                     const expiringSoon = isExpiringSoon(po.expiresAt, po.status)
                     return (
-                      <CTableRow key={po.id} onClick={() => navigate(`/preorders/${po.id}`)}>
+                      <CTableRow key={po.id} onClick={() => void navigate(`/preorders/${po.id}`)}>
                         <CTableDataCell>
                           <strong>{po.code}</strong>
                         </CTableDataCell>

@@ -10,6 +10,7 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
+import { apiErrorMessage } from 'src/shared/api/errors'
 import type { Client, ClientPayload } from './types'
 
 const DEFAULT_SOURCE = 'dashboard'
@@ -47,6 +48,8 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
 
   const set = (field: keyof FormState) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }))
+
+  const errorMsg = apiErrorMessage(error, 'Error al guardar. Intente nuevamente.')
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -92,11 +95,9 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
             <CFormLabel>Email</CFormLabel>
             <CFormInput type="email" value={form.email} onChange={set('email')} maxLength={128} />
           </CCol>
-          {error && (
+          {errorMsg && (
             <CCol xs={12}>
-              <div className="text-danger small">
-                {error.message || 'Error al guardar. Intente nuevamente.'}
-              </div>
+              <div className="text-danger small">{errorMsg}</div>
             </CCol>
           )}
         </CRow>

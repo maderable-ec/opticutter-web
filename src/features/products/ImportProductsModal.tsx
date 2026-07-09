@@ -66,7 +66,7 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setText(String(reader.result ?? ''))
+    reader.onload = () => setText(typeof reader.result === 'string' ? reader.result : '')
     reader.readAsText(file)
     e.target.value = ''
   }
@@ -82,8 +82,10 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
     let errors = 0
     for (let i = 0; i < rows.length; i++) {
       if (abortRef.current) break
+      const row = rows[i]
+      if (!row) continue
       try {
-        const { id, ...payload } = rows[i]
+        const { id, ...payload } = row
         if (id) {
           await productsApi.update(id, payload)
           updated++
@@ -243,7 +245,11 @@ const ImportProductsModal = ({ visible, onClose, onImported }: ImportProductsMod
             <CButton color="secondary" variant="outline" onClick={close}>
               Cancelar
             </CButton>
-            <CButton color="primary" disabled={rows.length === 0} onClick={handleImport}>
+            <CButton
+              color="primary"
+              disabled={rows.length === 0}
+              onClick={() => void handleImport()}
+            >
               Importar {rows.length > 0 ? rows.length : ''} producto{rows.length !== 1 ? 's' : ''}
             </CButton>
           </>

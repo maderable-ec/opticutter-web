@@ -62,7 +62,7 @@ const ImportPiecesModal = ({
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setText(String(reader.result ?? ''))
+    reader.onload = () => setText(typeof reader.result === 'string' ? reader.result : '')
     reader.readAsText(file)
     e.target.value = '' // allows re-selecting the same file
   }

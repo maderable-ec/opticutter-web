@@ -62,10 +62,10 @@ const WorkshopPage = () => {
     for (const board of plan?.boards ?? []) {
       for (const p of board.pieces) {
         const sig = pieceSig(p)
-        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length])
+        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length]!)
       }
     }
-    return (sig: string) => colors.get(sig) ?? PALETTE[0]
+    return (sig: string) => colors.get(sig) ?? PALETTE[0]!
   }, [plan])
 
   // Keep the active chip visible when switching boards (centered horizontally, no vertical jumps).
@@ -98,7 +98,7 @@ const WorkshopPage = () => {
     updateStatus.mutate({ id, data: { status: 'cut' } }, { onSuccess: () => setCutModal(false) })
   }
 
-  const backToOrder = () => navigate(isOperator ? '/orders' : `/orders/${id}`)
+  const backToOrder = () => void navigate(isOperator ? '/orders' : `/orders/${id}`)
 
   if (isLoading) {
     return (
@@ -135,14 +135,15 @@ const WorkshopPage = () => {
     0,
     boards.findIndex((b) => b.id === selectedBoardId),
   )
-  const current = boards[safeIndex]
-  const goTo = (i: number) => setSelectedBoardId(boards[i].id)
+  // Non-empty invariant enforced by the `boards.length === 0` early return before render.
+  const current = boards[safeIndex]!
+  const goTo = (i: number) => setSelectedBoardId(boards[i]?.id ?? null)
 
   // Next board with pending pieces (starting from the current one, with wrap-around) for the "go to next" CTA.
   const pendingNext = (() => {
     for (let k = 1; k <= boards.length; k++) {
       const b = boards[(safeIndex + k) % boards.length]
-      if (hasPending(b.progress)) return b
+      if (b && hasPending(b.progress)) return b
     }
     return null
   })()
@@ -164,7 +165,9 @@ const WorkshopPage = () => {
         color="secondary"
         variant="outline"
         size="lg"
-        onClick={() => id && ordersApi.downloadProductionSheet(id)}
+        onClick={() => {
+          if (id) void ordersApi.downloadProductionSheet(id)
+        }}
       >
         <CIcon icon={cilPrint} className="me-1" />
         Hoja de producción

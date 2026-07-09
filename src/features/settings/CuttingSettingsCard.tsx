@@ -17,8 +17,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilCheckAlt, cilSave } from '@coreui/icons'
 
-import FieldError from './FieldError'
-import { fieldErrorsFromApiError, hasGenericError } from './fieldErrors'
+import FieldError from 'src/shared/components/FieldError'
+import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useCuttingSettings, useUpdateCuttingSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { CuttingPayload, CuttingSettings } from './types'
@@ -180,7 +180,7 @@ const CuttingSettingsCard = () => {
             {isError ? (
               <div className="text-body-secondary">
                 No se pudieron cargar los parámetros.{' '}
-                <CButton size="sm" color="link" onClick={() => refetch()}>
+                <CButton size="sm" color="link" onClick={() => void refetch()}>
                   Reintentar
                 </CButton>
               </div>

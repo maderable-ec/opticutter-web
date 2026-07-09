@@ -36,16 +36,26 @@ export default [
       ...eslintPluginReactHooks.configs.recommended.rules,
     },
   },
-  // TypeScript-specific rules (parser + recommended), scoped to .ts/.tsx only.
-  ...tseslint.configs.recommended.map((config) => ({
+  // TypeScript type-checked rules (parser + recommended-type-checked), scoped to .ts/.tsx only.
+  ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
     files: ['src/**/*.{ts,tsx}'],
   })),
   {
     files: ['src/**/*.{ts,tsx}'],
+    languageOptions: {
+      parserOptions: {
+        // Type-aware linting: discover the nearest tsconfig for each file automatically.
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
     rules: {
       // Migration complete: explicit `any` is no longer allowed.
       '@typescript-eslint/no-explicit-any': 'error',
+      // Non-null assertions are allowed but flagged for review (used only where an
+      // invariant provably holds, e.g. bounds-checked array swaps).
+      '@typescript-eslint/no-non-null-assertion': 'warn',
     },
   },
   eslintPluginPrettierRecommended,

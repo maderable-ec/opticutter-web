@@ -255,11 +255,11 @@ const WorkshopBoardPage = () => {
                             className="flex-fill"
                             disabled={operatorAction.disabled || updateStatus.isPending}
                             title={operatorAction.title}
-                            onClick={() =>
-                              operatorAction!.nav
-                                ? navigate(`/orders/${item.orderId}/workshop`)
-                                : setConfirm({ kind: operatorAction!.kind, item })
-                            }
+                            onClick={() => {
+                              if (operatorAction.nav)
+                                void navigate(`/orders/${item.orderId}/workshop`)
+                              else setConfirm({ kind: operatorAction.kind, item })
+                            }}
                           >
                             <CIcon icon={operatorAction.icon} className="me-1" />
                             {operatorAction.label}
@@ -270,7 +270,7 @@ const WorkshopBoardPage = () => {
                             color={bandingAction.color}
                             className="flex-fill"
                             disabled={updateBanding.isPending}
-                            onClick={() => setConfirm({ kind: bandingAction!.kind, item })}
+                            onClick={() => setConfirm({ kind: bandingAction.kind, item })}
                           >
                             <CIcon icon={bandingAction.icon} className="me-1" />
                             {bandingAction.label}

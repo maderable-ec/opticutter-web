@@ -33,18 +33,18 @@ const NotificationBell = () => {
   const markAllRead = useMarkAllNotificationsRead()
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
+    void queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] })
   }, [location.pathname, queryClient])
 
   const count = unreadCount.data?.count ?? 0
 
   const handleItemClick = (notification: Notification) => {
     if (notification.readAt === null) markRead.mutate(notification.id)
-    if (notification.orderId != null) navigate(`/orders/${notification.orderId}`)
+    if (notification.orderId != null) void navigate(`/orders/${notification.orderId}`)
   }
 
   return (
-    <CDropdown variant="nav-item" placement="bottom-end" onShow={() => list.refetch()}>
+    <CDropdown variant="nav-item" placement="bottom-end" onShow={() => void list.refetch()}>
       <CDropdownToggle caret={false} className="position-relative">
         <CIcon icon={cilBell} size="lg" />
         {count > 0 && (

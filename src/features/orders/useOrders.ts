@@ -32,9 +32,9 @@ export const useUpdateOrderStatus = () => {
     mutationFn: ({ id, data }: { id: string; data: UpdateStatusPayload }) =>
       ordersApi.updateStatus(id, data),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ['orders', id] })
-      qc.invalidateQueries({ queryKey: ['orders'] })
-      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+      void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
     },
   })
 }
@@ -46,9 +46,9 @@ export const useChangeOrderBranch = () => {
     mutationFn: ({ id, data }: { id: string; data: ChangeBranchPayload }) =>
       ordersApi.changeBranch(id, data),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ['orders', id] })
-      qc.invalidateQueries({ queryKey: ['orders'] })
-      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+      void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
     },
   })
 }
@@ -94,7 +94,7 @@ export const useAssociateInvoice = () => {
     mutationFn: ({ id, data }: { id: string; data: AssociateInvoicePayload }) =>
       ordersApi.associateInvoice(id, data),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
     },
   })
 }
@@ -109,9 +109,9 @@ export const useUpdateBanding = () => {
     mutationFn: ({ id, data }: { id: string; data: BandingPayload }) =>
       ordersApi.patchBanding(id, data),
     onSuccess: (_data, { id }) => {
-      qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
-      qc.invalidateQueries({ queryKey: ['orders', id] })
-      qc.invalidateQueries({ queryKey: ['orders'] })
+      void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
     },
   })
 }
@@ -132,7 +132,7 @@ const applyCut = (plan: CuttingPlan, pieceId: number, cut: boolean): CuttingPlan
     const idx = board.pieces.findIndex((p) => p.id === pieceId)
     if (idx === -1) return board
     const piece = board.pieces[idx]
-    if (piece.cut === cut) return board
+    if (!piece || piece.cut === cut) return board
     changed = true
     const pieces = board.pieces.slice()
     pieces[idx] = { ...piece, cut }
@@ -187,7 +187,8 @@ export const useMarkPiece = (orderId: string) => {
     onError: (err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev)
       // 404: local plan is stale (e.g. order was recreated) → invalidate and refetch from server.
-      if (err instanceof ApiError && err.status === 404) qc.invalidateQueries({ queryKey: key })
+      if (err instanceof ApiError && err.status === 404)
+        void qc.invalidateQueries({ queryKey: key })
     },
     onSuccess: (res) => {
       // Multi-operator (last write wins): sync with the real counters from the API response.

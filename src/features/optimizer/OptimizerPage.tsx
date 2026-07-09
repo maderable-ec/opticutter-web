@@ -344,7 +344,7 @@ const OptimizerPage = () => {
       <DraftsModal
         visible={showDrafts}
         loadingId={loadingDraftId}
-        onLoad={handleLoadDraft}
+        onLoad={(id) => void handleLoadDraft(id)}
         onClose={() => setShowDrafts(false)}
       />
 

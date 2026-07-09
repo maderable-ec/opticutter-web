@@ -15,8 +15,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilArrowBottom, cilArrowTop, cilCheckAlt, cilPlus, cilSave, cilTrash } from '@coreui/icons'
 
-import FieldError from './FieldError'
-import { fieldErrorsFromApiError, hasGenericError } from './fieldErrors'
+import FieldError from 'src/shared/components/FieldError'
+import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useCompanySettings, useUpdateCompanySettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { Branch, CompanyPayload, CompanySettings } from './types'
@@ -104,7 +104,7 @@ const CompanySettingsCard = () => {
   const clearBranchErrors = () =>
     setClientErrors((prev) => {
       const next: Record<string, string> = {}
-      for (const k of Object.keys(prev)) if (!k.startsWith('branches.')) next[k] = prev[k]
+      for (const [k, v] of Object.entries(prev)) if (!k.startsWith('branches.')) next[k] = v
       return next
     })
 
@@ -142,7 +142,7 @@ const CompanySettingsCard = () => {
       const target = index + dir
       if (target < 0 || target >= f.branches.length) return f
       const branches = [...f.branches]
-      ;[branches[index], branches[target]] = [branches[target], branches[index]]
+      ;[branches[index], branches[target]] = [branches[target]!, branches[index]!]
       return { ...f, branches }
     })
     clearBranchErrors()
@@ -238,7 +238,7 @@ const CompanySettingsCard = () => {
             {isError ? (
               <div className="text-body-secondary">
                 No se pudieron cargar los datos.{' '}
-                <CButton size="sm" color="link" onClick={() => refetch()}>
+                <CButton size="sm" color="link" onClick={() => void refetch()}>
                   Reintentar
                 </CButton>
               </div>

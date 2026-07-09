@@ -110,6 +110,7 @@ const BottlenecksPage = () => {
                     callbacks: {
                       label: (ctx) => {
                         const s = stages[ctx.dataIndex]
+                        if (!s) return []
                         return [
                           `Mediana: ${fmtHours(s.medianHours)}`,
                           `p90: ${fmtHours(s.p90Hours)}`,
@@ -161,7 +162,7 @@ const BottlenecksPage = () => {
               data={{
                 labels: buckets.map((b) => fmtBucketLabel(b, granularity)),
                 datasets: series.map((s, i) => {
-                  const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0])()
+                  const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0]!)()
                   return {
                     label: s.label,
                     data: s.avgHours,

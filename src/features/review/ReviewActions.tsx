@@ -35,7 +35,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
     setRejectModal(false)
     setRejectNote('')
     reject.reset()
-    if (hadError) qc.invalidateQueries({ queryKey: ['review', token] })
+    if (hadError) void qc.invalidateQueries({ queryKey: ['review', token] })
   }
 
   const closeChanges = () => {
@@ -43,7 +43,7 @@ const ReviewActions = ({ token }: ReviewActionsProps) => {
     setChangesModal(false)
     setChangesNote('')
     requestChanges.reset()
-    if (hadError) qc.invalidateQueries({ queryKey: ['review', token] })
+    if (hadError) void qc.invalidateQueries({ queryKey: ['review', token] })
   }
 
   const anyPending = confirm.isPending || reject.isPending || requestChanges.isPending

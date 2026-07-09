@@ -1,4 +1,18 @@
-import { ApiError } from 'src/shared/api/types'
+import { ApiError } from './types'
+
+/**
+ * Human-readable message for an API error, preferring the server's first message.
+ * Non-API errors (e.g. network failures with messages like "Failed to fetch") return the
+ * friendly `fallback` instead of the raw error text.
+ */
+export const apiErrorMessage = (
+  error: Error | null,
+  fallback = 'Error inesperado. Intente nuevamente.',
+): string | null => {
+  if (!error) return null
+  if (error instanceof ApiError) return error.errors[0]?.message ?? error.message ?? fallback
+  return fallback
+}
 
 /**
  * Maps a server 422 (ApiError) into a `field -> message` record so each input can

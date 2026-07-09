@@ -1,24 +1,14 @@
-import { CBadge } from '@coreui/react'
+import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import type { PreOrderStatus } from './types'
 
-const COLOR: Record<PreOrderStatus, string> = {
-  draft: 'secondary',
-  sent: 'info',
-  changes_requested: 'warning',
-  confirmed: 'success',
-  rejected: 'danger',
-  expired: 'secondary',
-  cancelled: 'danger',
-}
-
-const LABEL: Record<PreOrderStatus, string> = {
-  draft: 'Borrador',
-  sent: 'Enviada',
-  changes_requested: 'Cambios solicitados',
-  confirmed: 'Confirmada',
-  rejected: 'Rechazada',
-  expired: 'Vencida',
-  cancelled: 'Cancelada',
+const STATUS_CONFIG: Record<PreOrderStatus, StatusConfigEntry> = {
+  draft: { color: 'secondary', label: 'Borrador' },
+  sent: { color: 'info', label: 'Enviada' },
+  changes_requested: { color: 'warning', label: 'Cambios solicitados' },
+  confirmed: { color: 'success', label: 'Confirmada' },
+  rejected: { color: 'danger', label: 'Rechazada' },
+  expired: { color: 'secondary', label: 'Vencida' },
+  cancelled: { color: 'danger', label: 'Cancelada' },
 }
 
 interface Props {
@@ -26,7 +16,7 @@ interface Props {
 }
 
 const PreOrderStatusBadge = ({ status }: Props) => (
-  <CBadge color={COLOR[status] ?? 'secondary'}>{LABEL[status] ?? status}</CBadge>
+  <StatusBadge config={STATUS_CONFIG} value={status} />
 )
 
 export default PreOrderStatusBadge

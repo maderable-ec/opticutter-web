@@ -29,7 +29,11 @@ const TrendsChart = ({ from, to, granularity, branchId }: TrendsChartProps) => {
       const chart = chartRef.current
       if (chart) {
         setTimeout(() => {
-          const scales = chart.options.scales as unknown as Record<string, MutableScale>
+          const scales = chart.options.scales as unknown as {
+            x: MutableScale
+            y: MutableScale
+            y1: MutableScale
+          }
           scales.x.grid.color = getStyle('--cui-border-color-translucent')
           scales.x.ticks.color = getStyle('--cui-body-color')
           scales.y.grid.color = getStyle('--cui-border-color-translucent')

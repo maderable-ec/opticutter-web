@@ -91,7 +91,7 @@ const CreateQuoteModal = ({
         onSuccess: (preOrder) => {
           onCreated?.()
           onClose()
-          navigate(`/preorders/${preOrder.id}`)
+          void navigate(`/preorders/${preOrder.id}`)
         },
       },
     )

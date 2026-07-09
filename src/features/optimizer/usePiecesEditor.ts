@@ -46,7 +46,7 @@ const rangeOf = (rs: RequirementForm[], uid: string): [number, number] => {
   const start = rs.findIndex((r) => r.materialUid === uid)
   if (start < 0) return [rs.length, rs.length]
   let end = start
-  while (end < rs.length && rs[end].materialUid === uid) end++
+  while (end < rs.length && rs[end]?.materialUid === uid) end++
   return [start, end]
 }
 
@@ -109,8 +109,8 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   }
 
   const undo = useCallback(() => {
-    if (history.length === 0) return
     const prev = history[history.length - 1]
+    if (!prev) return
     setHistory((h) => h.slice(0, -1))
     setRequirements(prev)
     setSelected(new Set())
@@ -144,7 +144,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   const addMany = (rows: RequirementForm[], replace: boolean) => {
     applyWithHistory((rs) => {
       if (replace) return clusterByMaterial(rows.length ? rows : [emptyRequirement(firstUid())])
-      if (rs.length === 1 && isRequirementEmpty(rs[0])) {
+      if (rs.length === 1 && rs[0] && isRequirementEmpty(rs[0])) {
         return clusterByMaterial(rows.length ? rows : rs)
       }
       return clusterByMaterial([...rs, ...rows])
@@ -292,6 +292,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     applyWithHistory((rs) => {
       if (rawValues.length === 0 || startIndex >= rs.length) return rs
       const src = rs[startIndex]
+      if (!src) return rs
       const result = [...rs]
       const toValue = (s: string): string | number => {
         if (field === 'label') return s.trim()
@@ -300,8 +301,9 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
       }
       rawValues.forEach((val, i) => {
         const target = startIndex + i
-        if (target < result.length) {
-          result[target] = { ...result[target], [field]: toValue(val) }
+        const existing = result[target]
+        if (existing) {
+          result[target] = { ...existing, [field]: toValue(val) }
         } else {
           result.push({ ...cloneRequirement(src), [field]: toValue(val) })
         }
