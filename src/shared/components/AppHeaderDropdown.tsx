@@ -20,9 +20,9 @@ const initialsFor = (fullName: string | null | undefined, email: string | undefi
   if (parts.length > 0)
     return parts
       .slice(0, 2)
-      .map((p) => p[0]!.toUpperCase())
+      .map((p) => p.charAt(0).toUpperCase())
       .join('')
-  return email ? email[0]!.toUpperCase() : '?'
+  return email ? email.charAt(0).toUpperCase() : '?'
 }
 
 const AppHeaderDropdown = () => {

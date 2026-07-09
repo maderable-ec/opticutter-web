@@ -689,17 +689,17 @@ const CutLayoutDiagram = ({ layoutGroups, materialsSummary }: CutLayoutDiagramPr
     for (const group of layoutGroups) {
       for (const p of group.layout.placedPieces) {
         const sig = pieceSig(p)
-        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length]!)
+        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length] ?? PALETTE[0])
         // Each group represents `count` identical physical sheets.
         counts.set(sig, (counts.get(sig) ?? 0) + group.count)
         if (bandedSides(p).length > 0) banding = true
       }
     }
     return {
-      colorFor: (sig: string) => colors.get(sig) ?? PALETTE[0]!,
+      colorFor: (sig: string) => colors.get(sig) ?? PALETTE[0],
       legend: [...colors.keys()].map((sig) => ({
         sig,
-        color: colors.get(sig)!,
+        color: colors.get(sig) ?? PALETTE[0],
         count: counts.get(sig) ?? 0,
       })),
       hasEdgeBanding: banding,

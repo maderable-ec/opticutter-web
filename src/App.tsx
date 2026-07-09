@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import useUIStore from 'src/shared/store/uiStore'
 import { useAuthStore } from 'src/shared/store/authStore'
 import { authApi } from 'src/features/auth/authApi'
@@ -56,7 +56,7 @@ const App = () => {
   const storedTheme = useUIStore((state) => state.theme)
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.href.split('?')[1])
+    const urlParams = new URLSearchParams(window.location.search)
     const rawTheme = urlParams.get('theme')
     const theme = rawTheme?.match(/^[A-Za-z0-9\s]+/)?.[0]
     if (theme) {
@@ -71,7 +71,7 @@ const App = () => {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <SessionRestorer />
       <Suspense
         fallback={
@@ -97,7 +97,7 @@ const App = () => {
           />
         </Routes>
       </Suspense>
-    </HashRouter>
+    </BrowserRouter>
   )
 }
 

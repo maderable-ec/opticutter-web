@@ -139,8 +139,8 @@ const OrderDetailPage = () => {
   const changeBranch = useChangeOrderBranch()
   const { data: activeBranches = [] } = useActiveBranches()
   const attachments = useAttachments(id)
-  const uploadAtt = useUploadAttachment(id!)
-  const deleteAtt = useDeleteAttachment(id!)
+  const uploadAtt = useUploadAttachment(id ?? '')
+  const deleteAtt = useDeleteAttachment(id ?? '')
 
   const [attachError, setAttachError] = useState<string | null>(null)
   const [transitionModal, setTransitionModal] = useState<TransitionModalState>({
@@ -306,7 +306,6 @@ const OrderDetailPage = () => {
 
   // Banding block: visible when the order has edge banding. The cut → completed transition is blocked
   // while banding is still pending/in-progress (API returns 422; disabling is UX only).
-  const showBanding = !!order.bandingStatus && order.bandingStatus !== 'not_applicable'
   const bandingPending = order.bandingStatus === 'pending' || order.bandingStatus === 'in_progress'
 
   return (
@@ -403,12 +402,12 @@ const OrderDetailPage = () => {
       )}
 
       {/* Banding — parallel track to cutting. Hidden if the order has no edge banding. */}
-      {showBanding && (
+      {order.bandingStatus && order.bandingStatus !== 'not_applicable' && (
         <CCard className="mb-3 border-info">
           <CCardBody className="bg-info bg-opacity-10 py-2">
             <div className="d-flex align-items-center gap-2 mb-1">
               <span className="fw-semibold text-info-emphasis">Canteado</span>
-              <BandingStatusBadge status={order.bandingStatus!} />
+              <BandingStatusBadge status={order.bandingStatus} />
             </div>
             {order.bandingStartedByLabel && (
               <div className="small">

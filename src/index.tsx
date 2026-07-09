@@ -19,7 +19,10 @@ const queryClient = new QueryClient({
   },
 })
 
-createRoot(document.getElementById('root')!).render(
+const rootElement = document.getElementById('root')
+if (!rootElement) throw new Error('No se encontró el elemento raíz #root')
+
+createRoot(rootElement).render(
   <QueryClientProvider client={queryClient}>
     <App />
     {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}

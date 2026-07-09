@@ -62,10 +62,10 @@ const WorkshopPage = () => {
     for (const board of plan?.boards ?? []) {
       for (const p of board.pieces) {
         const sig = pieceSig(p)
-        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length]!)
+        if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length] ?? PALETTE[0])
       }
     }
-    return (sig: string) => colors.get(sig) ?? PALETTE[0]!
+    return (sig: string) => colors.get(sig) ?? PALETTE[0]
   }, [plan])
 
   // Keep the active chip visible when switching boards (centered horizontally, no vertical jumps).
@@ -135,8 +135,7 @@ const WorkshopPage = () => {
     0,
     boards.findIndex((b) => b.id === selectedBoardId),
   )
-  // Non-empty invariant enforced by the `boards.length === 0` early return before render.
-  const current = boards[safeIndex]!
+  const current = boards[safeIndex]
   const goTo = (i: number) => setSelectedBoardId(boards[i]?.id ?? null)
 
   // Next board with pending pieces (starting from the current one, with wrap-around) for the "go to next" CTA.
@@ -175,7 +174,7 @@ const WorkshopPage = () => {
     </div>
   )
 
-  if (boards.length === 0) {
+  if (boards.length === 0 || !current) {
     return (
       <>
         {header}
