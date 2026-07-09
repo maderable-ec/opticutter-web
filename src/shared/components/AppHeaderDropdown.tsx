@@ -48,12 +48,12 @@ const AppHeaderDropdown = () => {
           <span className="fw-semibold text-truncate">{displayName}</span>
           {roleLabel && <CBadge color="secondary">{roleLabel}</CBadge>}
         </CDropdownHeader>
-        <CDropdownItem onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+        <CDropdownItem onClick={() => void navigate('/profile')} style={{ cursor: 'pointer' }}>
           <CIcon icon={cilUser} className="me-2" />
           Perfil
         </CDropdownItem>
         <CDropdownItem
-          onClick={() => navigate('/profile/change-password')}
+          onClick={() => void navigate('/profile/change-password')}
           style={{ cursor: 'pointer' }}
         >
           <CIcon icon={cilLockLocked} className="me-2" />

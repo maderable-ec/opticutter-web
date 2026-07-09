@@ -30,7 +30,7 @@ const LoginPage = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    login.mutate({ email, password }, { onSuccess: () => navigate(from, { replace: true }) })
+    login.mutate({ email, password }, { onSuccess: () => void navigate(from, { replace: true }) })
   }
 
   const errorMsg =

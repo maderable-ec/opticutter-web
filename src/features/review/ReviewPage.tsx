@@ -63,7 +63,7 @@ const ReviewPage = () => {
             <CCardBody className="text-center py-5">
               <h5>No se pudo cargar</h5>
               <div className="text-body-secondary mb-3">Revisa tu conexión e intenta de nuevo.</div>
-              <CButton color="primary" onClick={() => refetch()} disabled={isFetching}>
+              <CButton color="primary" onClick={() => void refetch()} disabled={isFetching}>
                 {isFetching ? <CSpinner size="sm" /> : 'Reintentar'}
               </CButton>
             </CCardBody>

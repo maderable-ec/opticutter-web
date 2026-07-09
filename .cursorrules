@@ -1,157 +1,25 @@
-# Maderable Dashboard - AI Assistant Rules
+# Maderable Dashboard — AI Assistant Rules
 
-You are working on the Maderable admin dashboard: a React 19 + TypeScript single-page app
-built on CoreUI React components, Vite, React Router, TanStack React Query (server state),
-Zustand (UI state), and Sass. The codebase follows a **vertical-slice architecture** organized
-by feature, and is **fully TypeScript in strict mode**.
+The canonical project guide lives in **`.claude/CLAUDE.md`** — read it first. It is the single
+source of truth for architecture, conventions, the feature inventory, and gotchas. This file only
+restates the non-negotiables so Cursor picks them up too; when the two disagree, `.claude/CLAUDE.md` wins.
 
 ## Critical Rules
 
-**Component Library**: ALWAYS use CoreUI React components (https://coreui.io/react/docs/).
-NEVER use Tailwind CSS, Material-UI, or other component/CSS libraries. This project is built on
-Bootstrap 5 + CoreUI React exclusively.
+- **Component library**: ALWAYS use CoreUI React (`@coreui/react`) on Bootstrap 5.
+  NEVER add Tailwind, Material UI, or another CSS/component library.
+- **Language**: all source under `src/` is `.ts` / `.tsx`. NEVER add `.js` / `.jsx`.
+  `tsconfig.json` is `strict` (plus `noUnusedLocals`, `noUnusedParameters`, `noImplicitOverride`,
+  `noFallthroughCasesInSwitch`, `noUncheckedIndexedAccess`); ESLint runs `recommendedTypeChecked`
+  and forbids `any`.
+- **No PropTypes**: type props with a TypeScript `interface` (`prop-types` is uninstalled).
+- **No Redux**: UI state in Zustand (`uiStore.ts`), server state in TanStack React Query.
+- **No `import React`**: the project uses the `react-jsx` runtime — import named hooks/types directly.
+- **`nav.tsx` files** contain JSX (`CIcon`) and must use the `.tsx` extension.
 
-**Language**: ALL source is TypeScript (`.ts` / `.tsx`). NEVER add `.js`/`.jsx` files under `src/`.
-`tsconfig.json` has `strict: true` and ESLint forbids `any` (`@typescript-eslint/no-explicit-any: error`).
+## Before committing
 
-**No PropTypes**: Type component props with a TypeScript `interface`, not `prop-types`
-(the `prop-types` package has been removed).
+`npm run validate` (typecheck + lint) and `npm run build` must pass. `npm run format` applies Prettier.
 
-## Technology Stack
-
-- React 19 — functional components and Hooks only
-- TypeScript (strict) — `.tsx` for components, `.ts` for logic/types
-- CoreUI React 5.x and @coreui/coreui 5.x
-- React Router 7.x (`HashRouter`) for routing
-- TanStack React Query 5.x for server state (data fetching/mutations)
-- Zustand for local UI state (`src/shared/store/uiStore.ts`: sidebar, theme)
-- Vite for dev server and build
-- Sass/SCSS with Bootstrap 5 + CoreUI variables
-- Chart.js 4.x with @coreui/react-chartjs for visualization
-
-## Architecture: Vertical Slice
-
-Code is organized **by feature**, not by technical layer. Each feature is self-contained under
-`src/features/<name>/` and exposes its routes and nav for composition.
-
-```
-src/
-├── App.tsx                        # Root: HashRouter + public routes + DefaultLayout
-├── index.tsx                      # Entry: QueryClientProvider
-├── shared/
-│   ├── api/
-│   │   ├── httpClient.ts          # Typed fetch wrapper: get<T>/list<T>/post<T>/put/patch/delete
-│   │   └── types.ts               # Transport types: PaginatedResult<T>, Pagination, ApiError
-│   ├── components/                # App shell (AppHeader, AppSidebar, AppContent, …)
-│   ├── layout/DefaultLayout.tsx
-│   ├── routes.ts                  # AppRoute[] composed from all features
-│   └── store/uiStore.ts           # Zustand store
-└── features/
-    ├── dashboard/  orders/  products/  clients/  review/  auth/  widgets/
-    └── <feature>/
-        ├── <Feature>Page.tsx      # Page + sub-components (.tsx)
-        ├── routes.ts              # export const <feature>Routes: AppRoute[]
-        ├── nav.tsx                # export const <feature>Nav: NavItem[]  (JSX → .tsx)
-        ├── <feature>Api.ts        # uses shared httpClient with typed generics
-        ├── use<Feature>.ts        # React Query hooks (useQuery / useMutation)
-        └── types.ts               # co-located domain types/interfaces
-```
-
-**To add a feature**: create `src/features/<name>/` with the files above, then wire it in with two
-imports — routes into `src/shared/components/AppContent.tsx`, nav into `AppSidebar.tsx`. No other files change.
-
-## Code Conventions
-
-- Functional components with Hooks; prefer `const Component = () => { }`.
-- Do NOT `import React` — the project uses the `react-jsx` runtime. Import named hooks/types
-  directly: `import { useState, type ChangeEvent } from 'react'`.
-- Type props with an `interface`; destructure in the signature:
-  `const MyComponent = ({ title }: MyComponentProps) => { … }`.
-- Co-locate domain types in the feature's `types.ts`; import with `import type { … }`.
-- Server data goes through React Query hooks (`use<Feature>`), never raw `fetch` in components.
-- API modules call the shared `httpClient` with explicit generics: `httpClient.get<Order>(…)`.
-- Follow React Hooks rules; keep render pure (no `Math.random`/side effects during render).
-- Prettier: no semicolons, single quotes, 2-space indentation. Run `npm run lint` before committing.
-- `nav.*` files contain JSX (CIcon) → MUST be `.tsx` (Vite only processes JSX in `.tsx`).
-
-## Component Template
-
-```tsx
-import { CCard, CCardBody, CCardHeader } from '@coreui/react'
-import type { ReactNode } from 'react'
-
-interface MyComponentProps {
-  title: string
-  children?: ReactNode
-}
-
-const MyComponent = ({ title, children }: MyComponentProps) => (
-  <CCard>
-    <CCardHeader>{title}</CCardHeader>
-    <CCardBody>{children}</CCardBody>
-  </CCard>
-)
-
-export default MyComponent
-```
-
-## React Query Hook Template
-
-```ts
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ordersApi } from './ordersApi'
-
-export const useOrders = (params?: OrderListParams) =>
-  useQuery({ queryKey: ['orders', params], queryFn: () => ordersApi.list(params) })
-
-export const useCreateOrder = () => {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: ordersApi.create,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['orders'] }),
-  })
-}
-```
-
-To read `.status`/`.errors` off a query/mutation error, narrow with `error instanceof ApiError`
-(`import { ApiError } from 'src/shared/api/types'`) — React Query types errors as `Error` by default.
-
-## Naming Conventions
-
-- PascalCase for component files and components (`AppHeader.tsx`, `DefaultLayout.tsx`).
-- camelCase for variables, functions, hooks; UPPER_SNAKE_CASE for module constants.
-- kebab-case for CSS classes (Bootstrap/CoreUI conventions).
-
-## Development Workflow
-
-```bash
-npm install
-npm start            # dev server
-npm run build        # production build (vite)
-npm run typecheck    # tsc --noEmit (strict)
-npm run lint         # eslint src
-```
-
-Before committing, the change must pass `npm run typecheck`, `npm run lint`, and `npm run build`.
-
-## Git Commits
-
-Conventional commits: `feat:`, `fix:`, `docs:`, `style:`, `refactor:`, `test:`, `chore:`.
-
-## AI Assistant Guidelines
-
-**Do**: use CoreUI React components; write strict TypeScript with typed props (interfaces);
-use functional components + Hooks; fetch via React Query hooks + shared `httpClient`; follow the
-vertical-slice layout; keep light/dark themes and responsiveness working.
-
-**Don't**: use `any` or `prop-types`; add `.js`/`.jsx` under `src/`; `import React`; use class
-components or deprecated patterns; import non-CoreUI UI/CSS libraries; introduce Redux (UI state is
-Zustand, server state is React Query); put files outside the feature/shared structure.
-
-## Resources
-
-- CoreUI React: https://coreui.io/react/docs/
-- React: https://react.dev/ · React Router: https://reactrouter.com/
-- TanStack Query: https://tanstack.com/query/ · Zustand: https://zustand.docs.pmnd.rs/
-- Vite: https://vitejs.dev/
-```
+See `.claude/CLAUDE.md` for the full architecture (vertical slice by feature), API layer, React Query
+patterns, and the shared components/utilities under `src/shared/`.

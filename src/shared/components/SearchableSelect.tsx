@@ -72,7 +72,8 @@ const SearchableSelect = ({
   const onSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (filtered.length > 0) select(filtered[0].value)
+      const first = filtered[0]
+      if (first) select(first.value)
     } else if (e.key === 'Escape') {
       e.preventDefault()
       close()

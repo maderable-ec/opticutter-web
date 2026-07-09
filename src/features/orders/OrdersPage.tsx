@@ -82,7 +82,7 @@ const OrdersPage = () => {
         <CCardHeader className="d-flex justify-content-between align-items-center">
           <strong>Órdenes</strong>
           {canCreate && (
-            <CButton color="primary" size="sm" onClick={() => navigate('/optimizer')}>
+            <CButton color="primary" size="sm" onClick={() => void navigate('/optimizer')}>
               <CIcon icon={cilPlus} className="me-1" />
               Nueva cotización
             </CButton>
@@ -146,7 +146,7 @@ const OrdersPage = () => {
                   </CTableRow>
                 ) : (
                   orders.map((o) => (
-                    <CTableRow key={o.id} onClick={() => navigate(`/orders/${o.id}`)}>
+                    <CTableRow key={o.id} onClick={() => void navigate(`/orders/${o.id}`)}>
                       <CTableDataCell>
                         <strong>{o.code ?? '—'}</strong>
                       </CTableDataCell>

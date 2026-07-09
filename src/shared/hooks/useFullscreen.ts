@@ -18,9 +18,9 @@ const useFullscreen = <T extends HTMLElement>() => {
 
   const toggle = useCallback(() => {
     if (document.fullscreenElement) {
-      document.exitFullscreen()
+      void document.exitFullscreen()
     } else {
-      containerRef.current?.requestFullscreen()
+      void containerRef.current?.requestFullscreen()
     }
   }, [])
 

@@ -257,7 +257,8 @@ const PieceRowsTable = ({
     const trs = containerRef.current?.querySelectorAll('tbody tr')
     if (!trs || trs.length === 0) return 0
     for (let idx = 0; idx < trs.length; idx++) {
-      if (y < trs[idx].getBoundingClientRect().bottom) return idx
+      const tr = trs[idx]
+      if (tr && y < tr.getBoundingClientRect().bottom) return idx
     }
     return trs.length - 1
   }
@@ -292,7 +293,8 @@ const PieceRowsTable = ({
         }}
         onPointerUp={(e) => {
           e.currentTarget.releasePointerCapture(e.pointerId)
-          if (drag) fillRange(flatOf(drag.srcRow), flatOf(drag.targetRow), COL_FIELDS[drag.col])
+          const field = drag && COL_FIELDS[drag.col]
+          if (drag && field) fillRange(flatOf(drag.srcRow), flatOf(drag.targetRow), field)
           setDrag(null)
         }}
         onPointerCancel={() => setDrag(null)}

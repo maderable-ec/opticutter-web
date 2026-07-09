@@ -23,3 +23,11 @@ export const ROLE_COLORS: Record<Role, string> = {
   operador: 'secondary',
   canteador: 'info',
 }
+
+/** Combined color + compact label per role, ready for the shared StatusBadge. */
+export const ROLE_BADGE_CONFIG: Record<Role, { color: string; label: string }> = {
+  administrador: { color: ROLE_COLORS.administrador, label: ROLE_SHORT_LABELS.administrador },
+  vendedor: { color: ROLE_COLORS.vendedor, label: ROLE_SHORT_LABELS.vendedor },
+  operador: { color: ROLE_COLORS.operador, label: ROLE_SHORT_LABELS.operador },
+  canteador: { color: ROLE_COLORS.canteador, label: ROLE_SHORT_LABELS.canteador },
+}

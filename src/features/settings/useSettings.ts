@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { REFERENCE_STALE_TIME } from 'src/shared/constants'
 import { settingsApi } from './settingsApi'
 import type {
   CompanyPayload,
@@ -14,10 +15,18 @@ const COMPANY_KEY = ['settings', 'company']
 const PREORDER_KEY = ['settings', 'preorders']
 
 export const useCuttingSettings = () =>
-  useQuery({ queryKey: CUTTING_KEY, queryFn: settingsApi.getCutting })
+  useQuery({
+    queryKey: CUTTING_KEY,
+    queryFn: settingsApi.getCutting,
+    staleTime: REFERENCE_STALE_TIME,
+  })
 
 export const useCompanySettings = () =>
-  useQuery({ queryKey: COMPANY_KEY, queryFn: settingsApi.getCompany })
+  useQuery({
+    queryKey: COMPANY_KEY,
+    queryFn: settingsApi.getCompany,
+    staleTime: REFERENCE_STALE_TIME,
+  })
 
 export const useUpdateCuttingSettings = () => {
   const qc = useQueryClient()
@@ -37,7 +46,11 @@ export const useUpdateCompanySettings = () => {
 }
 
 export const usePreorderSettings = () =>
-  useQuery({ queryKey: PREORDER_KEY, queryFn: settingsApi.getPreorders })
+  useQuery({
+    queryKey: PREORDER_KEY,
+    queryFn: settingsApi.getPreorders,
+    staleTime: REFERENCE_STALE_TIME,
+  })
 
 export const useUpdatePreorderSettings = () => {
   const qc = useQueryClient()

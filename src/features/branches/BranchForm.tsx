@@ -9,7 +9,7 @@ import {
   CModalFooter,
   CSpinner,
 } from '@coreui/react'
-import { ApiError } from 'src/shared/api/types'
+import { apiErrorMessage } from 'src/shared/api/errors'
 import type { Branch, BranchPayload, BranchUpdatePayload } from './types'
 
 interface BranchFormProps {
@@ -52,12 +52,7 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
   }
 
   // 409 CONFLICT (duplicate code) and other API errors are surfaced via ApiError.
-  const errorMsg =
-    error instanceof ApiError
-      ? (error.errors[0]?.message ?? error.message)
-      : error
-        ? 'Error inesperado. Intente nuevamente.'
-        : null
+  const errorMsg = apiErrorMessage(error)
 
   return (
     <form onSubmit={handleSubmit}>

@@ -13,15 +13,7 @@ import {
   CCardBody,
   CCardHeader,
   CCol,
-  CFormInput,
   CFormSelect,
-  CInputGroup,
-  CInputGroupText,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
   CRow,
   CSpinner,
   CTable,
@@ -30,15 +22,11 @@ import {
   CTableHead,
   CTableHeaderCell,
   CTableRow,
+  CModal,
+  CModalHeader,
+  CModalTitle,
 } from '@coreui/react'
-import {
-  cilCloudDownload,
-  cilCloudUpload,
-  cilPencil,
-  cilPlus,
-  cilSearch,
-  cilTrash,
-} from '@coreui/icons'
+import { cilCloudDownload, cilCloudUpload, cilPencil, cilPlus, cilTrash } from '@coreui/icons'
 import { useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from './useProducts'
 import { useState } from 'react'
 
@@ -50,18 +38,17 @@ import { productsApi } from './productsApi'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { PAGE_SIZE } from 'src/shared/constants'
-import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { fmtMoney } from 'src/shared/utils/format'
+import SearchInput from 'src/shared/components/SearchInput'
+import Pagination from 'src/shared/components/Pagination'
+import QueryState from 'src/shared/components/QueryState'
+import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
+import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 
-const TYPE_LABELS: Record<string, string> = {
-  board: 'Tablero',
-  edge_banding: 'Tapacanto',
-  hardware: 'Herraje',
-}
-const TYPE_COLORS: Record<string, string> = {
-  board: 'info',
-  edge_banding: 'warning',
-  hardware: 'secondary',
+const TYPE_CONFIG: Record<string, StatusConfigEntry> = {
+  board: { color: 'info', label: 'Tablero' },
+  edge_banding: { color: 'warning', label: 'Tapacanto' },
+  hardware: { color: 'secondary', label: 'Herraje' },
 }
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
@@ -73,8 +60,7 @@ interface ProductModalState {
 const ProductsPage = () => {
   const isReadOnly = useHasRole('vendedor')
   const queryClient = useQueryClient()
-  const [rawSearch, setRawSearch] = useState('')
-  const search = useDebounce(rawSearch)
+  const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<ProductType | ''>('')
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ProductModalState>({ visible: false, product: null })
@@ -88,13 +74,18 @@ const ProductsPage = () => {
   const queryParams: ProductListParams = { search, offset, limit: PAGE_SIZE }
   if (typeFilter) queryParams.type = typeFilter
 
-  const { data: productsData, isLoading } = useProducts(queryParams)
+  const { data: productsData, isLoading, isError, refetch } = useProducts(queryParams)
   const products = productsData?.items ?? []
   const pagination = productsData?.pagination
 
   const createMutation = useCreateProduct()
   const updateMutation = useUpdateProduct()
   const deleteMutation = useDeleteProduct()
+
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setOffset(0)
+  }
 
   const openCreate = () => setFormModal({ visible: true, product: null })
   const openEdit = (product: Product) => setFormModal({ visible: true, product })
@@ -140,8 +131,6 @@ const ProductsPage = () => {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
-  const showPrev = offset > 0
-  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   const renderHeaders = () => {
     if (typeFilter === 'board') {
@@ -261,9 +250,7 @@ const ProductsPage = () => {
       <CTableRow key={p.id}>
         <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
         <CTableDataCell>
-          <CBadge color={TYPE_COLORS[p.type] ?? 'secondary'}>
-            {TYPE_LABELS[p.type] ?? p.type}
-          </CBadge>
+          <StatusBadge config={TYPE_CONFIG} value={p.type} />
         </CTableDataCell>
         <CTableDataCell>
           <strong>{p.code}</strong>
@@ -289,7 +276,7 @@ const ProductsPage = () => {
                 color="secondary"
                 variant="outline"
                 size="sm"
-                onClick={handleExport}
+                onClick={() => void handleExport()}
                 disabled={isExporting}
               >
                 {isExporting ? (
@@ -332,27 +319,15 @@ const ProductsPage = () => {
               </CFormSelect>
             </CCol>
             <CCol xs={12} sm>
-              <CInputGroup style={{ maxWidth: 360 }}>
-                <CInputGroupText>
-                  <CIcon icon={cilSearch} />
-                </CInputGroupText>
-                <CFormInput
-                  placeholder="Buscar por código o nombre…"
-                  value={rawSearch}
-                  onChange={(e) => {
-                    setRawSearch(e.target.value)
-                    setOffset(0)
-                  }}
-                />
-              </CInputGroup>
+              <SearchInput
+                onChange={handleSearch}
+                placeholder="Buscar por código o nombre…"
+                style={{ maxWidth: 360 }}
+              />
             </CCol>
           </CRow>
 
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
-            </div>
-          ) : (
+          <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
             <CTable align="middle" hover responsive>
               <CTableHead>
                 <CTableRow>{renderHeaders()}</CTableRow>
@@ -372,28 +347,14 @@ const ProductsPage = () => {
                 )}
               </CTableBody>
             </CTable>
-          )}
+          </QueryState>
 
-          {(showPrev || showNext) && (
-            <div className="d-flex justify-content-end gap-2 mt-2">
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                Anterior
-              </CButton>
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showNext}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                Siguiente
-              </CButton>
-            </div>
-          )}
+          <Pagination
+            offset={offset}
+            limit={PAGE_SIZE}
+            total={pagination?.total}
+            onChange={setOffset}
+          />
         </CCardBody>
       </CCard>
 
@@ -417,28 +378,21 @@ const ProductsPage = () => {
         />
       </CModal>
 
-      <CModal visible={deleteModal.visible} onClose={closeDelete}>
-        <CModalHeader>
-          <CModalTitle>Eliminar producto</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Eliminar <strong>{deleteModal.product?.name}</strong> ({deleteModal.product?.code})? Esta
-          acción no se puede deshacer.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={closeDelete}>
-            Cancelar
-          </CButton>
-          <CButton color="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-            {deleteMutation.isPending ? <CSpinner size="sm" /> : 'Eliminar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <DeleteConfirmModal
+        visible={deleteModal.visible}
+        title="Eliminar producto"
+        onClose={closeDelete}
+        onConfirm={handleDelete}
+        isPending={deleteMutation.isPending}
+      >
+        ¿Eliminar <strong>{deleteModal.product?.name}</strong> ({deleteModal.product?.code})? Esta
+        acción no se puede deshacer.
+      </DeleteConfirmModal>
 
       <ImportProductsModal
         visible={importModal}
         onClose={() => setImportModal(false)}
-        onImported={() => queryClient.invalidateQueries({ queryKey: ['products'] })}
+        onImported={() => void queryClient.invalidateQueries({ queryKey: ['products'] })}
       />
     </>
   )

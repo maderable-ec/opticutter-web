@@ -18,8 +18,8 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilArrowBottom, cilArrowTop, cilCheckAlt, cilSave } from '@coreui/icons'
 
-import FieldError from './FieldError'
-import { fieldErrorsFromApiError, hasGenericError } from './fieldErrors'
+import FieldError from 'src/shared/components/FieldError'
+import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { usePriceTiers, useUpdatePriceTiers } from './usePriceTiers'
 import { useSavedFlash } from './useSavedFlash'
 import type { PriceTier } from './types'
@@ -64,7 +64,7 @@ const PriceTiersSettingsCard = () => {
       const target = index + dir
       if (target < 0 || target >= rs.length) return rs
       const next = [...rs]
-      ;[next[index], next[target]] = [next[target], next[index]]
+      ;[next[index], next[target]] = [next[target]!, next[index]!]
       return next
     })
   }
@@ -143,7 +143,7 @@ const PriceTiersSettingsCard = () => {
             {isError ? (
               <div className="text-body-secondary">
                 No se pudieron cargar los niveles.{' '}
-                <CButton size="sm" color="link" onClick={() => refetch()}>
+                <CButton size="sm" color="link" onClick={() => void refetch()}>
                   Reintentar
                 </CButton>
               </div>

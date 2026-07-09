@@ -4,14 +4,10 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
-  CFormInput,
   CFormSwitch,
-  CInputGroup,
-  CInputGroupText,
   CModal,
   CModalHeader,
   CModalTitle,
-  CSpinner,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -20,13 +16,15 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilSearch } from '@coreui/icons'
+import { cilPencil, cilPlus } from '@coreui/icons'
 
 import BranchForm from './BranchForm'
 import { useBranches, useCreateBranch, useUpdateBranch } from './useBranches'
 import type { Branch, BranchPayload, BranchUpdatePayload } from './types'
 import { PAGE_SIZE } from 'src/shared/constants'
-import { useDebounce } from 'src/shared/hooks/useDebounce'
+import SearchInput from 'src/shared/components/SearchInput'
+import Pagination from 'src/shared/components/Pagination'
+import QueryState from 'src/shared/components/QueryState'
 
 interface ModalState {
   visible: boolean
@@ -34,16 +32,20 @@ interface ModalState {
 }
 
 const BranchesPage = () => {
-  const [rawSearch, setRawSearch] = useState('')
-  const search = useDebounce(rawSearch)
+  const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, branch: null })
 
-  const { data, isLoading } = useBranches({ search, offset, limit: PAGE_SIZE })
+  const { data, isLoading, isError, refetch } = useBranches({ search, offset, limit: PAGE_SIZE })
   const branches = data?.items ?? []
   const pagination = data?.pagination
   const createMutation = useCreateBranch()
   const updateMutation = useUpdateBranch()
+
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setOffset(0)
+  }
 
   const openCreate = () => setFormModal({ visible: true, branch: null })
   const openEdit = (branch: Branch) => setFormModal({ visible: true, branch })
@@ -56,10 +58,7 @@ const BranchesPage = () => {
   const handleSubmit = (payload: BranchPayload | BranchUpdatePayload) => {
     const { branch } = formModal
     if (branch) {
-      updateMutation.mutate(
-        { id: branch.id, data: payload as BranchUpdatePayload },
-        { onSuccess: closeForm },
-      )
+      updateMutation.mutate({ id: branch.id, data: payload }, { onSuccess: closeForm })
     } else {
       createMutation.mutate(payload as BranchPayload, { onSuccess: closeForm })
     }
@@ -71,8 +70,6 @@ const BranchesPage = () => {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
-  const showPrev = offset > 0
-  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -85,25 +82,14 @@ const BranchesPage = () => {
           </CButton>
         </CCardHeader>
         <CCardBody>
-          <CInputGroup className="mb-3" style={{ maxWidth: 320 }}>
-            <CInputGroupText>
-              <CIcon icon={cilSearch} />
-            </CInputGroupText>
-            <CFormInput
-              placeholder="Buscar por código o nombre…"
-              value={rawSearch}
-              onChange={(e) => {
-                setRawSearch(e.target.value)
-                setOffset(0)
-              }}
-            />
-          </CInputGroup>
+          <SearchInput
+            onChange={handleSearch}
+            placeholder="Buscar por código o nombre…"
+            className="mb-3"
+            style={{ maxWidth: 320 }}
+          />
 
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
-            </div>
-          ) : (
+          <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
             <CTable align="middle" hover responsive>
               <CTableHead>
                 <CTableRow>
@@ -152,28 +138,14 @@ const BranchesPage = () => {
                 )}
               </CTableBody>
             </CTable>
-          )}
+          </QueryState>
 
-          {(showPrev || showNext) && (
-            <div className="d-flex justify-content-end gap-2 mt-2">
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                Anterior
-              </CButton>
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showNext}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                Siguiente
-              </CButton>
-            </div>
-          )}
+          <Pagination
+            offset={offset}
+            limit={PAGE_SIZE}
+            total={pagination?.total}
+            onChange={setOffset}
+          />
         </CCardBody>
       </CCard>
 

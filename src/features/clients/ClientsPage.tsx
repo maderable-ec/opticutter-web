@@ -4,15 +4,9 @@ import {
   CCard,
   CCardBody,
   CCardHeader,
-  CFormInput,
-  CInputGroup,
-  CInputGroupText,
   CModal,
-  CModalBody,
-  CModalFooter,
   CModalHeader,
   CModalTitle,
-  CSpinner,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -21,14 +15,17 @@ import {
   CTableRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilSearch, cilTrash } from '@coreui/icons'
+import { cilPencil, cilPlus, cilTrash } from '@coreui/icons'
 
 import ClientForm from './ClientForm'
 import { useClients, useCreateClient, useDeleteClient, useUpdateClient } from './useClients'
 import type { Client, ClientPayload } from './types'
 import { PAGE_SIZE } from 'src/shared/constants'
-import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { clientName } from 'src/shared/utils/format'
+import SearchInput from 'src/shared/components/SearchInput'
+import Pagination from 'src/shared/components/Pagination'
+import QueryState from 'src/shared/components/QueryState'
+import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
 
 interface ModalState {
   visible: boolean
@@ -36,18 +33,31 @@ interface ModalState {
 }
 
 const ClientsPage = () => {
-  const [rawSearch, setRawSearch] = useState('')
-  const search = useDebounce(rawSearch)
+  const [search, setSearch] = useState('')
   const [offset, setOffset] = useState(0)
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, client: null })
   const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, client: null })
 
-  const { data: clientsData, isLoading } = useClients({ search, offset, limit: PAGE_SIZE })
+  const {
+    data: clientsData,
+    isLoading,
+    isError,
+    refetch,
+  } = useClients({
+    search,
+    offset,
+    limit: PAGE_SIZE,
+  })
   const clients = clientsData?.items ?? []
   const pagination = clientsData?.pagination
   const createMutation = useCreateClient()
   const updateMutation = useUpdateClient()
   const deleteMutation = useDeleteClient()
+
+  const handleSearch = (value: string) => {
+    setSearch(value)
+    setOffset(0)
+  }
 
   const openCreate = () => setFormModal({ visible: true, client: null })
   const openEdit = (client: Client) => setFormModal({ visible: true, client })
@@ -75,8 +85,6 @@ const ClientsPage = () => {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
   const formError = createMutation.error || updateMutation.error
-  const showPrev = offset > 0
-  const showNext = pagination ? offset + PAGE_SIZE < pagination.total : false
 
   return (
     <>
@@ -89,25 +97,14 @@ const ClientsPage = () => {
           </CButton>
         </CCardHeader>
         <CCardBody>
-          <CInputGroup className="mb-3" style={{ maxWidth: 320 }}>
-            <CInputGroupText>
-              <CIcon icon={cilSearch} />
-            </CInputGroupText>
-            <CFormInput
-              placeholder="Buscar por nombre o identificador…"
-              value={rawSearch}
-              onChange={(e) => {
-                setRawSearch(e.target.value)
-                setOffset(0)
-              }}
-            />
-          </CInputGroup>
+          <SearchInput
+            onChange={handleSearch}
+            placeholder="Buscar por nombre o identificador…"
+            className="mb-3"
+            style={{ maxWidth: 320 }}
+          />
 
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
-            </div>
-          ) : (
+          <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
             <CTable align="middle" hover responsive>
               <CTableHead>
                 <CTableRow>
@@ -162,28 +159,14 @@ const ClientsPage = () => {
                 )}
               </CTableBody>
             </CTable>
-          )}
+          </QueryState>
 
-          {(showPrev || showNext) && (
-            <div className="d-flex justify-content-end gap-2 mt-2">
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showPrev}
-                onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-              >
-                Anterior
-              </CButton>
-              <CButton
-                size="sm"
-                color="secondary"
-                disabled={!showNext}
-                onClick={() => setOffset(offset + PAGE_SIZE)}
-              >
-                Siguiente
-              </CButton>
-            </div>
-          )}
+          <Pagination
+            offset={offset}
+            limit={PAGE_SIZE}
+            total={pagination?.total}
+            onChange={setOffset}
+          />
         </CCardBody>
       </CCard>
 
@@ -201,23 +184,16 @@ const ClientsPage = () => {
         />
       </CModal>
 
-      <CModal visible={deleteModal.visible} onClose={closeDelete}>
-        <CModalHeader>
-          <CModalTitle>Eliminar cliente</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Eliminar a <strong>{deleteModal.client && clientName(deleteModal.client)}</strong> (
-          {deleteModal.client?.identifier})? Esta acción no se puede deshacer.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={closeDelete}>
-            Cancelar
-          </CButton>
-          <CButton color="danger" onClick={handleDelete} disabled={deleteMutation.isPending}>
-            {deleteMutation.isPending ? <CSpinner size="sm" /> : 'Eliminar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <DeleteConfirmModal
+        visible={deleteModal.visible}
+        title="Eliminar cliente"
+        onClose={closeDelete}
+        onConfirm={handleDelete}
+        isPending={deleteMutation.isPending}
+      >
+        ¿Eliminar a <strong>{deleteModal.client && clientName(deleteModal.client)}</strong> (
+        {deleteModal.client?.identifier})? Esta acción no se puede deshacer.
+      </DeleteConfirmModal>
     </>
   )
 }

@@ -12,7 +12,12 @@ export const toQuery = (params: object = {}): string => {
     if (Array.isArray(value)) {
       sp.delete(key)
       value.forEach((v) => sp.append(key, String(v)))
-    } else {
+    } else if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean'
+    ) {
+      // ListParams values are scalars; non-primitives (unexpected) are skipped.
       sp.set(key, String(value))
     }
   }

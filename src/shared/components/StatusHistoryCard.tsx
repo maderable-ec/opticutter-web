@@ -1,5 +1,4 @@
 import {
-  CBadge,
   CCard,
   CCardBody,
   CCardHeader,
@@ -13,21 +12,16 @@ import {
 
 import type { ReactNode } from 'react'
 import { fmtDateTime } from 'src/shared/utils/format'
+import StatusBadge, { type StatusConfigEntry } from './StatusBadge'
 
 // Actor type: the type of entity that performed the action, not a free-form name.
 // `actorLabel` is the actor's display name frozen at the time of the status change.
 export type ActorType = 'staff' | 'client' | 'system'
 
-const ACTOR_TYPE_LABELS: Record<ActorType, string> = {
-  staff: 'Equipo',
-  client: 'Cliente',
-  system: 'Sistema',
-}
-
-const ACTOR_TYPE_COLORS: Record<ActorType, string> = {
-  staff: 'primary',
-  client: 'info',
-  system: 'secondary',
+const ACTOR_CONFIG: Record<ActorType, StatusConfigEntry> = {
+  staff: { color: 'primary', label: 'Equipo' },
+  client: { color: 'info', label: 'Cliente' },
+  system: { color: 'secondary', label: 'Sistema' },
 }
 
 // Generic status history entry; used for both orders and pre-orders.
@@ -79,9 +73,7 @@ const StatusHistoryCard = ({
                 <CTableDataCell>{renderStatus(h.toStatus)}</CTableDataCell>
                 <CTableDataCell className="text-nowrap">
                   <span className="me-2">{h.actorLabel ?? '—'}</span>
-                  {h.actor && (
-                    <CBadge color={ACTOR_TYPE_COLORS[h.actor]}>{ACTOR_TYPE_LABELS[h.actor]}</CBadge>
-                  )}
+                  {h.actor && <StatusBadge config={ACTOR_CONFIG} value={h.actor} />}
                 </CTableDataCell>
                 <CTableDataCell>{h.note ?? '—'}</CTableDataCell>
                 <CTableDataCell className="text-nowrap">{fmtDateTime(h.createdAt)}</CTableDataCell>

@@ -66,7 +66,7 @@ const parseQuickEntry = (
   if (remaining) {
     const parts = remaining.split(/\s+/)
     const last = parts[parts.length - 1]
-    if (CANTO_NOTATION_RE.test(last)) {
+    if (last && CANTO_NOTATION_RE.test(last)) {
       notation = last.toUpperCase()
       label = parts.slice(0, -1).join(' ')
     }
