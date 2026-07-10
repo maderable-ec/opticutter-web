@@ -29,7 +29,10 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       proxy: {
-        '/api': { target: 'http://localhost:3000', changeOrigin: true },
+        // Mirrors production, where Caddy serves the SPA and proxies /api/* to
+        // the backend on the same origin. Keeping VITE_API_BASE_URL empty in dev
+        // means the app issues the same relative requests it will issue in prod.
+        '/api': { target: 'http://localhost:8000', changeOrigin: true },
       },
     },
   }

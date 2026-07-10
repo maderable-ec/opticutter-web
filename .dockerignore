@@ -1,0 +1,24 @@
+# Reinstalled from the lockfile inside the build stage.
+node_modules
+
+# Rebuilt inside the image; a stale local build must never leak in.
+build
+coverage
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+# Critically: keeps a local .env from baking a hard-coded VITE_API_BASE_URL into
+# the bundle. The image must issue same-origin relative requests.
+.env
+.env.*
+
+*.md
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
