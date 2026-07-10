@@ -2,7 +2,8 @@
 
 # dependencies
 /node_modules
-package-lock.json
+# package-lock.json IS versioned: `npm ci`, used by CI and the Docker build,
+# refuses to run without it.
 yarn.lock
 
 # testing

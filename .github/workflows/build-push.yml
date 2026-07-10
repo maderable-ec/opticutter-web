@@ -1,0 +1,79 @@
+name: build-push
+
+# Chains off `ci` rather than duplicating its triggers, so an image is never
+# published from a commit that failed typecheck or lint.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/maderable-ec/opticutter-web
+
+jobs:
+  build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # For a workflow_run event, github.sha points at the default branch tip,
+      # not at the commit that was tested. Always use workflow_run.head_sha.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Compute short SHA
+        id: vars
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: echo "short=${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          # Empty on purpose: the SPA and the API share an origin behind Caddy,
+          # so the bundle issues relative /api/v1/... requests and this image can
+          # be promoted anywhere without a rebuild.
+          build-args: |
+            VITE_API_BASE_URL=
+          tags: |
+            ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.short }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Tell opticutter-infra to deploy
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          # GITHUB_TOKEN cannot dispatch across repositories. Fine-grained PAT
+          # with `contents: write` on opticutter-infra.
+          token: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          repository: maderable-ec/opticutter-infra
+          event-type: web-image-published
+          client-payload: '{"tag": "sha-${{ steps.vars.outputs.short }}"}'
+
+      - name: Prune untagged GHCR versions
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: opticutter-web
+          package-type: container
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: true
