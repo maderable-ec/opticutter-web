@@ -20,6 +20,7 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilArrowRight, cilCheckAlt, cilPrint } from '@coreui/icons'
 
 import { useHasRole } from 'src/features/auth/useAuth'
+import { usePrintLabel } from 'src/features/print/usePrint'
 import { PALETTE, pieceSig } from 'src/features/optimizer/cutDrawing'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import OrderStatusBadge from './OrderStatusBadge'
@@ -49,6 +50,7 @@ const WorkshopPage = () => {
   const { data: order } = useOrder(id)
   const markPiece = useMarkPiece(id ?? '')
   const updateStatus = useUpdateOrderStatus()
+  const printLabel = usePrintLabel()
 
   const [cutModal, setCutModal] = useState(false)
   // Board currently on screen (one at a time). Identified by persistent id to survive refetches.
@@ -82,9 +84,13 @@ const WorkshopPage = () => {
   const interactive = plan?.status === 'cutting'
 
   // Single tap marks a piece as cut; tapping an already-cut piece does nothing (double-tap unmarks it).
+  // Once the cut is confirmed server-side, dispatch its label to the branch's thermal printer.
   const onPieceTap = (piece: CutPiece) => {
     if (!id || piece.cut) return
-    markPiece.mutate({ pieceId: piece.id, cut: true })
+    markPiece.mutate(
+      { pieceId: piece.id, cut: true },
+      { onSuccess: () => printLabel.mutate({ orderId: id, pieceId: piece.id }) },
+    )
   }
 
   // Double-tap = unmark, no confirmation required.

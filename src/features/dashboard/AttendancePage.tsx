@@ -18,6 +18,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import { fmtLocalTime, localHHMM } from './format'
+import { formatDate, subDays } from 'src/shared/utils/date'
 import { useMemo, useState } from 'react'
 
 import type { AttendanceDay } from './types'
@@ -26,7 +27,6 @@ import type { Role } from 'src/features/auth/types'
 import RoleBadge from './components/RoleBadge'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useAttendance } from './useAnalytics'
-import { formatDate, subDays } from 'src/shared/utils/date'
 
 const fmtColDate = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString('es-EC', { day: '2-digit', month: '2-digit' })
@@ -44,7 +44,7 @@ const AttendancePage = () => {
   const [to, setTo] = useState(() => formatDate(new Date()))
   const [branch, setBranch] = useState('')
   const [role, setRole] = useState<'' | Role>('')
-  const [lateThreshold, setLateThreshold] = useState('07:00')
+  const [lateThreshold, setLateThreshold] = useState('08:00')
 
   const { data: branches = [] } = useActiveBranches()
   const branchId = branch ? Number(branch) : undefined

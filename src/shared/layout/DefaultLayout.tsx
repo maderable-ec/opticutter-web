@@ -2,6 +2,7 @@ import AppContent from '../components/AppContent'
 import AppSidebar from '../components/AppSidebar'
 import AppFooter from '../components/AppFooter'
 import AppHeader from '../components/AppHeader'
+import AppToaster from '../components/AppToaster'
 
 const DefaultLayout = () => {
   return (
@@ -14,6 +15,7 @@ const DefaultLayout = () => {
         </div>
         <AppFooter />
       </div>
+      <AppToaster />
     </div>
   )
 }
