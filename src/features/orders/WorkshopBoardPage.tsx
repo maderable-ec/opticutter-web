@@ -209,24 +209,27 @@ const WorkshopBoardPage = () => {
                       <div className="fw-semibold">
                         {item.client.firstName} {item.client.lastName}
                       </div>
-                      {item.boardNames.length > 0 && (
+                      {item.boardUsage.length > 0 && (
                         <div className="d-flex flex-wrap gap-1">
-                          {item.boardNames.map((name) => (
+                          {item.boardUsage.map((board) => (
                             <span
-                              key={name}
+                              key={board.name}
                               className="badge bg-secondary-subtle text-body-secondary"
                             >
-                              {name}
+                              {board.count}× {board.name}
                             </span>
                           ))}
                         </div>
                       )}
-                      {item.bandingNames.length > 0 && (
+                      {item.bandingUsage.length > 0 && (
                         <div className="d-flex flex-wrap align-items-center gap-1">
                           <span className="text-body-secondary small">Tapacantos:</span>
-                          {item.bandingNames.map((name) => (
-                            <span key={name} className="badge bg-info-subtle text-info-emphasis">
-                              {name}
+                          {item.bandingUsage.map((banding) => (
+                            <span
+                              key={banding.name}
+                              className="badge bg-info-subtle text-info-emphasis"
+                            >
+                              {banding.name} — {banding.linearM.toFixed(1)} m
                             </span>
                           ))}
                         </div>

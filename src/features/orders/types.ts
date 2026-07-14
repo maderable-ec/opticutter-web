@@ -138,11 +138,21 @@ export interface BandingResult {
   bandingFinishedAt: string | null
 }
 
+export interface BoardUsage {
+  name: string
+  count: number
+}
+
+export interface BandingUsage {
+  name: string
+  linearM: number
+}
+
 // An order in the shared workshop board (GET /orders/workshop-queue), used by operador,
-// canteador, and administrador. Distinct board names are in first-appearance order, falling
-// back to product code then raw materialKey for boards outside the catalog. `bandingNames`
-// follows the same first-appearance-order rule but for edge banding materials, already
-// formatted as "Nombre (Suave|Duro)"; empty when the order has no edge banding.
+// canteador, and administrador. `boardUsage` is board/material name + board count, in
+// first-appearance order; practically never empty. `bandingUsage` is edge banding name
+// (already formatted as "Nombre (Suave|Duro)") + linear meters (already rounded up to the
+// whole meter server-side), also first-appearance order; empty when the order has no edge banding.
 export interface WorkshopQueueItem {
   orderId: number
   orderCode: string | null
@@ -150,8 +160,8 @@ export interface WorkshopQueueItem {
   bandingStatus: BandingStatus
   createdAt: string
   client: Client
-  boardNames: string[]
-  bandingNames: string[]
+  boardUsage: BoardUsage[]
+  bandingUsage: BandingUsage[]
   progress: CutProgress
 }
 
