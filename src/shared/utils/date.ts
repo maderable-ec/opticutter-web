@@ -4,6 +4,16 @@
 // A Date → ISO calendar day 'YYYY-MM-DD' (UTC). Used for API date-range params and <input type="date">.
 export const formatDate = (date: Date): string => date.toISOString().slice(0, 10)
 
+// A Date → calendar day 'YYYY-MM-DD' in the browser's local time zone (not UTC).
+// Used to detect calendar-day boundaries (e.g. forcing daily re-login) — using the
+// UTC-based `formatDate` here would roll the day over at the wrong local hour.
+export const localDateKey = (date: Date = new Date()): string => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // A new Date `n` days before `date` (does not mutate the input).
 export const subDays = (date: Date, n: number): Date => {
   const d = new Date(date)

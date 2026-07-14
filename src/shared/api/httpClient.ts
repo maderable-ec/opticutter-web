@@ -75,6 +75,12 @@ const triggerRefresh = (): Promise<string> =>
 const fetchWithRefresh = async (path: string, options: RequestOptions): Promise<Response> => {
   const res = await send(path, options)
   if (res.status !== 401 || isSessionRoute(path)) return res
+  // A session left open past its login day must not silently renew: attendance is
+  // only recorded on a real POST /auth/login, never on refresh.
+  if (!useAuthStore.getState().ensureFreshSession()) {
+    redirectToLogin()
+    return res
+  }
   try {
     await triggerRefresh()
   } catch {

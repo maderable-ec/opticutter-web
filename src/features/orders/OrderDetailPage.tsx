@@ -32,6 +32,7 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowLeft, cilExternalLink } from '@coreui/icons'
 
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
+import { usePrintConsolidated } from 'src/features/print/usePrint'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
@@ -130,6 +131,9 @@ const OrderDetailPage = () => {
   const canManage = useHasRole('administrador', 'vendedor')
   // Operador doesn't use the detail view: their flow is the workshop. Redirect there (including direct URL).
   const isOperator = useHasRole('operador')
+  // Consolidated print needs `orders:workshop`; the cut → completed transition here is also open to
+  // vendedor (who lacks it), so gate the trigger to those roles to avoid a 403.
+  const canPrintConsolidated = useHasRole('administrador', 'operador', 'canteador')
 
   const currentUser = useCurrentUser()
   const { data: order, isLoading } = useOrder(id)
@@ -137,6 +141,7 @@ const OrderDetailPage = () => {
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
   const changeBranch = useChangeOrderBranch()
+  const printConsolidated = usePrintConsolidated()
   const { data: activeBranches = [] } = useActiveBranches()
   const attachments = useAttachments(id)
   const uploadAtt = useUploadAttachment(id ?? '')
@@ -172,7 +177,14 @@ const OrderDetailPage = () => {
     if (!id || !transition) return
     updateStatus.mutate(
       { id, data: { status: transition.to, note: transitionNote || undefined } },
-      { onSuccess: closeTransition },
+      {
+        onSuccess: () => {
+          closeTransition()
+          // Completing the order dispatches the consolidated sheet to the branch's inkjet.
+          if (transition.to === 'completed' && canPrintConsolidated)
+            printConsolidated.mutate({ orderId: id })
+        },
+      },
     )
   }
 

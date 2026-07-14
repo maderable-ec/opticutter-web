@@ -15,6 +15,8 @@ const publicRoutes = [...authRoutes, ...reviewRoutes]
 
 const DefaultLayout = lazy(() => import('src/shared/layout/DefaultLayout'))
 
+const SESSION_FRESHNESS_CHECK_MS = 5 * 60 * 1000
+
 const SessionRestorer = () => {
   const { status, setUser, setStatus, clearSession } = useAuthStore()
 
@@ -28,6 +30,23 @@ const SessionRestorer = () => {
       })
       .catch(() => clearSession())
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A tab left open across midnight keeps a valid access token for up to 30 min
+  // after the day rolls over. Re-check the login date on focus and periodically so
+  // it gets bounced to /login without waiting for the next API call to 401.
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const check = () => useAuthStore.getState().ensureFreshSession()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') check()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    const interval = setInterval(check, SESSION_FRESHNESS_CHECK_MS)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      clearInterval(interval)
+    }
+  }, [status])
 
   return null
 }

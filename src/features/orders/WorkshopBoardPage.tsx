@@ -25,6 +25,7 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowRight, cilCheckAlt, cilMediaPlay } from '@coreui/icons'
 
 import { useHasRole } from 'src/features/auth/useAuth'
+import { usePrintConsolidated } from 'src/features/print/usePrint'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
 import { useUpdateBanding, useUpdateOrderStatus, useWorkshopQueue } from './useOrders'
@@ -75,6 +76,7 @@ const WorkshopBoardPage = () => {
   const { data: items = [], isLoading, error } = useWorkshopQueue()
   const updateStatus = useUpdateOrderStatus()
   const updateBanding = useUpdateBanding()
+  const printConsolidated = usePrintConsolidated()
   const canOperate = useHasRole('administrador', 'operador')
   const canBand = useHasRole('administrador', 'canteador')
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
@@ -82,7 +84,13 @@ const WorkshopBoardPage = () => {
   const runAction = (kind: BoardAction, item: WorkshopQueueItem) => {
     const id = String(item.orderId)
     if (kind === 'take') updateStatus.mutate({ id, data: { status: 'cutting' } })
-    else if (kind === 'complete') updateStatus.mutate({ id, data: { status: 'completed' } })
+    // On completion, dispatch the consolidated sheet to the branch's inkjet. Every role that can
+    // complete from this board (operador/canteador/admin) also holds `orders:workshop`.
+    else if (kind === 'complete')
+      updateStatus.mutate(
+        { id, data: { status: 'completed' } },
+        { onSuccess: () => printConsolidated.mutate({ orderId: id }) },
+      )
     else if (kind === 'startBanding') updateBanding.mutate({ id, data: { status: 'in_progress' } })
     else if (kind === 'finishBanding') updateBanding.mutate({ id, data: { status: 'done' } })
   }
