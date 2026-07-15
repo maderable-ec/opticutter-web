@@ -54,9 +54,11 @@ const SearchableSelect = ({
     })
   }, [options, query])
 
-  // On open, focus the search input (filter is cleared in close()).
+  // On open, focus the search input (filter is cleared in close()). `preventScroll` avoids
+  // the page jumping to top: with `portal`, the menu mounts in document.body before Popper.js
+  // positions it, so a plain focus() briefly targets a (0,0) element and triggers scroll-into-view.
   useEffect(() => {
-    if (visible) inputRef.current?.focus()
+    if (visible) inputRef.current?.focus({ preventScroll: true })
   }, [visible])
 
   const close = () => {
@@ -95,6 +97,7 @@ const SearchableSelect = ({
       visible={visible}
       onShow={() => setVisible(true)}
       onHide={close}
+      portal
     >
       {/* `custom` clones this button and attaches the toggle, bypassing the .btn class (transparent border)
           so the grey form-select border appears like the rest of the form fields. */}
