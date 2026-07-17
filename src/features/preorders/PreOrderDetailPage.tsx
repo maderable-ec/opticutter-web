@@ -50,6 +50,13 @@ import CIcon from '@coreui/icons-react'
 import DeleteMaterialModal from 'src/features/optimizer/DeleteMaterialModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
 import MaterialGroups from 'src/features/optimizer/MaterialGroups'
+import ServiceLines, {
+  buildServiceLines,
+  emptyServiceLine,
+  serviceLineFromApi,
+  type ServiceLineForm,
+} from './ServiceLines'
+import { useServices } from 'src/features/services/useServices'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
 import OptimizeActionBar from 'src/features/optimizer/OptimizeActionBar'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
@@ -137,6 +144,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const [materials, setMaterials] = useState<MaterialForm[]>(
     () => initialFormData?.materials ?? [emptyCatalogMaterial()],
   )
+  const [services, setServices] = useState<ServiceLineForm[]>(() =>
+    (preOrder.additionalServices ?? []).map(serviceLineFromApi),
+  )
   const [notes, setNotes] = useState(preOrder.notes ?? '')
   const [priceTierCode, setPriceTierCode] = useState(preOrder.priceTierCode ?? 'consumidor')
   const [strategy, setStrategy] = useState<PackingStrategy>(
@@ -154,6 +164,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const { data: boards = [] } = useBoards()
   const { data: edgeBandings = [] } = useEdgeBandings()
+  const { data: servicesCatalog } = useServices({ isActive: true, limit: 100 })
+  const serviceCatalog = servicesCatalog?.items ?? []
   const updatePreOrder = useUpdatePreOrder()
   const deletePreOrder = useDeletePreOrder()
   const createReviewLink = useCreatePreOrderReviewLink()
@@ -170,6 +182,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         data: {
           materials: mInputs,
           requirements: rInputs,
+          additionalServices: buildServiceLines(services),
           notes: notes || undefined,
           priceTierCode,
           strategy,
@@ -190,6 +203,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     field: K,
     value: MaterialForm[K],
   ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
+
+  const addService = () => setServices((ss) => [...ss, emptyServiceLine()])
+  const updateService = <K extends keyof ServiceLineForm>(
+    uid: string,
+    field: K,
+    value: ServiceLineForm[K],
+  ) => setServices((ss) => ss.map((s) => (s.uid === uid ? { ...s, [field]: value } : s)))
+  const removeService = (uid: string) => setServices((ss) => ss.filter((s) => s.uid !== uid))
 
   // Duplicates a material section together with all of its pieces (same behavior as the optimizer).
   const duplicateMaterial = (m: MaterialForm) => {
@@ -487,6 +508,18 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           onExport={() =>
             downloadCsv('piezas.csv', requirementsToCsv(editor.requirements, materials, boards))
           }
+        />
+      )}
+
+      {/* Additional services (perforación, armado, …): billed on top of the cut,
+          default price from the catalog but editable per line. */}
+      {canEdit && (
+        <ServiceLines
+          services={services}
+          catalog={serviceCatalog}
+          onAdd={addService}
+          onUpdate={updateService}
+          onRemove={removeService}
         />
       )}
 
