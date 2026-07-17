@@ -24,6 +24,12 @@ const PricingBlock = ({ pricing, currency = 'USD' }: PricingBlockProps) => {
           <span className="text-danger">-{fmt(pricing.discountAmount)}</span>
         </div>
       )}
+      {!!pricing.servicesTotal && (
+        <div>
+          <span className="text-body-secondary me-2">Servicios adicionales:</span>
+          <span>{fmt(pricing.servicesTotal)}</span>
+        </div>
+      )}
       <div className="fs-5 fw-semibold">
         <span className="text-body-secondary me-2">Total:</span>
         <span>{fmt(pricing.total)}</span>

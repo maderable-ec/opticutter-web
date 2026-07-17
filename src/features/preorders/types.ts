@@ -1,6 +1,7 @@
 import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type {
+  AdditionalServiceInput,
   MaterialInput,
   OptimizeResponse,
   PackingStrategy,
@@ -61,6 +62,7 @@ export interface PreOrder extends PreOrderSummary {
   // Always present in GET /preorders/{id} and PUT responses
   materials: MaterialInput[]
   requirements: RequirementInput[]
+  additionalServices: AdditionalServiceInput[]
   optimization: OptimizeResponse
   history: PreOrderStatusHistoryEntry[]
 }
@@ -73,6 +75,7 @@ export interface PreOrderCreate {
   strategy?: PackingStrategy
   materials: MaterialInput[]
   requirements: RequirementInput[]
+  additionalServices?: AdditionalServiceInput[]
   // Operador: omitted (backend uses their branch). Vendedor: optional (backend uses home branch if omitted).
   // Admin: required.
   branchId?: number

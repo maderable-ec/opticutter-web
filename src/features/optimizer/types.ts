@@ -114,6 +114,9 @@ export interface PricingData {
   discountBase: number
   subtotal: number
   discountAmount: number
+  // Sum of additional services (added after the discount). Optional: absent on
+  // raw /optimize responses and pre-feature snapshots.
+  servicesTotal?: number
   total: number
 }
 
@@ -168,6 +171,16 @@ export interface RequirementInput {
   label?: string
   canRotate: boolean
   edgeBanding?: EdgeBandingSpec
+}
+
+// Billed additional service on a quote (qty × editable unit price). Not cut
+// geometry: it rides alongside the optimizer inputs and is folded into the total
+// server-side, after the discount.
+export interface AdditionalServiceInput {
+  serviceId?: number
+  name: string
+  unitPrice: number
+  quantity: number
 }
 
 export interface OptimizePayload {
