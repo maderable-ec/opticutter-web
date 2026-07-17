@@ -10,7 +10,8 @@ import {
   CTableRow,
 } from '@coreui/react'
 
-import { edgesLabel, fmtMoney } from './format'
+import CantoPreview from 'src/shared/components/CantoPreview'
+import { cantoNotation, cantoSides, edgesLabel, fmtMoney } from './format'
 import type { ReviewPreOrder } from './types'
 
 interface ReviewSummaryProps {
@@ -31,6 +32,8 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
           <CTable small responsive>
             <CTableHead>
               <CTableRow>
+                <CTableHeaderCell className="bg-body-tertiary text-end">#</CTableHeaderCell>
+                <CTableHeaderCell className="bg-body-tertiary">Material</CTableHeaderCell>
                 <CTableHeaderCell className="bg-body-tertiary">Etiqueta</CTableHeaderCell>
                 <CTableHeaderCell className="bg-body-tertiary text-end">
                   Medida (largo × ancho mm)
@@ -42,12 +45,23 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
             <CTableBody>
               {data.pieces?.map((p, i) => (
                 <CTableRow key={i}>
+                  <CTableDataCell className="text-end text-body-secondary">{i + 1}</CTableDataCell>
+                  <CTableDataCell>{p.materialName ?? p.materialCode ?? '—'}</CTableDataCell>
                   <CTableDataCell>{p.label ?? '—'}</CTableDataCell>
                   <CTableDataCell className="text-end text-nowrap">
                     {p.height} × {p.width}
                   </CTableDataCell>
                   <CTableDataCell className="text-end">{p.quantity}</CTableDataCell>
-                  <CTableDataCell>{edgesLabel(p.edges)}</CTableDataCell>
+                  <CTableDataCell>
+                    {p.edges?.sides?.length ? (
+                      <div className="d-flex align-items-center gap-2" title={edgesLabel(p.edges)}>
+                        <CantoPreview sides={cantoSides(p.edges)} />
+                        <span className="text-nowrap">{cantoNotation(p.edges)}</span>
+                      </div>
+                    ) : (
+                      '—'
+                    )}
+                  </CTableDataCell>
                 </CTableRow>
               ))}
             </CTableBody>
@@ -107,6 +121,12 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
                   <span className="text-danger">-{fmtMoney(data.discountAmount, currency)}</span>
                 </div>
               )}
+              {!!data.servicesTotal && (
+                <div>
+                  <span className="text-body-secondary me-2">Servicios adicionales:</span>
+                  <span>{fmtMoney(data.servicesTotal, currency)}</span>
+                </div>
+              )}
               <div className="fs-5 fw-semibold">
                 <span className="text-body-secondary me-2">Total:</span>
                 <span>{fmtMoney(data.total, currency)}</span>
@@ -115,6 +135,42 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
           </div>
         </CCardBody>
       </CCard>
+
+      {!!data.additionalServices?.length && (
+        <CCard className="mb-3">
+          <CCardHeader>
+            <strong>Servicios adicionales</strong>
+          </CCardHeader>
+          <CCardBody>
+            <CTable small responsive>
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell className="bg-body-tertiary">Servicio</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">Cant.</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">
+                    Precio unit.
+                  </CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary text-end">Total</CTableHeaderCell>
+                </CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {data.additionalServices.map((s, i) => (
+                  <CTableRow key={i}>
+                    <CTableDataCell>{s.name}</CTableDataCell>
+                    <CTableDataCell className="text-end">{s.quantity}</CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      {fmtMoney(s.unitPrice, currency)}
+                    </CTableDataCell>
+                    <CTableDataCell className="text-end">
+                      {fmtMoney(s.lineTotal, currency)}
+                    </CTableDataCell>
+                  </CTableRow>
+                ))}
+              </CTableBody>
+            </CTable>
+          </CCardBody>
+        </CCard>
+      )}
     </>
   )
 }

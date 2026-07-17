@@ -29,6 +29,7 @@ import {
   emptyCatalogMaterial,
   emptyEdgeBanding,
   nextUid,
+  piecesMissingBandingProduct,
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
 import { cilArrowLeft, cilCloudDownload, cilCopy, cilExternalLink, cilTrash } from '@coreui/icons'
@@ -127,6 +128,28 @@ const LINK_STATUS_LABELS: Record<string, string> = {
   revoked: 'Reemplazado',
 }
 
+// Stable signature of everything `handleSave` persists. Used to keep "Actualizar" disabled until the
+// user actually changes something. Built from the normalized payload (via buildPayload/buildServiceLines)
+// so cosmetic edits (an empty row, internal reclustering) don't register as real changes.
+function editSignature(
+  materials: MaterialForm[],
+  requirements: RequirementForm[],
+  services: ServiceLineForm[],
+  notes: string,
+  priceTierCode: string,
+  strategy: PackingStrategy,
+): string {
+  const { materials: mInputs, requirements: rInputs } = buildPayload(materials, requirements)
+  return JSON.stringify({
+    materials: mInputs,
+    requirements: rInputs,
+    additionalServices: buildServiceLines(services),
+    notes: notes || '',
+    priceTierCode,
+    strategy,
+  })
+}
+
 // Inner component: receives an already-loaded pre-order
 const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const navigate = useNavigate()
@@ -162,6 +185,20 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const editor = usePiecesEditor(materials, initialFormData?.requirements)
 
+  // "Dirty" tracking: keep "Actualizar" disabled until the editable state differs from the loaded
+  // baseline. The baseline is seeded once (from the same normalized path as `currentSignature`, so it
+  // always matches at mount) and re-synced after a successful save.
+  const currentSignature = editSignature(
+    materials,
+    editor.requirements,
+    services,
+    notes,
+    priceTierCode,
+    strategy,
+  )
+  const [baselineSignature, setBaselineSignature] = useState(() => currentSignature)
+  const isDirty = currentSignature !== baselineSignature
+
   const { data: boards = [] } = useBoards()
   const { data: edgeBandings = [] } = useEdgeBandings()
   const { data: servicesCatalog } = useServices({ isActive: true, limit: 100 })
@@ -191,6 +228,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       {
         onSuccess: (updated) => {
           setOptimization(updated.optimization)
+          // The saved state is the new baseline, so "Actualizar" disables again until further edits.
+          setBaselineSignature(currentSignature)
         },
       },
     )
@@ -270,6 +309,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const summary = piecesSummary(editor.requirements, materials)
   const canSave = summary.pieces > 0
+  // Pieces with banding sides but no tapacanto: block updating the quote until resolved.
+  const missingBanding = piecesMissingBandingProduct(editor.requirements)
+  const saveDisabledHint =
+    missingBanding.length > 0
+      ? 'Falta seleccionar el tapacanto'
+      : canSave && !isDirty
+        ? 'Sin cambios por guardar'
+        : undefined
 
   const isMissingPhone =
     createReviewLink.error instanceof ApiError &&
@@ -511,6 +558,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         />
       )}
 
+      {canEdit && missingBanding.length > 0 && (
+        <CAlert color="warning" className="py-2 small">
+          {missingBanding.length === 1
+            ? `La pieza #${missingBanding.map((i) => i + 1).join('')} tiene canto definido pero no seleccionaste el tapacanto.`
+            : `Hay ${missingBanding.length} piezas con canto definido pero sin tapacanto (#${missingBanding
+                .map((i) => i + 1)
+                .join(', #')}).`}{' '}
+          Selecciona el tapacanto para poder actualizar la cotización.
+        </CAlert>
+      )}
+
       {/* Additional services (perforación, armado, …): billed on top of the cut,
           default price from the catalog but editable per line. */}
       {canEdit && (
@@ -536,11 +594,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         <OptimizeActionBar
           strategy={strategy}
           onStrategyChange={setStrategy}
-          canOptimize={canSave}
+          canOptimize={canSave && isDirty && missingBanding.length === 0}
           isPending={updatePreOrder.isPending}
           hasResult={!!optimization}
           onOptimize={handleSave}
           optimizeLabel="Actualizar cotización"
+          disabledHint={saveDisabledHint}
         />
       )}
 
