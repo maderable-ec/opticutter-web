@@ -13,9 +13,15 @@ interface OptimizeActionBarProps {
   onOptimize: () => void
   // Optional: when omitted (e.g. in the pre-order view, which already is a quote) the button is hidden.
   onCreateQuote?: () => void
+  // Gates the "Crear cotización" button (e.g. disabled while a piece has banding sides but no
+  // tapacanto). Defaults to true.
+  canCreateQuote?: boolean
   // Primary button label. Defaults to "Optimizar"; pre-orders use "Actualizar cotización" since the
   // action there saves and recomputes the quote rather than running a throwaway preview.
   optimizeLabel?: string
+  // Optional muted hint shown next to the primary button while it is disabled (e.g. "Sin cambios
+  // por guardar" in the pre-order view). Only rendered when the button is disabled and not pending.
+  disabledHint?: string
 }
 
 const OPTIONS: { value: PackingStrategy; label: string }[] = [
@@ -33,7 +39,9 @@ const OptimizeActionBar = ({
   hasResult,
   onOptimize,
   onCreateQuote,
+  canCreateQuote = true,
   optimizeLabel = 'Optimizar',
+  disabledHint,
 }: OptimizeActionBarProps) => (
   <div style={{ position: 'sticky', bottom: 0, zIndex: 1020 }} className="mb-3">
     <div className="d-flex flex-wrap align-items-center gap-3 p-2 border rounded-3 bg-body shadow-sm">
@@ -66,8 +74,17 @@ const OptimizeActionBar = ({
       </div>
 
       <div className="ms-auto d-flex align-items-center gap-2">
+        {disabledHint && !canOptimize && !isPending && (
+          <span className="text-body-secondary small d-none d-sm-inline">{disabledHint}</span>
+        )}
         {hasResult && onCreateQuote && (
-          <CButton color="secondary" variant="outline" type="button" onClick={onCreateQuote}>
+          <CButton
+            color="secondary"
+            variant="outline"
+            type="button"
+            disabled={!canCreateQuote}
+            onClick={onCreateQuote}
+          >
             <CIcon icon={cilCart} className="me-1" />
             Crear cotización
           </CButton>

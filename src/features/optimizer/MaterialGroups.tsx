@@ -1,18 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CButton, CButtonGroup, CCard, CCardBody, CCardHeader } from '@coreui/react'
+import {
+  CButton,
+  CButtonGroup,
+  CCard,
+  CCardBody,
+  CCardHeader,
+  CDropdown,
+  CDropdownItem,
+  CDropdownMenu,
+  CDropdownToggle,
+} from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
   cilCloudDownload,
   cilCloudUpload,
   cilCopy,
   cilLayers,
+  cilMove,
   cilPlus,
   cilTrash,
 } from '@coreui/icons'
 
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
-import { piecesSummary, validMaterialUids } from './optimizerForm'
+import { materialLabel, piecesSummary, validMaterialUids } from './optimizerForm'
 import type { PiecesEditor } from './usePiecesEditor'
 import MaterialGroupCard from './MaterialGroupCard'
 
@@ -47,7 +58,16 @@ const MaterialGroups = ({
   onImportOpen,
   onExport,
 }: MaterialGroupsProps) => {
-  const { requirements, selected, undo, canUndo, duplicateSelected, removeSelected, clear } = editor
+  const {
+    requirements,
+    selected,
+    undo,
+    canUndo,
+    duplicateSelected,
+    removeSelected,
+    moveSelectedTo,
+    clear,
+  } = editor
 
   // Collapsed pieces tables, keyed by material uid (expanded by default = not in the set).
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -112,21 +132,44 @@ const MaterialGroups = ({
             </CButton>
           )}
           {hasSelection && (
-            <CButtonGroup size="sm">
-              <CButton
-                color="secondary"
-                variant="outline"
-                type="button"
-                onClick={duplicateSelected}
-              >
-                <CIcon icon={cilCopy} className="me-1" />
-                Duplicar ({selected.size})
-              </CButton>
-              <CButton color="danger" variant="outline" type="button" onClick={removeSelected}>
-                <CIcon icon={cilTrash} className="me-1" />
-                Eliminar ({selected.size})
-              </CButton>
-            </CButtonGroup>
+            <>
+              <CDropdown variant="btn-group">
+                <CDropdownToggle size="sm" color="secondary" variant="outline">
+                  <CIcon icon={cilMove} className="me-1" />
+                  Mover a… ({selected.size})
+                </CDropdownToggle>
+                <CDropdownMenu>
+                  {materials.length === 0 && (
+                    <CDropdownItem disabled>No hay materiales</CDropdownItem>
+                  )}
+                  {materials.map((m) => (
+                    <CDropdownItem
+                      key={m.uid}
+                      as="button"
+                      type="button"
+                      onClick={() => moveSelectedTo(m.uid)}
+                    >
+                      {materialLabel(m, boards)}
+                    </CDropdownItem>
+                  ))}
+                </CDropdownMenu>
+              </CDropdown>
+              <CButtonGroup size="sm">
+                <CButton
+                  color="secondary"
+                  variant="outline"
+                  type="button"
+                  onClick={duplicateSelected}
+                >
+                  <CIcon icon={cilCopy} className="me-1" />
+                  Duplicar ({selected.size})
+                </CButton>
+                <CButton color="danger" variant="outline" type="button" onClick={removeSelected}>
+                  <CIcon icon={cilTrash} className="me-1" />
+                  Eliminar ({selected.size})
+                </CButton>
+              </CButtonGroup>
+            </>
           )}
           <CButton
             size="sm"

@@ -1,20 +1,21 @@
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { CAlert, CButton, CCard, CCardBody, CContainer, CSpinner } from '@coreui/react'
+import CIcon from '@coreui/icons-react'
 
+import { logo } from 'src/assets/brand/logo'
 import { ApiError } from 'src/shared/api/types'
 import { useReview } from './useReview'
-import { reviewApi } from './reviewApi'
 import ReviewSummary from './ReviewSummary'
 import ReviewActions from './ReviewActions'
 import { fmtDate, fmtDateTime } from './format'
 
 const Shell = ({ children }: { children: ReactNode }) => (
-  <div className="min-vh-100 bg-body-tertiary py-4">
+  <div className="min-vh-100 bg-body-tertiary py-4" style={{ borderTop: '4px solid #E85050' }}>
     <CContainer style={{ maxWidth: 880 }}>
-      <div className="text-center mb-4">
-        <h4 className="mb-0">Maderable</h4>
-        <div className="text-body-secondary small">Revisión de cotización</div>
+      <div className="text-center mb-5">
+        <CIcon icon={logo} height={56} />
+        <div className="text-body-secondary small mt-2">Revisión de cotización</div>
       </div>
       {children}
     </CContainer>
@@ -116,15 +117,6 @@ const ReviewPage = () => {
         <ReviewSummary data={data} />
         <CCard className="mb-3">
           <CCardBody>
-            <div className="mb-3">
-              <CButton
-                color="secondary"
-                variant="outline"
-                onClick={() => reviewApi.downloadProforma(token)}
-              >
-                Descargar proforma (PDF)
-              </CButton>
-            </div>
             <ReviewActions token={token} />
           </CCardBody>
         </CCard>
@@ -141,17 +133,6 @@ const ReviewPage = () => {
         </CAlert>
         {header}
         <ReviewSummary data={data} />
-        <CCard className="mb-3">
-          <CCardBody>
-            <CButton
-              color="secondary"
-              variant="outline"
-              onClick={() => reviewApi.downloadProforma(token)}
-            >
-              Descargar proforma (PDF)
-            </CButton>
-          </CCardBody>
-        </CCard>
       </Shell>
     )
   }

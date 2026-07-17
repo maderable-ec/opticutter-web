@@ -18,16 +18,18 @@ import {
   cilArrowThickBottom,
   cilArrowThickTop,
   cilCopy,
+  cilMove,
   cilTrash,
 } from '@coreui/icons'
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
+import CantoPreview from 'src/shared/components/CantoPreview'
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
-import type { EdgeSide } from './types'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import {
   CANTO_NOTATIONS,
   isRequirementEmpty,
+  needsBandingProduct,
   notationFromSides,
   sidesFromNotation,
 } from './optimizerForm'
@@ -87,17 +89,14 @@ const thStyle: CSSProperties = {
   zIndex: 2,
 }
 
-// SVG thumbnail: the piece is displayed rotated 90° clockwise, so long sides (L = left/right of the
-// piece) appear as horizontal bars top/bottom, and short sides (C = top/bottom) as vertical bars.
-const CantoPreview = ({ sides }: { sides: Record<EdgeSide, boolean> }) => (
-  <svg width="28" height="18" viewBox="0 0 28 18" style={{ flexShrink: 0 }}>
-    <rect x="1" y="1" width="26" height="16" fill="none" stroke="#adb5bd" strokeWidth="1" />
-    {sides.left && <line x1="1" y1="1" x2="27" y2="1" stroke="#d9480f" strokeWidth="2" />}
-    {sides.right && <line x1="1" y1="17" x2="27" y2="17" stroke="#d9480f" strokeWidth="2" />}
-    {sides.bottom && <line x1="1" y1="1" x2="1" y2="17" stroke="#d9480f" strokeWidth="2" />}
-    {sides.top && <line x1="27" y1="1" x2="27" y2="17" stroke="#d9480f" strokeWidth="2" />}
-  </svg>
-)
+// Grip in the "#" column: grab it to drag-reorder the row within its material.
+const rowHandleStyle: CSSProperties = {
+  cursor: 'grab',
+  touchAction: 'none',
+  color: 'var(--cui-secondary-color)',
+  display: 'inline-flex',
+  alignItems: 'center',
+}
 
 const PieceRowsTable = ({
   materialUid,
@@ -119,6 +118,7 @@ const PieceRowsTable = ({
     update,
     fillDownGroup,
     fillRange,
+    moveRow,
     sortGroup,
     toggleSelect,
     selectMany,
@@ -131,6 +131,8 @@ const PieceRowsTable = ({
   const [activeCell, setActiveCell] = useState<{ row: number; col: number } | null>(null)
   // Active fill drag. `targetRow` is the local row under the pointer (clamped to this group).
   const [drag, setDrag] = useState<{ srcRow: number; col: number; targetRow: number } | null>(null)
+  // Active row-reorder drag (from the "#" grip). Separate from the fill drag above.
+  const [rowDrag, setRowDrag] = useState<{ srcRow: number; targetRow: number } | null>(null)
   const [sort, setSort] = useState<{ field: SortField; dir: SortDir } | null>(null)
 
   const flatOf = (local: number) => startIndex + local
@@ -302,6 +304,34 @@ const PieceRowsTable = ({
     )
   }
 
+  // Grip in the "#" column: drag it to reorder the row within its material (moveRow clamps to the
+  // group). Same Pointer-Events pattern as the fill handle, but a distinct drag state.
+  const renderRowHandle = (local: number) => (
+    <span
+      title="Arrastrar para reordenar"
+      style={rowHandleStyle}
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        setRowDrag({ srcRow: local, targetRow: local })
+      }}
+      onPointerMove={(e) => {
+        const target = rowFromY(e.clientY)
+        setRowDrag((d) => (!d || d.targetRow === target ? d : { ...d, targetRow: target }))
+      }}
+      onPointerUp={(e) => {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+        if (rowDrag && rowDrag.srcRow !== rowDrag.targetRow) {
+          moveRow(flatOf(rowDrag.srcRow), flatOf(rowDrag.targetRow))
+        }
+        setRowDrag(null)
+      }}
+      onPointerCancel={() => setRowDrag(null)}
+    >
+      <CIcon icon={cilMove} size="sm" />
+    </span>
+  )
+
   // "Fill down" button in a column header.
   const renderFill = (field: FillableField, title: string) => (
     <CButton
@@ -351,6 +381,9 @@ const PieceRowsTable = ({
                 title="Seleccionar todo el grupo"
               />
             </CTableHeaderCell>
+            <CTableHeaderCell className="text-center" style={{ ...thStyle, width: 48 }}>
+              #
+            </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>
               {renderSort('height', 'Largo (mm)')}
               {renderFill('height', 'Igualar largo')}
@@ -387,12 +420,33 @@ const PieceRowsTable = ({
           {rows.map((req, local) => {
             const i = flatOf(local)
             const rowValid = materialValid && Number(req.height) > 0 && Number(req.width) > 0
-            const isError = !rowValid && !isRequirementEmpty(req)
+            // Edge banding sides defined but no tapacanto picked: valid to optimize, invalid to quote.
+            const bandingMissing = needsBandingProduct(req)
+            const isError = bandingMissing || (!rowValid && !isRequirementEmpty(req))
             const cantoNotation = notationFromSides(req.edgeBanding.sides)
+            const isDropTarget =
+              !!rowDrag && rowDrag.srcRow !== rowDrag.targetRow && rowDrag.targetRow === local
             return (
-              <CTableRow key={i} color={isError ? 'danger' : undefined}>
+              <CTableRow
+                key={i}
+                color={isError ? 'danger' : undefined}
+                style={rowDrag?.srcRow === local ? { opacity: 0.5 } : undefined}
+              >
                 <CTableDataCell className="text-center">
                   <CFormCheck checked={selected.has(i)} onChange={() => toggleSelect(i)} />
+                </CTableDataCell>
+                <CTableDataCell
+                  className="text-center text-body-secondary"
+                  style={{
+                    position: 'relative',
+                    width: 48,
+                    ...(isDropTarget ? { boxShadow: 'inset 0 0 0 2px var(--cui-primary)' } : {}),
+                  }}
+                >
+                  <div className="d-flex align-items-center justify-content-center gap-1">
+                    {renderRowHandle(local)}
+                    <span>{i + 1}</span>
+                  </div>
                 </CTableDataCell>
                 <CTableDataCell style={cellStyle(0, local, 80)}>
                   <CFormInput
@@ -504,14 +558,20 @@ const PieceRowsTable = ({
                 {/* onFocus on the cell captures focus from the inner SearchableSelect button so the
                     drag fill handle appears; the handle fills edgeBandingProductId down the group. */}
                 <CTableDataCell
-                  style={cellStyle(6, local, 170)}
+                  style={{
+                    ...cellStyle(6, local, 170),
+                    ...(bandingMissing ? { boxShadow: 'inset 0 0 0 2px var(--cui-danger)' } : {}),
+                  }}
+                  title={
+                    bandingMissing ? 'Selecciona el tapacanto para el canto definido' : undefined
+                  }
                   onFocus={() => setActiveCell({ row: local, col: 6 })}
                 >
                   <SearchableSelect
                     size="sm"
                     value={String(req.edgeBanding.productId)}
                     disabled={cantoNotation === '—'}
-                    placeholder="—"
+                    placeholder={bandingMissing ? '⚠ Falta tapacanto' : '—'}
                     searchPlaceholder="Buscar tapacanto…"
                     emptyText="Sin tapacantos que coincidan"
                     options={[
@@ -553,7 +613,7 @@ const PieceRowsTable = ({
           })}
           {rows.length === 0 && (
             <CTableRow>
-              <CTableDataCell colSpan={10} className="text-center text-body-secondary small py-3">
+              <CTableDataCell colSpan={11} className="text-center text-body-secondary small py-3">
                 Sin piezas en este material. Usa “Agregar pieza” o la entrada rápida.
               </CTableDataCell>
             </CTableRow>

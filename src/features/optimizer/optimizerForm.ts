@@ -85,6 +85,19 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
 
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean => selectedSides(eb).length > 0
 
+// A piece has edge-banding sides selected but no tapacanto (product) chosen. Allowed for a raw
+// optimize (geometry only, productId assigned later), but must be resolved before quoting so the
+// banding can be priced and drawn — otherwise it produces an unidentified/unpriced banding line.
+export const needsBandingProduct = (r: RequirementForm): boolean =>
+  hasEdgeBanding(r.edgeBanding) && !r.edgeBanding.productId
+
+// Flat indices of pieces with sides defined but no tapacanto — used to block quoting and flag rows.
+export const piecesMissingBandingProduct = (requirements: RequirementForm[]): number[] =>
+  requirements.reduce<number[]>((acc, r, i) => {
+    if (needsBandingProduct(r)) acc.push(i)
+    return acc
+  }, [])
+
 // Valid material uids: pieces may only reference one of these.
 export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
   new Set(materials.filter(isMaterialValid).map((m) => m.uid))
