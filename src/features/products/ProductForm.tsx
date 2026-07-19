@@ -32,6 +32,7 @@ interface AttrsForm {
   bandType?: string
   color?: string
   length?: number | string
+  family?: string
 }
 
 interface ProductFormState {
@@ -42,13 +43,20 @@ interface ProductFormState {
   isActive: boolean
 }
 
-const EMPTY_BOARD_ATTRS: AttrsForm = { height: '', width: '', thickness: '', grainDirection: '' }
+const EMPTY_BOARD_ATTRS: AttrsForm = {
+  height: '',
+  width: '',
+  thickness: '',
+  grainDirection: '',
+  family: '',
+}
 const EMPTY_EDGE_ATTRS: AttrsForm = {
   thickness: '',
   width: '',
   bandType: '',
   color: '',
   length: '',
+  family: '',
 }
 
 const initAttrs = (product: Product | null): AttrsForm => {
@@ -60,6 +68,7 @@ const initAttrs = (product: Product | null): AttrsForm => {
       width: a.width ?? '',
       thickness: a.thickness ?? '',
       grainDirection: a.grainDirection ?? '',
+      family: a.family ?? '',
     }
   }
   const a = product.attributes ?? {}
@@ -69,6 +78,7 @@ const initAttrs = (product: Product | null): AttrsForm => {
     bandType: a.bandType ?? '',
     color: a.color ?? '',
     length: a.length ?? '',
+    family: a.family ?? '',
   }
 }
 
@@ -135,6 +145,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             width: Number(attrs.width),
             thickness: Number(attrs.thickness),
             grainDirection: attrs.grainDirection || null,
+            family: attrs.family?.trim() || undefined,
           }
         : {
             thickness: Number(attrs.thickness),
@@ -142,6 +153,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             bandType: attrs.bandType || null,
             color: attrs.color || null,
             length: attrs.length ? Number(attrs.length) : null,
+            family: attrs.family?.trim() || undefined,
           }
 
     onSubmit({
@@ -283,7 +295,7 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 </CFormSelect>
                 <FieldError name="thickness" errors={fieldErrors} />
               </CCol>
-              <CCol xs={12}>
+              <CCol xs={6}>
                 <CFormLabel>Dirección de veta</CFormLabel>
                 <CFormInput
                   value={attrs.grainDirection}
@@ -292,6 +304,19 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   placeholder="Ej: H (opcional)"
                 />
                 <FieldError name="grainDirection" errors={fieldErrors} />
+              </CCol>
+              <CCol xs={6}>
+                <CFormLabel>Familia</CFormLabel>
+                <CFormInput
+                  value={attrs.family}
+                  onChange={setAttr('family')}
+                  maxLength={64}
+                  placeholder="Ej: CASHMERE"
+                />
+                <small className="text-body-secondary">
+                  Debe coincidir con la familia del tapacanto para coordinarlos.
+                </small>
+                <FieldError name="family" errors={fieldErrors} />
               </CCol>
             </>
           )}
@@ -355,6 +380,19 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                   placeholder="Opcional"
                 />
                 <FieldError name="length" errors={fieldErrors} />
+              </CCol>
+              <CCol xs={12}>
+                <CFormLabel>Familia</CFormLabel>
+                <CFormInput
+                  value={attrs.family}
+                  onChange={setAttr('family')}
+                  maxLength={64}
+                  placeholder="Ej: CASHMERE"
+                />
+                <small className="text-body-secondary">
+                  Debe coincidir con la familia del tablero para coordinarlos.
+                </small>
+                <FieldError name="family" errors={fieldErrors} />
               </CCol>
             </>
           )}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { CBadge, CButton, CFormInput, CFormLabel, CFormSelect } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
@@ -7,15 +7,20 @@ import { cilChevronBottom, cilChevronRight, cilCopy, cilPlus, cilTrash } from '@
 import SearchableSelect from 'src/shared/components/SearchableSelect'
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { MaterialSourceKind } from './types'
-import type { MaterialForm, RequirementForm } from './optimizerForm'
+import type { BandType, MaterialForm, RequirementForm } from './optimizerForm'
 import {
+  BAND_TYPE_TOKEN_RE,
   CANTO_NOTATION_RE,
+  CS_CD_TO_BANDTYPE,
   SOURCE_LABELS,
   emptyRequirement,
+  hasEdgeBanding,
+  inferBandingProductId,
   isRequirementEmpty,
   sidesFromNotation,
 } from './optimizerForm'
 import type { PiecesEditor } from './usePiecesEditor'
+import { useBoardEdgeBandings } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
 
 const SOURCES: MaterialSourceKind[] = ['catalog', 'companyOffcut', 'clientOffcut']
@@ -43,8 +48,9 @@ const boardDims = (b?: BoardProduct): string | null => {
   return `${width}×${height}${thickness ? `×${thickness}` : ''} mm`
 }
 
-// Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C".
-// Separator: x, X, ×, *. Decimal: dot or comma. Edge notation goes LAST, after the label.
+// Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C CS".
+// Separator: x, X, ×, *. Decimal: dot or comma. Edge notation and optional CS/CD (canto
+// suave/duro) go LAST, after the label — CS/CD after the notation (e.g. "…2L1C CS").
 const QUICK_REGEX =
   /^(\d+(?:[.,]\d+)?)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)(?:\s*[xX×*]\s*(\d+(?:[.,]\d+)?))?(?:\s+(.+))?$/
 
@@ -56,20 +62,31 @@ const parseQuickEntry = (
   quantity: number
   label: string
   notation: string | null
+  bandType: BandType | null
 } | null => {
   const m = text.trim().match(QUICK_REGEX)
   if (!m) return null
   const toNum = (s?: string) => (s ? Number(s.replace(',', '.')) : 0)
   const remaining = (m[4] ?? '').trim()
   let notation: string | null = null
+  let bandType: BandType | null = null
   let label = remaining
   if (remaining) {
     const parts = remaining.split(/\s+/)
-    const last = parts[parts.length - 1]
+    // Pop from the end: an optional CS/CD band-type token, then an optional canto notation.
+    let last = parts[parts.length - 1]
+    if (last && BAND_TYPE_TOKEN_RE.test(last)) {
+      bandType = CS_CD_TO_BANDTYPE[last.toUpperCase()] ?? null
+      parts.pop()
+      last = parts[parts.length - 1]
+    }
     if (last && CANTO_NOTATION_RE.test(last)) {
       notation = last.toUpperCase()
-      label = parts.slice(0, -1).join(' ')
+      parts.pop()
     }
+    // A band type without banded sides is meaningless — drop it.
+    if (!notation) bandType = null
+    label = parts.join(' ')
   }
   return {
     height: toNum(m[1]),
@@ -77,6 +94,7 @@ const parseQuickEntry = (
     quantity: m[3] ? Math.max(1, Math.round(toNum(m[3]))) : 1,
     label: label.trim(),
     notation,
+    bandType,
   }
 }
 
@@ -98,6 +116,11 @@ const MaterialGroupCard = ({
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
 
+  // Tapacantos coordinated with this group's board (same family + width rule). Empty for
+  // non-catalog sources or catalog gaps — the table falls back to the global list.
+  const boardId = m.source === 'catalog' && m.boardId ? String(m.boardId) : undefined
+  const { data: boardEdgeBandings = [] } = useBoardEdgeBandings(boardId)
+
   const invalidCount = rows.filter(
     (r) =>
       !(materialValid && Number(r.height) > 0 && Number(r.width) > 0) && !isRequirementEmpty(r),
@@ -108,12 +131,36 @@ const MaterialGroupCard = ({
       ? boardDims(boards.find((b) => String(b.id) === String(m.boardId)))
       : null
 
+  // When the board CHANGES, re-infer the tapacanto for every banded piece from its band type: a
+  // new board invalidates prior tapacanto choices (manual picks included). The change is detected
+  // here, but the board's coordinated list loads asynchronously, so we mark a pending re-inference
+  // and run it once the new list arrives. Crucially this does NOT fire on initial mount, so loading
+  // an existing quote never clobbers its saved tapacantos.
+  const coordinatedKey = boardEdgeBandings.map((p) => p.id).join(',')
+  const prevBoardId = useRef(boardId)
+  const pendingReinfer = useRef(false)
+  useEffect(() => {
+    if (prevBoardId.current !== boardId) {
+      prevBoardId.current = boardId
+      pendingReinfer.current = true
+    }
+    if (!pendingReinfer.current || !boardId || boardEdgeBandings.length === 0) return
+    pendingReinfer.current = false
+    editor.updateGroup(m.uid, (r) => {
+      if (!hasEdgeBanding(r.edgeBanding)) return r
+      const productId = inferBandingProductId(boardEdgeBandings, r.edgeBanding.bandType)
+      if (!productId || productId === r.edgeBanding.productId) return r
+      return { ...r, edgeBanding: { ...r.edgeBanding, productId } }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.uid, boardId, coordinatedKey])
+
   const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     if (!quickText.trim()) return
     const parsed = parseQuickEntry(quickText)
     if (!parsed) {
-      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta 1L2C')
+      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta 1L2C CS')
       return
     }
     const req = emptyRequirement(m.uid)
@@ -123,9 +170,13 @@ const MaterialGroupCard = ({
     req.label = parsed.label
     if (parsed.notation) {
       const lastEb = rows[rows.length - 1]?.edgeBanding
+      const bandType: '' | BandType = parsed.bandType ?? lastEb?.bandType ?? ''
+      const productId =
+        inferBandingProductId(boardEdgeBandings, bandType) || lastEb?.productId || ''
       req.edgeBanding = {
-        productId: lastEb?.productId ?? '',
+        productId,
         sides: sidesFromNotation(parsed.notation),
+        bandType,
       }
     }
     editor.addMany([req], false)
@@ -281,6 +332,7 @@ const MaterialGroupCard = ({
             materialValid={materialValid}
             editor={editor}
             edgeBandings={edgeBandings}
+            boardEdgeBandings={boardEdgeBandings}
             materials={materials}
             boards={boards}
           />
@@ -303,7 +355,7 @@ const MaterialGroupCard = ({
                 setQuickError('')
               }}
               onKeyDown={handleQuickEntry}
-              placeholder="720×400×4  Etiqueta  1L2C  (Enter para agregar)"
+              placeholder="720×400×4  Etiqueta  1L2C  CS  (Enter para agregar)"
               invalid={!!quickError}
               style={{ maxWidth: 380 }}
             />
