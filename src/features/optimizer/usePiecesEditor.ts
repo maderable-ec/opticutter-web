@@ -15,6 +15,7 @@ export type FillableField =
   | 'edgeBanding'
   | 'edgeBandingSides'
   | 'edgeBandingProductId'
+  | 'edgeBandingBandType'
 export type FillScope = 'all' | 'selected'
 
 // Campos por los que se puede ordenar una tabla de grupo.
@@ -59,7 +60,11 @@ const applyField = (
   if (field === 'edgeBanding') {
     return {
       ...r,
-      edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
+      edgeBanding: {
+        productId: src.edgeBanding.productId,
+        sides: { ...src.edgeBanding.sides },
+        bandType: src.edgeBanding.bandType ?? '',
+      },
     }
   }
   if (field === 'edgeBandingSides') {
@@ -67,6 +72,9 @@ const applyField = (
   }
   if (field === 'edgeBandingProductId') {
     return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
+  }
+  if (field === 'edgeBandingBandType') {
+    return { ...r, edgeBanding: { ...r.edgeBanding, bandType: src.edgeBanding.bandType ?? '' } }
   }
   return { ...r, [field]: src[field] }
 }
@@ -265,6 +273,22 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // Grouped view: applies a pure mapper to each row of a material's group. Used for automatic,
+  // derived updates (e.g. re-inferring the coordinated tapacanto when the board changes), so it
+  // does NOT push to the undo history and no-ops when the mapper changes nothing (keeps referential
+  // identity to avoid effect loops).
+  const updateGroup = (materialUid: string, mapper: (r: RequirementForm) => RequirementForm) =>
+    setRequirements((rs) => {
+      let changed = false
+      const next = rs.map((r) => {
+        if (r.materialUid !== materialUid) return r
+        const mapped = mapper(r)
+        if (mapped !== r) changed = true
+        return mapped
+      })
+      return changed ? next : rs
+    })
+
   const clear = () => {
     applyWithHistory(() => [emptyRequirement(firstUid())])
     setSelected(new Set())
@@ -396,6 +420,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     fillRange,
     moveRow,
     sortGroup,
+    updateGroup,
     clear,
     movePiecesTo,
     moveSelectedTo,

@@ -1,4 +1,4 @@
-import type { BoardProduct } from 'src/features/products/types'
+import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { EdgeSide, MaterialInput, MaterialSourceKind, RequirementInput } from './types'
 
 // --- Form model (during editing; numbers may be '' while the user is typing) ---
@@ -17,6 +17,9 @@ export interface MaterialForm {
 export interface EdgeBandingForm {
   productId: string // '' = no edge banding product selected
   sides: Record<EdgeSide, boolean>
+  // User's soft/hard intent ('' = auto/derived from the selected product). Drives which
+  // coordinated tapacanto (productId) is inferred; NOT sent in the API payload.
+  bandType?: '' | BandType
 }
 
 export interface RequirementForm {
@@ -51,6 +54,7 @@ export const nextUid = () => `mat-${(seq++).toString(36)}-${Math.random().toStri
 export const emptyEdgeBanding = (): EdgeBandingForm => ({
   productId: '',
   sides: { top: false, bottom: false, left: false, right: false },
+  bandType: '',
 })
 
 export const emptyCatalogMaterial = (): MaterialForm => ({
@@ -113,7 +117,11 @@ export const isRequirementEmpty = (r: RequirementForm): boolean =>
 // Deep clone of a piece (edgeBanding.sides is an object) used when duplicating rows.
 export const cloneRequirement = (r: RequirementForm): RequirementForm => ({
   ...r,
-  edgeBanding: { productId: r.edgeBanding.productId, sides: { ...r.edgeBanding.sides } },
+  edgeBanding: {
+    productId: r.edgeBanding.productId,
+    sides: { ...r.edgeBanding.sides },
+    bandType: r.edgeBanding.bandType ?? '',
+  },
 })
 
 export interface PiecesSummary {
@@ -270,3 +278,38 @@ export function sidesFromNotation(n: string): Record<EdgeSide, boolean> {
 }
 
 export const CANTO_NOTATION_RE = /^(?:4[Ll]|[12][Ll](?:[12][Cc])?|[12][Cc])$/
+
+// --- Edge banding type (canto suave/duro) ---
+// Canonical values match the backend/product catalog ('Soft'/'Hard'). CS = canto suave,
+// CD = canto duro — the abbreviations used in the quick-entry notation and PDFs.
+export type BandType = 'Soft' | 'Hard'
+
+export const BAND_TYPES: { value: BandType; label: string; abbr: string }[] = [
+  { value: 'Soft', label: 'Suave', abbr: 'CS' },
+  { value: 'Hard', label: 'Duro', abbr: 'CD' },
+]
+
+export const CS_CD_TO_BANDTYPE: Record<string, BandType> = { CS: 'Soft', CD: 'Hard' }
+export const BANDTYPE_ABBR: Record<BandType, string> = { Soft: 'CS', Hard: 'CD' }
+
+// A trailing quick-entry token declaring the band type (e.g. "…2L1C CS").
+export const BAND_TYPE_TOKEN_RE = /^C[SD]$/i
+
+// Picks the coordinated tapacanto for a band type. `coord` is the board's coordinated list
+// (already sorted by thickness asc by the backend), so the first match is the thinnest.
+export const inferBandingProductId = (
+  coord: EdgeBandingProduct[],
+  bandType: BandType | '' | undefined,
+): string => {
+  const pool = bandType ? coord.filter((p) => p.attributes.bandType === bandType) : coord
+  return pool[0] ? String(pool[0].id) : ''
+}
+
+// The band type to display for a piece: the explicit choice, or (fallback) the one derived from
+// the assigned tapacanto product. Lets the "Tipo" column show the right value for quotes loaded
+// with a productId but no explicit bandType, without a hydration step.
+export const displayedBandType = (
+  eb: EdgeBandingForm,
+  byId: Map<string, EdgeBandingProduct>,
+): '' | BandType =>
+  eb.bandType || ((byId.get(eb.productId)?.attributes.bandType as BandType | undefined) ?? '')

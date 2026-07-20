@@ -5,6 +5,7 @@ export interface BoardAttributes {
   width?: number
   thickness?: number
   grainDirection?: string
+  family?: string
 }
 
 export interface EdgeBandingAttributes {
@@ -13,6 +14,7 @@ export interface EdgeBandingAttributes {
   length?: number
   bandType?: string
   color?: string
+  family?: string
 }
 
 interface ProductBase {
