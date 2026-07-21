@@ -74,7 +74,16 @@ const applyField = (
     return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
   }
   if (field === 'edgeBandingBandType') {
-    return { ...r, edgeBanding: { ...r.edgeBanding, bandType: src.edgeBanding.bandType ?? '' } }
+    // Mirror the manual "Tipo" select: the band type and its coordinated tapacanto travel
+    // together, so a drag-fill of this column doesn't leave target rows without a product.
+    return {
+      ...r,
+      edgeBanding: {
+        ...r.edgeBanding,
+        bandType: src.edgeBanding.bandType ?? '',
+        productId: src.edgeBanding.productId,
+      },
+    }
   }
   return { ...r, [field]: src[field] }
 }
