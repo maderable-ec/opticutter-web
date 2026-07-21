@@ -196,7 +196,7 @@ const WorkshopPage = () => {
       {/* Sticky controls: overall progress + board selector, always accessible while cutting */}
       <div
         className="bg-body border-bottom mb-3 pt-2 pb-2 px-2"
-        style={{ position: 'sticky', top: '4rem', zIndex: 1020 }}
+        style={{ position: 'sticky', top: '4rem', zIndex: 1010 }}
       >
         <div className="d-flex align-items-center gap-3 mb-2">
           <strong className="text-nowrap">
