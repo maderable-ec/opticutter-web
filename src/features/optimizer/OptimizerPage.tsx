@@ -8,9 +8,9 @@ import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
 import {
   buildPayload,
+  cloneMaterial,
   emptyCatalogMaterial,
   isRequirementEmpty,
-  nextUid,
   piecesMissingBandingProduct,
 } from './optimizerForm'
 import type { MaterialForm } from './optimizerForm'
@@ -66,7 +66,7 @@ const OptimizerPage = () => {
   // Duplicates a material section together with all of its pieces: a fresh-uid material clone is
   // inserted right after the source, and its pieces are cloned and re-pointed to the new uid.
   const duplicateMaterial = (m: MaterialForm) => {
-    const clone = { ...m, uid: nextUid() }
+    const clone = cloneMaterial(m)
     setMaterials((ms) => {
       const i = ms.findIndex((x) => x.uid === m.uid)
       return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]

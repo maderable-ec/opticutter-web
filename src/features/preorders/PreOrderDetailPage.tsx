@@ -16,8 +16,14 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
 import type {
+  MaterialForm,
+  OffcutForm,
+  OffcutSource,
+  RequirementForm,
+} from 'src/features/optimizer/optimizerForm'
+import type {
+  InlineMaterialInput,
   MaterialInput,
   OptimizeResponse,
   PackingStrategy,
@@ -26,6 +32,7 @@ import type {
 import type { PreOrder, PreOrderStatus } from './types'
 import {
   buildPayload,
+  cloneMaterial,
   emptyCatalogMaterial,
   emptyEdgeBanding,
   nextUid,
@@ -73,11 +80,21 @@ function formFromPreOrderData(
   requirements: RequirementInput[],
 ): { materials: MaterialForm[]; requirements: RequirementForm[] } {
   const keyToUid = new Map<string, string>()
-  const matForms: MaterialForm[] = materials.map((m) => {
+  // Catalog forms indexed by material key so pooled offcuts can re-attach to them.
+  const catalogByKey = new Map<string, MaterialForm>()
+  const matForms: MaterialForm[] = []
+  const pooledOffcuts: InlineMaterialInput[] = []
+
+  for (const m of materials) {
+    // A pooled offcut is not its own group: it re-attaches to its parent board.
+    if (m.source !== 'catalog' && m.poolKey) {
+      pooledOffcuts.push(m)
+      continue
+    }
     const uid = nextUid()
     keyToUid.set(m.key, uid)
     if (m.source === 'catalog') {
-      return {
+      const form: MaterialForm = {
         uid,
         source: 'catalog',
         boardId: String(m.productId),
@@ -86,19 +103,42 @@ function formFromPreOrderData(
         width: '',
         thickness: '',
         costPerUnit: '',
+        offcuts: [],
+        fillOrder: m.fillOrder ?? 'auto',
       }
+      catalogByKey.set(m.key, form)
+      matForms.push(form)
+    } else {
+      matForms.push({
+        uid,
+        source: m.source,
+        boardId: '',
+        label: m.label ?? '',
+        height: m.height,
+        width: m.width,
+        thickness: m.thickness,
+        costPerUnit: m.costPerUnit ?? 0,
+      })
     }
-    return {
-      uid,
-      source: m.source,
-      boardId: '',
-      label: m.label ?? '',
-      height: m.height,
-      width: m.width,
-      thickness: m.thickness,
-      costPerUnit: m.costPerUnit ?? 0,
+  }
+
+  // Re-attach each pooled offcut to its parent catalog board (orphans ignored).
+  for (const o of pooledOffcuts) {
+    const parent = o.poolKey ? catalogByKey.get(o.poolKey) : undefined
+    if (!parent) continue
+    const source: OffcutSource = o.source === 'companyOffcut' ? 'companyOffcut' : 'clientOffcut'
+    const offcut: OffcutForm = {
+      uid: nextUid(),
+      source,
+      label: o.label ?? '',
+      height: o.height,
+      width: o.width,
+      thickness: o.thickness,
+      costPerUnit: o.costPerUnit ?? 0,
+      quantity: o.quantity ?? 1,
     }
-  })
+    parent.offcuts = [...(parent.offcuts ?? []), offcut]
+  }
   const reqForms: RequirementForm[] = requirements.map((r) => ({
     materialUid: keyToUid.get(r.materialKey) ?? '',
     height: r.height,
@@ -253,7 +293,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   // Duplicates a material section together with all of its pieces (same behavior as the optimizer).
   const duplicateMaterial = (m: MaterialForm) => {
-    const clone = { ...m, uid: nextUid() }
+    const clone = cloneMaterial(m)
     setMaterials((ms) => {
       const i = ms.findIndex((x) => x.uid === m.uid)
       return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]

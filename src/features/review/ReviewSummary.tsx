@@ -90,11 +90,6 @@ const ReviewSummary = ({ data }: ReviewSummaryProps) => {
                 <CTableRow key={i}>
                   <CTableDataCell>
                     <div>{l.productName ?? '—'}</div>
-                    {l.linearM != null && (
-                      <div className="text-body-secondary small">
-                        {l.linearM} m lineales → se cobran {l.quantity}
-                      </div>
-                    )}
                   </CTableDataCell>
                   <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
                   <CTableDataCell className="text-end">
