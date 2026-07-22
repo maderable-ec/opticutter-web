@@ -5,6 +5,7 @@
 // This file (WorkshopBoardPage) is the multi-order dashboard at /workshop-board.
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   CAlert,
   CButton,
@@ -25,7 +26,8 @@ import CIcon from '@coreui/icons-react'
 import { cilArrowRight, cilCheckAlt, cilMediaPlay } from '@coreui/icons'
 
 import { useHasRole } from 'src/features/auth/useAuth'
-import { usePrintConsolidated } from 'src/features/print/usePrint'
+import { PRINT_JOBS_KEY, usePrintConsolidated } from 'src/features/print/usePrint'
+import PrintJobsPanel from 'src/features/print/PrintJobsPanel'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
 import { useUpdateBanding, useUpdateOrderStatus, useWorkshopQueue } from './useOrders'
@@ -73,6 +75,7 @@ interface CardAction {
 
 const WorkshopBoardPage = () => {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { data: items = [], isLoading, error } = useWorkshopQueue()
   const updateStatus = useUpdateOrderStatus()
   const updateBanding = useUpdateBanding()
@@ -89,7 +92,14 @@ const WorkshopBoardPage = () => {
     else if (kind === 'complete')
       updateStatus.mutate(
         { id, data: { status: 'completed' } },
-        { onSuccess: () => printConsolidated.mutate({ orderId: id }) },
+        {
+          onSuccess: () =>
+            printConsolidated.mutate(
+              { orderId: id },
+              // Surface the new job in the panel right away instead of waiting for the poll.
+              { onSuccess: () => void qc.invalidateQueries({ queryKey: PRINT_JOBS_KEY }) },
+            ),
+        },
       )
     else if (kind === 'startBanding') updateBanding.mutate({ id, data: { status: 'in_progress' } })
     else if (kind === 'finishBanding') updateBanding.mutate({ id, data: { status: 'done' } })
@@ -105,6 +115,8 @@ const WorkshopBoardPage = () => {
     <CCard>
       <CCardBody>
         <h4 className="mb-3">Tablero de taller</h4>
+
+        <PrintJobsPanel />
 
         {isLoading ? (
           <div className="text-center py-5">

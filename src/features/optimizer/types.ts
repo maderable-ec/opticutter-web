@@ -7,6 +7,10 @@ import type { MaterialForm, RequirementForm } from './optimizerForm'
 
 export type PackingStrategy = 'default' | 'longOffcuts'
 
+// Fill order for a catalog board that carries pooled offcuts (same material).
+// 'auto' lets the backend pick the least-waste layout; the others force it.
+export type PoolFillOrder = 'auto' | 'offcutsFirst' | 'catalogFirst'
+
 export type MaterialSourceKind = 'catalog' | 'companyOffcut' | 'clientOffcut' | 'manual'
 
 export type EdgeSide = 'top' | 'bottom' | 'left' | 'right'
@@ -114,6 +118,9 @@ export interface PricingData {
   discountBase: number
   subtotal: number
   discountAmount: number
+  // Sum of additional services (added after the discount). Optional: absent on
+  // raw /optimize responses and pre-feature snapshots.
+  servicesTotal?: number
   total: number
 }
 
@@ -140,6 +147,8 @@ export interface CatalogMaterialInput {
   key: string
   source: 'catalog'
   productId: number
+  // Fill order when this board has attached (pooled) offcuts; omitted otherwise.
+  fillOrder?: PoolFillOrder
 }
 
 export interface InlineMaterialInput {
@@ -150,6 +159,11 @@ export interface InlineMaterialInput {
   thickness: number
   costPerUnit?: number
   label?: string
+  // Finite units available (pooled offcut). Defaults to 1 server-side.
+  quantity?: number
+  // If set, this offcut is extra stock of the catalog board with this key: its
+  // pieces come from that board's requirements, packed across board + offcuts.
+  poolKey?: string
 }
 
 export type MaterialInput = CatalogMaterialInput | InlineMaterialInput
@@ -168,6 +182,16 @@ export interface RequirementInput {
   label?: string
   canRotate: boolean
   edgeBanding?: EdgeBandingSpec
+}
+
+// Billed additional service on a quote (qty × editable unit price). Not cut
+// geometry: it rides alongside the optimizer inputs and is folded into the total
+// server-side, after the discount.
+export interface AdditionalServiceInput {
+  serviceId?: number
+  name: string
+  unitPrice: number
+  quantity: number
 }
 
 export interface OptimizePayload {

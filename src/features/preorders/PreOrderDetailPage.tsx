@@ -16,8 +16,14 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
 import type {
+  MaterialForm,
+  OffcutForm,
+  OffcutSource,
+  RequirementForm,
+} from 'src/features/optimizer/optimizerForm'
+import type {
+  InlineMaterialInput,
   MaterialInput,
   OptimizeResponse,
   PackingStrategy,
@@ -26,9 +32,11 @@ import type {
 import type { PreOrder, PreOrderStatus } from './types'
 import {
   buildPayload,
+  cloneMaterial,
   emptyCatalogMaterial,
   emptyEdgeBanding,
   nextUid,
+  piecesMissingBandingProduct,
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
 import { cilArrowLeft, cilCloudDownload, cilCopy, cilExternalLink, cilTrash } from '@coreui/icons'
@@ -50,6 +58,13 @@ import CIcon from '@coreui/icons-react'
 import DeleteMaterialModal from 'src/features/optimizer/DeleteMaterialModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
 import MaterialGroups from 'src/features/optimizer/MaterialGroups'
+import ServiceLines, {
+  buildServiceLines,
+  emptyServiceLine,
+  serviceLineFromApi,
+  type ServiceLineForm,
+} from './ServiceLines'
+import { useServices } from 'src/features/services/useServices'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
 import OptimizeActionBar from 'src/features/optimizer/OptimizeActionBar'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
@@ -65,11 +80,21 @@ function formFromPreOrderData(
   requirements: RequirementInput[],
 ): { materials: MaterialForm[]; requirements: RequirementForm[] } {
   const keyToUid = new Map<string, string>()
-  const matForms: MaterialForm[] = materials.map((m) => {
+  // Catalog forms indexed by material key so pooled offcuts can re-attach to them.
+  const catalogByKey = new Map<string, MaterialForm>()
+  const matForms: MaterialForm[] = []
+  const pooledOffcuts: InlineMaterialInput[] = []
+
+  for (const m of materials) {
+    // A pooled offcut is not its own group: it re-attaches to its parent board.
+    if (m.source !== 'catalog' && m.poolKey) {
+      pooledOffcuts.push(m)
+      continue
+    }
     const uid = nextUid()
     keyToUid.set(m.key, uid)
     if (m.source === 'catalog') {
-      return {
+      const form: MaterialForm = {
         uid,
         source: 'catalog',
         boardId: String(m.productId),
@@ -78,19 +103,42 @@ function formFromPreOrderData(
         width: '',
         thickness: '',
         costPerUnit: '',
+        offcuts: [],
+        fillOrder: m.fillOrder ?? 'auto',
       }
+      catalogByKey.set(m.key, form)
+      matForms.push(form)
+    } else {
+      matForms.push({
+        uid,
+        source: m.source,
+        boardId: '',
+        label: m.label ?? '',
+        height: m.height,
+        width: m.width,
+        thickness: m.thickness,
+        costPerUnit: m.costPerUnit ?? 0,
+      })
     }
-    return {
-      uid,
-      source: m.source,
-      boardId: '',
-      label: m.label ?? '',
-      height: m.height,
-      width: m.width,
-      thickness: m.thickness,
-      costPerUnit: m.costPerUnit ?? 0,
+  }
+
+  // Re-attach each pooled offcut to its parent catalog board (orphans ignored).
+  for (const o of pooledOffcuts) {
+    const parent = o.poolKey ? catalogByKey.get(o.poolKey) : undefined
+    if (!parent) continue
+    const source: OffcutSource = o.source === 'companyOffcut' ? 'companyOffcut' : 'clientOffcut'
+    const offcut: OffcutForm = {
+      uid: nextUid(),
+      source,
+      label: o.label ?? '',
+      height: o.height,
+      width: o.width,
+      thickness: o.thickness,
+      costPerUnit: o.costPerUnit ?? 0,
+      quantity: o.quantity ?? 1,
     }
-  })
+    parent.offcuts = [...(parent.offcuts ?? []), offcut]
+  }
   const reqForms: RequirementForm[] = requirements.map((r) => ({
     materialUid: keyToUid.get(r.materialKey) ?? '',
     height: r.height,
@@ -120,6 +168,28 @@ const LINK_STATUS_LABELS: Record<string, string> = {
   revoked: 'Reemplazado',
 }
 
+// Stable signature of everything `handleSave` persists. Used to keep "Actualizar" disabled until the
+// user actually changes something. Built from the normalized payload (via buildPayload/buildServiceLines)
+// so cosmetic edits (an empty row, internal reclustering) don't register as real changes.
+function editSignature(
+  materials: MaterialForm[],
+  requirements: RequirementForm[],
+  services: ServiceLineForm[],
+  notes: string,
+  priceTierCode: string,
+  strategy: PackingStrategy,
+): string {
+  const { materials: mInputs, requirements: rInputs } = buildPayload(materials, requirements)
+  return JSON.stringify({
+    materials: mInputs,
+    requirements: rInputs,
+    additionalServices: buildServiceLines(services),
+    notes: notes || '',
+    priceTierCode,
+    strategy,
+  })
+}
+
 // Inner component: receives an already-loaded pre-order
 const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const navigate = useNavigate()
@@ -137,6 +207,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const [materials, setMaterials] = useState<MaterialForm[]>(
     () => initialFormData?.materials ?? [emptyCatalogMaterial()],
   )
+  const [services, setServices] = useState<ServiceLineForm[]>(() =>
+    (preOrder.additionalServices ?? []).map(serviceLineFromApi),
+  )
   const [notes, setNotes] = useState(preOrder.notes ?? '')
   const [priceTierCode, setPriceTierCode] = useState(preOrder.priceTierCode ?? 'consumidor')
   const [strategy, setStrategy] = useState<PackingStrategy>(
@@ -152,8 +225,24 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const editor = usePiecesEditor(materials, initialFormData?.requirements)
 
+  // "Dirty" tracking: keep "Actualizar" disabled until the editable state differs from the loaded
+  // baseline. The baseline is seeded once (from the same normalized path as `currentSignature`, so it
+  // always matches at mount) and re-synced after a successful save.
+  const currentSignature = editSignature(
+    materials,
+    editor.requirements,
+    services,
+    notes,
+    priceTierCode,
+    strategy,
+  )
+  const [baselineSignature, setBaselineSignature] = useState(() => currentSignature)
+  const isDirty = currentSignature !== baselineSignature
+
   const { data: boards = [] } = useBoards()
   const { data: edgeBandings = [] } = useEdgeBandings()
+  const { data: servicesCatalog } = useServices({ isActive: true, limit: 100 })
+  const serviceCatalog = servicesCatalog?.items ?? []
   const updatePreOrder = useUpdatePreOrder()
   const deletePreOrder = useDeletePreOrder()
   const createReviewLink = useCreatePreOrderReviewLink()
@@ -170,6 +259,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         data: {
           materials: mInputs,
           requirements: rInputs,
+          additionalServices: buildServiceLines(services),
           notes: notes || undefined,
           priceTierCode,
           strategy,
@@ -178,6 +268,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       {
         onSuccess: (updated) => {
           setOptimization(updated.optimization)
+          // The saved state is the new baseline, so "Actualizar" disables again until further edits.
+          setBaselineSignature(currentSignature)
         },
       },
     )
@@ -191,9 +283,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     value: MaterialForm[K],
   ) => setMaterials((ms) => ms.map((m) => (m.uid === uid ? { ...m, [field]: value } : m)))
 
+  const addService = () => setServices((ss) => [...ss, emptyServiceLine()])
+  const updateService = <K extends keyof ServiceLineForm>(
+    uid: string,
+    field: K,
+    value: ServiceLineForm[K],
+  ) => setServices((ss) => ss.map((s) => (s.uid === uid ? { ...s, [field]: value } : s)))
+  const removeService = (uid: string) => setServices((ss) => ss.filter((s) => s.uid !== uid))
+
   // Duplicates a material section together with all of its pieces (same behavior as the optimizer).
   const duplicateMaterial = (m: MaterialForm) => {
-    const clone = { ...m, uid: nextUid() }
+    const clone = cloneMaterial(m)
     setMaterials((ms) => {
       const i = ms.findIndex((x) => x.uid === m.uid)
       return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]
@@ -249,6 +349,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const summary = piecesSummary(editor.requirements, materials)
   const canSave = summary.pieces > 0
+  // Pieces with banding sides but no tapacanto: block updating the quote until resolved.
+  const missingBanding = piecesMissingBandingProduct(editor.requirements)
+  const saveDisabledHint =
+    missingBanding.length > 0
+      ? 'Falta seleccionar el tapacanto'
+      : canSave && !isDirty
+        ? 'Sin cambios por guardar'
+        : undefined
 
   const isMissingPhone =
     createReviewLink.error instanceof ApiError &&
@@ -490,6 +598,29 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         />
       )}
 
+      {canEdit && missingBanding.length > 0 && (
+        <CAlert color="warning" className="py-2 small">
+          {missingBanding.length === 1
+            ? `La pieza #${missingBanding.map((i) => i + 1).join('')} tiene canto definido pero no seleccionaste el tapacanto.`
+            : `Hay ${missingBanding.length} piezas con canto definido pero sin tapacanto (#${missingBanding
+                .map((i) => i + 1)
+                .join(', #')}).`}{' '}
+          Selecciona el tapacanto para poder actualizar la cotización.
+        </CAlert>
+      )}
+
+      {/* Additional services (perforación, armado, …): billed on top of the cut,
+          default price from the catalog but editable per line. */}
+      {canEdit && (
+        <ServiceLines
+          services={services}
+          catalog={serviceCatalog}
+          onAdd={addService}
+          onUpdate={updateService}
+          onRemove={removeService}
+        />
+      )}
+
       {/* Optimization result — the sticky action bar below drives "Optimizar" (Save+Recalculate) */}
       <OptimizationPreview
         result={optimization}
@@ -503,11 +634,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         <OptimizeActionBar
           strategy={strategy}
           onStrategyChange={setStrategy}
-          canOptimize={canSave}
+          canOptimize={canSave && isDirty && missingBanding.length === 0}
           isPending={updatePreOrder.isPending}
           hasResult={!!optimization}
           onOptimize={handleSave}
           optimizeLabel="Actualizar cotización"
+          disabledHint={saveDisabledHint}
         />
       )}
 

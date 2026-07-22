@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { CBadge, CButton, CFormInput, CFormLabel, CFormSelect } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
@@ -6,19 +6,42 @@ import { cilChevronBottom, cilChevronRight, cilCopy, cilPlus, cilTrash } from '@
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
-import type { MaterialSourceKind } from './types'
-import type { MaterialForm, RequirementForm } from './optimizerForm'
+import type { MaterialSourceKind, PoolFillOrder } from './types'
+import type {
+  BandType,
+  MaterialForm,
+  OffcutForm,
+  OffcutSource,
+  RequirementForm,
+} from './optimizerForm'
 import {
+  BAND_TYPE_TOKEN_RE,
   CANTO_NOTATION_RE,
+  CS_CD_TO_BANDTYPE,
   SOURCE_LABELS,
+  emptyOffcut,
   emptyRequirement,
+  hasEdgeBanding,
+  inferBandingProductId,
   isRequirementEmpty,
   sidesFromNotation,
 } from './optimizerForm'
 import type { PiecesEditor } from './usePiecesEditor'
+import { useBoardEdgeBandings } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
 
 const SOURCES: MaterialSourceKind[] = ['catalog', 'companyOffcut', 'clientOffcut']
+
+const FILL_ORDER_OPTIONS: { value: PoolFillOrder; label: string }[] = [
+  { value: 'auto', label: 'Automático (menos desperdicio)' },
+  { value: 'offcutsFirst', label: 'Retazo primero' },
+  { value: 'catalogFirst', label: 'Tablero primero' },
+]
+
+const OFFCUT_SOURCES: { value: OffcutSource; label: string }[] = [
+  { value: 'clientOffcut', label: 'Retazo cliente' },
+  { value: 'companyOffcut', label: 'Retazo empresa' },
+]
 
 interface MaterialGroupCardProps {
   material: MaterialForm
@@ -43,8 +66,9 @@ const boardDims = (b?: BoardProduct): string | null => {
   return `${width}×${height}${thickness ? `×${thickness}` : ''} mm`
 }
 
-// Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C".
-// Separator: x, X, ×, *. Decimal: dot or comma. Edge notation goes LAST, after the label.
+// Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C CS".
+// Separator: x, X, ×, *. Decimal: dot or comma. Edge notation and optional CS/CD (canto
+// suave/duro) go LAST, after the label — CS/CD after the notation (e.g. "…2L1C CS").
 const QUICK_REGEX =
   /^(\d+(?:[.,]\d+)?)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)(?:\s*[xX×*]\s*(\d+(?:[.,]\d+)?))?(?:\s+(.+))?$/
 
@@ -56,20 +80,31 @@ const parseQuickEntry = (
   quantity: number
   label: string
   notation: string | null
+  bandType: BandType | null
 } | null => {
   const m = text.trim().match(QUICK_REGEX)
   if (!m) return null
   const toNum = (s?: string) => (s ? Number(s.replace(',', '.')) : 0)
   const remaining = (m[4] ?? '').trim()
   let notation: string | null = null
+  let bandType: BandType | null = null
   let label = remaining
   if (remaining) {
     const parts = remaining.split(/\s+/)
-    const last = parts[parts.length - 1]
+    // Pop from the end: an optional CS/CD band-type token, then an optional canto notation.
+    let last = parts[parts.length - 1]
+    if (last && BAND_TYPE_TOKEN_RE.test(last)) {
+      bandType = CS_CD_TO_BANDTYPE[last.toUpperCase()] ?? null
+      parts.pop()
+      last = parts[parts.length - 1]
+    }
     if (last && CANTO_NOTATION_RE.test(last)) {
       notation = last.toUpperCase()
-      label = parts.slice(0, -1).join(' ')
+      parts.pop()
     }
+    // A band type without banded sides is meaningless — drop it.
+    if (!notation) bandType = null
+    label = parts.join(' ')
   }
   return {
     height: toNum(m[1]),
@@ -77,6 +112,7 @@ const parseQuickEntry = (
     quantity: m[3] ? Math.max(1, Math.round(toNum(m[3]))) : 1,
     label: label.trim(),
     notation,
+    bandType,
   }
 }
 
@@ -98,6 +134,11 @@ const MaterialGroupCard = ({
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
 
+  // Tapacantos coordinated with this group's board (same family + width rule). Empty for
+  // non-catalog sources or catalog gaps — the table falls back to the global list.
+  const boardId = m.source === 'catalog' && m.boardId ? String(m.boardId) : undefined
+  const { data: boardEdgeBandings = [] } = useBoardEdgeBandings(boardId)
+
   const invalidCount = rows.filter(
     (r) =>
       !(materialValid && Number(r.height) > 0 && Number(r.width) > 0) && !isRequirementEmpty(r),
@@ -108,12 +149,44 @@ const MaterialGroupCard = ({
       ? boardDims(boards.find((b) => String(b.id) === String(m.boardId)))
       : null
 
+  // When the board CHANGES, re-infer the tapacanto for every banded piece from its band type: a
+  // new board invalidates prior tapacanto choices (manual picks included). The change is detected
+  // here, but the board's coordinated list loads asynchronously, so we mark a pending re-inference
+  // and run it once the new list arrives. Crucially this does NOT fire on initial mount, so loading
+  // an existing quote never clobbers its saved tapacantos.
+  const coordinatedKey = boardEdgeBandings.map((p) => p.id).join(',')
+  const prevBoardId = useRef(boardId)
+  const pendingReinfer = useRef(false)
+  useEffect(() => {
+    if (prevBoardId.current !== boardId) {
+      prevBoardId.current = boardId
+      pendingReinfer.current = true
+    }
+    if (!pendingReinfer.current || !boardId || boardEdgeBandings.length === 0) return
+    pendingReinfer.current = false
+    editor.updateGroup(m.uid, (r) => {
+      if (!hasEdgeBanding(r.edgeBanding)) return r
+      const productId = inferBandingProductId(boardEdgeBandings, r.edgeBanding.bandType)
+      if (!productId || productId === r.edgeBanding.productId) return r
+      return { ...r, edgeBanding: { ...r.edgeBanding, productId } }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.uid, boardId, coordinatedKey])
+
+  // Pooled offcuts attached to this catalog board (same material, finite stock).
+  const offcuts = m.offcuts ?? []
+  const setOffcuts = (next: OffcutForm[]) => onUpdate(m.uid, 'offcuts', next)
+  const addOffcut = () => setOffcuts([...offcuts, emptyOffcut()])
+  const updateOffcut = <K extends keyof OffcutForm>(uid: string, field: K, value: OffcutForm[K]) =>
+    setOffcuts(offcuts.map((o) => (o.uid === uid ? { ...o, [field]: value } : o)))
+  const removeOffcut = (uid: string) => setOffcuts(offcuts.filter((o) => o.uid !== uid))
+
   const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     if (!quickText.trim()) return
     const parsed = parseQuickEntry(quickText)
     if (!parsed) {
-      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta 1L2C')
+      setQuickError('Formato: 720×400 o 720×400×4 Etiqueta 1L2C CS')
       return
     }
     const req = emptyRequirement(m.uid)
@@ -123,9 +196,13 @@ const MaterialGroupCard = ({
     req.label = parsed.label
     if (parsed.notation) {
       const lastEb = rows[rows.length - 1]?.edgeBanding
+      const bandType: '' | BandType = parsed.bandType ?? lastEb?.bandType ?? ''
+      const productId =
+        inferBandingProductId(boardEdgeBandings, bandType) || lastEb?.productId || ''
       req.edgeBanding = {
-        productId: lastEb?.productId ?? '',
+        productId,
         sides: sidesFromNotation(parsed.notation),
+        bandType,
       }
     }
     editor.addMany([req], false)
@@ -274,6 +351,147 @@ const MaterialGroupCard = ({
 
       {!collapsed && (
         <div className="p-2">
+          {m.source === 'catalog' && (
+            <div className="border rounded bg-body-tertiary p-2 mb-2">
+              <div className="d-flex align-items-center justify-content-between gap-2 mb-2 flex-wrap">
+                <span className="small fw-semibold">
+                  Retazos{' '}
+                  <span className="text-body-secondary fw-normal">
+                    (mismo material, stock adicional del cliente/empresa)
+                  </span>
+                </span>
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  {offcuts.length > 0 && (
+                    <div className="d-flex align-items-center gap-1">
+                      <CFormLabel className="small mb-0 text-nowrap">Orden de llenado</CFormLabel>
+                      <CFormSelect
+                        size="sm"
+                        style={{ width: 230 }}
+                        value={m.fillOrder ?? 'auto'}
+                        onChange={(e) =>
+                          onUpdate(m.uid, 'fillOrder', e.target.value as PoolFillOrder)
+                        }
+                      >
+                        {FILL_ORDER_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </div>
+                  )}
+                  <CButton
+                    size="sm"
+                    color="secondary"
+                    variant="outline"
+                    type="button"
+                    onClick={addOffcut}
+                  >
+                    <CIcon icon={cilPlus} className="me-1" />
+                    Agregar retazo
+                  </CButton>
+                </div>
+              </div>
+
+              {offcuts.length === 0 ? (
+                <div className="small text-body-secondary">
+                  El cliente puede aportar retazos del mismo material; las piezas se optimizan sobre
+                  ellos y el tablero de catálogo.
+                </div>
+              ) : (
+                offcuts.map((o) => (
+                  <div key={o.uid} className="d-flex flex-wrap gap-2 align-items-end mb-2">
+                    <div style={{ width: 140 }}>
+                      <CFormLabel className="small mb-1">Tipo</CFormLabel>
+                      <CFormSelect
+                        size="sm"
+                        value={o.source}
+                        onChange={(e) =>
+                          updateOffcut(o.uid, 'source', e.target.value as OffcutSource)
+                        }
+                      >
+                        {OFFCUT_SOURCES.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </CFormSelect>
+                    </div>
+                    <div style={{ flex: '1 1 140px', minWidth: 120 }}>
+                      <CFormLabel className="small mb-1">Etiqueta</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        value={o.label}
+                        placeholder="Retazo cliente"
+                        onChange={(e) => updateOffcut(o.uid, 'label', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ width: 80 }}>
+                      <CFormLabel className="small mb-1">Largo</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min={1}
+                        value={o.height}
+                        onChange={(e) => updateOffcut(o.uid, 'height', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ width: 80 }}>
+                      <CFormLabel className="small mb-1">Ancho</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min={1}
+                        value={o.width}
+                        onChange={(e) => updateOffcut(o.uid, 'width', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ width: 80 }}>
+                      <CFormLabel className="small mb-1">Grosor</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min={1}
+                        value={o.thickness}
+                        onChange={(e) => updateOffcut(o.uid, 'thickness', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ width: 90 }}>
+                      <CFormLabel className="small mb-1">Costo</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={o.costPerUnit}
+                        onChange={(e) => updateOffcut(o.uid, 'costPerUnit', e.target.value)}
+                      />
+                    </div>
+                    <div style={{ width: 70 }}>
+                      <CFormLabel className="small mb-1">Cant.</CFormLabel>
+                      <CFormInput
+                        size="sm"
+                        type="number"
+                        min={1}
+                        value={o.quantity}
+                        onChange={(e) => updateOffcut(o.uid, 'quantity', e.target.value)}
+                      />
+                    </div>
+                    <CButton
+                      size="sm"
+                      variant="ghost"
+                      color="danger"
+                      type="button"
+                      title="Quitar retazo"
+                      onClick={() => removeOffcut(o.uid)}
+                    >
+                      <CIcon icon={cilTrash} />
+                    </CButton>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           <PieceRowsTable
             materialUid={m.uid}
             rows={rows}
@@ -281,6 +499,7 @@ const MaterialGroupCard = ({
             materialValid={materialValid}
             editor={editor}
             edgeBandings={edgeBandings}
+            boardEdgeBandings={boardEdgeBandings}
             materials={materials}
             boards={boards}
           />
@@ -303,7 +522,7 @@ const MaterialGroupCard = ({
                 setQuickError('')
               }}
               onKeyDown={handleQuickEntry}
-              placeholder="720×400×4  Etiqueta  1L2C  (Enter para agregar)"
+              placeholder="720×400×4  Etiqueta  1L2C  CS  (Enter para agregar)"
               invalid={!!quickError}
               style={{ maxWidth: 380 }}
             />

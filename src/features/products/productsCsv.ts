@@ -15,6 +15,7 @@ export const PRODUCT_CSV_COLUMNS = [
   'DireccionGrano',
   'TipoTapacanto',
   'Color',
+  'Familia',
 ] as const
 
 const TYPE_MAP: Record<string, 'board' | 'edge_banding'> = {
@@ -47,6 +48,8 @@ const HEADER_WORDS = [
   'largo',
   'length',
   'color',
+  'familia',
+  'family',
 ]
 
 const normalize = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -130,6 +133,7 @@ export const parseProducts = (text: string): ProductParseResult => {
       direccionGrano = '',
       tipoTapacanto = '',
       color = '',
+      familia = '',
     ] = cells
     const lineNo = idx + 1
 
@@ -164,7 +168,7 @@ export const parseProducts = (text: string): ProductParseResult => {
     const activoNorm = normalize(activo)
     const isActive = activoNorm === '' ? true : TRUE_WORDS.has(activoNorm)
 
-    const id = cells[13]?.trim() || undefined
+    const id = cells[14]?.trim() || undefined
 
     const row: ProductImportRow = {
       id,
@@ -181,6 +185,7 @@ export const parseProducts = (text: string): ProductParseResult => {
               width: parseNum(ancho),
               thickness: parseNum(grosor),
               grainDirection: direccionGrano.trim() || undefined,
+              family: familia.trim() || undefined,
             }
           : {
               thickness: parseNum(grosor),
@@ -188,6 +193,7 @@ export const parseProducts = (text: string): ProductParseResult => {
               length: parseNum(largo),
               bandType: tipoTapacanto.trim() || undefined,
               color: color.trim() || undefined,
+              family: familia.trim() || undefined,
             },
     }
 
@@ -224,6 +230,7 @@ export const exportProductsCsv = (products: Product[]): void => {
       isBoard ? ((a.grainDirection as string | undefined) ?? '') : '',
       isBoard ? '' : ((a.bandType as string | undefined) ?? ''),
       isBoard ? '' : ((a.color as string | undefined) ?? ''),
+      (a.family as string | undefined) ?? '',
       p.id,
     ]
     return cells.map(csvCell).join(',')
@@ -249,6 +256,7 @@ export const downloadProductTemplate = (): void => {
       'longitudinal',
       '',
       '',
+      'BLANCO',
     ],
     [
       'tapacanto',
@@ -264,6 +272,7 @@ export const downloadProductTemplate = (): void => {
       '',
       'Soft',
       'Blanco',
+      'BLANCO',
     ],
   ]
   const csv = [header, ...exampleRows.map((r) => r.map(csvCell).join(','))].join('\n')

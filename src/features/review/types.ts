@@ -24,10 +24,20 @@ export interface ReviewEdges {
 // A cut-list piece on the public review (not billed per piece).
 export interface ReviewPiece {
   label?: string
+  materialCode?: string | null
+  materialName?: string | null
   height?: number
   width?: number
   quantity?: number
   edges?: ReviewEdges | null
+}
+
+// A billed additional service (e.g. ensamble, corte) on the public review.
+export interface ReviewService {
+  name: string
+  quantity: number
+  unitPrice: number
+  lineTotal: number
 }
 
 export interface ReviewPreOrder {
@@ -41,6 +51,7 @@ export interface ReviewPreOrder {
   priceTierName?: string
   discountRate?: number
   discountAmount?: number
+  servicesTotal?: number
   total: number
   totalBoardsUsed: number
   createdAt: string
@@ -48,5 +59,6 @@ export interface ReviewPreOrder {
   confirmedAt: string | null
   expiresAt: string | null
   lines: ReviewLine[]
+  additionalServices?: ReviewService[]
   pieces: ReviewPiece[]
 }

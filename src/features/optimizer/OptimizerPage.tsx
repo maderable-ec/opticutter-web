@@ -6,7 +6,13 @@ import { cilCart, cilCheckAlt, cilFolderOpen, cilPlus, cilSave } from '@coreui/i
 import { useBoards, useEdgeBandings, useOptimize } from './useOptimizer'
 import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
-import { buildPayload, emptyCatalogMaterial, isRequirementEmpty, nextUid } from './optimizerForm'
+import {
+  buildPayload,
+  cloneMaterial,
+  emptyCatalogMaterial,
+  isRequirementEmpty,
+  piecesMissingBandingProduct,
+} from './optimizerForm'
 import type { MaterialForm } from './optimizerForm'
 import type { OptimizerDraftPayload, PackingStrategy } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
@@ -60,7 +66,7 @@ const OptimizerPage = () => {
   // Duplicates a material section together with all of its pieces: a fresh-uid material clone is
   // inserted right after the source, and its pieces are cloned and re-pointed to the new uid.
   const duplicateMaterial = (m: MaterialForm) => {
-    const clone = { ...m, uid: nextUid() }
+    const clone = cloneMaterial(m)
     setMaterials((ms) => {
       const i = ms.findIndex((x) => x.uid === m.uid)
       return [...ms.slice(0, i + 1), clone, ...ms.slice(i + 1)]
@@ -91,6 +97,9 @@ const OptimizerPage = () => {
 
   const built = buildPayload(materials, pieces.requirements)
   const canOptimize = built.validCount > 0
+  // Pieces with banding sides but no tapacanto: fine to optimize (geometry), but block quoting.
+  const missingBanding = piecesMissingBandingProduct(pieces.requirements)
+  const canCreateQuote = canOptimize && missingBanding.length === 0
 
   // Is there work that would be lost on reset? (more than one material, any with data, or non-empty pieces)
   const hasWork =
@@ -255,7 +264,7 @@ const OptimizerPage = () => {
             )}
             {savedFlash ? 'Guardado' : 'Guardar borrador'}
           </CButton>
-          <CButton color="primary" disabled={!canOptimize} onClick={() => setShowQuote(true)}>
+          <CButton color="primary" disabled={!canCreateQuote} onClick={() => setShowQuote(true)}>
             <CIcon icon={cilCart} className="me-1" />
             Crear cotización
           </CButton>
@@ -292,6 +301,17 @@ const OptimizerPage = () => {
         onExport={handleExport}
       />
 
+      {missingBanding.length > 0 && (
+        <CAlert color="warning" className="py-2 small">
+          {missingBanding.length === 1
+            ? `La pieza #${missingBanding.map((i) => i + 1).join('')} tiene canto definido pero no seleccionaste el tapacanto.`
+            : `Hay ${missingBanding.length} piezas con canto definido pero sin tapacanto (#${missingBanding
+                .map((i) => i + 1)
+                .join(', #')}).`}{' '}
+          Selecciona el tapacanto para poder crear la cotización.
+        </CAlert>
+      )}
+
       <OptimizationPreview
         result={optimize.data}
         isPending={optimize.isPending}
@@ -306,6 +326,7 @@ const OptimizerPage = () => {
         hasResult={!!optimize.data}
         onOptimize={handleOptimize}
         onCreateQuote={() => setShowQuote(true)}
+        canCreateQuote={canCreateQuote}
       />
 
       <DeleteMaterialModal

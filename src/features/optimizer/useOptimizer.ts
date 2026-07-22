@@ -25,3 +25,14 @@ export const useEdgeBandings = () =>
     staleTime: 5 * 60 * 1000,
     select: (data) => data.items.filter((p): p is EdgeBandingProduct => p.type === 'edge_banding'),
   })
+
+// Edge bandings coordinated with a board (same `family` + width rule), from
+// GET /products/{boardId}/edge-bandings. Fetches the whole coordinated set (no band_type
+// param) so the soft/hard filter can be applied client-side. Disabled without a board.
+export const useBoardEdgeBandings = (boardId?: string) =>
+  useQuery({
+    queryKey: ['board-edge-bandings', String(boardId ?? '')],
+    queryFn: () => productsApi.getEdgeBandings(String(boardId)),
+    enabled: !!boardId,
+    staleTime: 5 * 60 * 1000,
+  })

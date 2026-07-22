@@ -15,6 +15,7 @@ export type FillableField =
   | 'edgeBanding'
   | 'edgeBandingSides'
   | 'edgeBandingProductId'
+  | 'edgeBandingBandType'
 export type FillScope = 'all' | 'selected'
 
 // Campos por los que se puede ordenar una tabla de grupo.
@@ -59,7 +60,11 @@ const applyField = (
   if (field === 'edgeBanding') {
     return {
       ...r,
-      edgeBanding: { productId: src.edgeBanding.productId, sides: { ...src.edgeBanding.sides } },
+      edgeBanding: {
+        productId: src.edgeBanding.productId,
+        sides: { ...src.edgeBanding.sides },
+        bandType: src.edgeBanding.bandType ?? '',
+      },
     }
   }
   if (field === 'edgeBandingSides') {
@@ -67,6 +72,18 @@ const applyField = (
   }
   if (field === 'edgeBandingProductId') {
     return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
+  }
+  if (field === 'edgeBandingBandType') {
+    // Mirror the manual "Tipo" select: the band type and its coordinated tapacanto travel
+    // together, so a drag-fill of this column doesn't leave target rows without a product.
+    return {
+      ...r,
+      edgeBanding: {
+        ...r.edgeBanding,
+        bandType: src.edgeBanding.bandType ?? '',
+        productId: src.edgeBanding.productId,
+      },
+    }
   }
   return { ...r, [field]: src[field] }
 }
@@ -235,6 +252,24 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // Grouped view: drag-reorders a row to another position WITHIN its material's block. `toFlat`
+  // is clamped to the material's contiguous range so a row never crosses into another material
+  // (cross-material moves go through `moveSelectedTo`). The moved row ends at index `to`.
+  const moveRow = (fromFlat: number, toFlat: number) => {
+    applyWithHistory((rs) => {
+      const src = rs[fromFlat]
+      if (!src) return rs
+      const [start, end] = rangeOf(rs, src.materialUid)
+      const to = Math.max(start, Math.min(toFlat, end - 1))
+      if (to === fromFlat) return rs
+      const copy = [...rs]
+      copy.splice(fromFlat, 1)
+      copy.splice(to, 0, src)
+      return copy
+    })
+    setSelected(new Set())
+  }
+
   // Sorts only the rows of a material's group by a field, preserving the rest of the list.
   const sortGroup = (materialUid: string, field: SortField, dir: SortDir) => {
     applyWithHistory((rs) => {
@@ -247,6 +282,22 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // Grouped view: applies a pure mapper to each row of a material's group. Used for automatic,
+  // derived updates (e.g. re-inferring the coordinated tapacanto when the board changes), so it
+  // does NOT push to the undo history and no-ops when the mapper changes nothing (keeps referential
+  // identity to avoid effect loops).
+  const updateGroup = (materialUid: string, mapper: (r: RequirementForm) => RequirementForm) =>
+    setRequirements((rs) => {
+      let changed = false
+      const next = rs.map((r) => {
+        if (r.materialUid !== materialUid) return r
+        const mapped = mapper(r)
+        if (mapped !== r) changed = true
+        return mapped
+      })
+      return changed ? next : rs
+    })
+
   const clear = () => {
     applyWithHistory(() => [emptyRequirement(firstUid())])
     setSelected(new Set())
@@ -258,6 +309,16 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
       clusterByMaterial(
         rs.map((r) => (r.materialUid === fromUid ? { ...r, materialUid: toUid } : r)),
       ),
+    )
+    setSelected(new Set())
+  }
+
+  // Grouped view: moves the currently selected pieces to `toUid` (reassign material + recluster).
+  // Supports one or many pieces, even spanning several source materials.
+  const moveSelectedTo = (toUid: string) => {
+    if (selected.size === 0) return
+    applyWithHistory((rs) =>
+      clusterByMaterial(rs.map((r, i) => (selected.has(i) ? { ...r, materialUid: toUid } : r))),
     )
     setSelected(new Set())
   }
@@ -366,9 +427,12 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     fillDown,
     fillDownGroup,
     fillRange,
+    moveRow,
     sortGroup,
+    updateGroup,
     clear,
     movePiecesTo,
+    moveSelectedTo,
     removePiecesOf,
     duplicateGroup,
     pasteIntoField,

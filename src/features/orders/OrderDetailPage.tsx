@@ -876,14 +876,6 @@ const OrderDetailPage = () => {
                   >
                     Todo efectivo
                   </CButton>
-                  <CButton
-                    color="primary"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCreditChange(orderTotal.toFixed(2))}
-                  >
-                    Todo a crédito
-                  </CButton>
                 </div>
                 <div className="mb-3">
                   <CFormLabel>Efectivo (USD)</CFormLabel>

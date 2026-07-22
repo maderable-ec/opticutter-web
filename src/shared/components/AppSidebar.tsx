@@ -18,6 +18,7 @@ import { memo } from 'react'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { preordersNav } from 'src/features/preorders/nav'
 import { productsNav } from 'src/features/products/nav'
+import { servicesNav } from 'src/features/services/nav'
 import { settingsNav } from 'src/features/settings/nav'
 import { sygnet } from 'src/assets/brand/sygnet'
 import { useAuthStore } from 'src/shared/store/authStore'
@@ -32,6 +33,7 @@ const allNavItems = [
   ...workshopBoardNav,
   ...clientsNav,
   ...productsNav,
+  ...servicesNav,
   ...branchesNav,
   ...usersNav,
   ...settingsNav,
