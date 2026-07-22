@@ -1,7 +1,29 @@
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
-import type { EdgeSide, MaterialInput, MaterialSourceKind, RequirementInput } from './types'
+import type {
+  EdgeSide,
+  InlineMaterialInput,
+  MaterialInput,
+  MaterialSourceKind,
+  PoolFillOrder,
+  RequirementInput,
+} from './types'
 
 // --- Form model (during editing; numbers may be '' while the user is typing) ---
+
+// A client/company offcut attached to a catalog board: extra finite stock of the
+// SAME material, so the optimizer can pack a group's pieces across board + offcuts.
+export type OffcutSource = 'clientOffcut' | 'companyOffcut'
+
+export interface OffcutForm {
+  uid: string
+  source: OffcutSource
+  label: string
+  height: number | string
+  width: number | string
+  thickness: number | string
+  costPerUnit: number | string
+  quantity: number | string
+}
 
 export interface MaterialForm {
   uid: string
@@ -12,6 +34,9 @@ export interface MaterialForm {
   width: number | string
   thickness: number | string
   costPerUnit: number | string
+  // Catalog boards only: attached offcuts (same material) + their fill order.
+  offcuts?: OffcutForm[]
+  fillOrder?: PoolFillOrder
 }
 
 export interface EdgeBandingForm {
@@ -66,7 +91,37 @@ export const emptyCatalogMaterial = (): MaterialForm => ({
   width: '',
   thickness: '',
   costPerUnit: '',
+  offcuts: [],
+  fillOrder: 'auto',
 })
+
+export const emptyOffcut = (source: OffcutSource = 'clientOffcut'): OffcutForm => ({
+  uid: nextUid(),
+  source,
+  label: '',
+  height: '',
+  width: '',
+  thickness: '',
+  costPerUnit: '',
+  quantity: 1,
+})
+
+export const isOffcutValid = (o: OffcutForm): boolean =>
+  Number(o.height) > 0 && Number(o.width) > 0 && Number(o.thickness) > 0
+
+// Deep-clone a material with FRESH uids (material + each offcut) for duplication.
+// Offcut uids become payload material keys, so they must be unique per material.
+export const cloneMaterial = (m: MaterialForm): MaterialForm => ({
+  ...m,
+  uid: nextUid(),
+  offcuts: m.offcuts ? m.offcuts.map((o) => ({ ...o, uid: nextUid() })) : m.offcuts,
+})
+
+// Valid offcuts attached to a catalog board (empty for non-catalog materials).
+export const validOffcuts = (m: MaterialForm): OffcutForm[] =>
+  m.source === 'catalog' ? (m.offcuts ?? []).filter(isOffcutValid) : []
+
+export const hasOffcuts = (m: MaterialForm): boolean => validOffcuts(m).length > 0
 
 export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   materialUid,
@@ -185,11 +240,12 @@ export const buildPayload = (
   const validUids = validMaterialUids(materials)
 
   // Map each material uid to the key its pieces will reference. Catalog boards collapse onto the
-  // first block that uses that productId; everything else maps to itself.
+  // first block that uses that productId; everything else maps to itself. A catalog board with
+  // attached offcuts stays DISTINCT (it anchors a pool) so merging can't break the pool link.
   const canonicalKey = new Map<string, string>()
   const catalogCanonical = new Map<number, string>()
   for (const m of validMaterials) {
-    if (m.source === 'catalog') {
+    if (m.source === 'catalog' && !hasOffcuts(m)) {
       const productId = Number(m.boardId)
       const existing = catalogCanonical.get(productId)
       if (existing) {
@@ -205,19 +261,42 @@ export const buildPayload = (
 
   const mappedMaterials: MaterialInput[] = validMaterials
     .filter((m) => canonicalKey.get(m.uid) === m.uid)
-    .map((m) =>
-      m.source === 'catalog'
-        ? { key: m.uid, source: 'catalog', productId: Number(m.boardId) }
-        : {
-            key: m.uid,
-            source: m.source,
-            height: Number(m.height),
-            width: Number(m.width),
-            thickness: Number(m.thickness),
-            costPerUnit: Number(m.costPerUnit) || 0,
-            label: m.label.trim() || undefined,
-          },
-    )
+    .map((m) => {
+      if (m.source === 'catalog') {
+        const base = { key: m.uid, source: 'catalog' as const, productId: Number(m.boardId) }
+        // Only carry fillOrder when the board actually anchors a pool of offcuts.
+        return hasOffcuts(m) ? { ...base, fillOrder: m.fillOrder ?? 'auto' } : base
+      }
+      return {
+        key: m.uid,
+        source: m.source,
+        height: Number(m.height),
+        width: Number(m.width),
+        thickness: Number(m.thickness),
+        costPerUnit: Number(m.costPerUnit) || 0,
+        label: m.label.trim() || undefined,
+      }
+    })
+
+  // Pooled offcuts: extra finite stock of a catalog board. Emitted with a poolKey
+  // pointing at that board's key; not referenced by any requirement.
+  const pooledOffcuts: InlineMaterialInput[] = []
+  for (const m of validMaterials) {
+    if (m.source !== 'catalog' || canonicalKey.get(m.uid) !== m.uid) continue
+    for (const o of validOffcuts(m)) {
+      pooledOffcuts.push({
+        key: o.uid,
+        source: o.source,
+        height: Number(o.height),
+        width: Number(o.width),
+        thickness: Number(o.thickness),
+        costPerUnit: Number(o.costPerUnit) || 0,
+        label: o.label.trim() || undefined,
+        quantity: Number(o.quantity) || 1,
+        poolKey: m.uid,
+      })
+    }
+  }
 
   const validReqs = requirements.filter((r) => isRequirementValid(r, validUids))
 
@@ -239,8 +318,14 @@ export const buildPayload = (
 
   const usedUids = new Set(mappedReqs.map((r) => r.materialKey))
   const materialsUsed = mappedMaterials.filter((m) => usedUids.has(m.key))
+  // Keep a pooled offcut when its parent catalog board is actually used.
+  const offcutsUsed = pooledOffcuts.filter((o) => o.poolKey != null && usedUids.has(o.poolKey))
 
-  return { materials: materialsUsed, requirements: mappedReqs, validCount: mappedReqs.length }
+  return {
+    materials: [...materialsUsed, ...offcutsUsed],
+    requirements: mappedReqs,
+    validCount: mappedReqs.length,
+  }
 }
 
 // --- Edge banding notation (business domain) ---
