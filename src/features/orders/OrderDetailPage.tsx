@@ -36,6 +36,7 @@ import { usePrintConsolidated } from 'src/features/print/usePrint'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
 import PricingBlock from 'src/shared/components/PricingBlock'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { clientName, fmtDateTime, fmtMoney } from 'src/shared/utils/format'
 import type { PricingData } from 'src/features/optimizer/types'
@@ -180,8 +181,13 @@ const OrderDetailPage = () => {
       {
         onSuccess: () => {
           closeTransition()
-          // Completing the order dispatches the consolidated sheet to the branch's inkjet.
-          if (transition.to === 'completed' && canPrintConsolidated)
+          // Completing the order dispatches the consolidated sheet to the branch's inkjet,
+          // unless that branch has no sheet printer.
+          if (
+            transition.to === 'completed' &&
+            canPrintConsolidated &&
+            order?.branch.printConsolidatedEnabled
+          )
             printConsolidated.mutate({ orderId: id })
         },
       },
@@ -352,6 +358,8 @@ const OrderDetailPage = () => {
                   {order.branch.code && <span> ({order.branch.code})</span>}
                 </div>
               )}
+              {/* Reference inherited from the quote (read-only here); also printed on every PDF. */}
+              <ReferenceNote notes={order.notes} variant="header" />
             </CCol>
             <CCol xs={12} md={6}>
               <div className="small">

@@ -15,6 +15,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 
 import CIcon from '@coreui/icons-react'
 import type { ChangeEvent } from 'react'
@@ -148,6 +149,7 @@ const PreOrdersPage = () => {
                       <CTableRow key={po.id} onClick={() => void navigate(`/preorders/${po.id}`)}>
                         <CTableDataCell>
                           <strong>{po.code}</strong>
+                          <ReferenceNote notes={po.notes} />
                         </CTableDataCell>
                         <CTableDataCell>
                           <div>{clientName(po.client)}</div>

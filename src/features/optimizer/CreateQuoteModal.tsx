@@ -162,14 +162,18 @@ const CreateQuoteModal = ({
         <CFormLabel className="mt-3">Nivel de precio</CFormLabel>
         <PriceTierSelect value={priceTierCode} onChange={onPriceTierChange} />
 
-        <CFormLabel className="mt-3">Notas</CFormLabel>
+        <CFormLabel className="mt-3">Referencia</CFormLabel>
         <CFormTextarea
           rows={2}
           maxLength={512}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Instrucciones especiales, referencias, etc."
+          placeholder="Ej.: Proyecto Casa Pérez — cocina y closet"
         />
+        <div className="form-text">
+          Nombre del proyecto u obra para distinguir este pedido de otros del mismo cliente. Se
+          imprime en todos los documentos y la ve el cliente.
+        </div>
 
         {mutationError && (
           <CAlert color="danger" className="mt-3 mb-0 py-2 small">

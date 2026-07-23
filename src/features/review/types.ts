@@ -46,6 +46,7 @@ export interface ReviewPreOrder {
   orderCode: string | null // null until confirmed; "ORD-…" after confirmation
   clientName: string
   clientNote: string | null // note written by the client when requesting changes
+  notes: string | null // commercial reference (project/site), same text printed on the proforma
   currency: string
   subtotal: number
   priceTierName?: string

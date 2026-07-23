@@ -28,6 +28,7 @@ import { cilArrowRight, cilCheckAlt, cilMediaPlay } from '@coreui/icons'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { PRINT_JOBS_KEY, usePrintConsolidated } from 'src/features/print/usePrint'
 import PrintJobsPanel from 'src/features/print/PrintJobsPanel'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
 import { useUpdateBanding, useUpdateOrderStatus, useWorkshopQueue } from './useOrders'
@@ -87,18 +88,21 @@ const WorkshopBoardPage = () => {
   const runAction = (kind: BoardAction, item: WorkshopQueueItem) => {
     const id = String(item.orderId)
     if (kind === 'take') updateStatus.mutate({ id, data: { status: 'cutting' } })
-    // On completion, dispatch the consolidated sheet to the branch's inkjet. Every role that can
-    // complete from this board (operador/canteador/admin) also holds `orders:workshop`.
+    // On completion, dispatch the consolidated sheet to the branch's inkjet — unless that branch
+    // has no sheet printer. Every role that can complete from this board (operador/canteador/admin)
+    // also holds `orders:workshop`. The switch is per item: the admin's board spans every branch.
     else if (kind === 'complete')
       updateStatus.mutate(
         { id, data: { status: 'completed' } },
         {
-          onSuccess: () =>
+          onSuccess: () => {
+            if (!item.printConsolidatedEnabled) return
             printConsolidated.mutate(
               { orderId: id },
               // Surface the new job in the panel right away instead of waiting for the poll.
               { onSuccess: () => void qc.invalidateQueries({ queryKey: PRINT_JOBS_KEY }) },
-            ),
+            )
+          },
         },
       )
     else if (kind === 'startBanding') updateBanding.mutate({ id, data: { status: 'in_progress' } })
@@ -226,8 +230,12 @@ const WorkshopBoardPage = () => {
                           {showBanding && <BandingStatusBadge status={item.bandingStatus} />}
                         </div>
                       </div>
-                      <div className="fw-semibold">
-                        {item.client.firstName} {item.client.lastName}
+                      <div>
+                        <div className="fw-semibold">
+                          {item.client.firstName} {item.client.lastName}
+                        </div>
+                        {/* Reference (project/site): tells apart several orders of the same client. */}
+                        <ReferenceNote notes={item.notes} variant="header" />
                       </div>
                       {item.boardUsage.length > 0 && (
                         <div className="d-flex flex-wrap gap-1">

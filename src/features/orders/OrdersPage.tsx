@@ -15,6 +15,7 @@ import {
   CTableRow,
 } from '@coreui/react'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 
 import CIcon from '@coreui/icons-react'
@@ -149,6 +150,7 @@ const OrdersPage = () => {
                     <CTableRow key={o.id} onClick={() => void navigate(`/orders/${o.id}`)}>
                       <CTableDataCell>
                         <strong>{o.code ?? '—'}</strong>
+                        <ReferenceNote notes={o.notes} />
                       </CTableDataCell>
                       <CTableDataCell>
                         <div>{clientName(o.client)}</div>

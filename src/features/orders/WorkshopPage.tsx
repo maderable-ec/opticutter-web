@@ -23,6 +23,7 @@ import { useHasRole } from 'src/features/auth/useAuth'
 import { usePrintLabel } from 'src/features/print/usePrint'
 import { PALETTE, pieceSig } from 'src/features/optimizer/cutDrawing'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import OrderStatusBadge from './OrderStatusBadge'
 import BandingStatusBadge from './BandingStatusBadge'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
@@ -84,12 +85,18 @@ const WorkshopPage = () => {
   const interactive = plan?.status === 'cutting'
 
   // Single tap marks a piece as cut; tapping an already-cut piece does nothing (double-tap unmarks it).
-  // Once the cut is confirmed server-side, dispatch its label to the branch's thermal printer.
+  // Once the cut is confirmed server-side, dispatch its label to the branch's thermal printer —
+  // skipped when the branch has no such printer (the backend would skip it anyway; not firing
+  // keeps the cut from costing a pointless round trip on every single piece).
   const onPieceTap = (piece: CutPiece) => {
     if (!id || piece.cut) return
     markPiece.mutate(
       { pieceId: piece.id, cut: true },
-      { onSuccess: () => printLabel.mutate({ orderId: id, pieceId: piece.id }) },
+      {
+        onSuccess: () => {
+          if (plan?.printLabelsEnabled) printLabel.mutate({ orderId: id, pieceId: piece.id })
+        },
+      },
     )
   }
 
@@ -159,12 +166,16 @@ const WorkshopPage = () => {
         <CIcon icon={cilArrowLeft} className="me-1" />
         {isOperator ? 'Volver a órdenes' : 'Volver a la orden'}
       </CButton>
-      <div className="d-flex align-items-center gap-2 flex-wrap">
-        <h4 className="mb-0">{plan.orderCode}</h4>
-        <OrderStatusBadge status={plan.status} />
-        {order?.bandingStatus && order.bandingStatus !== 'not_applicable' && (
-          <BandingStatusBadge status={order.bandingStatus} />
-        )}
+      <div>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <h4 className="mb-0">{plan.orderCode}</h4>
+          <OrderStatusBadge status={plan.status} />
+          {order?.bandingStatus && order.bandingStatus !== 'not_applicable' && (
+            <BandingStatusBadge status={order.bandingStatus} />
+          )}
+        </div>
+        {/* Reference (project/site): which job of this client is on the saw. */}
+        <ReferenceNote notes={plan.notes} variant="header" />
       </div>
       <CButton
         color="secondary"
