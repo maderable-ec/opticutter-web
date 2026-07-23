@@ -28,6 +28,11 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
   const [address, setAddress] = useState(branch?.address ?? '')
   const [phone, setPhone] = useState(branch?.phone ?? '')
   const [isActive, setIsActive] = useState(branch?.isActive ?? true)
+  // Default ON for a new branch, matching the API: the admin unticks the shops with no printer.
+  const [printLabels, setPrintLabels] = useState(branch?.printLabelsEnabled ?? true)
+  const [printConsolidated, setPrintConsolidated] = useState(
+    branch?.printConsolidatedEnabled ?? true,
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,6 +43,8 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
         address: address || undefined,
         phone: phone || undefined,
         isActive,
+        printLabelsEnabled: printLabels,
+        printConsolidatedEnabled: printConsolidated,
       }
       onSubmit(payload)
     } else {
@@ -46,6 +53,8 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
         name,
         address: address || undefined,
         phone: phone || undefined,
+        printLabelsEnabled: printLabels,
+        printConsolidatedEnabled: printConsolidated,
       }
       onSubmit(payload)
     }
@@ -116,6 +125,27 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
             />
           </div>
         )}
+
+        <div className="mb-2">
+          <CFormLabel>Impresión en el taller</CFormLabel>
+          <div className="text-body-secondary small mb-2">
+            Desmarca lo que esta sucursal no tenga: no se envía nada a la cola de impresión.
+          </div>
+          <CFormCheck
+            id="bf-print-labels"
+            label="Etiquetas por pieza (impresora térmica)"
+            checked={printLabels}
+            onChange={(e) => setPrintLabels(e.target.checked)}
+            disabled={isSubmitting}
+          />
+          <CFormCheck
+            id="bf-print-consolidated"
+            label="Hoja consolidada al completar (impresora de hojas)"
+            checked={printConsolidated}
+            onChange={(e) => setPrintConsolidated(e.target.checked)}
+            disabled={isSubmitting}
+          />
+        </div>
       </CModalBody>
 
       <CModalFooter>

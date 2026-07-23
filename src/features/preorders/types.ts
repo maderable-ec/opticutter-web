@@ -33,6 +33,9 @@ export interface PreOrderSummary {
   // Owning branch (required FK): always present in list and detail responses.
   branch: BranchRef
   status: PreOrderStatus
+  // Commercial reference (project/site name) typed by the seller: the differentiator when the
+  // same client has several quotes running. Shown as a subtitle under the code in the listing.
+  notes: string | null
   source: string
   orderId: number | null
   createdAt: string
@@ -53,7 +56,6 @@ export interface PreOrderStatusHistoryEntry {
 }
 
 export interface PreOrder extends PreOrderSummary {
-  notes: string | null
   clientNote: string | null // note written by client when requesting changes
   sentAt: string | null
   confirmedAt: string | null

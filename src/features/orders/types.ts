@@ -79,6 +79,9 @@ export interface Order {
   history?: OrderHistoryEntry[]
   createdAt: string
   confirmedAt?: string
+  // Commercial reference (project/site name) inherited from the quote and frozen here: read-only
+  // on the order (there is no endpoint to edit it). Printed on every document as the "Ref:" line.
+  notes?: string | null
   externalInvoiceId?: string
   assignedToId?: number | null
   assignedAt?: string | null
@@ -158,11 +161,15 @@ export interface WorkshopQueueItem {
   orderCode: string | null
   status: Extract<OrderStatus, 'queued' | 'cutting' | 'cut'>
   bandingStatus: BandingStatus
+  notes?: string | null
   createdAt: string
   client: Client
   boardUsage: BoardUsage[]
   bandingUsage: BandingUsage[]
   progress: CutProgress
+  // Whether the order's branch prints the consolidated packet. Per item because the admin's
+  // board spans every branch.
+  printConsolidatedEnabled: boolean
 }
 
 export interface AssociateInvoicePayload {
@@ -245,8 +252,12 @@ export interface CuttingPlan {
   orderId: number
   orderCode: string
   status: OrderStatus
+  notes?: string | null
   progress: CutProgress
   boards: CutBoard[]
+  // Whether the order's branch has a thermal printer: gates the label dispatch that follows
+  // marking a piece cut.
+  printLabelsEnabled: boolean
 }
 
 // Response from the mark PATCH: updated piece + recalculated progress (global and per board).

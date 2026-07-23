@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  CBadge,
   CButton,
   CCard,
   CCardBody,
@@ -30,6 +31,26 @@ interface ModalState {
   visible: boolean
   branch: Branch | null
 }
+
+// What the branch's shop sends to its print agent, at a glance. A muted badge = that printer
+// isn't there, so the automatic dispatch is skipped (edit the branch to change it).
+const PrintingBadges = ({ branch }: { branch: Branch }) => (
+  <>
+    <CBadge
+      color={branch.printLabelsEnabled ? 'success' : 'secondary'}
+      className="me-1"
+      title="Etiqueta por pieza cortada"
+    >
+      Etiquetas
+    </CBadge>
+    <CBadge
+      color={branch.printConsolidatedEnabled ? 'success' : 'secondary'}
+      title="Hoja consolidada al completar la orden"
+    >
+      Hojas
+    </CBadge>
+  </>
+)
 
 const BranchesPage = () => {
   const [search, setSearch] = useState('')
@@ -97,6 +118,7 @@ const BranchesPage = () => {
                   <CTableHeaderCell className="bg-body-tertiary">Nombre</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Dirección</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Teléfono</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Impresión</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary">Activa</CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary" />
                 </CTableRow>
@@ -104,7 +126,7 @@ const BranchesPage = () => {
               <CTableBody>
                 {branches.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
                       Sin resultados
                     </CTableDataCell>
                   </CTableRow>
@@ -115,6 +137,9 @@ const BranchesPage = () => {
                       <CTableDataCell>{b.name}</CTableDataCell>
                       <CTableDataCell>{b.address ?? '—'}</CTableDataCell>
                       <CTableDataCell>{b.phone ?? '—'}</CTableDataCell>
+                      <CTableDataCell className="text-nowrap">
+                        <PrintingBadges branch={b} />
+                      </CTableDataCell>
                       <CTableDataCell>
                         <CFormSwitch
                           checked={b.isActive}

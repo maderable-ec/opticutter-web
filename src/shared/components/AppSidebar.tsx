@@ -17,6 +17,7 @@ import { logo } from 'src/assets/brand/logo'
 import { memo } from 'react'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { preordersNav } from 'src/features/preorders/nav'
+import { printNav } from 'src/features/print/nav'
 import { productsNav } from 'src/features/products/nav'
 import { servicesNav } from 'src/features/services/nav'
 import { settingsNav } from 'src/features/settings/nav'
@@ -35,6 +36,7 @@ const allNavItems = [
   ...productsNav,
   ...servicesNav,
   ...branchesNav,
+  ...printNav,
   ...usersNav,
   ...settingsNav,
 ]

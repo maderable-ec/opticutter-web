@@ -5,6 +5,7 @@ import CIcon from '@coreui/icons-react'
 
 import { logo } from 'src/assets/brand/logo'
 import { ApiError } from 'src/shared/api/types'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { useReview } from './useReview'
 import ReviewSummary from './ReviewSummary'
 import ReviewActions from './ReviewActions'
@@ -86,6 +87,8 @@ const ReviewPage = () => {
           <div>
             <h5 className="mb-1">{data.reference}</h5>
             <div className="text-body-secondary small">Cliente: {data.clientName}</div>
+            {/* Commercial reference (project/site), the same text printed on the proforma. */}
+            <ReferenceNote notes={data.notes} variant="header" />
           </div>
           <div className="text-end small">
             {status === 'sent' && data.expiresAt && (

@@ -70,6 +70,7 @@ import OptimizeActionBar from 'src/features/optimizer/OptimizeActionBar'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PriceTierSelect from 'src/features/settings/PriceTierSelect'
 import StatusHistoryCard from 'src/shared/components/StatusHistoryCard'
+import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { preordersApi } from './preordersApi'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
@@ -400,6 +401,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               {preOrder.source && (
                 <div className="text-body-secondary small">Fuente: {preOrder.source}</div>
               )}
+              {/* Reference: shown here even when the quote is closed (the editable card below
+                  only renders while it can still be edited). Reflects the saved value. */}
+              <ReferenceNote notes={preOrder.notes} variant="header" />
             </CCol>
             <CCol xs={12} md={6}>
               <div className="small">
@@ -562,20 +566,25 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       {canEdit && (
         <CCard className="mb-3">
           <CCardHeader>
-            <strong>Notas</strong>
+            <strong>Referencia y precio</strong>
           </CCardHeader>
           <CCardBody>
             <div className="mb-3">
               <label className="form-label">Nivel de precio</label>
               <PriceTierSelect value={priceTierCode} onChange={setPriceTierCode} />
             </div>
+            <label className="form-label">Referencia</label>
             <CFormTextarea
               rows={2}
               maxLength={512}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Instrucciones especiales, referencias, etc."
+              placeholder="Ej.: Proyecto Casa Pérez — cocina y closet"
             />
+            <div className="form-text">
+              Nombre del proyecto u obra para distinguir este pedido de otros del mismo cliente. Se
+              imprime en todos los documentos y la ve el cliente.
+            </div>
           </CCardBody>
         </CCard>
       )}
