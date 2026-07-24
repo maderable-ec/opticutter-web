@@ -56,7 +56,7 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
   }
 
   return (
-    <CForm onSubmit={handleSubmit}>
+    <CForm onSubmit={handleSubmit} className="d-flex flex-column overflow-hidden">
       <CModalBody>
         <CRow className="g-3">
           <CCol xs={12}>

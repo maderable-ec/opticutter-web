@@ -64,7 +64,7 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
   }
 
   return (
-    <CForm onSubmit={handleSubmit}>
+    <CForm onSubmit={handleSubmit} className="d-flex flex-column overflow-hidden">
       <CModalBody>
         <CRow className="g-3">
           <CCol xs={12}>
