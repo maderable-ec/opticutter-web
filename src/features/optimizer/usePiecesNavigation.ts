@@ -121,7 +121,7 @@ export const usePiecesNavigation = ({
         row.scrollIntoView({ block: 'center', behavior: 'smooth' })
         // The label is the human-readable column and the one a user is most likely to have been
         // looking for, so the caret lands there rather than on the first dimension.
-        row.querySelector<HTMLElement>('[data-col="4"]')?.focus({ preventScroll: true })
+        row.querySelector<HTMLElement>('[data-col="3"]')?.focus({ preventScroll: true })
       })
     },
     [expand],
