@@ -30,6 +30,7 @@ export const ordersApi = {
     createdTo,
     sort,
     isPriority,
+    bandingStatus,
     offset = 0,
     limit = 20,
   }: OrderListParams = {}) =>
@@ -43,6 +44,7 @@ export const ordersApi = {
         createdTo,
         sort,
         isPriority,
+        bandingStatus,
         offset,
         limit,
       })}`,

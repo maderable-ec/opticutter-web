@@ -10,6 +10,10 @@ const BANDING_CONFIG: Record<BandingStatus, StatusConfigEntry> = {
   done: { color: 'success', label: 'Canteado listo' },
 }
 
+// The same labels in prose, for callers that write a sentence instead of a badge
+// ("Canteando hace 40 min" on the shop-floor card).
+export const bandingLabel = (status: BandingStatus): string => BANDING_CONFIG[status].label
+
 interface BandingStatusBadgeProps {
   status: BandingStatus
 }

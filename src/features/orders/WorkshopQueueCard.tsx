@@ -3,9 +3,12 @@ import CIcon from '@coreui/icons-react'
 import { cilBolt, cilChevronRight } from '@coreui/icons'
 
 import ReferenceNote from 'src/shared/components/ReferenceNote'
-import { isOlderThan, relativeTime } from 'src/shared/utils/date'
+import { relativeTime } from 'src/shared/utils/date'
+import { fmtDateTime } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
-import BandingStatusBadge from './BandingStatusBadge'
+import BandingStatusBadge, { bandingLabel } from './BandingStatusBadge'
+import { elapsedTone, queueBandingClock, queueStatusClock, TONE_CLASS } from './elapsed'
+import { statusLabel } from './status'
 import type { CardAction, WorkshopQueueItem } from './types'
 
 const pct = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
@@ -14,15 +17,24 @@ const pct = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
 const isDone = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
   totalPieces > 0 && cutPieces >= totalPieces
 
-// A queued order that has been waiting a full day is the thing a shop-floor board exists to give
-// away. Only `queued`: once someone has taken it, elapsed time is no longer anybody's cue.
-const STALE_MS = 24 * 60 * 60 * 1000
+// Elapsed time now comes from the shared rule in `elapsed.ts`, which the orders listing reads too.
+// It supersedes the old queued-only 24h marker in two ways: it escalates in stages (an hour, then
+// four) instead of flipping once a day, and it keeps counting through `cutting` and `cut` — being
+// taken is not the same as being finished, and an order somebody took this morning and abandoned
+// used to look exactly like one taken a minute ago.
+//
+// `queueStatusClock` is what preserves the one thing the old marker got right: a QUEUED card still
+// measures from `queuedAt` (the moment the order was PAID, which is what gates `confirmed → queued`
+// and what the board's FIFO sorts by), never from the status clock, which the admin rollback
+// `cutting → queued` moves.
 
-// The wait the floor cares about starts when the order reached the shop — i.e. when it was PAID,
-// which is what gates `confirmed → queued`. Measuring from `createdAt` made a quote raised last week
-// and paid ten minutes ago read "En cola hace 7 días", in warning colours, on a card nobody had had
-// the chance to take yet. `createdAt` is only the fallback for a row the backfill could not date.
-const arrivedAt = (item: WorkshopQueueItem): string => item.queuedAt ?? item.createdAt
+// One line of prose: "En corte hace 3 h", coloured by how late it is.
+const ElapsedLine = ({ label, iso }: { label: string; iso: string | null }) =>
+  iso ? (
+    <div className={TONE_CLASS[elapsedTone(iso)]} title={fmtDateTime(iso)}>
+      {label} {relativeTime(iso)}
+    </div>
+  ) : null
 
 // One line standing in for the whole material list: how much there is to cut, and how much banding
 // to run. A real order carries six boards and four banding lines; printing them all made the card
@@ -67,7 +79,6 @@ const WorkshopQueueCard = ({
   onShowMaterials,
 }: WorkshopQueueCardProps) => {
   const showBanding = item.bandingStatus !== 'not_applicable'
-  const isStale = item.status === 'queued' && isOlderThan(arrivedAt(item), STALE_MS)
   const summary = materialsSummary(item)
   // Only one reason is ever shown: the two buttons are never blocked at once (the operator's
   // gate is the banding track, the bander's is the cut), and stacking both would push the
@@ -154,8 +165,13 @@ const WorkshopQueueCard = ({
           </div>
         )}
 
-        <div className={isStale ? 'text-warning-emphasis fw-semibold' : 'text-body-secondary'}>
-          En cola {relativeTime(arrivedAt(item))}
+        <div className="d-flex flex-column">
+          <ElapsedLine label={statusLabel(item.status)} iso={queueStatusClock(item)} />
+          {/* The bander's own clock. Silent while the track is blocked (no banded piece cut
+              yet) and once it is done — the two states where nobody is late. */}
+          {showBanding && (
+            <ElapsedLine label={bandingLabel(item.bandingStatus)} iso={queueBandingClock(item)} />
+          )}
         </div>
 
         <div className="d-flex gap-2 mt-auto">
