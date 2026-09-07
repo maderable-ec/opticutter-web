@@ -69,6 +69,10 @@ const WorkshopQueueCard = ({
   const showBanding = item.bandingStatus !== 'not_applicable'
   const isStale = item.status === 'queued' && isOlderThan(arrivedAt(item), STALE_MS)
   const summary = materialsSummary(item)
+  // Only one reason is ever shown: the two buttons are never blocked at once (the operator's
+  // gate is the banding track, the bander's is the cut), and stacking both would push the
+  // card taller than the ones beside it.
+  const blockedReason = operatorAction?.reason ?? bandingAction?.reason
 
   return (
     <CCard
@@ -133,6 +137,23 @@ const WorkshopQueueCard = ({
           </div>
         )}
 
+        {/* The banded pieces get their own bar because they are their own gate: the bander
+            waits on THESE, not on the cut as a whole. Without it the card would grey out the
+            banding button while the bar above happily advances on pieces that carry no canto. */}
+        {item.bandingProgress.totalPieces > 0 && (
+          <div className="d-flex align-items-center gap-3">
+            <CProgress className="flex-grow-1">
+              <CProgressBar
+                value={pct(item.bandingProgress)}
+                color={isDone(item.bandingProgress) ? 'success' : 'info'}
+              />
+            </CProgress>
+            <span className="fw-semibold text-nowrap">
+              {item.bandingProgress.cutPieces}/{item.bandingProgress.totalPieces} con canto
+            </span>
+          </div>
+        )}
+
         <div className={isStale ? 'text-warning-emphasis fw-semibold' : 'text-body-secondary'}>
           En cola {relativeTime(arrivedAt(item))}
         </div>
@@ -160,7 +181,8 @@ const WorkshopQueueCard = ({
               color={bandingAction.color}
               size="lg"
               className="flex-fill"
-              disabled={bandingPending}
+              disabled={bandingAction.disabled || bandingPending}
+              title={bandingAction.title}
               onClick={() => onAction(bandingAction)}
             >
               {bandingPending ? (
@@ -173,6 +195,9 @@ const WorkshopQueueCard = ({
           )}
         </div>
 
+        {/* Why a button is greyed out, as text: this runs on a touch panel, where the
+            `title=` tooltip above never fires. */}
+        {blockedReason && <div className="text-body-secondary small">{blockedReason}</div>}
         {statusError && <div className="text-danger small">{statusError}</div>}
         {bandingError && <div className="text-danger small">{bandingError}</div>}
       </CCardBody>

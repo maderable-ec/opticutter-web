@@ -172,9 +172,18 @@ const WorkshopBoardPage = () => {
                   icon: cilCheckAlt,
                   disabled: bandingBlocked,
                   title: bandingBlocked ? 'Falta terminar el canteado' : undefined,
+                  reason: bandingBlocked ? 'Falta terminar el canteado' : undefined,
                 }
               }
             }
+
+            // The bander works on the pieces the operator releases: start once the FIRST
+            // banded piece is cut, finish once the LAST one is. Plain pieces never count,
+            // which is what keeps banding running in parallel with the rest of the cut.
+            // The button stays on screen and greys out with the reason: on a shop-floor
+            // panel, an action that silently disappears is indistinguishable from a bug.
+            const banded = item.bandingProgress
+            const bandedLeft = banded.totalPieces - banded.cutPieces
 
             let bandingAction: CardAction | null = null
             if (canBand) {
@@ -187,6 +196,9 @@ const WorkshopBoardPage = () => {
                   label: 'Iniciar canteado',
                   color: 'primary',
                   icon: cilMediaPlay,
+                  disabled: banded.cutPieces === 0,
+                  reason:
+                    banded.cutPieces === 0 ? 'Falta cortar la primera pieza con canto' : undefined,
                 }
               } else if (
                 (item.status === 'cutting' || item.status === 'cut') &&
@@ -197,6 +209,11 @@ const WorkshopBoardPage = () => {
                   label: 'Terminar canteado',
                   color: 'success',
                   icon: cilCheckAlt,
+                  disabled: bandedLeft > 0,
+                  reason:
+                    bandedLeft > 0
+                      ? `Faltan ${bandedLeft} pieza(s) con canto por cortar`
+                      : undefined,
                 }
               } else if (
                 item.status === 'cut' &&
