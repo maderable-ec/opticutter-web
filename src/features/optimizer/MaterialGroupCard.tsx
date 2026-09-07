@@ -7,6 +7,7 @@ import {
   cilChevronRight,
   cilCopy,
   cilLayers,
+  cilPencil,
   cilPlus,
   cilTrash,
 } from '@coreui/icons'
@@ -65,13 +66,6 @@ interface MaterialGroupCardProps {
   onDuplicate: (m: MaterialForm) => void
   // Opens `MaterialModal` on this group: board, retazos and fill order.
   onConfigure: () => void
-}
-
-const boardDims = (b?: BoardProduct): string | null => {
-  if (!b) return null
-  const { height, width, thickness } = b.attributes
-  if (!height || !width) return null
-  return `${width}×${height}${thickness ? `×${thickness}` : ''} mm`
 }
 
 // Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C CS".
@@ -158,7 +152,6 @@ const MaterialGroupCard = ({
   ).length
 
   const board = m.boardId ? boards.find((b) => String(b.id) === String(m.boardId)) : undefined
-  const dims = boardDims(board)
 
   // Two rules, both waiting on the board's coordinated list, which loads asynchronously:
   //
@@ -274,12 +267,48 @@ const MaterialGroupCard = ({
           <CIcon icon={collapsed ? cilChevronRight : cilChevronBottom} />
         </CButton>
 
-        <span className="material-dot" />
-        <span className="fw-semibold text-truncate" title={title}>
-          {title}
-        </span>
-        {dims && (
-          <span className="small text-body-secondary text-nowrap d-none d-md-inline">{dims}</span>
+        {/* ONE door, and it is the material itself: the identity IS the control, so reaching the
+            board is done by touching the board's name rather than by finding a button parked at the
+            far end of the line, among the actions on the GROUP (duplicate, delete). The chevron and
+            those two stay outside it — folding and deleting are not configuring.
+
+            The retazo count rides in here rather than only in the summary line below, which the
+            body hides when the group is folded: this way a folded group still says it carries
+            retazos, and still opens. */}
+        {materialValid ? (
+          <button
+            type="button"
+            className="material-identity"
+            title="Tablero y retazos de este grupo"
+            onClick={onConfigure}
+          >
+            <span className="material-dot" />
+            <span className="fw-semibold text-truncate">{title}</span>
+            {allOffcuts.length > 0 && (
+              <span className="small text-body-secondary text-nowrap">
+                · {allOffcuts.length === 1 ? '1 retazo' : `${allOffcuts.length} retazos`}
+              </span>
+            )}
+            <CIcon icon={cilPencil} size="sm" className="material-identity__pencil" />
+          </button>
+        ) : (
+          <>
+            {/* An imported group carries the CSV text that created it, which is the only thing
+                naming which material of the file this is. Keep it beside the call to action; a
+                group with nothing at all has no name to show and gets the button alone. */}
+            {m.label.trim() && (
+              <>
+                <span className="material-dot" />
+                <span className="text-body-secondary text-truncate" title={m.label}>
+                  {m.label}
+                </span>
+              </>
+            )}
+            <CButton size="sm" color="primary" type="button" onClick={onConfigure}>
+              <CIcon icon={cilLayers} className="d-md-none" />
+              <span className="d-none d-md-inline">Definir material</span>
+            </CButton>
+          </>
         )}
 
         <div className="ms-auto d-flex align-items-center gap-2">
@@ -303,27 +332,6 @@ const MaterialGroupCard = ({
                 {invalidCount === 1 ? '1 incompleta' : `${invalidCount} incompletas`}
               </CBadge>
             ))}
-          {/* ONE way in, always in the same place. It replaced a pencil (board)
-              plus a "Retazos" chip (everything else) that opened two halves of
-              the same idea — and the chip only carried a count, which the line
-              under the header now states in words.
-
-              Solid while the material is undefined: with no inline form left,
-              this button is the only exit from an empty card, so it has to look
-              like the next step rather than like a settings icon. */}
-          <CButton
-            size="sm"
-            variant={materialValid ? 'ghost' : undefined}
-            color="primary"
-            type="button"
-            title="Tablero y retazos de este grupo"
-            onClick={onConfigure}
-          >
-            <CIcon icon={cilLayers} className="d-md-none" />
-            <span className="d-none d-md-inline">
-              {materialValid ? 'Configurar' : 'Configurar material'}
-            </span>
-          </CButton>
           <CButton
             size="sm"
             variant="ghost"
@@ -351,13 +359,15 @@ const MaterialGroupCard = ({
         <div>
           {/* The retazos, in one line instead of the ~140px of inputs they used
               to occupy here. Reading is the common act; editing is not — and
-              editing has exactly one door, the header's button, rather than a
-              second one that appears and disappears with the retazos. */}
+              editing has exactly one door, the header's identity button, rather
+              than a second one that appears and disappears with the retazos.
+              This line carries the SIZES; the count lives up in that button, so
+              a folded group does not lose it. */}
           {allOffcuts.length > 0 && (
             <div className="d-flex align-items-center gap-2 flex-wrap small text-body-secondary mb-2">
-              <span className="fw-semibold text-body">
-                {allOffcuts.length === 1 ? '1 retazo' : `${allOffcuts.length} retazos`}
-              </span>
+              {/* Named, not just measured: the COUNT moved up into the identity button, and without
+                  a word here the line opened on bare dimensions that could be read as the board's. */}
+              <span className="fw-semibold text-body">Retazos</span>
               <span>{offcutSummary}</span>
               {m.boardId && <span>· llenado {fillOrderLabel}</span>}
               {!m.boardId && <span>· sin tablero de catálogo</span>}

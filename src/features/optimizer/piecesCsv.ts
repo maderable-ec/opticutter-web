@@ -15,7 +15,9 @@ import { normalizeText } from 'src/shared/utils/text'
 // Anything else stays as the piece's own free text. The tapacanto PRODUCT is not in this format:
 // it is inferred from the group's board once the material is mapped.
 
-// Column order matches the visual order of the table.
+// The positions the parser destructures, in order. This is the workshop program's layout, not the
+// editor's: the pieces table no longer has a Prioridad column, but the SLOT stays — dropping the
+// fifth position would shift Etiqueta and Rotar left and misread every file already out there.
 export const CSV_COLUMNS = [
   'Material',
   'Largo',
@@ -25,6 +27,13 @@ export const CSV_COLUMNS = [
   'Etiqueta',
   'Rotar',
 ] as const
+
+// What the import dialog prints as "columnas esperadas". Same order, but it says out loud that the
+// fifth one is read past — otherwise a user goes looking in the editor for a column that only the
+// file has.
+export const CSV_COLUMNS_HINT = CSV_COLUMNS.map((c) =>
+  c === 'Prioridad' ? 'Prioridad (se ignora)' : c,
+).join(' · ')
 
 // Known header words used to detect (and skip) a header row.
 const HEADER_WORDS = [
@@ -109,7 +118,6 @@ export interface RawPieceRow {
   height: number | string
   width: number | string
   quantity: number | string
-  priority: number | string
   label: string
   canRotate: boolean
   lineNo: number // 1-based source line, for warnings
@@ -224,7 +232,6 @@ const parseXmlPieces = (text: string): ParsedPieces => {
       height: parseNum(read(xmlRow, 'length')), // Largo = alto, the first measurement
       width: parseNum(read(xmlRow, 'width')),
       quantity: q === '' ? 1 : q,
-      priority: 0, // the XML has no priority field
       canRotate: read(xmlRow, 'allow_rotation') === '1',
       lineNo,
       ...readEtiqueta(read(xmlRow, 'label')),
@@ -254,12 +261,11 @@ export const parsePieces = (text: string): ParsedPieces => {
     const cells = splitLine(line, delimiter)
     if (idx === 0 && looksLikeHeader(cells)) return // skip header row
 
-    const [material = '', alto = '', ancho = '', cant = '', prior = '', etiqueta = '', rotar = ''] =
-      cells
+    // The hole is the Prioridad slot: still occupied in the file, no longer read by the editor.
+    const [material = '', alto = '', ancho = '', cant = '', , etiqueta = '', rotar = ''] = cells
     const lineNo = idx + 1
 
     const q = parseNum(cant)
-    const p = parseNum(prior)
     const rot = normalizeText(rotar)
 
     const row: RawPieceRow = {
@@ -267,7 +273,6 @@ export const parsePieces = (text: string): ParsedPieces => {
       height: parseNum(alto),
       width: parseNum(ancho),
       quantity: q === '' ? 1 : q,
-      priority: p === '' ? 0 : p,
       canRotate: TRUE_WORDS.has(rot),
       lineNo,
       ...readEtiqueta(etiqueta.trim()),
@@ -320,7 +325,7 @@ export const requirementsToCsv = (
       r.height,
       r.width,
       r.quantity,
-      r.priority,
+      '', // the Prioridad slot, kept empty so the export re-imports without shifting
       etiquetaFor(r),
       r.canRotate ? 'sí' : 'no',
     ]

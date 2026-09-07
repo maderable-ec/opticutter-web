@@ -26,7 +26,7 @@ import type { BoardProduct } from 'src/features/products/types'
 import { normalizeText } from 'src/shared/utils/text'
 import { BANDTYPE_LABEL, materialLabel } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
-import { CSV_COLUMNS, looksLikeMissingMaterialColumn, parsePieces } from './piecesCsv'
+import { CSV_COLUMNS_HINT, looksLikeMissingMaterialColumn, parsePieces } from './piecesCsv'
 import {
   buildImport,
   resolveMaterialTargets,
@@ -155,7 +155,7 @@ const ImportPiecesModal = ({
       <CModalBody>
         <p className="text-body-secondary small mb-2">
           Pega un rango copiado de Excel/Google Sheets o sube un archivo <strong>CSV o XML</strong>{' '}
-          del programa de corte. Columnas esperadas: <strong>{CSV_COLUMNS.join(' · ')}</strong>. La{' '}
+          del programa de corte. Columnas esperadas: <strong>{CSV_COLUMNS_HINT}</strong>. La{' '}
           <strong>Etiqueta</strong> se lee como canto cuando trae la notación del taller (
           <code>1L CS</code>, <code>4L CD</code>, <code>NO</code>); el tapacanto se toma del tablero
           del grupo.
@@ -184,7 +184,7 @@ const ImportPiecesModal = ({
         {missingColumn && (
           <CAlert color="danger" className="py-2 small">
             La primera columna debe ser el <strong>Material</strong>, pero parece contener medidas.
-            Revisa el orden: <strong>{CSV_COLUMNS.join(' · ')}</strong>.
+            Revisa el orden: <strong>{CSV_COLUMNS_HINT}</strong>.
           </CAlert>
         )}
 

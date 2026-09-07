@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ClipboardEvent, KeyboardEvent } from 'react'
 import {
   CButton,
+  CButtonGroup,
   CFormCheck,
   CFormInput,
   CFormSelect,
@@ -28,7 +29,6 @@ import CantoPreview from 'src/shared/components/CantoPreview'
 import type { EdgeBandingProduct } from 'src/features/products/types'
 import type { BandType, RequirementForm } from './optimizerForm'
 import {
-  BANDTYPE_ABBR,
   BAND_TYPES,
   CANTO_NOTATIONS,
   displayedBandType,
@@ -68,23 +68,44 @@ interface PieceRowsTableProps {
 }
 
 // Fields that accept a pasted column of values to create rows.
-const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'priority', 'label'])
+const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'label'])
 
-// data-col → field mapping (material column removed). Cols 5-7 are the banding controls.
+// data-col → field mapping (material and priority columns removed). Cols 4-6 are the banding
+// controls.
 const COL_FIELDS: FillableField[] = [
   'height', // col 0
   'width', // col 1
   'quantity', // col 2
-  'priority', // col 3
-  'label', // col 4
-  'edgeBandingSides', // col 5 — banding sides (Canto)
-  'edgeBandingBandType', // col 6 — banding type (Tipo: suave/duro)
-  'edgeBandingProductId', // col 7 — banding product (Tapacanto)
+  'label', // col 3
+  'edgeBandingSides', // col 4 — banding sides (Canto)
+  'edgeBandingBandType', // col 5 — banding type (Tipo: suave/duro)
+  'edgeBandingProductId', // col 6 — banding product (Tapacanto)
 ]
-// Tapacanto (product) is a SearchableSelect outside the grid, so keyboard nav ends at Tipo (col 6).
-const LAST_COL = 6
-const TEXT_COL = 4
-const SELECT_COLS = new Set([5, 6])
+// Width of the Tapacanto column, declared once because the cell and the block inside it have to
+// agree. It is the widest in the grid and the only one holding a catalogue NAME rather than a number
+// ("TAPACANTO PVC NOGAL TERRA 22MM X 0.45MM (TC-NOG-22)"), so 170 showed a stub of it.
+//
+// A DEFINITE width, not just a minimum: the select's label is `white-space: nowrap`, and in a table
+// with auto layout that text is the column's min-content — `text-truncate` does not shrink it there,
+// it only clips what the column already grew to fit. So a long tapacanto blew the column out to
+// ~505px and pushed the whole table past the pane, which is what "no se ve la selección" actually
+// was: not an ellipsis, the cell sitting off the right edge. A block of a fixed width caps the
+// column's min-content, so the row stays inside the pane and the label truncates with an ellipsis —
+// with the full name on the cell's `title`.
+//
+// 260 is what is left after the row's other claims: the whole row has to stay inside the pane on a
+// 1280 laptop, the narrowest screen a vendedor quotes from, and Largo/Ancho keep a floor of 100 so
+// they do not collapse to a 3-digit box when it is tight. A horizontal scroll is the very thing this
+// is fixing, so this number gives way before that floor does — at 260 the dimensions sit exactly on
+// that floor there, and past ~270 the checkbox and "#" gutters start giving way instead.
+const TAPACANTO_COL_W = 260
+
+// Tapacanto (product) is a SearchableSelect outside the grid, so keyboard nav ends at Tipo (col 5).
+const LAST_COL = 5
+const TEXT_COL = 3
+// Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
+// Tipo is a pair of buttons that should move rows like every other cell.
+const SELECT_COLS = new Set([4])
 
 // Fill handle shown in the bottom-right corner of the active cell.
 const handleStyle: CSSProperties = {
@@ -320,7 +341,7 @@ const PieceRowsTable = ({
       }
 
       if (!(active instanceof HTMLInputElement)) return
-      const field = active.dataset.field as 'height' | 'width' | 'quantity' | 'priority' | 'label'
+      const field = active.dataset.field as 'height' | 'width' | 'quantity' | 'label'
       if (!field || !PASTEABLE_FIELDS.has(field) || isNaN(rawRow)) return
       e.preventDefault()
       pasteIntoField(startFlat, field, lines)
@@ -477,10 +498,6 @@ const PieceRowsTable = ({
               {renderFill('quantity', 'Igualar cantidad')}
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>
-              {renderSort('priority', 'Prior.')}
-              {renderFill('priority', 'Igualar prioridad')}
-            </CTableHeaderCell>
-            <CTableHeaderCell style={thStyle}>
               {renderSort('label', 'Etiqueta')}
               {renderFill('label', 'Igualar etiqueta')}
             </CTableHeaderCell>
@@ -564,7 +581,7 @@ const PieceRowsTable = ({
                     <span>{i + 1}</span>
                   </div>
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(0, local, 64)}>
+                <CTableDataCell style={cellStyle(0, local, 100)}>
                   <CFormInput
                     size="sm"
                     type="number"
@@ -579,7 +596,7 @@ const PieceRowsTable = ({
                   />
                   {renderHandle(local, 0)}
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(1, local, 64)}>
+                <CTableDataCell style={cellStyle(1, local, 100)}>
                   <CFormInput
                     size="sm"
                     type="number"
@@ -610,34 +627,19 @@ const PieceRowsTable = ({
                   />
                   {renderHandle(local, 2)}
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(3, local, 56)}>
+                <CTableDataCell style={cellStyle(3, local, 110)}>
                   <CFormInput
                     size="sm"
-                    type="number"
-                    min={0}
                     data-row={local}
                     data-col={3}
-                    data-field="priority"
-                    value={req.priority}
-                    onFocus={() => setActiveCell({ row: local, col: 3 })}
-                    onChange={(e) => update(i, 'priority', e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, local, 3)}
-                  />
-                  {renderHandle(local, 3)}
-                </CTableDataCell>
-                <CTableDataCell style={cellStyle(4, local, 110)}>
-                  <CFormInput
-                    size="sm"
-                    data-row={local}
-                    data-col={4}
                     data-field="label"
                     value={req.label}
-                    onFocus={() => setActiveCell({ row: local, col: 4 })}
+                    onFocus={() => setActiveCell({ row: local, col: 3 })}
                     onChange={(e) => update(i, 'label', e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, local, 4)}
+                    onKeyDown={(e) => handleKeyDown(e, local, 3)}
                     placeholder="Puerta izq."
                   />
-                  {renderHandle(local, 4)}
+                  {renderHandle(local, 3)}
                 </CTableDataCell>
                 <CTableDataCell className="text-center" style={{ minWidth: 60 }}>
                   <CFormCheck
@@ -645,15 +647,23 @@ const PieceRowsTable = ({
                     onChange={(e) => update(i, 'canRotate', e.target.checked)}
                   />
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(5, local, 130)}>
+                {/* The select takes whatever the preview leaves (`flex-grow-1` + `min-width: 0`):
+                    a native select reserves ~26px for its own caret, so at the width this cell used
+                    to give it, "1L2C" was painted under the caret and read as "1L2". The CS/CD
+                    abbreviation that used to sit here is gone — the Tipo column beside it shows the
+                    same derived value in words, so it was spending this cell's scarcest resource
+                    saying it twice. */}
+                <CTableDataCell style={cellStyle(4, local, 132)}>
                   <div className="d-flex align-items-center gap-1">
                     <CantoPreview sides={req.edgeBanding.sides} />
                     <CFormSelect
                       size="sm"
+                      className="flex-grow-1"
+                      style={{ minWidth: 0 }}
                       value={cantoNotation}
                       data-row={local}
-                      data-col={5}
-                      onFocus={() => setActiveCell({ row: local, col: 5 })}
+                      data-col={4}
+                      onFocus={() => setActiveCell({ row: local, col: 4 })}
                       onChange={(e) => {
                         const sides = sidesFromNotation(e.target.value)
                         const next = { ...req.edgeBanding, sides }
@@ -663,7 +673,7 @@ const PieceRowsTable = ({
                         }
                         update(i, 'edgeBanding', next)
                       }}
-                      onKeyDown={(e) => handleKeyDown(e, local, 5)}
+                      onKeyDown={(e) => handleKeyDown(e, local, 4)}
                     >
                       {CANTO_NOTATIONS.map((n) => (
                         <option key={n} value={n}>
@@ -671,66 +681,91 @@ const PieceRowsTable = ({
                         </option>
                       ))}
                     </CFormSelect>
-                    {cantoBandType && (
-                      <span className="small text-body-secondary">
-                        {BANDTYPE_ABBR[cantoBandType]}
-                      </span>
-                    )}
                   </div>
+                  {renderHandle(local, 4)}
+                </CTableDataCell>
+                {/* Two options, so both are on screen and cost one click — a dropdown made the
+                    commonest edit in this column a three-act open/aim/pick, once per row. Not a
+                    switch: a switch has two states and this control has THREE, because "" is real —
+                    the type is unstated and `displayedBandType` reads it off whichever tapacanto is
+                    assigned. Unstated shows as neither button pressed, and clicking the pressed one
+                    returns to it, which is what the dropdown's "—" option did.
+
+                    Labelled CS/CD rather than Suave/Duro: that is the notation this app already
+                    reads and writes everywhere else — the quick-entry line ("720×400×4 Etiqueta 1L2C
+                    CS"), the CSV's Etiqueta column, `CS_CD_TO_BANDTYPE` — so the grid says what the
+                    seller types. It is also half the width, which is width this row does not have. */}
+                <CTableDataCell style={cellStyle(5, local, 76)}>
+                  <CButtonGroup size="sm" role="group" aria-label="Tipo de canto">
+                    {BAND_TYPES.map((bt) => {
+                      const active = bt.value === cantoBandType
+                      return (
+                        <CButton
+                          key={bt.value}
+                          type="button"
+                          color="primary"
+                          variant={active ? undefined : 'outline'}
+                          active={active}
+                          aria-pressed={active}
+                          disabled={cantoNotation === '—'}
+                          // The button says CS/CD, so the word it stands for lives on the title and
+                          // on the accessible name — the abbreviation is the shop's, not the
+                          // screen reader's.
+                          title={`Canto ${bt.label.toLowerCase()}`}
+                          aria-label={`Canto ${bt.label.toLowerCase()}`}
+                          data-row={local}
+                          data-col={5}
+                          onFocus={() => setActiveCell({ row: local, col: 5 })}
+                          onClick={() => {
+                            const bandType: '' | BandType = active ? '' : bt.value
+                            const productId =
+                              inferBandingProductId(boardEdgeBandings, bandType) ||
+                              req.edgeBanding.productId
+                            update(i, 'edgeBanding', { ...req.edgeBanding, bandType, productId })
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, local, 5)}
+                        >
+                          {bt.abbr}
+                        </CButton>
+                      )
+                    })}
+                  </CButtonGroup>
                   {renderHandle(local, 5)}
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(6, local, 90)}>
-                  <CFormSelect
-                    size="sm"
-                    value={cantoBandType}
-                    disabled={cantoNotation === '—'}
-                    data-row={local}
-                    data-col={6}
-                    onFocus={() => setActiveCell({ row: local, col: 6 })}
-                    onChange={(e) => {
-                      const bandType = e.target.value as '' | BandType
-                      const productId =
-                        inferBandingProductId(boardEdgeBandings, bandType) ||
-                        req.edgeBanding.productId
-                      update(i, 'edgeBanding', { ...req.edgeBanding, bandType, productId })
-                    }}
-                    onKeyDown={(e) => handleKeyDown(e, local, 6)}
-                  >
-                    <option value="">—</option>
-                    {BAND_TYPES.map((bt) => (
-                      <option key={bt.value} value={bt.value}>
-                        {bt.label}
-                      </option>
-                    ))}
-                  </CFormSelect>
-                  {renderHandle(local, 6)}
-                </CTableDataCell>
                 {/* onFocus on the cell captures focus from the inner SearchableSelect button so the
-                    drag fill handle appears; the handle fills edgeBandingProductId down the group. */}
+                    drag fill handle appears; the handle fills edgeBandingProductId down the group.
+
+                    See TAPACANTO_COL_W for why this column is bounded rather than merely wide. The
+                    extra room is paid for by the Prioridad column this table no longer has. */}
                 <CTableDataCell
                   style={{
-                    ...cellStyle(7, local, 170),
+                    ...cellStyle(6, local, TAPACANTO_COL_W),
                     ...(bandingMissing ? { boxShadow: 'inset 0 0 0 2px var(--cui-danger)' } : {}),
                   }}
                   title={
                     bandingMissing ? 'Selecciona el tapacanto para el canto definido' : undefined
                   }
-                  onFocus={() => setActiveCell({ row: local, col: 7 })}
+                  onFocus={() => setActiveCell({ row: local, col: 6 })}
                 >
-                  <SearchableSelect
-                    size="sm"
-                    value={String(req.edgeBanding.productId)}
-                    disabled={cantoNotation === '—'}
-                    placeholder={bandingMissing ? '⚠ Falta tapacanto' : '—'}
-                    searchPlaceholder="Buscar tapacanto…"
-                    emptyText="Sin tapacantos que coincidan"
-                    options={options}
-                    onChange={(v) => setBandingProduct(i, req, v)}
-                    footerLabel="Seleccionar otro…"
-                    onFooterClick={() => setPickerRow(local)}
-                    container={container}
-                  />
-                  {renderHandle(local, 7)}
+                  <div
+                    style={{ width: TAPACANTO_COL_W }}
+                    title={assigned ? `${assigned.name} (${assigned.code})` : undefined}
+                  >
+                    <SearchableSelect
+                      size="sm"
+                      value={String(req.edgeBanding.productId)}
+                      disabled={cantoNotation === '—'}
+                      placeholder={bandingMissing ? '⚠ Falta tapacanto' : '—'}
+                      searchPlaceholder="Buscar tapacanto…"
+                      emptyText="Sin tapacantos que coincidan"
+                      options={options}
+                      onChange={(v) => setBandingProduct(i, req, v)}
+                      footerLabel="Seleccionar otro…"
+                      onFooterClick={() => setPickerRow(local)}
+                      container={container}
+                    />
+                  </div>
+                  {renderHandle(local, 6)}
                 </CTableDataCell>
                 <CTableDataCell className="text-nowrap">
                   <CButton
@@ -759,7 +794,7 @@ const PieceRowsTable = ({
           })}
           {rows.length === 0 && (
             <CTableRow>
-              <CTableDataCell colSpan={12} className="text-center text-body-secondary small py-3">
+              <CTableDataCell colSpan={11} className="text-center text-body-secondary small py-3">
                 Sin piezas en este material. Usa “Agregar pieza” o la entrada rápida.
               </CTableDataCell>
             </CTableRow>

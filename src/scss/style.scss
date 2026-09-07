@@ -323,8 +323,53 @@ input[type='number'] {
   background-color: var(--group-accent, var(--cui-border-color));
 }
 
+// The group's identity, and its one door into `MaterialModal`. The name, the board's size and the
+// retazo count are not a label beside a Configurar button — they ARE the button: the seller reaches
+// the material by touching the material, instead of hunting for a control parked at the far end of
+// the line next to the actions on the GROUP (duplicate, delete).
+//
+// Quiet at rest so the pinned line still reads as a heading, and it declares a TRANSPARENT border
+// rather than none: the header is sticky with a fixed height, so a border appearing on hover must
+// not be able to reflow it. `min-width: 0` + `overflow: hidden` are what let the name's
+// `text-truncate` actually bite — a flex child defaults to `min-width: auto` and refuses to shrink
+// below its content, which would push the piece counters off the line.
+.material-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.15rem 0.5rem;
+  border: var(--cui-border-width) var(--cui-border-style) transparent;
+  border-radius: var(--cui-border-radius);
+  background: none;
+  color: inherit;
+  text-align: start;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--group-accent, var(--cui-primary));
+    // An alpha of the brand, so one declaration serves both themes — same rule as `.piece-hit` and
+    // the `.list-table` row hover.
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  &:hover .material-identity__pencil,
+  &:focus-visible .material-identity__pencil {
+    opacity: 1;
+  }
+}
+
+// Faint at rest: enough to say "this is editable" without competing with the material's name, which
+// is the thing being read.
+.material-identity__pencil {
+  flex: 0 0 auto;
+  opacity: 0.55;
+  color: var(--cui-secondary-color);
+}
+
 // Index of materials above the pane: table of contents, compass and jump target in one row. Chips
-// rather than a rail, because a rail would take width from a table that already has 12 columns.
+// rather than a rail, because a rail would take width from a table that already has 11 columns.
 .material-strip {
   overflow-x: auto;
   scrollbar-width: thin;
@@ -542,7 +587,7 @@ input[type='number'] {
   }
 }
 
-// Pieces grid: 12 columns of mostly 3-4 digit numbers. Shrinking the header type and cell padding
+// Pieces grid: 11 columns of mostly 3-4 digit numbers. Shrinking the header type and cell padding
 // buys back horizontal room so the table fits its pane without scrolling.
 .pieces-table {
   th {

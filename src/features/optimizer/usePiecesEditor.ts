@@ -9,7 +9,6 @@ export type FillableField =
   | 'height'
   | 'width'
   | 'quantity'
-  | 'priority'
   | 'label'
   | 'canRotate'
   | 'edgeBanding'
@@ -19,7 +18,7 @@ export type FillableField =
 export type FillScope = 'all' | 'selected'
 
 // Campos por los que se puede ordenar una tabla de grupo.
-export type SortField = 'height' | 'width' | 'quantity' | 'priority' | 'label'
+export type SortField = 'height' | 'width' | 'quantity' | 'label'
 export type SortDir = 'asc' | 'desc'
 
 const MAX_HISTORY = 20
@@ -365,7 +364,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   // creates new ones (cloned from the source row) when they run out; reclusters to keep groups intact.
   const pasteIntoField = (
     startIndex: number,
-    field: 'height' | 'width' | 'quantity' | 'priority' | 'label',
+    field: 'height' | 'width' | 'quantity' | 'label',
     rawValues: string[],
   ) => {
     applyWithHistory((rs) => {

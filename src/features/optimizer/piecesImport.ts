@@ -143,7 +143,6 @@ const rowToRequirement = (row: RawPieceRow, materialUid: string): RequirementFor
   req.height = row.height
   req.width = row.width
   req.quantity = row.quantity
-  req.priority = row.priority
   req.label = row.label
   req.canRotate = row.canRotate
   // Sides and soft/hard come from the file's Etiqueta; the tapacanto PRODUCT does not — it depends

@@ -175,7 +175,6 @@ function formFromPreOrderData(
     height: r.height,
     width: r.width,
     quantity: r.quantity,
-    priority: r.priority,
     label: r.label ?? '',
     canRotate: r.canRotate,
     edgeBanding: r.edgeBanding

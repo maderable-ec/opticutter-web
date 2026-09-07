@@ -75,7 +75,6 @@ export interface RequirementForm {
   height: number | string
   width: number | string
   quantity: number | string
-  priority: number | string
   label: string
   canRotate: boolean
   edgeBanding: EdgeBandingForm
@@ -200,7 +199,6 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   height: '',
   width: '',
   quantity: 1,
-  priority: 0,
   label: '',
   canRotate: false,
   edgeBanding: emptyEdgeBanding(),
@@ -471,7 +469,12 @@ export const buildPayload = (
       height: Number(r.height),
       width: Number(r.width),
       quantity: Number(r.quantity) || 1,
-      priority: Number(r.priority) || 0,
+      // The editor has no priority column any more: the seller never ranked a piece and the
+      // number rode along at 0. It still ships because the schema demands it
+      // (`Requirement.priority` is a required NonNegativeInt), and a constant 0 is inert — the
+      // packer leads every comparator with `-priority`, so with no spread between pieces the
+      // term decides nothing and height/area orders them, exactly as before.
+      priority: 0,
       label: r.label.trim() || undefined,
       canRotate: r.canRotate,
       ...(edgeBanding ? { edgeBanding } : {}),
