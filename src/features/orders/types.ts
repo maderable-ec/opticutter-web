@@ -216,6 +216,13 @@ export interface WorkshopQueueItem {
   boardUsage: BoardUsage[]
   bandingUsage: BandingUsage[]
   progress: CutProgress
+  /**
+   * Progress over the BANDED pieces only — the bander's gate. Banding starts once
+   * the first banded piece is cut and finishes once the last one is; plain pieces
+   * never hold it back, which is what keeps the two tracks running in parallel.
+   * `progress` cannot answer this: it counts every piece. 0/0 = no edge banding.
+   */
+  bandingProgress: CutProgress
   // Whether the order's branch prints the consolidated packet. Per item because the admin's
   // board spans every branch.
   printConsolidatedEnabled: boolean
@@ -234,6 +241,12 @@ export interface CardAction {
   icon: string[]
   disabled?: boolean
   title?: string
+  /**
+   * Why the action is disabled, rendered as visible text under the buttons.
+   * `title` is a hover tooltip and this board runs on a touch panel, where it
+   * says nothing — a greyed-out button with no reason reads as a broken screen.
+   */
+  reason?: string
   nav?: boolean
 }
 
