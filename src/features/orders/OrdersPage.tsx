@@ -23,13 +23,16 @@ import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
 
 import OrderStatusBadge from './OrderStatusBadge'
+import BandingStatusBadge from './BandingStatusBadge'
+import ElapsedNote from './ElapsedNote'
+import { bandingClock, statusClock } from './elapsed'
 import OrdersFilters, {
   activeCount,
   useOrdersFilterChips,
   type OrdersFilterValues,
 } from './OrdersFilters'
 import { useOrders } from './useOrders'
-import type { OrderSort, OrderStatus } from './types'
+import type { BandingStatus, OrderSort, OrderStatus } from './types'
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
 const FILTER_KEYS = [
@@ -40,6 +43,7 @@ const FILTER_KEYS = [
   'createdFrom',
   'createdTo',
   'isPriority',
+  'bandingStatus',
 ]
 
 const OrdersPage = () => {
@@ -60,6 +64,7 @@ const OrdersPage = () => {
     // The backend defaults to FIFO for the workshop; this page is the back office's.
     sort: (getParam('sort') || 'recent') as OrderSort,
     isPriority: getParam('isPriority'),
+    bandingStatus: getParam('bandingStatus') as BandingStatus | '',
   }
 
   const handleChange = <K extends keyof OrdersFilterValues>(
@@ -93,6 +98,7 @@ const OrdersPage = () => {
     // '' means "both", and `false` is a real filter — so map through the empty string explicitly
     // rather than leaning on a falsy check, which would swallow "Solo normales".
     isPriority: values.isPriority === '' ? undefined : values.isPriority === 'true',
+    bandingStatus: values.bandingStatus || undefined,
     offset,
     limit,
   })
@@ -138,6 +144,7 @@ const OrdersPage = () => {
                 <CTableHeaderCell>Cliente</CTableHeaderCell>
                 <CTableHeaderCell>Sucursal</CTableHeaderCell>
                 <CTableHeaderCell>Estado</CTableHeaderCell>
+                <CTableHeaderCell>Canteado</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
                 <CTableHeaderCell>Creado</CTableHeaderCell>
               </CTableRow>
@@ -147,7 +154,7 @@ const OrdersPage = () => {
                 <CTableRow>
                   {/* Two different dead ends: an empty catalog is a fact, an over-narrow filter is
                       a place the user needs a way out of. */}
-                  <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
+                  <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
                     {isFiltered ? (
                       <>
                         <div>Ninguna orden coincide con los filtros.</div>
@@ -185,6 +192,22 @@ const OrdersPage = () => {
                     </CTableDataCell>
                     <CTableDataCell>
                       <OrderStatusBadge status={o.status} />
+                      {/* How long it has been here — the whole point of the column for
+                          somebody who has to push the work along. Silent on closed orders. */}
+                      <ElapsedNote iso={statusClock(o)} status={o.status} />
+                    </CTableDataCell>
+                    <CTableDataCell>
+                      {/* The parallel track. An order with no canto has nothing to report, so
+                          it renders as a dash: a "Sin canteado" badge on every such row would
+                          be a column of noise competing with the rows that do need attention. */}
+                      {o.bandingStatus && o.bandingStatus !== 'not_applicable' ? (
+                        <>
+                          <BandingStatusBadge status={o.bandingStatus} />
+                          <ElapsedNote iso={bandingClock(o)} />
+                        </>
+                      ) : (
+                        <span className="text-body-secondary">—</span>
+                      )}
                     </CTableDataCell>
                     <CTableDataCell className="text-end text-nowrap">
                       {fmtMoney(o.total)}

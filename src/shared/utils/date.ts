@@ -30,6 +30,10 @@ export const subDays = (date: Date, n: number): Date => {
 }
 
 // Human-readable "time ago" in Spanish: 'ahora', 'hace 5 min', 'hace 2 h', 'hace 3 d'.
+// Clock-relative: it reads `Date.now()` when called, so a component using it only tells the
+// truth for as long as it takes to re-render. Every caller so far either polls or re-renders
+// often enough. (The API sends UTC with an offset, so `new Date(iso)` is already correct —
+// see the `Z` suffix `CamelModel` stamps on every timestamp.)
 export const relativeTime = (iso: string): string => {
   const diffMs = Date.now() - new Date(iso).getTime()
   const min = Math.round(diffMs / 60_000)
@@ -40,9 +44,3 @@ export const relativeTime = (iso: string): string => {
   const days = Math.round(hours / 24)
   return `hace ${days} d`
 }
-
-// Has `iso` aged past `ms`? Sibling of `relativeTime`, and clock-relative in exactly the same way:
-// both read `Date.now()` when they are called, so a component using either only tells the truth for
-// as long as it takes to re-render. Every caller so far either polls or re-renders often enough.
-export const isOlderThan = (iso: string, ms: number): boolean =>
-  Date.now() - new Date(iso).getTime() > ms

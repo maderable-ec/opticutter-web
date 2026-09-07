@@ -21,6 +21,9 @@ export const useOrders = (params?: OrderListParams) =>
     // Every filter edit and page turn is a new query key. Without this the table is torn down to a
     // spinner on each one — the list flashes away under the very toolbar being used to narrow it.
     placeholderData: keepPreviousData,
+    // The elapsed-time notes read `Date.now()` at render, so without a refetch they freeze at
+    // whatever they said when the page loaded — and this is now a screen people watch.
+    refetchInterval: 60_000,
   })
 
 export const useOrder = (id?: string) =>

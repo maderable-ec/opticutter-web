@@ -10,7 +10,7 @@ import { fmtDay } from 'src/shared/utils/date'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useClient, useClientsMin } from 'src/features/clients/useClients'
 import { ORDER_STATUS_VALUES, statusLabel } from './status'
-import type { OrderSort, OrderStatus } from './types'
+import type { BandingStatus, OrderSort, OrderStatus } from './types'
 
 const STATUS_OPTIONS = ORDER_STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) }))
 
@@ -23,7 +23,25 @@ const PRIORITY_OPTIONS = [
 const SORT_OPTIONS: { value: OrderSort; label: string }[] = [
   { value: 'recent', label: 'Más recientes primero' },
   { value: 'oldest', label: 'Más antiguas primero' },
+  // The control view: longest sitting in its current status first, closed ones last. Not the
+  // default — the page is a finder before it is a monitor, and this reorders what people
+  // have memorised.
+  { value: 'stalest', label: 'Más estancadas primero' },
 ]
+
+// '' = both. `not_applicable` is offered because "orders with no canto at all" is a real
+// question at the counter, not only a gap in the data.
+const BANDING_OPTIONS: { value: BandingStatus | ''; label: string }[] = [
+  { value: '', label: 'Todos' },
+  { value: 'pending', label: 'Canteado pendiente' },
+  { value: 'in_progress', label: 'Canteando' },
+  { value: 'done', label: 'Canteado listo' },
+  { value: 'not_applicable', label: 'Sin canteado' },
+]
+
+const BANDING_LABEL: Record<string, string> = Object.fromEntries(
+  BANDING_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]),
+)
 
 export interface OrdersFilterValues {
   status: OrderStatus[]
@@ -35,6 +53,8 @@ export interface OrdersFilterValues {
   // '' = all; 'true'/'false' narrow to prioritized / regular. A string, like clientId and branchId,
   // so it rides the URL without a third representation of "unset".
   isPriority: string
+  // '' = every stage of the parallel banding track.
+  bandingStatus: BandingStatus | ''
 }
 
 interface OrdersFiltersProps {
@@ -120,6 +140,22 @@ const OrdersFilters = ({ values, onChange, onClear, showBranch }: OrdersFiltersP
         </div>
       </FilterSection>
 
+      <FilterSection label="Canteado">
+        <div className="px-3 py-1">
+          <CFormSelect
+            size="sm"
+            value={values.bandingStatus}
+            onChange={(e) => onChange('bandingStatus', e.target.value as BandingStatus | '')}
+          >
+            {BANDING_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </CFormSelect>
+        </div>
+      </FilterSection>
+
       <FilterSection label="Creada entre">
         <div className="px-3 py-1 d-flex gap-2">
           <CFormInput
@@ -170,7 +206,8 @@ export const activeCount = (values: OrdersFilterValues, showBranch: boolean): nu
   (showBranch && values.branchId ? 1 : 0) +
   (values.createdFrom ? 1 : 0) +
   (values.createdTo ? 1 : 0) +
-  (values.isPriority ? 1 : 0)
+  (values.isPriority ? 1 : 0) +
+  (values.bandingStatus ? 1 : 0)
 
 // The chips mirror `activeCount` field by field, so what the badge counts is always what the row
 // below it lists. A hook rather than a pure function because two of the labels have to be looked
@@ -228,6 +265,13 @@ export const useOrdersFilterChips = (
       key: 'isPriority',
       label: values.isPriority === 'true' ? 'Solo prioritarias' : 'Solo normales',
       onRemove: () => onChange('isPriority', ''),
+    })
+  }
+  if (values.bandingStatus) {
+    chips.push({
+      key: 'bandingStatus',
+      label: `Canteado: ${BANDING_LABEL[values.bandingStatus]}`,
+      onRemove: () => onChange('bandingStatus', ''),
     })
   }
   return chips

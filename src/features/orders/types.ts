@@ -81,6 +81,9 @@ export interface Order {
   history?: OrderHistoryEntry[]
   createdAt: string
   confirmedAt?: string
+  // When the order entered its CURRENT status: what the listing's "hace 3 h" counts from.
+  // Not moved by prioritizing or reassigning the branch — neither is a status change.
+  statusChangedAt?: string | null
   // When the order entered the production queue (payment registered); null while `confirmed`.
   queuedAt?: string | null
   // Commercial reference (project/site name) inherited from the quote and frozen here: read-only
@@ -97,6 +100,10 @@ export interface Order {
   // Banding track (parallel to cutting). `*Label` fields are names frozen at the time of the action
   // (same pattern as `assignedToLabel`).
   bandingStatus?: BandingStatus
+  // When the banding stopped being BLOCKED: the first banded piece was cut, which is the
+  // gate to start banding. Null while the bander cannot work yet — so a `pending` clock
+  // only ever runs against somebody who could actually have started.
+  bandingReadyAt?: string | null
   bandingStartedAt?: string | null
   bandingStartedBy?: number | null
   bandingStartedByLabel?: string | null
@@ -132,11 +139,16 @@ export interface OrderListParams {
   // Only prioritized orders (true) or only regular ones (false); omit for both. Filters, never
   // reorders — floating them to the top is the shop-floor board's rule, not the back office's.
   isPriority?: boolean
+  // One stage of the parallel banding track ("everything still to band").
+  bandingStatus?: BandingStatus
   offset?: number
   limit?: number
 }
 
-export type OrderSort = 'oldest' | 'recent'
+// `stalest` = longest sitting in its current status first, closed orders last. Unlike
+// `isPriority` (which filters and never reorders), this one IS an ordering: "what has
+// stopped moving" is a question nothing else can answer.
+export type OrderSort = 'oldest' | 'recent' | 'stalest'
 
 export interface UpdateStatusPayload {
   status: OrderStatus
@@ -212,6 +224,15 @@ export interface WorkshopQueueItem {
   // `confirmed → queued`. This, not `createdAt`, is the shop's arrival time: it is what the
   // endpoint's FIFO sorts by and what the card must measure the wait from.
   queuedAt?: string | null
+  // When the order entered its current status. `queuedAt` freezes the moment somebody takes
+  // the order, so the card needs this to keep counting through `cutting` and `cut` — but for
+  // a QUEUED card it must NOT be used: the admin rollback `cutting → queued` moves this one
+  // and would reset the visible wait of an order that has been sitting all day.
+  statusChangedAt?: string | null
+  // When the banding stopped being blocked (first banded piece cut); null while blocked.
+  bandingReadyAt?: string | null
+  // When the bander actually started; null while pending.
+  bandingStartedAt?: string | null
   client: Client
   boardUsage: BoardUsage[]
   bandingUsage: BandingUsage[]
