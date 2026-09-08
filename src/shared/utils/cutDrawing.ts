@@ -34,10 +34,60 @@ export const WASTE_OUTLINE = '#9e9e9e' // COLOR_WASTE_OUTLINE
 // Leftover dimensions drawn inside the hatch. Darker than the outline so the text reads over the
 // pattern, lighter than PIECE_LABEL so a leftover never competes with a piece for attention.
 export const WASTE_LABEL = '#6c757d'
+// The board's own two measurements. Deliberately the same muted ink as WASTE_LABEL and never
+// BOARD_OUTLINE: the sheet's size is an annotation ABOUT the frame, the least actionable text on the
+// drawing (the piece and offcut numbers are the ones somebody acts on), so it has to sit behind
+// them. Still 4.68:1 on white, so it stays legible rather than decorative.
+export const BOARD_LABEL = '#6c757d'
 
 // Edge banding has no counterpart in the backend diagram (it is drawn only on screen), so this one
 // answers to legibility over the piece fills rather than to the document.
 export const EDGE_COLOR = '#d9480f' // edge banding color in the diagram
+
+// Wood grain. The melamine sheet has a direction and the shop has to lay it the right way round
+// before the first cut; the diagram used to say nothing about it. Same colour and same spacing as
+// the PDF's `COLOR_GRAIN` / `GRAIN_STEP_MM`, for the same reason the chrome above is shared — but a
+// heavier opacity than its `GRAIN_ALPHA` (42/255 ≈ 0.16) on purpose: the PDF lays the grain over a
+// near-white piece fill, while on screen PALETTE is saturated, and at the document's value the
+// texture disappeared inside every piece and survived only in the free areas. Lines that stop dead
+// at a piece border read as a rendering fault, not as a sheet.
+//
+// It is a property of the SHEET, not of what is cut out of it: a piece the optimizer rotated does
+// NOT get a direction of its own, so this is one uniform texture over the whole board.
+//
+// A TEXTURE, not a ruling — fine and closely spaced, the way wood actually looks. Widely-spaced
+// hairlines read as a grid someone drew over the plan. Both numbers are physical millimetres and
+// therefore FIXED: grain does not get coarser because the sheet is bigger, and a client's small
+// offcut still comes back visibly grained instead of carrying one lonely line. Because the stroke is
+// in mm it grows with the zoom, which is what keeps the ink-to-paper ratio of the texture constant
+// instead of thinning out the further you zoom in.
+export const GRAIN_COLOR = '#8a7f72'
+export const GRAIN_OPACITY = 0.25
+export const GRAIN_STEP_MM = 26
+export const GRAIN_STROKE_MM = 3
+
+// ...and real grain is neither evenly spaced, nor all the same weight, nor continuous. Perfectly
+// regular lines are what made the first attempt read as ruled paper: the irregularity IS the
+// difference between wood and a grid. Each line takes a dash pattern (a long streak, a gap, a fleck,
+// a gap), a weight and a spacing nudge from these tables by index.
+//
+// Tables and not an RNG, deliberately: React re-renders this on every hover and pan, so a texture
+// that reshuffled itself would flicker — and the PDF mirrors these exact tables, which an RNG could
+// never do. The three lengths are coprime, so the whole thing only repeats every 385 lines, more
+// than any sheet holds.
+export const GRAIN_DASHES_MM: readonly [number[], ...number[][]] = [
+  [210, 16, 5, 16],
+  [150, 20, 4, 22],
+  [260, 14, 6, 14],
+  [120, 18, 5, 26],
+  [300, 22, 4, 18],
+  [180, 15, 7, 20],
+  [240, 24, 4, 15],
+]
+export const GRAIN_WEIGHTS: readonly [number, ...number[]] = [1.0, 0.7, 1.35, 0.85, 1.15]
+export const GRAIN_JITTER: readonly [number, ...number[]] = [
+  0, 0.22, -0.15, 0.3, -0.28, 0.12, -0.05, 0.18, -0.22, 0.08, -0.12,
+]
 
 export const SIDE_LABELS_ES: Record<EdgeSide, string> = {
   top: 'Superior',
@@ -105,6 +155,24 @@ export const pieceSig = (p: Pick<DrawablePiece, 'originalWidth' | 'originalHeigh
   `${p.originalWidth}×${p.originalHeight}`
 
 export const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n))
+
+// Reveal floors for the measurements drawn on a shape's edges: the rectangle's mm size times the
+// effective zoom, so a small piece stays clean at rest and uncovers its number when the diagram is
+// zoomed. Offcuts get a lower bar than pieces on purpose — a long thin strip (106x2500 is the
+// everyday shape) never cleared the piece bar, and the size of a retazo is exactly the number the
+// shop reads to decide whether it is worth keeping. Below these, `EdgeDimensions` is not even asked;
+// above them it still drops whichever of the two numbers does not fit.
+// Space reserved outside the board for its own two measurements, in the same mm units. Half what it
+// started as: floating that far off the sheet the numbers read as page furniture rather than as its
+// dimensions, and the reserved band was eating drawing area on the shop panel, the smallest screen
+// any of this runs on.
+export const boardDimsMargin = (boardWidth: number, boardHeight: number) =>
+  Math.max(boardWidth, boardHeight) * 0.035
+
+export const showPieceDims = (w: number, h: number, scale: number) =>
+  w * scale > 130 && h * scale > 90
+export const showRemainderDims = (w: number, h: number, scale: number) =>
+  w * scale > 55 && h * scale > 55
 
 // Rotates the board content 90° clockwise and repositions it in the positive quadrant (the box
 // [0,W]×[0,H] becomes [0,H]×[0,W]). Pair with a viewBox with swapped sides (H wide × W tall).

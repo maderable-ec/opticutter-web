@@ -1,9 +1,10 @@
-import { useId } from 'react'
-
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import ZoomControls from 'src/shared/components/ZoomControls'
 import EdgeDimensions from 'src/shared/components/EdgeDimensions'
+import BoardDimensions from 'src/shared/components/BoardDimensions'
+import BoardGrain from 'src/shared/components/BoardGrain'
 import {
+  BOARD_LABEL,
   BOARD_OUTLINE,
   EDGE_COLOR,
   PIECE_LABEL,
@@ -11,11 +12,14 @@ import {
   WASTE_LABEL,
   WASTE_OUTLINE,
   bandedSides,
+  boardDimsMargin,
   boardRotation,
   clamp,
   insetSideLine,
   pieceSig,
   remainderTitle,
+  showPieceDims,
+  showRemainderDims,
   uprightText,
 } from 'src/shared/utils/cutDrawing'
 import type { DrawableLayout, DrawnPiece } from 'src/shared/utils/cutDrawing'
@@ -62,8 +66,6 @@ const SheetSvg = <P extends DrawnPiece>({
   zoomPlacement,
   labelFor = defaultLabel,
 }: SheetSvgProps<P>) => {
-  const rawId = useId()
-  const wasteId = `waste-${rawId.replace(/:/g, '')}`
   const { material, placedPieces, remainders } = layout
   const W = material.width
   const H = material.height
@@ -72,7 +74,7 @@ const SheetSvg = <P extends DrawnPiece>({
   const { svgRef, groupTransform, scale, isZoomed, zoomIn, zoomOut, reset } = useZoomPan()
 
   // Extra margin reserved for the board dimension labels (expanded view only).
-  const margin = showDimensions ? Math.max(W, H) * 0.07 : 0
+  const margin = showDimensions ? boardDimsMargin(W, H) : 0
   const labelSize = clamp(Math.max(W, H) * 0.028, 16, 44)
 
   const svg = (
@@ -93,39 +95,16 @@ const SheetSvg = <P extends DrawnPiece>({
       role="img"
       aria-label={`Hoja ${material.width}×${material.height} con ${placedPieces.length} piezas`}
     >
-      <defs>
-        <pattern id={wasteId} patternUnits="userSpaceOnUse" width={48} height={48}>
-          <rect width={48} height={48} fill={WASTE_FILL} />
-          <path d="M0,48 L48,0" stroke={WASTE_OUTLINE} strokeWidth={3} />
-        </pattern>
-      </defs>
-
       {/* Board dimensions: in landscape space, outside the rotation (top = H, side = W). */}
       {showDimensions && (
-        <g
-          transform={enableZoom ? groupTransform : undefined}
-          fill={BOARD_OUTLINE}
-          style={{ userSelect: 'none' }}
-        >
-          <text
-            x={H / 2}
-            y={-margin / 2}
+        <g transform={enableZoom ? groupTransform : undefined}>
+          <BoardDimensions
+            boardWidth={W}
+            boardHeight={H}
+            margin={margin}
             fontSize={labelSize}
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            {H} mm
-          </text>
-          <text
-            x={-margin / 2}
-            y={W / 2}
-            fontSize={labelSize}
-            textAnchor="middle"
-            dominantBaseline="central"
-            transform={`rotate(-90 ${-margin / 2} ${W / 2})`}
-          >
-            {W} mm
-          </text>
+            color={BOARD_LABEL}
+          />
         </g>
       )}
 
@@ -142,9 +121,12 @@ const SheetSvg = <P extends DrawnPiece>({
           vectorEffect="non-scaling-stroke"
         />
 
-        {/* Offcuts / waste: a hatched rectangle alone doesn't say whether it's a reusable retazo
-            or scrap, so its size is drawn on the edges (see the dimensions group below). The
-            <title> carries it regardless of the on-screen size. */}
+        {/* Offcuts / waste: a flat fill inside a dashed outline, which is already the whole
+            difference from the white of an uncovered area. The diagonal hatching this used to
+            carry answered a question the size labels now answer better (see the dimensions group
+            below), it fought those very labels for legibility, and it was a second repeating
+            texture competing with the grain. The <title> carries the size regardless of the
+            on-screen scale. */}
         {remainders.map((r, idx) => (
           <g key={`rem-${idx}`}>
             <title>{remainderTitle(r)}</title>
@@ -153,7 +135,7 @@ const SheetSvg = <P extends DrawnPiece>({
               y={r.y}
               width={r.width}
               height={r.height}
-              fill={`url(#${wasteId})`}
+              fill={WASTE_FILL}
               stroke={WASTE_OUTLINE}
               strokeWidth={1}
               strokeDasharray="6 6"
@@ -167,15 +149,6 @@ const SheetSvg = <P extends DrawnPiece>({
           const color = colorFor(sig)
           const dimmed =
             highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
-          const minSide = Math.min(p.width, p.height)
-          const fontSize = clamp(minSide / 5, 22, 90)
-          // On zoom-in, small pieces reveal their label (threshold based on effective scale).
-          const showText = p.width * scale > 130 && p.height * scale > 90
-          const text = labelFor(p)
-          // The measurements now live on the edges (see the dimensions group below); only keep a
-          // centered label when `labelFor` gave a real piece name (the client review), not the
-          // dimension fallback.
-          const centeredLabel = text === defaultLabel(p) || text === pieceSig(p) ? '' : text
 
           return (
             <g
@@ -218,22 +191,43 @@ const SheetSvg = <P extends DrawnPiece>({
                   />
                 )
               })}
-
-              {showText && centeredLabel && (
-                <text
-                  x={p.x + p.width / 2}
-                  y={p.y + p.height / 2}
-                  fontSize={fontSize}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill={PIECE_LABEL}
-                  transform={uprightText(p.x + p.width / 2, p.y + p.height / 2)}
-                  style={{ pointerEvents: 'none', userSelect: 'none' }}
-                >
-                  {centeredLabel}
-                </text>
-              )}
             </g>
+          )
+        })}
+
+        {/* The sheet's grain, over everything on it: it belongs to the board, not to the pieces. */}
+        <BoardGrain boardWidth={W} boardHeight={H} />
+
+        {/* Piece names, ABOVE the grain — the measurements were always safe, since they live in the
+            screen-space group below, which paints after this one. Left inside the piece groups the
+            texture ran straight through the client's own labels. `pointerEvents: none`, so hover
+            and tap still land on the piece rect underneath. */}
+        {placedPieces.map((p) => {
+          const sig = pieceSig(p)
+          const text = labelFor(p)
+          // Only a real piece name (the client review), never the dimension fallback: the
+          // measurements live on the edges.
+          const centeredLabel = text === defaultLabel(p) || text === pieceSig(p) ? '' : text
+          if (!centeredLabel || !showPieceDims(p.width, p.height, scale)) return null
+          const dimmed =
+            highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
+          const cx = p.x + p.width / 2
+          const cy = p.y + p.height / 2
+          return (
+            <text
+              key={`label-${p.pieceId}`}
+              x={cx}
+              y={cy}
+              opacity={dimmed ? 0.35 : 1}
+              fontSize={clamp(Math.min(p.width, p.height) / 5, 22, 90)}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill={PIECE_LABEL}
+              transform={uprightText(cx, cy)}
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {centeredLabel}
+            </text>
           )
         })}
       </g>
@@ -243,7 +237,7 @@ const SheetSvg = <P extends DrawnPiece>({
           board-dimension labels. Same reveal rule as the shapes themselves. */}
       <g transform={enableZoom ? groupTransform : undefined}>
         {remainders.map((r, idx) =>
-          r.width * scale > 130 && r.height * scale > 90 ? (
+          showRemainderDims(r.width, r.height, scale) ? (
             <EdgeDimensions
               key={`rem-dim-${idx}`}
               x={r.x}
@@ -257,7 +251,7 @@ const SheetSvg = <P extends DrawnPiece>({
           ) : null,
         )}
         {placedPieces.map((p) => {
-          if (!(p.width * scale > 130 && p.height * scale > 90)) return null
+          if (!showPieceDims(p.width, p.height, scale)) return null
           const sig = pieceSig(p)
           const dimmed =
             highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
