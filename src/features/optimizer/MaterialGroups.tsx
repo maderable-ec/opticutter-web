@@ -117,6 +117,7 @@ const MaterialGroups = ({
             onRequestDelete={onRequestDeleteMaterial}
             onDuplicate={onDuplicateMaterial}
             onConfigure={() => setConfiguringUid(m.uid)}
+            onToggleSkipTrim={() => onUpdateMaterial(m.uid, 'skipTrim', !m.skipTrim)}
           />
         )
       })}

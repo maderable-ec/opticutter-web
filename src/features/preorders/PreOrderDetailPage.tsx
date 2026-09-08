@@ -143,6 +143,7 @@ function formFromPreOrderData(
         // "billed at the list price", which is the default the feature ships with.
         applyPriceLevel: m.applyPriceLevel ?? false,
         wholeBoard: m.wholeBoard ?? false,
+        skipTrim: m.skipTrim ?? false,
       }
       anchorByKey.set(m.key, form)
       matForms.push(form)
@@ -156,6 +157,9 @@ function formFromPreOrderData(
         boardId: '',
         label: '',
         offcuts: [offcutForm(m, uidFor(`${m.key}#anchor`))],
+        // On the GROUP, never on the retazo row: the flag belongs to the pool, and the API reads
+        // it off the anchor — which is what this group's own key will be again on the way out.
+        skipTrim: m.skipTrim ?? false,
       }
       anchorByKey.set(m.key, form)
       matForms.push(form)

@@ -95,6 +95,9 @@ export interface MaterialSummary {
   costPerUnit: number
   totalCost: number
   halfBoard?: boolean
+  // Cut without the configured trim margins. Optional: a payload cached before the field existed
+  // comes back without it, and an order snapshot frozen before it never will.
+  skipTrim?: boolean
 }
 
 export interface EdgeBandingSummary {
@@ -183,6 +186,11 @@ export interface CatalogMaterialInput {
   // client keeping the uncut half. Absent/false = the half board stands. Not in the hash either:
   // the server reshapes the cached plan (the pieces do not move) instead of searching again.
   wholeBoard?: boolean
+  // Whether this board and every retazo attached to it are cut WITHOUT the trim margins
+  // configured in settings. Absent/false = the shop squares the board as usual. Unlike the
+  // two marks above this one IS in the hash: it moves the geometry, so ticking it re-runs
+  // the search instead of re-pricing a cached plan.
+  skipTrim?: boolean
 }
 
 export interface InlineMaterialInput {
@@ -198,6 +206,10 @@ export interface InlineMaterialInput {
   // If set, this offcut is extra stock of the catalog board with this key: its
   // pieces come from that board's requirements, packed across board + offcuts.
   poolKey?: string
+  // Same flag as the catalog board's, for a group anchored on a retazo (no board). Only ever
+  // sent on the ANCHOR: the server coerces it to false on a pooled material, since the
+  // anchor's setting already covers the whole pool.
+  skipTrim?: boolean
 }
 
 export type MaterialInput = CatalogMaterialInput | InlineMaterialInput
