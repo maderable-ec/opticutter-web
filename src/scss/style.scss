@@ -368,6 +368,44 @@ input[type='number'] {
   color: var(--cui-secondary-color);
 }
 
+// The one cutting decision that lives on the pinned line instead of in the modal: whether this
+// group's sheets get squared. It reads as a quiet option next to the material's name, not as an
+// action — so no border, no fill, and the label muted until the box is ticked.
+//
+// It must NEVER grow `.material-group__head`: that height is a published constant the table's
+// sticky `thead` parks under. `line-height: 1` on the row plus the check's own `mb-0` keep it well
+// inside 2.5rem, and the label hides under `md` where the line is already tight.
+.material-skip-trim {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  color: var(--cui-secondary-color);
+
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .form-check-input {
+    flex: 0 0 auto;
+    margin: 0;
+    float: none;
+  }
+
+  .form-check-input:checked + .form-check-label {
+    color: var(--cui-body-color);
+    font-weight: 500;
+  }
+
+  .form-check-label {
+    cursor: pointer;
+  }
+}
+
 // Index of materials above the pane: table of contents, compass and jump target in one row. Chips
 // rather than a rail, because a rail would take width from a table that already has 11 columns.
 .material-strip {

@@ -60,6 +60,10 @@ export interface MaterialForm {
   // one, keeping the uncut half. Lives on the material for the same reasons as `applyPriceLevel`,
   // and like it, it never re-runs the search — the cached plan is reshaped.
   wholeBoard?: boolean
+  // Any group: cut this material and its retazos WITHOUT the configured trim margins. Unlike the
+  // two marks above it changes the GEOMETRY, so it is part of the optimize hash and part of the
+  // canonical key — two blocks of the same board that disagree about it cannot share a sheet.
+  skipTrim?: boolean
 }
 
 export interface EdgeBandingForm {
@@ -112,6 +116,7 @@ export const emptyMaterial = (): MaterialForm => ({
   fillOrder: 'auto',
   applyPriceLevel: false,
   wholeBoard: false,
+  skipTrim: false,
 })
 
 // Legacy autosaves, drafts and pre-orders carry the pre-modal shape, where a
@@ -139,6 +144,7 @@ export const normalizeMaterial = (m: MaterialForm): MaterialForm => {
       fillOrder: m.fillOrder,
       applyPriceLevel: m.applyPriceLevel,
       wholeBoard: m.wholeBoard,
+      skipTrim: m.skipTrim,
     }
   }
   const anchor: OffcutForm = {
@@ -159,6 +165,7 @@ export const normalizeMaterial = (m: MaterialForm): MaterialForm => {
     fillOrder: m.fillOrder,
     applyPriceLevel: m.applyPriceLevel,
     wholeBoard: m.wholeBoard,
+    skipTrim: m.skipTrim,
   }
 }
 
@@ -336,24 +343,31 @@ export interface BuiltPayload {
 }
 
 // Maps each material uid to the key its pieces — and its payload entry — will actually use. Catalog
-// boards collapse onto the first block that uses that productId; everything else maps to itself. A
-// catalog board with attached offcuts stays DISTINCT (it anchors a pool) so merging can't break the
-// pool link. Invalid materials are absent, so every caller falls back to the uid itself.
+// boards collapse onto the first block that uses that productId AND cuts it the same way;
+// everything else maps to itself. A catalog board with attached offcuts stays DISTINCT (it anchors
+// a pool) so merging can't break the pool link. Invalid materials are absent, so every caller falls
+// back to the uid itself.
+//
+// `skipTrim` is part of the merge key because it is GEOMETRY, not billing: a board cut without the
+// refilado and the same board squared cannot be the same physical sheet, so two blocks that
+// disagree stay two payload materials and two pools. The visible price of that: the seller sees the
+// board twice in the costs table and on the order. The alternative — merging and OR-ing, the way
+// the billing marks do — would silently cut one group's pieces under the other group's rule.
 //
 // Exported because the per-board marks have to agree with it: the summary shows ONE row per payload
 // material, so a mark ticked on that row belongs to the whole merged group, not to whichever block
 // happened to be canonical.
 export const canonicalMaterialKeys = (materials: MaterialForm[]): Map<string, string> => {
   const canonicalKey = new Map<string, string>()
-  const catalogCanonical = new Map<number, string>()
+  const catalogCanonical = new Map<string, string>()
   for (const m of materials.filter(isMaterialValid)) {
     if (m.boardId && !hasOffcuts(m)) {
-      const productId = Number(m.boardId)
-      const existing = catalogCanonical.get(productId)
+      const mergeKey = `${Number(m.boardId)}|${m.skipTrim ? 1 : 0}`
+      const existing = catalogCanonical.get(mergeKey)
       if (existing) {
         canonicalKey.set(m.uid, existing)
       } else {
-        catalogCanonical.set(productId, m.uid)
+        catalogCanonical.set(mergeKey, m.uid)
         canonicalKey.set(m.uid, m.uid)
       }
     } else {
@@ -363,9 +377,13 @@ export const canonicalMaterialKeys = (materials: MaterialForm[]): Map<string, st
   return canonicalKey
 }
 
-// The two per-board marks of a merged group, OR-ed onto its canonical key. They are properties of
+// The two BILLING marks of a merged group, OR-ed onto its canonical key. They are properties of
 // the BOARD, not of the block: the seller sees one summary row per board and ticks that. The
 // toggles write every block of a group, so this only has to settle quotes saved before they did.
+//
+// `skipTrim` is deliberately NOT here: OR-ing a geometric decision would cut one group's pieces
+// under another group's rule. It rides in the canonical key instead, so every block merged into a
+// group already agrees about it and `buildPayload` can read it straight off the canonical block.
 const mergedMarks = (
   materials: MaterialForm[],
   canonicalKey: Map<string, string>,
@@ -444,6 +462,9 @@ export const buildPayload = (
         // that levels nothing.
         ...(marks.get(m.uid)?.applyPriceLevel ? { applyPriceLevel: true } : {}),
         ...(marks.get(m.uid)?.wholeBoard ? { wholeBoard: true } : {}),
+        // Read off `m`, not off the merged marks: it is part of the canonical key, so every
+        // block in this group already carries the same value.
+        ...(m.skipTrim ? { skipTrim: true } : {}),
       }
       // Only carry fillOrder when the board actually anchors a pool of retazos.
       mappedMaterials.push(retazos.length ? { ...base, fillOrder: m.fillOrder ?? 'auto' } : base)
@@ -454,7 +475,12 @@ export const buildPayload = (
     // `isMaterialValid` guarantees a retazo when there is no board.
     const [anchor, ...rest] = retazos
     if (!anchor) continue
-    mappedMaterials.push(offcutInput(anchor, m.uid))
+    // Only the anchor carries the flag: the API reads it off the pool's anchor and coerces it
+    // away on a pooled material, since one setting already covers the whole pool.
+    mappedMaterials.push({
+      ...offcutInput(anchor, m.uid),
+      ...(m.skipTrim ? { skipTrim: true } : {}),
+    })
     for (const o of rest) pooledOffcuts.push(offcutInput(o, o.uid, m.uid))
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
-import { CBadge, CButton, CFormInput } from '@coreui/react'
+import { CBadge, CButton, CFormCheck, CFormInput } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
   cilChevronBottom,
@@ -66,6 +66,11 @@ interface MaterialGroupCardProps {
   onDuplicate: (m: MaterialForm) => void
   // Opens `MaterialModal` on this group: board, retazos and fill order.
   onConfigure: () => void
+  // Turns the refilado off for this group — the board AND every retazo in it. The card takes this
+  // one narrow toggle rather than a general `onUpdate` on purpose: it is a cutting decision the
+  // seller makes while typing the despiece, not stock configuration, so it belongs on the line
+  // next to the material instead of two clicks away inside the modal.
+  onToggleSkipTrim?: () => void
 }
 
 // Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C CS".
@@ -137,6 +142,7 @@ const MaterialGroupCard = ({
   onRequestDelete,
   onDuplicate,
   onConfigure,
+  onToggleSkipTrim,
 }: MaterialGroupCardProps) => {
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
@@ -276,21 +282,44 @@ const MaterialGroupCard = ({
             body hides when the group is folded: this way a folded group still says it carries
             retazos, and still opens. */}
         {materialValid ? (
-          <button
-            type="button"
-            className="material-identity"
-            title="Tablero y retazos de este grupo"
-            onClick={onConfigure}
-          >
-            <span className="material-dot" />
-            <span className="fw-semibold text-truncate">{title}</span>
-            {allOffcuts.length > 0 && (
-              <span className="small text-body-secondary text-nowrap">
-                · {allOffcuts.length === 1 ? '1 retazo' : `${allOffcuts.length} retazos`}
-              </span>
+          <>
+            <button
+              type="button"
+              className="material-identity"
+              title="Tablero y retazos de este grupo"
+              onClick={onConfigure}
+            >
+              <span className="material-dot" />
+              <span className="fw-semibold text-truncate">{title}</span>
+              {allOffcuts.length > 0 && (
+                <span className="small text-body-secondary text-nowrap">
+                  · {allOffcuts.length === 1 ? '1 retazo' : `${allOffcuts.length} retazos`}
+                </span>
+              )}
+              <CIcon icon={cilPencil} size="sm" className="material-identity__pencil" />
+            </button>
+
+            {/* Sibling of the identity, never inside it: that is a <button>, and a nested input
+                would be invalid HTML and would open the modal on every click. It sits here, on the
+                line the seller is already typing on, because whether the shop squares this board is
+                a decision about THIS cut list — and unlike the marks in Costos it re-runs the
+                search, so it belongs next to the pieces it changes. */}
+            {onToggleSkipTrim && (
+              <div
+                className="material-skip-trim flex-shrink-0"
+                title="Cortar este material y sus retazos sin refilar los bordes. Cambia el plan de corte."
+              >
+                <CFormCheck
+                  id={`skip-trim-${m.uid}`}
+                  className="mb-0"
+                  checked={!!m.skipTrim}
+                  onChange={onToggleSkipTrim}
+                  aria-label="Cortar sin refilar"
+                  label={<span className="small text-nowrap d-none d-md-inline">Sin refilar</span>}
+                />
+              </div>
             )}
-            <CIcon icon={cilPencil} size="sm" className="material-identity__pencil" />
-          </button>
+          </>
         ) : (
           <>
             {/* An imported group carries the CSV text that created it, which is the only thing

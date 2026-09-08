@@ -112,7 +112,15 @@ export const MaterialsSummaryTable = ({
           <CTableRow key={`${m.materialKey}-${m.halfBoard ? 'half' : 'full'}`}>
             <CTableDataCell>
               {stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey}{' '}
-              {m.halfBoard && <CBadge color="info">½ medio</CBadge>}
+              {m.halfBoard && <CBadge color="info">½ medio</CBadge>}{' '}
+              {/* Read-only here, deliberately: the decision is taken in Despiece because it
+                  re-runs the search, and offering it on the money screen would invite a
+                  re-optimize from the one step that is supposed to be instant. */}
+              {m.skipTrim && (
+                <CBadge color="secondary" title="Se corta sin refilar los bordes">
+                  sin refilar
+                </CBadge>
+              )}
             </CTableDataCell>
             <CTableDataCell className="text-nowrap">
               {m.width}×{m.height}×{m.thickness} mm
