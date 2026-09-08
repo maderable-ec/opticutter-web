@@ -18,7 +18,7 @@ export interface Branch {
   address: string
 }
 
-/** Company data rendered live on the proforma/production sheet letterhead. */
+/** Company data rendered live on the order document / production sheet letterhead. */
 export interface CompanySettings {
   name: string
   tagline: string
@@ -29,7 +29,7 @@ export interface CompanySettings {
 
 /** Pre-order policy. Both are positive integers (≥ 1), edited here in Settings. */
 export interface PreorderSettings {
-  /** Days a pre-order quote stays valid (drives the proforma validity line). */
+  /** Days a pre-order quote stays valid (drives the pre-order's `expiresAt`). */
   preorderValidityDays: number
   /** Anti-abuse cap on concurrently open pre-orders per client. */
   maxOpenPreordersPerClient: number

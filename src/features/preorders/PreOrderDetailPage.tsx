@@ -71,7 +71,6 @@ import PriceLevelToggle from 'src/features/optimizer/PriceLevelToggle'
 import StatusHistoryTable from 'src/shared/components/StatusHistoryTable'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { isExpiringSoon, isOpen } from './status'
-import { preordersApi } from './preordersApi'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { usePiecesEditor } from 'src/features/optimizer/usePiecesEditor'
 import { useCollapsedGroups } from 'src/features/optimizer/useCollapsedGroups'
@@ -632,7 +631,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             // page binds no shortcut for.
             strategy={strategy}
             onStrategyChange={canEdit ? setStrategy : undefined}
-            onProforma={() => void preordersApi.downloadProforma(preOrder.id)}
             onReviewLink={
               canEdit
                 ? reviewLinkInfo.data

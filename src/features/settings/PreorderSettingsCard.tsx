@@ -169,7 +169,7 @@ const PreorderSettingsCard = () => {
           <>
             <p className="text-body-secondary small mb-3">
               Controlan cuánto tiempo es válida una pre-orden y cuántas puede tener abiertas cada
-              cliente. La validez se imprime en la proforma de la pre-orden.
+              cliente. Vencido ese plazo, la pre-orden pasa a expirada.
             </p>
 
             {savedFlash && (

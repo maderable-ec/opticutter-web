@@ -72,7 +72,7 @@ const IssueList = ({ issues }: { issues: ClientSyncIssue[] }) => (
 )
 
 // Rows that DID import — the distinction that earns this its own block. What they lost is a field,
-// and a client with no phone can't be quoted at all (the proforma requires one), which nobody would
+// and a client with no phone can't be quoted at all (a quote requires one), which nobody would
 // find out until a seller tries.
 const WarningList = ({ warnings }: { warnings: ClientSyncIssue[] }) => (
   <RowList
@@ -82,7 +82,7 @@ const WarningList = ({ warnings }: { warnings: ClientSyncIssue[] }) => (
         <strong>{warnings.length}</strong>{' '}
         {warnings.length === 1 ? 'cliente importado' : 'clientes importados'} con un dato
         incompleto. <strong>Sí entran al listado</strong>, pero sin ese campo — y sin teléfono no se
-        puede generar la proforma. Se corrige en el sistema externo.
+        puede generar la cotización. Se corrige en el sistema externo.
       </>
     }
   />
