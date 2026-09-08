@@ -2,9 +2,7 @@ import {
   CAlert,
   CBadge,
   CButton,
-  CFormInput,
   CFormTextarea,
-  CInputGroup,
   CModal,
   CModalBody,
   CModalFooter,
@@ -36,7 +34,7 @@ import {
   piecesMissingBandingProduct,
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
-import { cilCopy, cilLoopCircular, cilPencil } from '@coreui/icons'
+import { cilLoopCircular, cilPencil } from '@coreui/icons'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import {
@@ -67,6 +65,7 @@ import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
 import { WizardFooter } from 'src/features/optimizer/WizardSteps'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PreOrderStatusStrip from './PreOrderStatusStrip'
+import ShareReviewLinkModal, { type ShareLinkState } from './ShareReviewLinkModal'
 import PriceLevelToggle from 'src/features/optimizer/PriceLevelToggle'
 import StatusHistoryTable from 'src/shared/components/StatusHistoryTable'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
@@ -249,7 +248,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const [showImport, setShowImport] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
-  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null)
+  // The minted link, shown exactly once. Null = the dialog is closed; it mounts on this value so
+  // its "¡Copiado!" flash starts clean on every link.
+  const [shareLink, setShareLink] = useState<ShareLinkState | null>(null)
   const [showRegenModal, setShowRegenModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
@@ -257,7 +258,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // feeds the dirty signature) only moves when the user confirms.
   const [showReference, setShowReference] = useState(false)
   const [referenceDraft, setReferenceDraft] = useState('')
-  const [copied, setCopied] = useState(false)
 
   // The despiece panel lives in a search param, not in component state: `AppContent` keys its
   // ErrorBoundary on `location.pathname`, so a sub-route would remount this page and destroy the
@@ -492,23 +492,16 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     setDeleteTarget(null)
   }
 
+  // `regenerated` is read BEFORE the mutation settles its invalidation: once the refetch lands there
+  // is always a link, and the dialog could no longer tell a first send from a replacement.
   const handleGenerateLink = () => {
+    const regenerated = !!reviewLinkInfo.data
     createReviewLink.mutate(preOrder.id, {
       onSuccess: (link) => {
-        setCopied(false)
-        setGeneratedUrl(link.url)
+        setShareLink({ url: link.url, expiresAt: link.expiresAt, regenerated })
         setShowRegenModal(false)
       },
     })
-  }
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(generatedUrl ?? '')
-      setCopied(true)
-    } catch {
-      setCopied(false)
-    }
   }
 
   const handleDelete = () => {
@@ -527,6 +520,24 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       : canSave && !isDirty
         ? 'Sin cambios por guardar'
         : undefined
+
+  // Preventive twin of the 400 below: `require_phone` is a hard backend rule (a quote is not sent to
+  // someone who cannot be invoiced), and finding that out by clicking is a wasted round trip.
+  // Unsaved edits block the share for a different reason: the link points at the SAVED quote, so
+  // sharing while dirty hands the client the previous version without saying so.
+  const shareBlockedReason = !preOrder.client.phone?.trim()
+    ? 'El cliente no tiene celular registrado'
+    : isDirty
+      ? 'Guarda los cambios antes de compartir'
+      : undefined
+
+  // Reached from two places on purpose: the strip's button is the next step once a quote is
+  // confirmed, and the menu keeps its entry because on a closed quote that is the only thing left in
+  // it — dropping it there would leave a ⋮ that opens nothing.
+  const viewOrder =
+    preOrder.status === 'confirmed' && preOrder.orderId
+      ? () => void navigate(`/orders/${preOrder.orderId}`)
+      : undefined
 
   const isMissingPhone =
     createReviewLink.error instanceof ApiError &&
@@ -629,22 +640,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             // The picker only; the run itself is the footer's primary button, and "Otra alternativa"
             // sits next to it. Passing `onOptimize` here would put a Ctrl+Enter hint on an item this
             // page binds no shortcut for.
+            //
+            // The review link is not here either: it is the quote's next step, and it now sits on
+            // the status strip beside the sentence that says why. Buried in this menu it read as one
+            // more document chore, level with "Eliminar…".
             strategy={strategy}
             onStrategyChange={canEdit ? setStrategy : undefined}
-            onReviewLink={
-              canEdit
-                ? reviewLinkInfo.data
-                  ? () => setShowRegenModal(true)
-                  : handleGenerateLink
-                : undefined
-            }
-            reviewLinkLabel={reviewLinkInfo.data ? 'Regenerar enlace' : 'Generar enlace'}
-            isLinkPending={createReviewLink.isPending}
-            onViewOrder={
-              preOrder.status === 'confirmed' && preOrder.orderId
-                ? () => void navigate(`/orders/${preOrder.orderId}`)
-                : undefined
-            }
+            onViewOrder={viewOrder}
             onDelete={canEdit ? () => setShowDeleteModal(true) : undefined}
           />
         </div>
@@ -663,13 +665,26 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </CAlert>
       )}
 
-      {/* Where the quote stands, plus its review link — one line instead of five blocks. */}
+      {/* Where the quote stands, its review link, and the next step — one line instead of five
+          blocks. The action lives here rather than in the footer because it belongs to the quote's
+          life rather than to its contents, and because which action applies is a function of the
+          status this component already switches on. */}
       <PreOrderStatusStrip
         status={preOrder.status}
         clientNote={preOrder.clientNote}
         orderId={preOrder.orderId}
         expiresAt={preOrder.expiresAt}
         link={reviewLinkInfo.data}
+        onShare={
+          canEdit
+            ? reviewLinkInfo.data
+              ? () => setShowRegenModal(true)
+              : handleGenerateLink
+            : undefined
+        }
+        isSharePending={createReviewLink.isPending}
+        shareBlockedReason={shareBlockedReason}
+        onViewOrder={viewOrder}
       />
 
       {/* One surface for the whole document. Each section carries a plain muted label instead of a
@@ -934,29 +949,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         container={piecesContainer}
       />
 
-      {/* Generated link modal (shown once; token is not recoverable) */}
-      <CModal visible={!!generatedUrl} onClose={() => setGeneratedUrl(null)}>
-        <CModalHeader>
-          <CModalTitle>Enlace de revisión generado</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <CAlert color="warning" className="py-2 small">
-            Copia este enlace ahora. Por seguridad, no se puede recuperar después de cerrar.
-          </CAlert>
-          <CInputGroup>
-            <CFormInput value={generatedUrl ?? ''} readOnly />
-            <CButton color="primary" onClick={() => void handleCopy()}>
-              <CIcon icon={cilCopy} className="me-1" />
-              {copied ? '¡Copiado!' : 'Copiar'}
-            </CButton>
-          </CInputGroup>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setGeneratedUrl(null)}>
-            Cerrar
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      {/* The link, shown once. Mounted on the state so its copy flash resets per link. */}
+      {shareLink && (
+        <ShareReviewLinkModal
+          state={shareLink}
+          code={preOrder.code}
+          onClose={() => setShareLink(null)}
+        />
+      )}
 
       {/* Regenerate confirmation modal */}
       <CModal visible={showRegenModal} onClose={() => setShowRegenModal(false)}>

@@ -20,7 +20,6 @@ import {
   cilFolderOpen,
   cilFullscreen,
   cilFullscreenExit,
-  cilLink,
   cilLoopCircular,
   cilOptions,
   cilPlus,
@@ -88,10 +87,6 @@ interface OptimizerActionsMenuProps {
   isSavingDraft?: boolean
   savedFlash?: boolean
   // --- Documento (only a saved quote has these; the optimizer's workspace is not a document yet) ---
-  onReviewLink?: () => void
-  // "Generar enlace" the first time, "Regenerar enlace" once one exists.
-  reviewLinkLabel?: string
-  isLinkPending?: boolean
   onViewOrder?: () => void
   onDelete?: () => void
   // Fullscreen portal target: document.body sits outside the fullscreen element, so a menu portaled
@@ -134,9 +129,6 @@ const OptimizerActionsMenu = ({
   onSaveDraft,
   isSavingDraft,
   savedFlash,
-  onReviewLink,
-  reviewLinkLabel = 'Generar enlace',
-  isLinkPending,
   onViewOrder,
   onDelete,
   container,
@@ -146,7 +138,7 @@ const OptimizerActionsMenu = ({
   const hasRun = !!(onOptimize || onStrategyChange)
   const hasView = !!(onToggleCollapseAll || onToggleFullscreen)
   const hasJob = !!(onNew || onOpenDrafts || onSaveDraft)
-  const hasDoc = !!(onReviewLink || onViewOrder || onDelete)
+  const hasDoc = !!(onViewOrder || onDelete)
 
   const handleClear = () => {
     const message = clearsMaterials
@@ -358,27 +350,14 @@ const OptimizerActionsMenu = ({
 
         {/* Actions on the quote as a document rather than on its contents. These were four buttons
             on the pre-order's header card; none of them is used often enough to hold a permanent
-            row, and "Eliminar" in particular should not be one click away from the save button. */}
+            row, and "Eliminar" in particular should not be one click away from the save button.
+            The review link is NOT among them any more: it is the quote's next step, so it lives on
+            `PreOrderStatusStrip` beside the sentence that explains why — and one action wants one
+            door, or the strip's guards (unsaved edits, a client with no phone) are bypassable from
+            here. */}
         {hasDoc && (
           <>
             <CDropdownHeader className="text-body-secondary small">Documento</CDropdownHeader>
-            {onReviewLink && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                disabled={isLinkPending}
-                onClick={onReviewLink}
-                title="Enlace público para que el cliente revise y apruebe la cotización"
-              >
-                {isLinkPending ? (
-                  <CSpinner size="sm" className="me-2" />
-                ) : (
-                  <CIcon icon={cilLink} className="me-2" />
-                )}
-                {reviewLinkLabel}
-              </CDropdownItem>
-            )}
             {onViewOrder && (
               <CDropdownItem
                 as="button"
