@@ -191,7 +191,7 @@ const CuttingSettingsCard = () => {
         ) : (
           <>
             <p className="text-body-secondary small mb-3">
-              Cambiar estos parámetros afecta futuras optimizaciones y proformas. Los pedidos ya
+              Cambiar estos parámetros afecta futuras optimizaciones y cotizaciones. Los pedidos ya
               confirmados conservan su precio.
             </p>
 

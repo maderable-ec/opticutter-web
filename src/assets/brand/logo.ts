@@ -5,7 +5,7 @@
 // "MADERA" stays `currentColor` so the same file serves the dark sidebar and the light login page,
 // and the tagline is the same colour dimmed rather than the letterhead's TEXT_GREY — a fixed grey
 // reads on white but disappears against the dark sidebar. The coral is #E8564B, the exact
-// BRAND_CORAL the backend samples for the proforma; it is also a CSS token (`--brand-coral`), but an
+// BRAND_CORAL the backend samples for its documents; it is also a CSS token (`--brand-coral`), but an
 // icon definition is inlined into an <svg> outside any stylesheet, so the literal is needed here.
 export const logo = [
   '380 110',

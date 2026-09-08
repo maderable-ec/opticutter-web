@@ -54,7 +54,7 @@ interface WorkshopMaterialsModalProps {
 //
 // Both lists are `.summary-table`s with the same vocabulary the optimizer's own materials table uses
 // ("Tablero", "Cant."), so a vendedor and an operador read the same words for the same thing. The
-// totals sit in a `<tfoot>`, where a proforma puts them — and where "N materiales" is finally worth
+// totals sit in a `<tfoot>`, where an order document puts them — and where "N materiales" is finally worth
 // printing: on the card it was a number that changed no decision. Only from two rows up: under a
 // single row the total restates that row.
 //

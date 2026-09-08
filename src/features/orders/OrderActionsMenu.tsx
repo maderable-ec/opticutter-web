@@ -13,7 +13,7 @@ import { cilBolt, cilBuilding, cilExternalLink, cilFile, cilOptions } from '@cor
 // optimizer's menu (sections that render only when their handler arrives, muted headers, items as
 // buttons), but a component of its own rather than two more sections bolted onto
 // `OptimizerActionsMenu`: that one already carries twenty-five props for two call sites, and not
-// one entry of its "Documento" section (proforma, review link, ver orden, eliminar) means anything
+// one entry of its "Documento" section (review link, ver orden, eliminar) means anything
 // on an order.
 //
 // It replaces two full-width cards on the detail page: "Documentos y factura" — five buttons of

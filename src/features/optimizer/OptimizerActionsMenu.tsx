@@ -53,8 +53,8 @@ const strategyHint = (s: PackingStrategy) =>
 //
 // Sections render only when their handlers are given, so the two pages that mount this share one
 // menu without sharing an action: the optimizer gets "Trabajo" (drafts belong to its scratch
-// workspace) and never "Documento"; the pre-order detail page gets "Documento" (proforma, review
-// link, delete — a saved quote is a document) and never "Trabajo".
+// workspace) and never "Documento"; the pre-order detail page gets "Documento" (review link,
+// ver orden, delete — a saved quote is a document) and never "Trabajo".
 
 interface OptimizerActionsMenuProps {
   // --- Piezas ---
@@ -88,7 +88,6 @@ interface OptimizerActionsMenuProps {
   isSavingDraft?: boolean
   savedFlash?: boolean
   // --- Documento (only a saved quote has these; the optimizer's workspace is not a document yet) ---
-  onProforma?: () => void
   onReviewLink?: () => void
   // "Generar enlace" the first time, "Regenerar enlace" once one exists.
   reviewLinkLabel?: string
@@ -135,7 +134,6 @@ const OptimizerActionsMenu = ({
   onSaveDraft,
   isSavingDraft,
   savedFlash,
-  onProforma,
   onReviewLink,
   reviewLinkLabel = 'Generar enlace',
   isLinkPending,
@@ -148,7 +146,7 @@ const OptimizerActionsMenu = ({
   const hasRun = !!(onOptimize || onStrategyChange)
   const hasView = !!(onToggleCollapseAll || onToggleFullscreen)
   const hasJob = !!(onNew || onOpenDrafts || onSaveDraft)
-  const hasDoc = !!(onProforma || onReviewLink || onViewOrder || onDelete)
+  const hasDoc = !!(onReviewLink || onViewOrder || onDelete)
 
   const handleClear = () => {
     const message = clearsMaterials
@@ -364,17 +362,6 @@ const OptimizerActionsMenu = ({
         {hasDoc && (
           <>
             <CDropdownHeader className="text-body-secondary small">Documento</CDropdownHeader>
-            {onProforma && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                onClick={onProforma}
-              >
-                <CIcon icon={cilCloudDownload} className="me-2" />
-                Proforma PDF
-              </CDropdownItem>
-            )}
             {onReviewLink && (
               <CDropdownItem
                 as="button"

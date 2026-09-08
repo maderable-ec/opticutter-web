@@ -253,8 +253,8 @@ const CompanySettingsCard = () => {
         ) : (
           <>
             <p className="text-body-secondary small mb-3">
-              Estos datos forman el membrete de proformas y hojas de producción, y se reflejan en
-              vivo en los PDF de pedidos existentes.
+              Estos datos forman el membrete de las órdenes de pedido y hojas de producción, y se
+              reflejan en vivo en los PDF de pedidos existentes.
             </p>
 
             {savedFlash && (

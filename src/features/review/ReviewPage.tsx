@@ -76,7 +76,7 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
             {data.status === 'confirmed' && <CBadge color="success">Confirmada</CBadge>}
           </div>
           <div className="text-body-secondary small">Cliente: {data.clientName}</div>
-          {/* Commercial reference (project/site), the same text printed on the proforma. */}
+          {/* Commercial reference (project/site), the same text printed on the order document. */}
           <ReferenceNote notes={data.notes} variant="header" />
         </div>
         <div className="text-end small">

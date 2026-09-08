@@ -1,6 +1,5 @@
 import { httpClient } from 'src/shared/api/httpClient'
 import { toQuery } from 'src/shared/api/crudApi'
-import { openInNewTab } from 'src/shared/utils/download'
 import type {
   PreOrder,
   PreOrderCreate,
@@ -46,7 +45,4 @@ export const preordersApi = {
   remove: (id: number) => httpClient.delete<null>(`${BASE}/${id}`),
   createReviewLink: (id: number) => httpClient.post<ReviewLink>(`${BASE}/${id}/review-link`),
   getReviewLinkInfo: (id: number) => httpClient.get<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
-  downloadProforma: async (id: number) => {
-    openInNewTab(await httpClient.download(`${BASE}/${id}/proforma?format=pdf`))
-  },
 }

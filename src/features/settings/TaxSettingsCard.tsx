@@ -120,8 +120,8 @@ const TaxSettingsCard = () => {
           <>
             <p className="text-body-secondary small mb-3">
               Los precios del catálogo se guardan <strong>sin IVA</strong>, así que esta tasa es la
-              que produce todos los totales: cotizaciones, proformas y órdenes de pedido muestran
-              Subtotal, IVA y Total. Cambiarla solo afecta lo que se calcule de aquí en adelante —{' '}
+              que produce todos los totales: cotizaciones y órdenes de pedido muestran Subtotal, IVA
+              y Total. Cambiarla solo afecta lo que se calcule de aquí en adelante —{' '}
               <strong>cada orden congela la tasa con la que se facturó</strong>.
             </p>
 

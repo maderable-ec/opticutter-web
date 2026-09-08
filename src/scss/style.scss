@@ -1,5 +1,5 @@
 // MADERABLE brand palette, the same one the backend samples off the official letterhead
-// (`opticutter-api/src/modules/optimizations/proforma.py`). Screen and document have to look like
+// (`opticutter-api/src/modules/optimizations/documents.py`). Screen and document have to look like
 // the same company, so the hexes are duplicated here rather than approximated — nothing serves them
 // over the wire.
 //
@@ -19,11 +19,11 @@
 // The rest of the letterhead palette, for the places that need a brand colour which is not the
 // theme's primary — the cut diagram, the footer accent, tinted fills.
 :root {
-  --brand-coral: #e8564b; // proforma.py BRAND_CORAL
-  --brand-orange: #ec7829; // proforma.py BRAND_ORANGE
-  --brand-black: #1d1d1b; // proforma.py BRAND_BLACK
-  --brand-coral-soft: #fce9e6; // proforma.py LIGHT_CORAL
-  --brand-grey: #424242; // proforma.py TEXT_GREY
+  --brand-coral: #e8564b; // documents.py BRAND_CORAL
+  --brand-orange: #ec7829; // documents.py BRAND_ORANGE
+  --brand-black: #1d1d1b; // documents.py BRAND_BLACK
+  --brand-coral-soft: #fce9e6; // documents.py LIGHT_CORAL
+  --brand-grey: #424242; // documents.py TEXT_GREY
 }
 
 body {
@@ -495,7 +495,7 @@ input[type='number'] {
 
 // Cost summary tables, in the brand palette instead of the generic grey they had.
 //
-// The tint is LIGHT_CORAL with a solid coral rule under it, not the solid coral band the proforma
+// The tint is LIGHT_CORAL with a solid coral rule under it, not the solid coral band the order document
 // prints. On paper that band heads a full page of rows; here the tables run one or two rows, and a
 // saturated header outweighed its own content — two of them stacked turned the step red. The rule
 // carries the brand cue at full strength, the fill stays out of the way.
@@ -985,13 +985,13 @@ input[type='number'] {
   color: var(--cui-secondary-color);
 }
 
-// The materials dialog wears the brand the way the proforma does: a solid coral band carrying the
+// The materials dialog wears the brand the way the order document does: a solid coral band carrying the
 // order's identity. No mark on it — the isotype was decoration on a dialog nobody reaches without
 // already being inside the app, and it only ate width the client's name needed.
 //
 // The saturated band is right HERE and wrong on `.summary-table`: that rule heads one or two rows
 // inside a step, where a coral fill outweighed its own content, while this heads a full page of rows
-// — the proforma's own situation. The ink is `--brand-black`, never white: coral under white is
+// — the order document's own situation. The ink is `--brand-black`, never white: coral under white is
 // 3.58:1 and fails AA, while the dark brand ink measures 4.69:1, the same resolution Bootstrap's
 // `color-contrast()` gives the coral buttons. Both colours are painted explicitly, so the band needs
 // no `color-mode(dark)` counterpart.
