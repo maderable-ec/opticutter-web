@@ -96,7 +96,15 @@ const WorkshopBoardPage = () => {
 
   const runAction = (kind: BoardAction, item: WorkshopQueueItem) => {
     const id = String(item.orderId)
-    if (kind === 'take') updateStatus.mutate({ id, data: { status: 'cutting' } })
+    // Taking an order and opening it are one act, not two: `Tomar` is tapped because the cut is
+    // about to start, and going back to the queue to find the same card and tap `Abrir taller` was a
+    // second gesture with a glove on. Navigate only on success — a rejected transition (someone else
+    // took the order first) has to leave the operator on the board, looking at the error.
+    if (kind === 'take')
+      updateStatus.mutate(
+        { id, data: { status: 'cutting' } },
+        { onSuccess: () => void navigate(`/orders/${item.orderId}/workshop`) },
+      )
     // On completion, dispatch the consolidated sheet to the branch's inkjet — unless that branch
     // has no sheet printer. Every role that can complete from this board (operador/canteador/admin)
     // also holds `orders:workshop`. The switch is per item: the admin's board spans every branch.
