@@ -19,13 +19,13 @@ import { cilBolt, cilBuilding, cilExternalLink, cilFile, cilOptions } from '@cor
 // It replaces two full-width cards on the detail page: "Documentos y factura" — five buttons of
 // which at most one gets pressed per visit — and the lone "Cambiar sucursal" button that was the
 // second row of the "Acciones" card, where it sat next to the status transitions as if it were one.
+//
+// "Documentos" is down to a single entry: the API emits ONE pdf per order (the ORDEN DE PEDIDO
+// with its diagram, annexes and the delivery block the client signs). The production and dispatch
+// sheets no longer exist.
 
 interface OrderActionsMenuProps {
   onOrderPdf?: () => void
-  onProductionSheet?: () => void
-  onConsolidatedPdf?: () => void
-  // Only a dispatched order has one.
-  onDispatchSheet?: () => void
   // Omitted once a factura is already linked — the identity block shows the id, so a permanently
   // disabled entry repeating it would be the section's only content on most closed orders.
   onInvoice?: () => void
@@ -39,15 +39,12 @@ interface OrderActionsMenuProps {
 
 const OrderActionsMenu = ({
   onOrderPdf,
-  onProductionSheet,
-  onConsolidatedPdf,
-  onDispatchSheet,
   onInvoice,
   onChangeBranch,
   onTogglePriority,
   isPriority = false,
 }: OrderActionsMenuProps) => {
-  const hasDocs = !!(onOrderPdf || onProductionSheet || onConsolidatedPdf || onDispatchSheet)
+  const hasDocs = !!onOrderPdf
   const hasManage = !!(onInvoice || onChangeBranch || onTogglePriority)
 
   return (
@@ -68,39 +65,6 @@ const OrderActionsMenu = ({
               >
                 <CIcon icon={cilExternalLink} className="me-2" />
                 Orden de pedido PDF
-              </CDropdownItem>
-            )}
-            {onProductionSheet && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                onClick={onProductionSheet}
-              >
-                <CIcon icon={cilExternalLink} className="me-2" />
-                Hoja de producción PDF
-              </CDropdownItem>
-            )}
-            {onConsolidatedPdf && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                onClick={onConsolidatedPdf}
-              >
-                <CIcon icon={cilExternalLink} className="me-2" />
-                PDF consolidado
-              </CDropdownItem>
-            )}
-            {onDispatchSheet && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                onClick={onDispatchSheet}
-              >
-                <CIcon icon={cilExternalLink} className="me-2" />
-                Hoja de despacho PDF
               </CDropdownItem>
             )}
           </>

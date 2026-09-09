@@ -379,8 +379,8 @@ const OrderDetailPage = () => {
             {order.queuedAt && ` · En cola ${fmtDateTime(order.queuedAt)}`}
             {order.dispatchedAt && ` · Despachada ${fmtDateTime(order.dispatchedAt)}`}
           </div>
-          {/* Reference inherited from the quote; read-only here (no endpoint edits it) and printed
-              on every PDF. */}
+          {/* Reference inherited from the quote; read-only here (no endpoint edits it) and
+              printed on the order's document. */}
           {order.notes?.trim() ? (
             <ReferenceNote notes={order.notes} variant="header" />
           ) : (
@@ -390,13 +390,6 @@ const OrderDetailPage = () => {
         <div className="ms-auto">
           <OrderActionsMenu
             onOrderPdf={() => void ordersApi.downloadOrderDocument(orderId)}
-            onProductionSheet={() => void ordersApi.downloadProductionSheet(orderId)}
-            onConsolidatedPdf={() => void ordersApi.downloadConsolidated(orderId)}
-            onDispatchSheet={
-              order.status === 'despachado'
-                ? () => void ordersApi.downloadDispatchSheet(orderId)
-                : undefined
-            }
             onInvoice={
               canManage && !order.externalInvoiceId ? () => setInvoiceModal(true) : undefined
             }

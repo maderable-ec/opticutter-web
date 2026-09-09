@@ -65,14 +65,11 @@ export const ordersApi = {
   getWorkshopQueue: () => httpClient.get<WorkshopQueueItem[]>(`${BASE}/workshop-queue`),
   patchBanding: (id: string, data: BandingPayload) =>
     httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
+  // The order's ONLY document: ORDEN DE PEDIDO (with the delivery block the client
+  // signs) + the cut diagram + every annex, merged server-side into one PDF. The
+  // production and dispatch sheets are gone — their content lives in this one.
   downloadOrderDocument: async (id: string) => {
     openInNewTab(await httpClient.download(`${BASE}/${id}/document?format=pdf`))
-  },
-  downloadProductionSheet: async (id: string) => {
-    openInNewTab(await httpClient.download(`${BASE}/${id}/production-sheet?format=pdf`))
-  },
-  downloadDispatchSheet: async (id: string) => {
-    openInNewTab(await httpClient.download(`${BASE}/${id}/dispatch-sheet?format=pdf`))
   },
   // Attachments: response is `{ data: Attachment[] }` with no pagination → use `get`, not `list`.
   listAttachments: (id: string) => httpClient.get<Attachment[]>(`${BASE}/${id}/attachments`),
@@ -86,8 +83,5 @@ export const ordersApi = {
   // Opens the attachment inline in a new tab.
   downloadAttachment: async (id: string, attachmentId: number) => {
     openInNewTab(await httpClient.download(`${BASE}/${id}/attachments/${attachmentId}`))
-  },
-  downloadConsolidated: async (id: string) => {
-    openInNewTab(await httpClient.download(`${BASE}/${id}/consolidated?format=pdf`))
   },
 }
