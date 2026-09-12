@@ -5,7 +5,8 @@ import type {
   OrderListParams,
   UpdateStatusPayload,
   AssociateInvoicePayload,
-  BandingPayload,
+  ActivityPayload,
+  ActivityType,
   ChangeBranchPayload,
   CuttingPlan,
   MarkPieceResponse,
@@ -126,17 +127,27 @@ export const useAssociateInvoice = () => {
   })
 }
 
-// --- Banding ---
+// --- Activities ---
 
-// Advances the banding track and refreshes the workshop board + the order detail/list.
-// When moving to `done` the banding action disappears from the board on the next refetch.
-export const useUpdateBanding = () => {
+// Starts/finishes one activity and refreshes the workshop board, the cutting plan and the
+// order detail/list. All four, because the order's own status may have moved with it: starting
+// the cut takes it out of the queue and closing the last activity finishes it, which changes
+// the card, its buttons and the canvas's read-only state at once.
+export const useUpdateActivity = () => {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: BandingPayload }) =>
-      ordersApi.patchBanding(id, data),
+    mutationFn: ({
+      id,
+      activity,
+      data,
+    }: {
+      id: string
+      activity: ActivityType
+      data: ActivityPayload
+    }) => ordersApi.patchActivity(id, activity, data),
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+      void qc.invalidateQueries({ queryKey: cuttingPlanKey(id) })
       void qc.invalidateQueries({ queryKey: ['orders', id] })
       void qc.invalidateQueries({ queryKey: ['orders'] })
     },

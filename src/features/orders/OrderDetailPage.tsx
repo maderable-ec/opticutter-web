@@ -21,7 +21,6 @@ import CIcon from '@coreui/icons-react'
 import { cilBolt } from '@coreui/icons'
 
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
-import { usePrintConsolidated } from 'src/features/print/usePrint'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { WizardFooter } from 'src/features/optimizer/WizardSteps'
 import StatusHistoryTable from 'src/shared/components/StatusHistoryTable'
@@ -36,6 +35,7 @@ import OrderLinesTable from './OrderLinesTable'
 import OrderPiecesTable from './OrderPiecesTable'
 import OrderAttachmentsModal, { humanSize } from './OrderAttachmentsModal'
 import { attachmentsLocked, hasWorkshopPlan, transitionsFor } from './status'
+import { ACTIVITY_LABEL, orderedActivities } from './activities'
 import type { StatusTransition } from './status'
 import {
   useAssociateInvoice,
@@ -71,10 +71,6 @@ const OrderDetailPage = () => {
   const canManage = useHasRole('administrador', 'vendedor')
   // Operador doesn't use the detail view: their flow is the workshop. Redirect there (including direct URL).
   const isOperator = useHasRole('operador')
-  // Consolidated print needs `orders:workshop`; the cut → completed transition here is also open to
-  // vendedor (who lacks it), so gate the trigger to those roles to avoid a 403.
-  const canPrintConsolidated = useHasRole('administrador', 'operador', 'canteador')
-
   const currentUser = useCurrentUser()
   const { data: order, isLoading } = useOrder(id)
   const cuttingPlan = useCuttingPlan(id, !!order && hasWorkshopPlan(order.status))
@@ -82,7 +78,6 @@ const OrderDetailPage = () => {
   const associateInvoice = useAssociateInvoice()
   const changeBranch = useChangeOrderBranch()
   const setPriority = useSetOrderPriority()
-  const printConsolidated = usePrintConsolidated()
   const { data: activeBranches = [] } = useActiveBranches()
   // Only for the summary row's count; the dialog owns the upload and delete mutations. React Query
   // serves both from the same `['orders', id, 'attachments']` entry.
@@ -141,19 +136,7 @@ const OrderDetailPage = () => {
     if (!id || !transition) return
     updateStatus.mutate(
       { id, data: { status: transition.to, note: transitionNote || undefined } },
-      {
-        onSuccess: () => {
-          closeTransition()
-          // Completing the order dispatches the consolidated sheet to the branch's inkjet,
-          // unless that branch has no sheet printer.
-          if (
-            transition.to === 'completed' &&
-            canPrintConsolidated &&
-            order?.branch.printConsolidatedEnabled
-          )
-            printConsolidated.mutate({ orderId: id })
-        },
-      },
+      { onSuccess: closeTransition },
     )
   }
 
@@ -285,17 +268,13 @@ const OrderDetailPage = () => {
   const [primary, ...secondary] = transitions
   const canChangeBranch = canManage && (order.status === 'confirmed' || order.status === 'queued')
   // Prioritizing a closed order means nothing (the board doesn't list it) — the API refuses it too.
-  const canPrioritize =
-    canManage && !['completed', 'despachado', 'cancelled'].includes(order.status)
+  const canPrioritize = canManage && !['finished', 'dispatched', 'cancelled'].includes(order.status)
   const isPriority = !!order.isPriority
   const branchOptions = activeBranches.filter((b) => b.id !== order.branch.id)
   const locked = attachmentsLocked(order.status)
 
   const plan = cuttingPlan.data
   const showProduction = hasWorkshopPlan(order.status)
-  const piecesPending = plan ? plan.progress.totalPieces - plan.progress.cutPieces : 0
-  // The API is the authoritative guard (returns 422 if pieces are missing); disabling the button is UX only.
-  const cutGated = order.status === 'cutting' && !!plan && piecesPending > 0
   const planPct =
     plan && plan.progress.totalPieces > 0
       ? Math.round((plan.progress.cutPieces / plan.progress.totalPieces) * 100)
@@ -303,19 +282,14 @@ const OrderDetailPage = () => {
   const planDone =
     !!plan && plan.progress.totalPieces > 0 && plan.progress.cutPieces >= plan.progress.totalPieces
 
-  // Banding blocks the cut → completed transition while it is still pending/in-progress (API
-  // returns 422; disabling is UX only).
-  const bandingPending = order.bandingStatus === 'pending' || order.bandingStatus === 'in_progress'
-
-  // What stops the primary action, in the words the two loose `text-warning` lines used to carry.
-  // `WizardFooter` shows the hint only while the button is disabled, which is exactly when they
-  // were rendered.
+  // The order finishes itself when the shop closes its last activity, so this page no longer
+  // offers a "completar" button to gate. What is left to say is who is still working: the
+  // office reads it here to know what to chase.
+  const openWork = orderedActivities(order.activities)
+    .filter((activity) => activity.status !== 'done')
+    .map((activity) => ACTIVITY_LABEL[activity.type].toLowerCase())
   const blockedHint =
-    primary?.to === 'cut' && cutGated
-      ? `Faltan ${piecesPending} pieza(s) por cortar. Márcalas en el taller.`
-      : primary?.to === 'completed' && bandingPending
-        ? 'Falta terminar el canteado para poder completar la orden.'
-        : undefined
+    openWork.length > 0 ? `El taller no ha terminado: ${openWork.join(', ')}.` : undefined
 
   const pieces = order.pieces ?? []
   const pieceUnits = pieces.reduce((sum, p) => sum + (p.quantity ?? 0), 0)
@@ -406,13 +380,7 @@ const OrderDetailPage = () => {
         assignedToLabel={order.assignedToLabel}
         assignedAt={order.assignedAt}
         dispatchedByLabel={order.dispatchedByLabel}
-        banding={{
-          status: order.bandingStatus,
-          startedByLabel: order.bandingStartedByLabel,
-          startedAt: order.bandingStartedAt,
-          finishedByLabel: order.bandingFinishedByLabel,
-          finishedAt: order.bandingFinishedAt,
-        }}
+        activities={order.activities}
       />
 
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
@@ -585,9 +553,6 @@ const OrderDetailPage = () => {
             : undefined
         }
         nextLabel={primary?.label}
-        nextDisabled={
-          (primary?.to === 'cut' && cutGated) || (primary?.to === 'completed' && bandingPending)
-        }
         nextHint={blockedHint}
       >
         {secondary.map((t) => (

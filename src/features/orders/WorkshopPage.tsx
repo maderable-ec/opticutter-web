@@ -31,10 +31,11 @@ import { useToastStore } from 'src/shared/store/toastStore'
 import AppToaster from 'src/shared/components/AppToaster'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import OrderStatusBadge from './OrderStatusBadge'
-import BandingStatusBadge from './BandingStatusBadge'
+import ActivityBadge from './ActivityBadge'
+import { findActivity, orderedActivities } from './activities'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import WorkshopBoardPicker from './WorkshopBoardPicker'
-import { useCuttingPlan, useMarkPiece, useOrder, useUpdateOrderStatus } from './useOrders'
+import { useCuttingPlan, useMarkPiece, useUpdateActivity } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
 
 const pct = ({ cutPieces, totalPieces }: CutProgress) =>
@@ -59,10 +60,8 @@ const WorkshopPage = () => {
   const isAdminOrOperator = useHasRole('administrador', 'operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
-  // The cutting plan does not include banding data; we fetch the order to show the banding badge (read-only).
-  const { data: order } = useOrder(id)
   const markPiece = useMarkPiece(id ?? '')
-  const updateStatus = useUpdateOrderStatus()
+  const updateActivity = useUpdateActivity()
   const printLabel = usePrintLabel()
   const addToast = useToastStore((s) => s.addToast)
 
@@ -105,7 +104,10 @@ const WorkshopPage = () => {
     return (sig: string) => colors.get(sig) ?? PALETTE[0]
   }, [plan])
 
-  const interactive = plan?.status === 'cutting'
+  // The order status can no longer answer this: `cutting` and `cut` are one state, so what
+  // decides whether the canvas is live is the CUT's own status.
+  const cutActivity = findActivity(plan?.activities, 'cutting')
+  const interactive = cutActivity?.status === 'in_progress'
 
   // Single tap marks a piece as cut; tapping an already-cut piece does nothing (double-tap unmarks it).
   // Once the cut is confirmed server-side, dispatch its label to the branch's thermal printer —
@@ -136,13 +138,16 @@ const WorkshopPage = () => {
     )
   }
 
-  const changeStatus = (status: 'cutting' | 'cut', onDone?: () => void) => {
+  // Starting the cut is also what takes the order out of the queue, and closing it is what
+  // finishes the order when nothing else is pending -- both derived by the backend from this
+  // one call, so the canvas makes one request either way.
+  const changeCut = (status: 'in_progress' | 'done', onDone?: () => void) => {
     if (!id) return
-    updateStatus.mutate(
-      { id, data: { status } },
+    updateActivity.mutate(
+      { id, activity: 'cutting', data: { status } },
       {
         onSuccess: () => onDone?.(),
-        onError: (e) => addToast(e?.message || 'Error al cambiar estado.', 'danger'),
+        onError: (e) => addToast(e?.message || 'Error al registrar el corte.', 'danger'),
       },
     )
   }
@@ -223,11 +228,16 @@ const WorkshopPage = () => {
       <div className="workshop-identity">
         <strong className="text-nowrap">{plan.orderCode}</strong>
         <OrderStatusBadge status={plan.status} />
-        {order?.bandingStatus && order.bandingStatus !== 'not_applicable' && (
-          <span className="workshop-banding-badge">
-            <BandingStatusBadge status={order.bandingStatus} />
-          </span>
-        )}
+        {/* The parallel work, read-only: the operator does not register it, but seeing that
+            the canteador is still on the order is what stops them asking. The plan carries the
+            activities now, so this no longer costs a second request for the whole order. */}
+        {orderedActivities(plan.activities)
+          .filter((activity) => activity.type !== 'cutting')
+          .map((activity) => (
+            <span className="workshop-banding-badge" key={activity.type}>
+              <ActivityBadge activity={activity} />
+            </span>
+          ))}
         {/* No "solo lectura" label: the status badge already says `Cortada`, the action bar is gone
             and the pieces carry no pointer affordance — a third copy only cost the width that
             truncated the badges next to it. */}
@@ -334,10 +344,10 @@ const WorkshopPage = () => {
         color="primary"
         size="lg"
         className="ms-auto"
-        disabled={updateStatus.isPending}
-        onClick={() => changeStatus('cutting')}
+        disabled={updateActivity.isPending}
+        onClick={() => changeCut('in_progress')}
       >
-        {updateStatus.isPending ? <CSpinner size="sm" /> : 'Tomar esta orden'}
+        {updateActivity.isPending ? <CSpinner size="sm" /> : 'Tomar esta orden'}
       </CButton>
     ) : (
       <span className="text-body-secondary">
@@ -364,7 +374,7 @@ const WorkshopPage = () => {
           color="primary"
           size="lg"
           className="ms-auto"
-          disabled={pendingCount > 0 || updateStatus.isPending}
+          disabled={pendingCount > 0 || updateActivity.isPending}
           onClick={() => setCutModal(true)}
         >
           <CIcon icon={cilCheckAlt} className="me-1" />
@@ -433,10 +443,10 @@ const WorkshopPage = () => {
           <CButton
             color="primary"
             size="lg"
-            onClick={() => changeStatus('cut', () => setCutModal(false))}
-            disabled={updateStatus.isPending}
+            onClick={() => changeCut('done', () => setCutModal(false))}
+            disabled={updateActivity.isPending}
           >
-            {updateStatus.isPending ? <CSpinner size="sm" /> : 'Marcar como cortada'}
+            {updateActivity.isPending ? <CSpinner size="sm" /> : 'Marcar como cortada'}
           </CButton>
         </CModalFooter>
       </CModal>

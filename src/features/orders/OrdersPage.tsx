@@ -23,16 +23,17 @@ import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
 
 import OrderStatusBadge from './OrderStatusBadge'
-import BandingStatusBadge from './BandingStatusBadge'
+import ActivityBadge from './ActivityBadge'
 import ElapsedNote from './ElapsedNote'
-import { bandingClock, statusClock } from './elapsed'
+import { activityClock, statusClock } from './elapsed'
 import OrdersFilters, {
   activeCount,
   useOrdersFilterChips,
   type OrdersFilterValues,
 } from './OrdersFilters'
 import { useOrders } from './useOrders'
-import type { BandingStatus, OrderSort, OrderStatus } from './types'
+import { orderedActivities } from './activities'
+import type { ActivityStatus, ActivityType, OrderSort, OrderStatus } from './types'
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
 const FILTER_KEYS = [
@@ -43,7 +44,8 @@ const FILTER_KEYS = [
   'createdFrom',
   'createdTo',
   'isPriority',
-  'bandingStatus',
+  'activity',
+  'activityStatus',
 ]
 
 const OrdersPage = () => {
@@ -64,7 +66,8 @@ const OrdersPage = () => {
     // The backend defaults to FIFO for the workshop; this page is the back office's.
     sort: (getParam('sort') || 'recent') as OrderSort,
     isPriority: getParam('isPriority'),
-    bandingStatus: getParam('bandingStatus') as BandingStatus | '',
+    activity: getParam('activity') as ActivityType | '',
+    activityStatus: getParam('activityStatus') as ActivityStatus | '',
   }
 
   const handleChange = <K extends keyof OrdersFilterValues>(
@@ -98,7 +101,8 @@ const OrdersPage = () => {
     // '' means "both", and `false` is a real filter — so map through the empty string explicitly
     // rather than leaning on a falsy check, which would swallow "Solo normales".
     isPriority: values.isPriority === '' ? undefined : values.isPriority === 'true',
-    bandingStatus: values.bandingStatus || undefined,
+    activity: values.activity || undefined,
+    activityStatus: values.activityStatus || undefined,
     offset,
     limit,
   })
@@ -144,7 +148,7 @@ const OrdersPage = () => {
                 <CTableHeaderCell>Cliente</CTableHeaderCell>
                 <CTableHeaderCell>Sucursal</CTableHeaderCell>
                 <CTableHeaderCell>Estado</CTableHeaderCell>
-                <CTableHeaderCell>Canteado</CTableHeaderCell>
+                <CTableHeaderCell>Actividades</CTableHeaderCell>
                 <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
                 <CTableHeaderCell>Creado</CTableHeaderCell>
               </CTableRow>
@@ -168,53 +172,67 @@ const OrdersPage = () => {
                   </CTableDataCell>
                 </CTableRow>
               ) : (
-                orders.map((o) => (
-                  <CTableRow key={o.id} onClick={() => void navigate(`/orders/${o.id}`)}>
-                    <CTableDataCell>
-                      <div className="d-flex align-items-center gap-2">
-                        <strong>{o.code ?? '—'}</strong>
-                        {/* Orthogonal to the status column: the order jumps the workshop's FIFO. */}
-                        {o.isPriority && (
-                          <CBadge color="warning" title="Atención prioritaria">
-                            <CIcon icon={cilBolt} size="sm" />
-                          </CBadge>
+                orders.map((o) => {
+                  const activities = orderedActivities(o.activities)
+                  return (
+                    <CTableRow key={o.id} onClick={() => void navigate(`/orders/${o.id}`)}>
+                      <CTableDataCell>
+                        <div className="d-flex align-items-center gap-2">
+                          <strong>{o.code ?? '—'}</strong>
+                          {/* Orthogonal to the status column: the order jumps the workshop's FIFO. */}
+                          {o.isPriority && (
+                            <CBadge color="warning" title="Atención prioritaria">
+                              <CIcon icon={cilBolt} size="sm" />
+                            </CBadge>
+                          )}
+                        </div>
+                        <ReferenceNote notes={o.notes} />
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <div>{clientName(o.client)}</div>
+                        <div className="text-body-secondary small">@{o.client?.identifier}</div>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <div>{o.branch.name}</div>
+                        <div className="text-body-secondary small">{o.branch.code}</div>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        <OrderStatusBadge status={o.status} />
+                        {/* How long it has been here — the whole point of the column for
+                            somebody who has to push the work along. Silent on closed orders. */}
+                        <ElapsedNote iso={statusClock(o)} status={o.status} />
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {/* The three parallel tracks of `in_process`, in process order — the cut
+                            included. The Estado column says where the ORDER is, which since
+                            `in_process` became an umbrella no longer says who still owes work:
+                            "En proceso" reads the same with the cut just started and with it
+                            finished waiting on the canteador. Badge and clock share a line, so
+                            three activities cost three lines instead of six. The dash is for an
+                            order the activity backfill never reached — `_ensure_activities` is
+                            lazy and does not run on the listing. */}
+                        {activities.length > 0 ? (
+                          <div className="d-flex flex-column gap-1">
+                            {activities.map((activity) => (
+                              <div key={activity.type} className="d-flex align-items-center gap-2">
+                                <ActivityBadge activity={activity} />
+                                <ElapsedNote iso={activityClock(activity)} />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-body-secondary">—</span>
                         )}
-                      </div>
-                      <ReferenceNote notes={o.notes} />
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <div>{clientName(o.client)}</div>
-                      <div className="text-body-secondary small">@{o.client?.identifier}</div>
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <div>{o.branch.name}</div>
-                      <div className="text-body-secondary small">{o.branch.code}</div>
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      <OrderStatusBadge status={o.status} />
-                      {/* How long it has been here — the whole point of the column for
-                          somebody who has to push the work along. Silent on closed orders. */}
-                      <ElapsedNote iso={statusClock(o)} status={o.status} />
-                    </CTableDataCell>
-                    <CTableDataCell>
-                      {/* The parallel track. An order with no canto has nothing to report, so
-                          it renders as a dash: a "Sin canteado" badge on every such row would
-                          be a column of noise competing with the rows that do need attention. */}
-                      {o.bandingStatus && o.bandingStatus !== 'not_applicable' ? (
-                        <>
-                          <BandingStatusBadge status={o.bandingStatus} />
-                          <ElapsedNote iso={bandingClock(o)} />
-                        </>
-                      ) : (
-                        <span className="text-body-secondary">—</span>
-                      )}
-                    </CTableDataCell>
-                    <CTableDataCell className="text-end text-nowrap">
-                      {fmtMoney(o.total)}
-                    </CTableDataCell>
-                    <CTableDataCell className="text-nowrap">{fmtDate(o.createdAt)}</CTableDataCell>
-                  </CTableRow>
-                ))
+                      </CTableDataCell>
+                      <CTableDataCell className="text-end text-nowrap">
+                        {fmtMoney(o.total)}
+                      </CTableDataCell>
+                      <CTableDataCell className="text-nowrap">
+                        {fmtDate(o.createdAt)}
+                      </CTableDataCell>
+                    </CTableRow>
+                  )
+                })
               )}
             </CTableBody>
           </CTable>

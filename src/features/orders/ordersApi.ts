@@ -2,10 +2,11 @@ import { httpClient } from 'src/shared/api/httpClient'
 import { toQuery } from 'src/shared/api/crudApi'
 import { openInNewTab } from 'src/shared/utils/download'
 import type {
+  ActivityPayload,
+  ActivityResult,
+  ActivityType,
   AssociateInvoicePayload,
   Attachment,
-  BandingPayload,
-  BandingResult,
   ChangeBranchPayload,
   CuttingPlan,
   MarkPieceResponse,
@@ -30,7 +31,8 @@ export const ordersApi = {
     createdTo,
     sort,
     isPriority,
-    bandingStatus,
+    activity,
+    activityStatus,
     offset = 0,
     limit = 20,
   }: OrderListParams = {}) =>
@@ -44,7 +46,8 @@ export const ordersApi = {
         createdTo,
         sort,
         isPriority,
-        bandingStatus,
+        activity,
+        activityStatus,
         offset,
         limit,
       })}`,
@@ -63,8 +66,11 @@ export const ordersApi = {
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),
   // Workshop board: response is `{ data: [...], meta: {} }` with no pagination → use `get`, not `list`.
   getWorkshopQueue: () => httpClient.get<WorkshopQueueItem[]>(`${BASE}/workshop-queue`),
-  patchBanding: (id: string, data: BandingPayload) =>
-    httpClient.patch<BandingResult>(`${BASE}/${id}/banding`, data),
+  // The shop floor's only write: start/finish one activity. The response carries the order's
+  // status, which may have moved by itself (starting the cut takes it out of the queue;
+  // closing the last activity finishes it).
+  patchActivity: (id: string, activity: ActivityType, data: ActivityPayload) =>
+    httpClient.patch<ActivityResult>(`${BASE}/${id}/activities/${activity}`, data),
   // The order's ONLY document: ORDEN DE PEDIDO (with the delivery block the client
   // signs) + the cut diagram + every annex, merged server-side into one PDF. The
   // production and dispatch sheets are gone — their content lives in this one.

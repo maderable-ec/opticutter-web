@@ -10,7 +10,7 @@ import { fmtDay } from 'src/shared/utils/date'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useClient, useClientsMin } from 'src/features/clients/useClients'
 import { ORDER_STATUS_VALUES, statusLabel } from './status'
-import type { BandingStatus, OrderSort, OrderStatus } from './types'
+import type { ActivityStatus, ActivityType, OrderSort, OrderStatus } from './types'
 
 const STATUS_OPTIONS = ORDER_STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) }))
 
@@ -29,19 +29,28 @@ const SORT_OPTIONS: { value: OrderSort; label: string }[] = [
   { value: 'stalest', label: 'Más estancadas primero' },
 ]
 
-// '' = both. `not_applicable` is offered because "orders with no canto at all" is a real
-// question at the counter, not only a gap in the data.
-const BANDING_OPTIONS: { value: BandingStatus | ''; label: string }[] = [
-  { value: '', label: 'Todos' },
-  { value: 'pending', label: 'Canteado pendiente' },
-  { value: 'in_progress', label: 'Canteando' },
-  { value: 'done', label: 'Canteado listo' },
-  { value: 'not_applicable', label: 'Sin canteado' },
+// '' = every activity / every stage. The two mirror the API's pair, which is also the only way
+// the question stays askable for the three activities without six options per stage.
+//
+// The old "Sin canteado" option is gone: it asked for the ABSENCE of a banding, and an activity
+// that does not apply now has no row to filter on. "Canteado" (any stage) answers the useful
+// half -- which orders carry banding at all.
+const ACTIVITY_OPTIONS: { value: ActivityType | ''; label: string }[] = [
+  { value: '', label: 'Todas' },
+  { value: 'cutting', label: 'Corte' },
+  { value: 'banding', label: 'Canteado' },
+  { value: 'additional', label: 'Adicionales' },
 ]
 
-const BANDING_LABEL: Record<string, string> = Object.fromEntries(
-  BANDING_OPTIONS.filter((o) => o.value).map((o) => [o.value, o.label]),
-)
+const ACTIVITY_STATUS_OPTIONS: { value: ActivityStatus | ''; label: string }[] = [
+  { value: '', label: 'Cualquier etapa' },
+  { value: 'pending', label: 'Pendiente' },
+  { value: 'in_progress', label: 'En curso' },
+  { value: 'done', label: 'Listo' },
+]
+
+const OPTION_LABEL = (options: { value: string; label: string }[], value: string): string =>
+  options.find((o) => o.value === value)?.label ?? value
 
 export interface OrdersFilterValues {
   status: OrderStatus[]
@@ -53,8 +62,10 @@ export interface OrdersFilterValues {
   // '' = all; 'true'/'false' narrow to prioritized / regular. A string, like clientId and branchId,
   // so it rides the URL without a third representation of "unset".
   isPriority: string
-  // '' = every stage of the parallel banding track.
-  bandingStatus: BandingStatus | ''
+  // '' = every activity. Pairs with `activityStatus` to narrow the listing to one of the
+  // three tracks at one stage — the same pair the Actividades column shows per row.
+  activity: ActivityType | ''
+  activityStatus: ActivityStatus | ''
 }
 
 interface OrdersFiltersProps {
@@ -140,14 +151,25 @@ const OrdersFilters = ({ values, onChange, onClear, showBranch }: OrdersFiltersP
         </div>
       </FilterSection>
 
-      <FilterSection label="Canteado">
-        <div className="px-3 py-1">
+      <FilterSection label="Trabajo de taller">
+        <div className="px-3 py-1 d-flex gap-2">
           <CFormSelect
             size="sm"
-            value={values.bandingStatus}
-            onChange={(e) => onChange('bandingStatus', e.target.value as BandingStatus | '')}
+            value={values.activity}
+            onChange={(e) => onChange('activity', e.target.value as ActivityType | '')}
           >
-            {BANDING_OPTIONS.map((o) => (
+            {ACTIVITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </CFormSelect>
+          <CFormSelect
+            size="sm"
+            value={values.activityStatus}
+            onChange={(e) => onChange('activityStatus', e.target.value as ActivityStatus | '')}
+          >
+            {ACTIVITY_STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -207,7 +229,8 @@ export const activeCount = (values: OrdersFilterValues, showBranch: boolean): nu
   (values.createdFrom ? 1 : 0) +
   (values.createdTo ? 1 : 0) +
   (values.isPriority ? 1 : 0) +
-  (values.bandingStatus ? 1 : 0)
+  (values.activity ? 1 : 0) +
+  (values.activityStatus ? 1 : 0)
 
 // The chips mirror `activeCount` field by field, so what the badge counts is always what the row
 // below it lists. A hook rather than a pure function because two of the labels have to be looked
@@ -267,11 +290,18 @@ export const useOrdersFilterChips = (
       onRemove: () => onChange('isPriority', ''),
     })
   }
-  if (values.bandingStatus) {
+  if (values.activity) {
     chips.push({
-      key: 'bandingStatus',
-      label: `Canteado: ${BANDING_LABEL[values.bandingStatus]}`,
-      onRemove: () => onChange('bandingStatus', ''),
+      key: 'activity',
+      label: `Trabajo: ${OPTION_LABEL(ACTIVITY_OPTIONS, values.activity)}`,
+      onRemove: () => onChange('activity', ''),
+    })
+  }
+  if (values.activityStatus) {
+    chips.push({
+      key: 'activityStatus',
+      label: `Etapa: ${OPTION_LABEL(ACTIVITY_STATUS_OPTIONS, values.activityStatus)}`,
+      onRemove: () => onChange('activityStatus', ''),
     })
   }
   return chips

@@ -1,28 +1,21 @@
 import { CAlert } from '@coreui/react'
 
 import { fmtDateTime } from 'src/shared/utils/format'
-import type { BandingStatus, OrderStatus } from './types'
+import { ACTIVITY_LABEL, orderedActivities } from './activities'
+import type { OrderActivity, OrderStatus } from './types'
 
 // One line for "where is this order". It replaces four tinted cards — En corte, Canteado,
 // Despachada, Forma de pago — that were stacked full-width above the content. Three of them are the
 // same subject (how far along the order is) split by status, and on a dispatched order with edge
 // banding all three were on screen at once, each costing a frame and a heading to say one sentence.
 //
-// Cutting and banding are parallel tracks: an order can be `cutting` and `in_progress` at the same
-// time. So the cut track is the sentence and the banding track rides the same line on the right,
-// the way the pre-order strip carries its review link. The full who/when trail of the banding, the
-// only thing the compression drops, stays reachable in the line's `title`.
+// The activities run in parallel under `in_process`: the cut can be done while the banding is
+// still running. So the order's status is the sentence and the activities ride the same line on
+// the right, the way the pre-order strip carries its review link. The full who/when trail of each
+// one, the only thing the compression drops, stays reachable in the line's `title`.
 //
 // Payment is not here: it is not progress, it is money, and it now sits with the totals — the same
 // reasoning that put the price level next to the totals in the wizard rather than on a toolbar.
-
-interface BandingInfo {
-  status?: BandingStatus
-  startedByLabel?: string | null
-  startedAt?: string | null
-  finishedByLabel?: string | null
-  finishedAt?: string | null
-}
 
 interface OrderStatusStripProps {
   status: OrderStatus
@@ -30,22 +23,26 @@ interface OrderStatusStripProps {
   assignedAt?: string | null
   // No `dispatchedAt`: the identity block's date line owns every timestamp on this page.
   dispatchedByLabel?: string | null
-  banding?: BandingInfo
+  activities?: OrderActivity[]
 }
 
 type Tone = 'info' | 'success' | 'warning' | 'danger' | 'secondary'
 
-const bandingLine = (banding: BandingInfo | undefined) => {
-  if (!banding?.status || banding.status === 'not_applicable') return null
-  switch (banding.status) {
+// One activity in a few words: "Canteado listo · Ana". `pending` names no actor because there
+// is none yet.
+const activityLine = (activity: OrderActivity): string => {
+  const label = ACTIVITY_LABEL[activity.type]
+  switch (activity.status) {
     case 'pending':
-      return 'Canteado pendiente'
+      return `${label} pendiente`
     case 'in_progress':
-      return banding.startedByLabel ? `Canteando · ${banding.startedByLabel}` : 'Canteando'
+      return activity.startedByLabel
+        ? `${label} en curso · ${activity.startedByLabel}`
+        : `${label} en curso`
     case 'done':
-      return banding.finishedByLabel
-        ? `Canteado listo · ${banding.finishedByLabel}`
-        : 'Canteado listo'
+      return activity.finishedByLabel
+        ? `${label} listo · ${activity.finishedByLabel}`
+        : `${label} listo`
   }
 }
 
@@ -54,10 +51,10 @@ const bandingLine = (banding: BandingInfo | undefined) => {
 const endSentence = (s: string) => (s.endsWith('.') ? s : `${s}.`)
 
 // The detail the one-liner leaves out, on hover.
-const bandingTrail = (banding: BandingInfo | undefined) => {
+const activityTrail = (activity: OrderActivity): string | undefined => {
   const parts: string[] = []
-  if (banding?.startedAt) parts.push(`Inició ${fmtDateTime(banding.startedAt)}`)
-  if (banding?.finishedAt) parts.push(`Terminó ${fmtDateTime(banding.finishedAt)}`)
+  if (activity.startedAt) parts.push(`Inició ${fmtDateTime(activity.startedAt)}`)
+  if (activity.finishedAt) parts.push(`Terminó ${fmtDateTime(activity.finishedAt)}`)
   return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
@@ -66,7 +63,7 @@ const OrderStatusStrip = ({
   assignedToLabel,
   assignedAt,
   dispatchedByLabel,
-  banding,
+  activities,
 }: OrderStatusStripProps) => {
   let tone: Tone = 'info'
   // Empty means "the badge already said it": with no banding track either, the strip renders
@@ -80,28 +77,26 @@ const OrderStatusStrip = ({
     case 'queued':
       sentence = 'En cola. Esperando que el taller la tome.'
       break
+    case 'in_process':
+    // Legacy statuses, only reachable on an order cut before the activities existed.
     case 'cutting':
+    case 'cut':
       tone = 'warning'
       // Who has it and since when. With neither recorded there is nothing here the badge does not
-      // already say.
+      // already say; the activities on the right carry the rest.
       sentence =
         assignedToLabel || assignedAt
           ? endSentence(
-              `En corte${assignedToLabel ? ` por ${assignedToLabel}` : ''}` +
+              `En proceso${assignedToLabel ? ` por ${assignedToLabel}` : ''}` +
                 `${assignedAt ? ` desde ${fmtDateTime(assignedAt)}` : ''}`,
             )
           : ''
       break
-    case 'cut':
-      sentence = assignedToLabel
-        ? `Cortada por ${assignedToLabel}. Falta completarla.`
-        : 'Cortada. Falta completarla.'
-      break
-    case 'completed':
+    case 'finished':
       tone = 'success'
-      sentence = 'Completada. Lista para despacho.'
+      sentence = 'Terminada. Lista para despacho.'
       break
-    case 'despachado':
+    case 'dispatched':
       tone = 'success'
       // Only who: the identity block's date line already carries "Despachada {fecha}", and the two
       // sit one on top of the other.
@@ -113,22 +108,27 @@ const OrderStatusStrip = ({
       break
   }
 
-  const banded = bandingLine(banding)
+  const work = orderedActivities(activities)
 
-  if (!sentence && !banded) return null
+  if (!sentence && work.length === 0) return null
 
   return (
     <CAlert color={tone} className="py-2 small mb-3">
       <div className="d-flex flex-wrap align-items-center gap-2">
         {sentence && <span>{sentence}</span>}
-        {banded && (
-          // `ms-auto` only when there is a sentence to be pushed away from; on its own the banding
-          // is the line, not a note in its margin.
+        {work.length > 0 && (
+          // `ms-auto` only when there is a sentence to be pushed away from; on their own the
+          // activities are the line, not a note in its margin.
           <span
-            className={sentence ? 'ms-auto opacity-75' : undefined}
-            title={bandingTrail(banding)}
+            className={
+              sentence ? 'ms-auto opacity-75 d-flex flex-wrap gap-2' : 'd-flex flex-wrap gap-2'
+            }
           >
-            {banded}
+            {work.map((activity) => (
+              <span key={activity.type} title={activityTrail(activity)}>
+                {activityLine(activity)}
+              </span>
+            ))}
           </span>
         )}
       </div>

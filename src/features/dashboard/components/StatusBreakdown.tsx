@@ -10,11 +10,17 @@ const STATUS_COLOR: Record<string, string> = {
   confirmed: 'rgba(13, 202, 240, 0.7)',
   approved: 'rgba(13, 202, 240, 0.85)',
   queued: 'rgba(255, 193, 7, 0.7)',
-  in_production: 'rgba(255, 193, 7, 0.7)', // legacy (renamed to `queued`)
+  in_process: 'rgba(255, 193, 7, 0.85)',
+  finished: 'rgba(25, 135, 84, 0.8)',
+  dispatched: 'rgba(32, 165, 110, 0.8)',
+  cancelled: 'rgba(220, 53, 69, 0.7)',
+  // Legacy keys, kept for the same reason `in_production` was: a chart pointed at an older
+  // deployment falls back to grey otherwise, and grey reads as a bug rather than as history.
+  in_production: 'rgba(255, 193, 7, 0.7)',
+  cutting: 'rgba(255, 193, 7, 0.85)',
   cut: 'rgba(255, 193, 7, 0.85)',
   completed: 'rgba(25, 135, 84, 0.8)',
   despachado: 'rgba(32, 165, 110, 0.8)',
-  cancelled: 'rgba(220, 53, 69, 0.7)',
 }
 
 interface StatusBreakdownProps {
