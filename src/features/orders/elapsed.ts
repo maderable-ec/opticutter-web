@@ -1,25 +1,22 @@
-import type { BandingStatus, Order, OrderStatus, WorkshopQueueItem } from './types'
+import type { ActivityStatus, Order, OrderActivity, OrderStatus, WorkshopQueueItem } from './types'
 
 // How long an order has been sitting where it is — the signal the office pushes people
 // with. One module because three surfaces read the same rule (the listing's Estado and
-// Canteado columns, and the shop-floor card), and a rule about who is late is not a thing
-// to reimplement per screen.
+// Actividades columns, and the shop-floor card), and a rule about who is late is not a
+// thing to reimplement per screen.
 
 /**
  * Statuses whose clock stays silent: nothing is going to move them, so an age here is
  * noise on rows that live in the listing forever ("hace 6 meses" under every dispatched
  * order). It is the backend's `TERMINAL_STATUSES`.
  *
- * NOT `isTerminal` from `status.ts` — that one is missing `completed`, because it answers
+ * NOT `isTerminal` from `status.ts` — that one is missing `finished`, because it answers
  * a different question (which orders still offer a transition).
  */
-const CLOCK_MUTE: OrderStatus[] = ['completed', 'despachado', 'cancelled']
+const CLOCK_MUTE: OrderStatus[] = ['finished', 'dispatched', 'cancelled']
 
-/**
- * Banding statuses whose clock stays silent, for the two different reasons that land in
- * the same place: `not_applicable` has no work to do at all, `done` is finished.
- */
-const BANDING_CLOCK_MUTE: BandingStatus[] = ['not_applicable', 'done']
+/** An activity's clock stops once it is done: nobody is late any more. */
+const ACTIVITY_CLOCK_MUTE: ActivityStatus[] = ['done']
 
 // Amber at an hour, red at four: the shop works same-day, so an order that has not moved
 // by mid-afternoon lost its day. Keyed by status so tuning one stage later is a line —
@@ -44,26 +41,26 @@ export const statusClock = (
   if (CLOCK_MUTE.includes(order.status)) return null
   // A queued order measures the wait from when it REACHED the shop, which is frozen on the
   // first enqueue and is what the board's FIFO sorts by. `statusChangedAt` moves on the
-  // admin rollback `cutting → queued`, so using it here would hand a fresh-looking card to
-  // an order that has been waiting since morning.
+  // admin rollback `in_process → queued`, so using it here would hand a fresh-looking card
+  // to an order that has been waiting since morning.
   if (order.status === 'queued') return order.queuedAt ?? order.statusChangedAt ?? order.createdAt
   return order.statusChangedAt ?? order.createdAt
 }
 
 /**
- * Where the banding clock starts, or `null` for nothing.
+ * Where one activity's clock starts, or `null` for nothing.
  *
- * `pending` counts from `bandingReadyAt` and not from the order's creation: until the
- * first banded piece is cut the bander is BLOCKED by the same gate the API enforces, and
- * a clock that runs while somebody is not allowed to work puts the wrong person in red.
- * Null there is the correct answer, not missing data.
+ * `pending` counts from `readyAt` and not from the order's creation: until the activity's
+ * floor opens (the first piece of its set cut) whoever does it is BLOCKED by the same gate
+ * the API enforces, and a clock that runs while somebody is not allowed to work puts the
+ * wrong person in red. Null there is the correct answer, not missing data.
+ *
+ * One rule for the three activities: it was written for the banding and is true of all of
+ * them, which is the point of them being one concept.
  */
-export const bandingClock = (
-  order: Pick<Order, 'bandingStatus' | 'bandingReadyAt' | 'bandingStartedAt'>,
-): string | null => {
-  const status = order.bandingStatus
-  if (!status || BANDING_CLOCK_MUTE.includes(status)) return null
-  return (status === 'pending' ? order.bandingReadyAt : order.bandingStartedAt) ?? null
+export const activityClock = (activity: OrderActivity): string | null => {
+  if (ACTIVITY_CLOCK_MUTE.includes(activity.status)) return null
+  return (activity.status === 'pending' ? activity.readyAt : activity.startedAt) ?? null
 }
 
 /** Same rule, for the shop-floor card (a different shape, never a different answer). */
@@ -73,13 +70,6 @@ export const queueStatusClock = (item: WorkshopQueueItem): string | null =>
     statusChangedAt: item.statusChangedAt,
     queuedAt: item.queuedAt,
     createdAt: item.createdAt,
-  })
-
-export const queueBandingClock = (item: WorkshopQueueItem): string | null =>
-  bandingClock({
-    bandingStatus: item.bandingStatus,
-    bandingReadyAt: item.bandingReadyAt,
-    bandingStartedAt: item.bandingStartedAt,
   })
 
 /**

@@ -11,7 +11,6 @@
 // grid of cards only draws a second border.
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   CAlert,
   CButton,
@@ -24,29 +23,43 @@ import {
   CRow,
   CSpinner,
 } from '@coreui/react'
-import { cilArrowRight, cilCheckAlt, cilMediaPlay } from '@coreui/icons'
-
-import { useHasRole } from 'src/features/auth/useAuth'
-import { PRINT_JOBS_KEY, usePrintConsolidated } from 'src/features/print/usePrint'
+import { useCurrentUser } from 'src/features/auth/useAuth'
 import PrintJobsPanel from 'src/features/print/PrintJobsPanel'
 import WorkshopQueueCard from './WorkshopQueueCard'
 import WorkshopMaterialsModal from './WorkshopMaterialsModal'
-import { useUpdateBanding, useUpdateOrderStatus, useWorkshopQueue } from './useOrders'
-import type { BoardAction, CardAction, WorkshopQueueItem } from './types'
+import { useUpdateActivity, useWorkshopQueue } from './useOrders'
+import {
+  ACTIVITY_LABEL,
+  activitiesForRole,
+  activityAction,
+  findActivity,
+  orderedActivities,
+} from './activities'
+import type { ActivityType, BoardAction, CardAction, WorkshopQueueItem } from './types'
 
 interface ConfirmState {
-  kind: BoardAction
+  action: CardAction
   item: WorkshopQueueItem
 }
 
+// What the confirm dialog says. `start`/`finish` name the activity, which the dialog gets from
+// the action itself -- with three activities a fixed sentence per kind would say "Iniciar la
+// orden" for three different jobs.
 const ACTION_COPY: Record<
   BoardAction,
   { verb: string; label: string; color: 'primary' | 'success' }
 > = {
   take: { verb: 'Tomar', label: 'Tomar', color: 'primary' },
-  complete: { verb: 'Completar', label: 'Completar', color: 'success' },
-  startBanding: { verb: 'Iniciar el canteado de', label: 'Iniciar canteado', color: 'primary' },
-  finishBanding: { verb: 'Terminar el canteado de', label: 'Terminar canteado', color: 'success' },
+  open: { verb: 'Abrir', label: 'Abrir taller', color: 'primary' },
+  start: { verb: 'Iniciar', label: 'Iniciar', color: 'primary' },
+  finish: { verb: 'Terminar', label: 'Terminar', color: 'success' },
+}
+
+// The sentence in the confirm dialog: "¿Terminar el canteado de la orden ORD-...?"
+const confirmSentence = (action: BoardAction, activity?: ActivityType): string => {
+  const verb = ACTION_COPY[action].verb
+  if (!activity) return `${verb} la orden`
+  return `${verb} el ${ACTIVITY_LABEL[activity].toLowerCase()} de la orden`
 }
 
 // Head of the queue: the next order to be taken. Derived here rather than trusting the endpoint's
@@ -77,13 +90,10 @@ const nextOrderId = (items: WorkshopQueueItem[]): number | null => {
 
 const WorkshopBoardPage = () => {
   const navigate = useNavigate()
-  const qc = useQueryClient()
   const { data: items = [], isLoading, error } = useWorkshopQueue()
-  const updateStatus = useUpdateOrderStatus()
-  const updateBanding = useUpdateBanding()
-  const printConsolidated = usePrintConsolidated()
-  const canOperate = useHasRole('administrador', 'operador')
-  const canBand = useHasRole('administrador', 'canteador')
+  const updateActivity = useUpdateActivity()
+  // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).
+  const allowed = activitiesForRole(useCurrentUser()?.role)
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   // One dialog for the whole board rather than one per card: only one can be open at a time, and it
   // pages through the queue. State is the ORDER ID, not the index the dialog's API speaks: the queue
@@ -94,41 +104,32 @@ const WorkshopBoardPage = () => {
 
   const nextId = useMemo(() => nextOrderId(items), [items])
 
-  const runAction = (kind: BoardAction, item: WorkshopQueueItem) => {
+  const runAction = (action: CardAction, item: WorkshopQueueItem) => {
     const id = String(item.orderId)
     // Taking an order and opening it are one act, not two: `Tomar` is tapped because the cut is
-    // about to start, and going back to the queue to find the same card and tap `Abrir taller` was a
-    // second gesture with a glove on. Navigate only on success — a rejected transition (someone else
-    // took the order first) has to leave the operator on the board, looking at the error.
-    if (kind === 'take')
-      updateStatus.mutate(
-        { id, data: { status: 'cutting' } },
+    // about to start, and going back to the queue to find the same card and tap `Abrir taller` was
+    // a second gesture with a glove on. Starting the cut is ALSO what takes the order out of the
+    // queue -- the order's status is derived from the activity -- so this is one request, not two.
+    // Navigate only on success: a rejected start (someone else took the order first) has to leave
+    // the operator on the board, looking at the error.
+    if (action.kind === 'take') {
+      updateActivity.mutate(
+        { id, activity: 'cutting', data: { status: 'in_progress' } },
         { onSuccess: () => void navigate(`/orders/${item.orderId}/workshop`) },
       )
-    // On completion, dispatch the consolidated sheet to the branch's inkjet — unless that branch
-    // has no sheet printer. Every role that can complete from this board (operador/canteador/admin)
-    // also holds `orders:workshop`. The switch is per item: the admin's board spans every branch.
-    else if (kind === 'complete')
-      updateStatus.mutate(
-        { id, data: { status: 'completed' } },
-        {
-          onSuccess: () => {
-            if (!item.printConsolidatedEnabled) return
-            printConsolidated.mutate(
-              { orderId: id },
-              // Surface the new job in the panel right away instead of waiting for the poll.
-              { onSuccess: () => void qc.invalidateQueries({ queryKey: PRINT_JOBS_KEY }) },
-            )
-          },
-        },
-      )
-    else if (kind === 'startBanding') updateBanding.mutate({ id, data: { status: 'in_progress' } })
-    else if (kind === 'finishBanding') updateBanding.mutate({ id, data: { status: 'done' } })
+      return
+    }
+    if (!action.activity) return
+    updateActivity.mutate({
+      id,
+      activity: action.activity,
+      data: { status: action.kind === 'start' ? 'in_progress' : 'done' },
+    })
   }
 
   const confirmAction = () => {
     if (!confirm) return
-    runAction(confirm.kind, confirm.item)
+    runAction(confirm.action, confirm.item)
     setConfirm(null)
   }
 
@@ -151,109 +152,43 @@ const WorkshopBoardPage = () => {
       ) : (
         <CRow className="g-3">
           {items.map((item) => {
-            const bandingBlocked =
-              item.bandingStatus === 'pending' || item.bandingStatus === 'in_progress'
             const idStr = String(item.orderId)
+            // One button per activity this viewer may register, derived in `activities.ts`
+            // from the activity's own status and piece progress -- including its blocked
+            // reason, so the card can grey out and SAY why instead of bouncing the tap.
+            const actions: CardAction[] = orderedActivities(item.activities)
+              .filter((activity) => allowed.includes(activity.type))
+              .map((activity) => activityAction(activity))
+              .filter((action): action is CardAction => action !== null)
+              // Starting the cut of a QUEUED order is `take`: it also takes the order out of
+              // the queue and opens the canvas, which is one gesture on a touch panel.
+              .map((action) =>
+                action.kind === 'start' && action.activity === 'cutting' && item.status === 'queued'
+                  ? { ...action, kind: 'take', label: 'Tomar' }
+                  : action,
+              )
 
-            let operatorAction: CardAction | null = null
-            if (canOperate) {
-              if (item.status === 'queued') {
-                operatorAction = {
-                  kind: 'take',
-                  label: 'Tomar',
-                  color: 'primary',
-                  icon: cilMediaPlay,
-                }
-              } else if (item.status === 'cutting') {
-                operatorAction = {
-                  kind: 'complete',
-                  label: 'Abrir taller',
-                  color: 'primary',
-                  icon: cilArrowRight,
-                  nav: true,
-                }
-              } else if (item.status === 'cut') {
-                operatorAction = {
-                  kind: 'complete',
-                  label: 'Completar',
-                  color: 'success',
-                  icon: cilCheckAlt,
-                  disabled: bandingBlocked,
-                  title: bandingBlocked ? 'Falta terminar el canteado' : undefined,
-                  reason: bandingBlocked ? 'Falta terminar el canteado' : undefined,
-                }
-              }
+            // Once the cut is running, the operator's way back into the canvas.
+            if (
+              item.status === 'in_process' &&
+              allowed.includes('cutting') &&
+              findActivity(item.activities, 'cutting')?.status === 'in_progress'
+            ) {
+              actions.unshift({
+                kind: 'open',
+                label: 'Abrir taller',
+                color: 'primary',
+                nav: true,
+              })
             }
 
-            // The bander works on the pieces the operator releases: start once the FIRST
-            // banded piece is cut, finish once the LAST one is. Plain pieces never count,
-            // which is what keeps banding running in parallel with the rest of the cut.
-            // The button stays on screen and greys out with the reason: on a shop-floor
-            // panel, an action that silently disappears is indistinguishable from a bug.
-            const banded = item.bandingProgress
-            const bandedLeft = banded.totalPieces - banded.cutPieces
-
-            let bandingAction: CardAction | null = null
-            if (canBand) {
-              if (
-                (item.status === 'cutting' || item.status === 'cut') &&
-                item.bandingStatus === 'pending'
-              ) {
-                bandingAction = {
-                  kind: 'startBanding',
-                  label: 'Iniciar canteado',
-                  color: 'primary',
-                  icon: cilMediaPlay,
-                  disabled: banded.cutPieces === 0,
-                  reason:
-                    banded.cutPieces === 0 ? 'Falta cortar la primera pieza con canto' : undefined,
-                }
-              } else if (
-                (item.status === 'cutting' || item.status === 'cut') &&
-                item.bandingStatus === 'in_progress'
-              ) {
-                bandingAction = {
-                  kind: 'finishBanding',
-                  label: 'Terminar canteado',
-                  color: 'success',
-                  icon: cilCheckAlt,
-                  disabled: bandedLeft > 0,
-                  reason:
-                    bandedLeft > 0
-                      ? `Faltan ${bandedLeft} pieza(s) con canto por cortar`
-                      : undefined,
-                }
-              } else if (
-                item.status === 'cut' &&
-                (item.bandingStatus === 'done' || item.bandingStatus === 'not_applicable')
-              ) {
-                bandingAction = {
-                  kind: 'complete',
-                  label: 'Completar',
-                  color: 'success',
-                  icon: cilCheckAlt,
-                }
-              }
-            }
-
-            // Dedupe: administrador with both gates on the same order shouldn't see two
-            // identical "Completar" buttons.
-            if (operatorAction && bandingAction && operatorAction.kind === bandingAction.kind) {
-              bandingAction = null
-            }
-
-            // Both the pending and the error state are scoped to the card that acted: the two
-            // mutations are shared by the whole page, so an unscoped `isPending` froze the buttons
-            // of every other order on the board while one request was in flight.
-            const acting = updateStatus.variables?.id === idStr
-            const bandingActing = updateBanding.variables?.id === idStr
-            const statusError =
-              updateStatus.isError && acting
-                ? updateStatus.error?.message || 'No se pudo actualizar la orden.'
-                : null
-            const bandingError =
-              updateBanding.isError && bandingActing
-                ? updateBanding.error?.message || 'No se pudo actualizar el canteado.'
+            // The pending and error states are scoped to the card that acted: the mutation is
+            // shared by the whole page, so an unscoped `isPending` froze the buttons of every
+            // other order on the board while one request was in flight.
+            const acting = updateActivity.variables?.id === idStr
+            const error =
+              updateActivity.isError && acting
+                ? updateActivity.error?.message || 'No se pudo registrar el trabajo.'
                 : null
 
             return (
@@ -261,15 +196,12 @@ const WorkshopBoardPage = () => {
                 <WorkshopQueueCard
                   item={item}
                   isNext={item.orderId === nextId}
-                  operatorAction={operatorAction}
-                  bandingAction={bandingAction}
-                  statusPending={updateStatus.isPending && acting}
-                  bandingPending={updateBanding.isPending && bandingActing}
-                  statusError={statusError}
-                  bandingError={bandingError}
+                  actions={actions}
+                  pending={updateActivity.isPending && acting}
+                  error={error}
                   onAction={(action) => {
                     if (action.nav) void navigate(`/orders/${item.orderId}/workshop`)
-                    else setConfirm({ kind: action.kind, item })
+                    else setConfirm({ action, item })
                   }}
                   onShowMaterials={() => setMaterialsId(item.orderId)}
                 />
@@ -292,7 +224,7 @@ const WorkshopBoardPage = () => {
         </CModalHeader>
         <CModalBody>
           <p className="mb-0 fs-5">
-            ¿{confirm && ACTION_COPY[confirm.kind].verb} la orden{' '}
+            ¿{confirm && confirmSentence(confirm.action.kind, confirm.action.activity)}{' '}
             <strong>{confirm?.item.orderCode}</strong>?
           </p>
         </CModalBody>
@@ -303,11 +235,11 @@ const WorkshopBoardPage = () => {
           {/* The verb, not a generic "Confirmar": on a touch panel the button you are about to press
               should say what it does. */}
           <CButton
-            color={confirm ? ACTION_COPY[confirm.kind].color : 'primary'}
+            color={confirm ? ACTION_COPY[confirm.action.kind].color : 'primary'}
             size="lg"
             onClick={confirmAction}
           >
-            {confirm ? ACTION_COPY[confirm.kind].label : 'Confirmar'}
+            {confirm ? ACTION_COPY[confirm.action.kind].label : 'Confirmar'}
           </CButton>
         </CModalFooter>
       </CModal>

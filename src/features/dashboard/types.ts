@@ -45,14 +45,19 @@ export interface OperationsStats {
 }
 
 // --- Bottlenecks (#1) -------------------------------------------------------
-// The 6 process stages (in process order, not by duration).
+// The 7 process stages (in process order, not by duration). Four come from the status history;
+// the three work stages come from the order's activity rows, which is what made them measurable
+// at all -- as columns, only the banding ever was. `finishing` is gone with the `cut` status it
+// measured; `process` replaces it as the wall clock of the whole in-process phase (the idle time
+// between activities included).
 export type BottleneckStageKey =
   | 'confirm'
   | 'queue_wait'
+  | 'process'
   | 'cutting'
-  | 'finishing'
-  | 'dispatch_wait'
   | 'banding'
+  | 'additional'
+  | 'dispatch_wait'
 
 export interface BottleneckStage {
   key: BottleneckStageKey

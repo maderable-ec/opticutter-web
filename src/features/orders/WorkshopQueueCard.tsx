@@ -1,13 +1,14 @@
 import { CButton, CCard, CCardBody, CProgress, CProgressBar, CSpinner } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBolt, cilChevronRight } from '@coreui/icons'
+import { cilArrowRight, cilBolt, cilCheckAlt, cilChevronRight, cilMediaPlay } from '@coreui/icons'
 
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { relativeTime } from 'src/shared/utils/date'
 import { fmtDateTime } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
-import BandingStatusBadge, { bandingLabel } from './BandingStatusBadge'
-import { elapsedTone, queueBandingClock, queueStatusClock, TONE_CLASS } from './elapsed'
+import ActivityBadge from './ActivityBadge'
+import { ACTIVITY_LABEL, orderedActivities } from './activities'
+import { activityClock, elapsedTone, queueStatusClock, TONE_CLASS } from './elapsed'
 import { statusLabel } from './status'
 import type { CardAction, WorkshopQueueItem } from './types'
 
@@ -17,16 +18,23 @@ const pct = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
 const isDone = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
   totalPieces > 0 && cutPieces >= totalPieces
 
-// Elapsed time now comes from the shared rule in `elapsed.ts`, which the orders listing reads too.
-// It supersedes the old queued-only 24h marker in two ways: it escalates in stages (an hour, then
-// four) instead of flipping once a day, and it keeps counting through `cutting` and `cut` — being
-// taken is not the same as being finished, and an order somebody took this morning and abandoned
-// used to look exactly like one taken a minute ago.
+// Default icon per kind: `activities.ts` derives the buttons and is deliberately icon-free.
+const ACTION_ICON: Record<CardAction['kind'], string[]> = {
+  take: cilMediaPlay,
+  open: cilArrowRight,
+  start: cilMediaPlay,
+  finish: cilCheckAlt,
+}
+
+// Elapsed time comes from the shared rule in `elapsed.ts`, which the orders listing reads too.
+// It escalates in stages (an hour, then four) instead of flipping once a day, and it keeps
+// counting through `in_process` — being taken is not the same as being finished, and an order
+// somebody took this morning and abandoned used to look exactly like one taken a minute ago.
 //
 // `queueStatusClock` is what preserves the one thing the old marker got right: a QUEUED card still
 // measures from `queuedAt` (the moment the order was PAID, which is what gates `confirmed → queued`
 // and what the board's FIFO sorts by), never from the status clock, which the admin rollback
-// `cutting → queued` moves.
+// `in_process → queued` moves.
 
 // One line of prose: "En corte hace 3 h", coloured by how late it is.
 const ElapsedLine = ({ label, iso }: { label: string; iso: string | null }) =>
@@ -55,13 +63,11 @@ interface WorkshopQueueCardProps {
   item: WorkshopQueueItem
   // Head of the FIFO queue, computed by the page across every item.
   isNext: boolean
-  operatorAction: CardAction | null
-  bandingAction: CardAction | null
+  // Already filtered by role and ordered by the page: this card renders what it is given.
+  actions: CardAction[]
   // Scoped to THIS card: a shared mutation's `isPending` would freeze every card on the board.
-  statusPending: boolean
-  bandingPending: boolean
-  statusError: string | null
-  bandingError: string | null
+  pending: boolean
+  error: string | null
   onAction: (action: CardAction) => void
   onShowMaterials: () => void
 }
@@ -69,21 +75,23 @@ interface WorkshopQueueCardProps {
 const WorkshopQueueCard = ({
   item,
   isNext,
-  operatorAction,
-  bandingAction,
-  statusPending,
-  bandingPending,
-  statusError,
-  bandingError,
+  actions,
+  pending,
+  error,
   onAction,
   onShowMaterials,
 }: WorkshopQueueCardProps) => {
-  const showBanding = item.bandingStatus !== 'not_applicable'
   const summary = materialsSummary(item)
-  // Only one reason is ever shown: the two buttons are never blocked at once (the operator's
-  // gate is the banding track, the bander's is the cut), and stacking both would push the
-  // card taller than the ones beside it.
-  const blockedReason = operatorAction?.reason ?? bandingAction?.reason
+  const activities = orderedActivities(item.activities)
+  // Badges for the work only once the shop has actually started: on a queued card every
+  // activity is pending and "Corte pendiente" says nothing the "En cola" badge does not.
+  const showActivities = item.status === 'in_process'
+  // The banding is the only activity whose piece set differs from the card's own bar
+  // (`additional` runs over every piece, so its bar would be a duplicate).
+  const banding = activities.find((a) => a.type === 'banding')
+  // Only the first reason is shown: stacking three would push the card taller than the ones
+  // beside it, and the shop acts on one button at a time.
+  const blockedReason = actions.find((a) => a.reason)?.reason
 
   return (
     <CCard
@@ -105,12 +113,17 @@ const WorkshopQueueCard = ({
             {isNext && <span className="workshop-next">Siguiente</span>}
             <span className="fs-4 fw-bold">{item.orderCode ?? '—'}</span>
           </div>
-          {/* Both tracks as plain badges. Their own labels already say which is which — "Canteado
-              pendiente" names its track, and "En cola / En corte / Cortada" read as the order's
-              state — so a rubric over each one was scaffolding around something self-describing. */}
+          {/* Both tracks as plain badges. Each one names itself — the activity badge prints its
+              track and draws its state as an icon, and the order's badge reads as the order's
+              state — so a rubric over each one was scaffolding around something self-describing.
+              The word the icon replaced is not lost here: the buttons below say it in finger
+              size ("Iniciar canteado" / "Terminar canteado"). */}
           <div className="d-flex flex-wrap justify-content-end gap-1">
             <OrderStatusBadge status={item.status} />
-            {showBanding && <BandingStatusBadge status={item.bandingStatus} />}
+            {showActivities &&
+              activities.map((activity) => (
+                <ActivityBadge key={activity.type} activity={activity} />
+              ))}
           </div>
         </div>
 
@@ -151,71 +164,59 @@ const WorkshopQueueCard = ({
         {/* The banded pieces get their own bar because they are their own gate: the bander
             waits on THESE, not on the cut as a whole. Without it the card would grey out the
             banding button while the bar above happily advances on pieces that carry no canto. */}
-        {item.bandingProgress.totalPieces > 0 && (
+        {banding?.progress && banding.progress.totalPieces > 0 && (
           <div className="d-flex align-items-center gap-3">
             <CProgress className="flex-grow-1">
               <CProgressBar
-                value={pct(item.bandingProgress)}
-                color={isDone(item.bandingProgress) ? 'success' : 'info'}
+                value={pct(banding.progress)}
+                color={isDone(banding.progress) ? 'success' : 'info'}
               />
             </CProgress>
             <span className="fw-semibold text-nowrap">
-              {item.bandingProgress.cutPieces}/{item.bandingProgress.totalPieces} con canto
+              {banding.progress.cutPieces}/{banding.progress.totalPieces} con canto
             </span>
           </div>
         )}
 
         <div className="d-flex flex-column">
           <ElapsedLine label={statusLabel(item.status)} iso={queueStatusClock(item)} />
-          {/* The bander's own clock. Silent while the track is blocked (no banded piece cut
-              yet) and once it is done — the two states where nobody is late. */}
-          {showBanding && (
-            <ElapsedLine label={bandingLabel(item.bandingStatus)} iso={queueBandingClock(item)} />
-          )}
+          {/* One clock per activity. Silent while an activity is blocked (nothing of its own
+              cut yet) and once it is done — the two states where nobody is late. */}
+          {showActivities &&
+            activities.map((activity) => (
+              <ElapsedLine
+                key={activity.type}
+                label={ACTIVITY_LABEL[activity.type]}
+                iso={activityClock(activity)}
+              />
+            ))}
         </div>
 
-        <div className="d-flex gap-2 mt-auto">
-          {operatorAction && (
+        <div className="d-flex gap-2 mt-auto flex-wrap">
+          {actions.map((action) => (
             <CButton
-              color={operatorAction.color}
+              key={`${action.kind}:${action.activity ?? ''}`}
+              color={action.color}
               size="lg"
               className="flex-fill"
-              disabled={operatorAction.disabled || statusPending}
-              title={operatorAction.title}
-              onClick={() => onAction(operatorAction)}
+              disabled={action.disabled || pending}
+              title={action.title}
+              onClick={() => onAction(action)}
             >
-              {statusPending ? (
+              {pending ? (
                 <CSpinner size="sm" className="me-1" />
               ) : (
-                <CIcon icon={operatorAction.icon} className="me-1" />
+                <CIcon icon={action.icon ?? ACTION_ICON[action.kind]} className="me-1" />
               )}
-              {operatorAction.label}
+              {action.label}
             </CButton>
-          )}
-          {bandingAction && (
-            <CButton
-              color={bandingAction.color}
-              size="lg"
-              className="flex-fill"
-              disabled={bandingAction.disabled || bandingPending}
-              title={bandingAction.title}
-              onClick={() => onAction(bandingAction)}
-            >
-              {bandingPending ? (
-                <CSpinner size="sm" className="me-1" />
-              ) : (
-                <CIcon icon={bandingAction.icon} className="me-1" />
-              )}
-              {bandingAction.label}
-            </CButton>
-          )}
+          ))}
         </div>
 
         {/* Why a button is greyed out, as text: this runs on a touch panel, where the
             `title=` tooltip above never fires. */}
         {blockedReason && <div className="text-body-secondary small">{blockedReason}</div>}
-        {statusError && <div className="text-danger small">{statusError}</div>}
-        {bandingError && <div className="text-danger small">{bandingError}</div>}
+        {error && <div className="text-danger small">{error}</div>}
       </CCardBody>
     </CCard>
   )

@@ -5,15 +5,43 @@ import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
 export type OrderStatus =
   | 'confirmed'
   | 'queued'
+  | 'in_process'
+  | 'finished'
+  | 'dispatched'
+  | 'cancelled'
+  // Legacy, read-only: the two statuses `in_process` absorbed. Nothing can reach them, but
+  // the `history` of any order cut before the activities still says them, and the labels are
+  // looked up by key — so they have to stay in the union and out of the filter options.
   | 'cutting'
   | 'cut'
-  | 'completed'
-  | 'despachado'
-  | 'cancelled'
 
-// Banding track (edge banding), orthogonal to cutting: an order can be `cutting` and
-// `bandingStatus: 'in_progress'` simultaneously. `not_applicable` = order has no edge banding.
-export type BandingStatus = 'not_applicable' | 'pending' | 'in_progress' | 'done'
+// The parallel work of an order in process. `cutting` is on every order; `banding` only when
+// it carries edge banding; `additional` only when it registers additional services. A MISSING
+// entry means the activity does not apply — there is no `not_applicable` value.
+export type ActivityType = 'cutting' | 'banding' | 'additional'
+
+export type ActivityStatus = 'pending' | 'in_progress' | 'done'
+
+export interface OrderActivity {
+  type: ActivityType
+  status: ActivityStatus
+  // When the activity stopped being BLOCKED: the order reached the queue (cut) or the first
+  // piece of its set was cut (banding, additional). Null while nobody could work yet — which
+  // is the right answer, not missing data, so a pending clock never runs against somebody who
+  // was not allowed to start.
+  readyAt?: string | null
+  startedAt?: string | null
+  startedBy?: number | null
+  startedByLabel?: string | null
+  finishedAt?: string | null
+  finishedBy?: number | null
+  finishedByLabel?: string | null
+  // Cut pieces out of THIS activity's set (every piece for cut/additional, only the banded
+  // ones for banding): the gate signal, and how the card says what is missing. Filled by the
+  // three shop-floor surfaces (board, cutting plan, activity result), null on the order
+  // detail — those rows are serialized straight from the table.
+  progress?: CutProgress | null
+}
 
 // Order attachment (anexo): PDF/PNG/JPEG uploaded against an order.
 export interface Attachment {
@@ -97,20 +125,10 @@ export interface Order {
   assignedToId?: number | null
   assignedAt?: string | null
   assignedToLabel?: string | null
-  // Banding track (parallel to cutting). `*Label` fields are names frozen at the time of the action
-  // (same pattern as `assignedToLabel`).
-  bandingStatus?: BandingStatus
-  // When the banding stopped being BLOCKED: the first banded piece was cut, which is the
-  // gate to start banding. Null while the bander cannot work yet — so a `pending` clock
-  // only ever runs against somebody who could actually have started.
-  bandingReadyAt?: string | null
-  bandingStartedAt?: string | null
-  bandingStartedBy?: number | null
-  bandingStartedByLabel?: string | null
-  bandingFinishedAt?: string | null
-  bandingFinishedBy?: number | null
-  bandingFinishedByLabel?: string | null
-  // Dispatch: fields frozen at the completed → despachado transition.
+  // The parallel work of `in_process`: one entry per APPLICABLE activity. `*Label` fields are
+  // names frozen at the time of the action (same pattern as `assignedToLabel`).
+  activities?: OrderActivity[]
+  // Dispatch: fields frozen at the finished → dispatched transition.
   dispatchedAt?: string
   dispatchedBy?: number
   dispatchedByLabel?: string
@@ -139,8 +157,10 @@ export interface OrderListParams {
   // Only prioritized orders (true) or only regular ones (false); omit for both. Filters, never
   // reorders — floating them to the top is the shop-floor board's rule, not the back office's.
   isPriority?: boolean
-  // One stage of the parallel banding track ("everything still to band").
-  bandingStatus?: BandingStatus
+  // One parallel activity and/or one stage of it ("everything still to band"). Either alone
+  // works: the type on its own means "orders that carry this activity at all".
+  activity?: ActivityType
+  activityStatus?: ActivityStatus
   offset?: number
   limit?: number
 }
@@ -169,20 +189,22 @@ export interface SetPriorityPayload {
   note?: string
 }
 
-// --- Banding ---
-// PATCH body advances the track forward-only (pending → in_progress → done).
-export interface BandingPayload {
+// --- Activities (the shop floor's only write) ---
+// PATCH body advances one activity forward-only (pending → in_progress → done).
+export interface ActivityPayload {
   status: 'in_progress' | 'done'
   note?: string
 }
 
-// Response from PATCH /orders/{id}/banding (subset: no prices or pieces).
-export interface BandingResult {
+// Response from PATCH /orders/{id}/activities/{type} (subset: no prices or pieces).
+// `orderStatus` is the point: the order's status is DERIVED from the activities, so
+// starting the cut moves it to `in_process` and closing the last one to `finished`
+// without a second call — the card has to learn that from here.
+export interface ActivityResult {
   orderId: number
-  orderCode: string
-  bandingStatus: BandingStatus
-  bandingStartedAt: string | null
-  bandingFinishedAt: string | null
+  orderCode: string | null
+  orderStatus: OrderStatus
+  activity: OrderActivity
 }
 
 export type BandType = 'Soft' | 'Hard'
@@ -214,8 +236,7 @@ export interface BandingUsage {
 export interface WorkshopQueueItem {
   orderId: number
   orderCode: string | null
-  status: Extract<OrderStatus, 'queued' | 'cutting' | 'cut'>
-  bandingStatus: BandingStatus
+  status: Extract<OrderStatus, 'queued' | 'in_process'>
   notes?: string | null
   // Priority attention: the endpoint already lists these first (then FIFO). The card highlights it.
   isPriority: boolean
@@ -225,41 +246,43 @@ export interface WorkshopQueueItem {
   // endpoint's FIFO sorts by and what the card must measure the wait from.
   queuedAt?: string | null
   // When the order entered its current status. `queuedAt` freezes the moment somebody takes
-  // the order, so the card needs this to keep counting through `cutting` and `cut` — but for
-  // a QUEUED card it must NOT be used: the admin rollback `cutting → queued` moves this one
+  // the order, so the card needs this to keep counting through `in_process` — but for a
+  // QUEUED card it must NOT be used: the admin rollback `in_process → queued` moves this one
   // and would reset the visible wait of an order that has been sitting all day.
   statusChangedAt?: string | null
-  // When the banding stopped being blocked (first banded piece cut); null while blocked.
-  bandingReadyAt?: string | null
-  // When the bander actually started; null while pending.
-  bandingStartedAt?: string | null
   client: Client
   boardUsage: BoardUsage[]
   bandingUsage: BandingUsage[]
   progress: CutProgress
   /**
-   * Progress over the BANDED pieces only — the bander's gate. Banding starts once
-   * the first banded piece is cut and finishes once the last one is; plain pieces
-   * never hold it back, which is what keeps the two tracks running in parallel.
-   * `progress` cannot answer this: it counts every piece. 0/0 = no edge banding.
+   * One entry per applicable activity, each with its own status, clocks and piece
+   * progress — which is what drives this card's buttons and their blocked reasons.
+   * The canteador cannot reach the cutting plan, so the per-activity counts have to
+   * ride here. A missing type means the activity does not apply to the order.
    */
-  bandingProgress: CutProgress
+  activities: OrderActivity[]
   // Whether the order's branch prints the consolidated packet. Per item because the admin's
   // board spans every branch.
   printConsolidatedEnabled: boolean
 }
 
-// The four transitions the workshop board offers on a card. `complete` is reachable from both
-// tracks: the operador completes a cut order, the canteador completes one whose banding is done.
-export type BoardAction = 'take' | 'complete' | 'startBanding' | 'finishBanding'
+// What a card's button does. `take` starts the cut AND opens the canvas (one gesture, because
+// `Tomar` is tapped precisely when the cut is about to start); `open` only navigates; the rest
+// start or finish the activity named in `activity`. There is no `complete`: the order finishes
+// itself when the last activity closes.
+export type BoardAction = 'take' | 'open' | 'start' | 'finish'
 
-// One button on a queue card, derived per item from the viewer's roles and the order's two statuses.
-// `nav` means the button navigates to the cutting canvas instead of confirming a transition.
+// One button on a queue card, derived per item from the viewer's roles and the order's
+// activities. `nav` means the button navigates to the cutting canvas instead of confirming.
 export interface CardAction {
   kind: BoardAction
+  // Which activity the `start`/`finish` applies to (unused by `take`/`open`).
+  activity?: ActivityType
   label: string
   color: 'primary' | 'success'
-  icon: string[]
+  // Optional: the derivation lives in `activities.ts`, which is icon-free on purpose. The card
+  // picks a default per `kind` when this is absent.
+  icon?: string[]
   disabled?: boolean
   title?: string
   /**
@@ -353,6 +376,9 @@ export interface CuttingPlan {
   status: OrderStatus
   notes?: string | null
   progress: CutProgress
+  // The order's activities: with `cutting` and `cut` merged into one status, this is what
+  // tells the canvas whether the cut is still open (and lets it show the banding read-only).
+  activities: OrderActivity[]
   boards: CutBoard[]
   // Whether the order's branch has a thermal printer: gates the label dispatch that follows
   // marking a piece cut.

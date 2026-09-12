@@ -19,7 +19,8 @@ import { cilChevronLeft, cilChevronRight } from '@coreui/icons'
 
 import { useSwipeNav } from 'src/shared/hooks/useSwipeNav'
 import OrderStatusBadge from './OrderStatusBadge'
-import BandingStatusBadge from './BandingStatusBadge'
+import ActivityBadge from './ActivityBadge'
+import { orderedActivities } from './activities'
 import BandTypeBadge from './BandTypeBadge'
 import type { BoardUsage, WorkshopQueueItem } from './types'
 
@@ -74,7 +75,10 @@ const WorkshopMaterialsModal = ({
   const banding = item?.bandingUsage ?? []
   const sheets = boards.reduce((n, board) => n + board.count, 0)
   const meters = banding.reduce((m, line) => m + line.linearM, 0)
-  const showBanding = !!item && item.bandingStatus !== 'not_applicable'
+  // Every activity the order actually carries, so the badges say what is left to do on it.
+  const activities = orderedActivities(item?.activities)
+  // The order has a banding track at all -- which is now simply "the row exists".
+  const showBanding = activities.some((activity) => activity.type === 'banding')
   const hasPrev = index != null && index > 0
   const hasNext = index != null && index < items.length - 1
 
@@ -159,7 +163,9 @@ const WorkshopMaterialsModal = ({
           {item && (
             <div className="materials-status d-flex flex-wrap gap-2">
               <OrderStatusBadge status={item.status} />
-              {showBanding && <BandingStatusBadge status={item.bandingStatus} />}
+              {activities.map((activity) => (
+                <ActivityBadge key={activity.type} activity={activity} />
+              ))}
             </div>
           )}
 

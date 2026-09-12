@@ -937,12 +937,10 @@ input[type='number'] {
     border-left-color: var(--cui-secondary);
   }
 
-  &[data-status='cutting'] {
+  // `cutting` and `cut` were two states and are now one: the spine says the order is being
+  // worked on, and the activity badges say how far each part of the work got.
+  &[data-status='in_process'] {
     border-left-color: var(--cui-primary);
-  }
-
-  &[data-status='cut'] {
-    border-left-color: var(--cui-success);
   }
 
   // Priority attention deliberately does NOT touch the left spine: that channel is the STAGE, and
