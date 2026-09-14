@@ -126,8 +126,15 @@ export interface PricingData {
   // Catalog price level billed on the boards the seller marked (1 = list).
   priceLevel: number
   priceLevelName: string
-  // Net: every line already prints at its final price, so there is no discount
-  // row — the subtotal IS the sum of the document.
+  // How far below the list price the marked boards landed, and what the same
+  // document would have cost without the level. Informative: no total is
+  // derived from them, and both are 0 at level 1 or with nothing marked.
+  // Optional, because the order synthesizes its PricingData from flat columns
+  // that don't carry them.
+  discountAmount?: number
+  listSubtotal?: number
+  // Net: every line already prints at its final price, so the subtotal IS the
+  // sum of the document, discount or not.
   subtotal: number
   // Net sum of the additional services (they are registered tax-included and
   // converted server-side). Optional: absent on raw /optimize responses.

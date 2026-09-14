@@ -304,6 +304,20 @@ const QuoteStep = ({
               <span className="small fw-semibold text-end">{fmtMoney(pricing.servicesTotal)}</span>
             </div>
           )}
+          {!!pricing?.discountAmount && (
+            <>
+              <div className="d-flex justify-content-between gap-3 py-1 border-bottom">
+                <span className="text-body-secondary small">Subtotal precio</span>
+                <span className="small fw-semibold text-end">{fmtMoney(pricing.listSubtotal)}</span>
+              </div>
+              <div className="d-flex justify-content-between gap-3 py-1 border-bottom text-success">
+                <span className="small">Descuento</span>
+                <span className="small fw-semibold text-end">
+                  -{fmtMoney(pricing.discountAmount)}
+                </span>
+              </div>
+            </>
+          )}
           {!!pricing && (
             <>
               <div className="d-flex justify-content-between gap-3 py-1 border-bottom">
