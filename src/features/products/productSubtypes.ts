@@ -17,6 +17,7 @@ export const BOARD_SUBTYPES = [
   'Math Soft',
   'OSB',
   'Veneer',
+  'Grooved',
 ] as const
 
 export const EDGE_BANDING_SUBTYPES = ['Wood Grain', 'Solid', 'Gloss', 'Matte Soft', 'Wood'] as const
@@ -28,6 +29,7 @@ export const SUBTYPE_LABELS: Record<string, string> = {
   Pine: 'Pino',
   'Natural Wood': 'Madera Natural',
   Veneer: 'Enchapado',
+  Grooved: 'Ranurado',
   'Wood Grain': 'Canto Maderado',
   Solid: 'Canto Solido',
   Gloss: 'Canto Gloss',
