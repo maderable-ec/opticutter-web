@@ -59,7 +59,10 @@ export const MaterialsSummaryTable = ({
   marksDisabled = false,
 }: MaterialsSummaryTableProps) => {
   if (!rows.length) return null
-  const selectable = !!onToggleLevel
+  // Only where there is a board that can actually use it: a half board is billed off the list
+  // price at every level, so a plan cut entirely in halves would carry a column that does
+  // nothing. Same shape as `promotable` below, and for the same reason.
+  const selectable = !!onToggleLevel && rows.some((m) => !m.halfBoard && m.productId != null)
   // Only offer "Entero" where there is something to promote — a plan without half boards would
   // otherwise carry a column that does nothing. Marked keys keep it visible after the promotion,
   // which is what makes the decision reversible: once promoted, the "½ medio" row is gone.
@@ -128,14 +131,18 @@ export const MaterialsSummaryTable = ({
             <CTableDataCell className="text-end">{m.count}</CTableDataCell>
             {/* El precio al que se factura esta línea: si el tablero está marcado, ya llega con
                 el precio del nivel desde el backend (no hay fila de descuento en ningún lado).
-                Para medio tablero llega dividido y con su markup, en su propia fila. */}
+                El medio tablero es la excepción y llega SIEMPRE sobre el precio de lista
+                (mitad + recargo), en su propia fila: el nivel es una concesión sobre la plancha
+                entera y el medio ya carga su recargo porque el taller se queda con la otra mitad. */}
             <CTableDataCell className="text-end">{fmtMoney(m.costPerUnit)}</CTableDataCell>
             <CTableDataCell className="text-end">{fmtMoney(m.totalCost)}</CTableDataCell>
             {selectable && (
               <CTableDataCell className="text-center">
                 {/* Only catalog boards have levels — an offcut or a manual measurement is priced
-                    by the request. The two rows of one material share its mark. */}
-                {m.productId != null && (
+                    by the request. The half-board row is out too: it bills off the list price at
+                    every level, so a check there would move no number on its own line. The whole
+                    board of the same material keeps the check, and it marks the material. */}
+                {m.productId != null && !m.halfBoard && (
                   <CFormCheck
                     checked={leveledKeys?.has(m.materialKey) ?? false}
                     disabled={marksDisabled}
