@@ -6,6 +6,7 @@ import { cilChevronBottom, cilChevronRight } from '@coreui/icons'
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { EDGE_COLOR, PALETTE, bandedSides, pieceLabel, pieceSig } from 'src/shared/utils/cutDrawing'
+import { pieceTitle } from './format'
 import ReviewSheetModal from './ReviewSheetModal'
 import type { ReviewLayoutGroup } from './types'
 
@@ -20,6 +21,9 @@ const boardRange = (groups: ReviewLayoutGroup[]) => {
     return { from, to: n }
   })
 }
+
+// `pieceSig` is `ancho×largo`; everything the client reads says largo first.
+const sigLabel = (sig: string) => sig.split('×').reverse().join(' × ')
 
 const boardTitle = (from: number, to: number, totalBoards: number) =>
   from === to ? `Tablero ${from} de ${totalBoards}` : `Tableros ${from}–${to} de ${totalBoards}`
@@ -119,7 +123,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                   flexShrink: 0,
                 }}
               />
-              <span>{l.sig} mm</span>
+              <span>{sigLabel(l.sig)} mm</span>
               <span className="text-body-secondary ms-auto">×{l.count}</span>
             </span>
           ))}
@@ -135,7 +139,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                   flexShrink: 0,
                 }}
               />
-              <span>Tapacanto</span>
+              <span>Canto aplicado</span>
             </span>
           )}
         </div>
@@ -155,7 +159,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                 )}
                 {group.sheet.halfBoard && (
                   <CBadge color="info" className="ms-2">
-                    ½ medio
+                    Medio tablero
                   </CBadge>
                 )}
                 <div className="text-body-secondary small">
@@ -177,7 +181,8 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                   remainders: group.remainders,
                 }}
                 colorFor={colorFor}
-                labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalWidth}×${p.originalHeight}`}
+                labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalHeight}×${p.originalWidth}`}
+                titleFor={pieceTitle}
               />
             </div>
 
@@ -185,7 +190,9 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
               <span>
                 {group.sheet.width} × {group.sheet.height} mm
               </span>
-              <span>{group.piecesCount} piezas</span>
+              <span>
+                {group.piecesCount} {group.piecesCount === 1 ? 'pieza' : 'piezas'}
+              </span>
               {/* A real button, not a label: it reads as the affordance it is, so tapping the words
                   works as well as tapping the board, and it's reachable by keyboard. */}
               <CButton
@@ -194,7 +201,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                 className="ms-auto p-0 small text-decoration-underline"
                 onClick={() => setDetailIndex(i)}
               >
-                Toca para ampliar
+                Ampliar
               </CButton>
             </div>
           </CCardBody>
@@ -206,7 +213,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
         index={detailIndex}
         onIndexChange={setDetailIndex}
         colorFor={colorFor}
-        titleFor={titleAt}
+        sheetTitleFor={titleAt}
         onClose={() => setDetailIndex(null)}
       />
     </div>

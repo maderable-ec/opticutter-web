@@ -148,7 +148,7 @@ export const remainderLabel = (r: DrawableRemainder) =>
 // Hover text. Carries the unit and the area because it has the room the rectangle may not have, and
 // it is the only way to read a small leftover without zooming in.
 export const remainderTitle = (r: DrawableRemainder) =>
-  `Sobrante ${remainderLabel(r)} mm · ${((r.width * r.height) / 1_000_000).toFixed(2)} m²`
+  `Retazo ${remainderLabel(r)} mm · ${((r.width * r.height) / 1_000_000).toFixed(2)} m²`
 
 // Identical pieces share the same nominal dimensions (originalWidth×originalHeight).
 export const pieceSig = (p: Pick<DrawablePiece, 'originalWidth' | 'originalHeight'>) =>

@@ -45,10 +45,17 @@ interface SheetSvgProps<P extends DrawnPiece> {
   zoomPlacement?: 'top-right' | 'top-left'
   // Text drawn inside each piece when it's big enough. Defaults to its nominal dimensions.
   labelFor?: (p: P) => string
+  // Hover text for a piece. Same escape hatch as `labelFor`: the review states every
+  // measurement largo-first, and a tooltip contradicting the cut list beside it is worse
+  // than no tooltip.
+  titleFor?: (p: P) => string
 }
 
 const defaultLabel = (p: DrawnPiece) =>
   `${p.originalWidth}×${p.originalHeight}${p.rotated ? ' ↻' : ''}`
+
+const defaultTitle = (p: DrawnPiece) =>
+  `${p.originalWidth}×${p.originalHeight} mm${p.rotated ? ' (rotada 90°)' : ''}`
 
 // Renders one sheet of the cutting plan: the board, the hatched leftovers and every placed piece
 // with its edge banding. Shared by the optimizer preview and the client's review diagram.
@@ -65,6 +72,7 @@ const SheetSvg = <P extends DrawnPiece>({
   enableZoom = false,
   zoomPlacement,
   labelFor = defaultLabel,
+  titleFor = defaultTitle,
 }: SheetSvgProps<P>) => {
   const { material, placedPieces, remainders } = layout
   const W = material.width
@@ -93,7 +101,7 @@ const SheetSvg = <P extends DrawnPiece>({
         cursor: enableZoom && isZoomed ? 'grab' : undefined,
       }}
       role="img"
-      aria-label={`Hoja ${material.width}×${material.height} con ${placedPieces.length} piezas`}
+      aria-label={`Tablero ${material.width}×${material.height} con ${placedPieces.length} piezas`}
     >
       {/* Board dimensions: in landscape space, outside the rotation (top = H, side = W). */}
       {showDimensions && (
@@ -160,9 +168,7 @@ const SheetSvg = <P extends DrawnPiece>({
               role={onPieceTap ? 'button' : undefined}
               style={{ cursor: onPieceTap ? 'pointer' : 'default' }}
             >
-              <title>
-                {p.originalWidth}×{p.originalHeight} mm{p.rotated ? ' (rotada 90°)' : ''}
-              </title>
+              <title>{titleFor(p)}</title>
               <rect
                 x={p.x}
                 y={p.y}

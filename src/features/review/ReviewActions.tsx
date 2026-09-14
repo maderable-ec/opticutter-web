@@ -19,7 +19,7 @@ import {
 
 import { useConfirmReview, useRejectReview, useRequestChangesReview } from './useReview'
 import ReviewConfirmModal from './ReviewConfirmModal'
-import { fmtMoney } from './format'
+import { fmtMoney, reviewErrorMessage } from './format'
 import type { ReviewPreOrder } from './types'
 
 interface ReviewActionsProps {
@@ -134,7 +134,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
         totalBoards={data.totalBoardsUsed}
         totalPieces={data.totalPieces}
         isPending={confirm.isPending}
-        error={confirm.error ? confirm.error.message || 'No se pudo confirmar.' : null}
+        error={reviewErrorMessage(confirm.error, 'No se pudo confirmar.')}
       />
 
       {/* Request changes modal */}
@@ -154,7 +154,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
           />
           {requestChanges.error && (
             <div className="text-danger small mt-2">
-              {requestChanges.error.message || 'No se pudo enviar la solicitud.'}
+              {reviewErrorMessage(requestChanges.error, 'No se pudo enviar la solicitud.')}
             </div>
           )}
         </CModalBody>
@@ -191,7 +191,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
           />
           {reject.error && (
             <div className="text-danger small mt-2">
-              {reject.error.message || 'No se pudo rechazar.'}
+              {reviewErrorMessage(reject.error, 'No se pudo rechazar.')}
             </div>
           )}
         </CModalBody>
