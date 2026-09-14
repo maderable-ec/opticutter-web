@@ -95,6 +95,12 @@ export const pricingWithServices = (
     ...pricing,
     servicesTotal: net,
     subtotal,
+    // The list reference has to grow by the same services: a service never takes
+    // a price level, so the discount is untouched — but leaving `listSubtotal`
+    // behind would make `listSubtotal - discountAmount = subtotal` stop closing
+    // on screen the moment the seller types a service.
+    listSubtotal:
+      pricing.listSubtotal === undefined ? undefined : round2(pricing.listSubtotal + net),
     taxAmount,
     total: round2(subtotal + taxAmount),
   }

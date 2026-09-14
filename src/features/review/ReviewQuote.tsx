@@ -9,9 +9,9 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
+import type { ReviewPreOrder, ReviewService } from './types'
 
 import { fmtMoney } from './format'
-import type { ReviewPreOrder, ReviewService } from './types'
 
 const ServicesTable = ({ services, currency }: { services: ReviewService[]; currency: string }) => (
   <CTable small responsive>
@@ -84,6 +84,24 @@ const ReviewQuote = ({ data }: ReviewQuoteProps) => {
                   <span className="text-body-secondary me-2">Servicios adicionales:</span>
                   <span>{fmtMoney(data.servicesTotal, currency)}</span>
                 </div>
+              )}
+              {!!data.discountAmount && (
+                <>
+                  <div>
+                    <span className="text-body-secondary me-2">Subtotal precio:</span>
+                    <span>{fmtMoney(data.listSubtotal, currency)}</span>
+                  </div>
+                  {/* The one number the client is here to see: the level is a
+                      different unit price per product, so every line above
+                      already prints it and nothing else on the page says how
+                      much was taken off. */}
+                  <div className="fw-semibold text-success">
+                    <span className="me-2">
+                      Descuento{data.priceLevelName ? ` (${data.priceLevelName})` : ''}:
+                    </span>
+                    <span>-{fmtMoney(data.discountAmount, currency)}</span>
+                  </div>
+                </>
               )}
               <div>
                 <span className="text-body-secondary me-2">Subtotal:</span>

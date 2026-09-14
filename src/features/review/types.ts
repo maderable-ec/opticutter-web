@@ -98,6 +98,11 @@ export interface ReviewPreOrder {
   currency: string
   subtotal: number
   priceLevelName?: string
+  // How far below the list price this quote landed, and what it would have cost
+  // without the level. Informative: the lines already print their final price,
+  // and both are absent or 0 when there is no discount to claim.
+  discountAmount?: number
+  listSubtotal?: number
   taxRate?: number
   taxAmount?: number
   servicesTotal?: number
