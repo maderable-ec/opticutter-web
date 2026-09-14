@@ -15,7 +15,7 @@ import SheetSvg from 'src/shared/components/SheetSvg'
 import CantoPreview from 'src/shared/components/CantoPreview'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { pieceLabel } from 'src/shared/utils/cutDrawing'
-import { cantoNotation, cantoSides, edgesLabel } from './format'
+import { cantoNotation, cantoSides, edgesLabel, pieceTitle } from './format'
 import type { ReviewLayoutGroup, ReviewPlacedPiece } from './types'
 
 const Detail = ({ label, value }: { label: string; value: string }) => (
@@ -31,7 +31,7 @@ const PieceDetail = ({ piece }: { piece: ReviewPlacedPiece | null }) => {
   if (!piece) {
     return (
       <div className="border rounded p-3 text-body-secondary small text-center">
-        Toca una pieza del tablero para ver su detalle.
+        Selecciona una pieza del tablero para ver su detalle.
       </div>
     )
   }
@@ -49,14 +49,18 @@ const PieceDetail = ({ piece }: { piece: ReviewPlacedPiece | null }) => {
         <strong>{label || 'Pieza'}</strong>
         {edges?.sides?.length ? <CantoPreview sides={cantoSides(edges)} /> : null}
       </div>
-      <Detail label="Medida" value={`${piece.originalWidth} × ${piece.originalHeight} mm`} />
+      {/* Largo first, as the cut list prints it: `left`/`right` are the sides of the
+          piece's height, and those are the ones the notation counts as L (largo). */}
+      <Detail label="Medida" value={`${piece.originalHeight} × ${piece.originalWidth} mm`} />
       <Detail label="Cantos" value={edgesLabel(edges)} />
       {edges?.sides?.length ? (
         // The server already computes the notation from the unrotated sides; recomputing it here
         // is only a fallback for a payload that predates the field.
         <Detail label="Notación" value={edges.notation || cantoNotation(edges)} />
       ) : null}
-      {edges?.color && <Detail label="Color del canto" value={edges.color} />}
+      {edges?.productName && <Detail label="Tapacanto" value={edges.productName} />}
+      {/* "Color", not "Color del canto": it sits under a row that already says tapacanto. */}
+      {edges?.color && <Detail label="Color" value={edges.color} />}
       {piece.rotated && (
         <div className="text-body-secondary small mt-2">
           Esta pieza fue girada 90° para aprovechar mejor el tablero. La medida que recibes es la de
@@ -73,7 +77,7 @@ interface ReviewSheetModalProps {
   index: number | null
   onIndexChange: (i: number) => void
   colorFor: (sig: string) => string
-  titleFor: (index: number) => string
+  sheetTitleFor: (index: number) => string
   onClose: () => void
 }
 
@@ -82,7 +86,7 @@ const ReviewSheetModal = ({
   index,
   onIndexChange,
   colorFor,
-  titleFor,
+  sheetTitleFor,
   onClose,
 }: ReviewSheetModalProps) => {
   const [selected, setSelected] = useState<ReviewPlacedPiece | null>(null)
@@ -124,8 +128,8 @@ const ReviewSheetModal = ({
     >
       <CModalHeader>
         <CModalTitle className="fs-6 d-flex align-items-center gap-2 flex-wrap">
-          <span>{index == null ? '' : titleFor(index)}</span>
-          {group?.sheet.halfBoard && <CBadge color="info">½ medio</CBadge>}
+          <span>{index == null ? '' : sheetTitleFor(index)}</span>
+          {group?.sheet.halfBoard && <CBadge color="info">Medio tablero</CBadge>}
         </CModalTitle>
       </CModalHeader>
       <CModalBody>
@@ -144,7 +148,8 @@ const ReviewSheetModal = ({
                 colorFor={colorFor}
                 highlightId={selected?.pieceId ?? null}
                 onPieceTap={(p) => setSelected((cur) => (cur?.pieceId === p.pieceId ? null : p))}
-                labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalWidth}×${p.originalHeight}`}
+                labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalHeight}×${p.originalWidth}`}
+                titleFor={pieceTitle}
                 // Kept inside the modal's scrollport so the board is never cut off by the pager
                 // below. Reserve covers the modal chrome plus the caption under the diagram.
                 maxHeight="min(640px, calc(100dvh - 19rem))"
@@ -153,7 +158,8 @@ const ReviewSheetModal = ({
               />
               <div className="text-body-secondary small mt-2 text-center">
                 {stripHalfSuffix(group.sheet.materialName ?? undefined) ?? 'Tablero'} ·{' '}
-                {group.sheet.width} × {group.sheet.height} mm · {group.piecesCount} piezas
+                {group.sheet.width} × {group.sheet.height} mm · {group.piecesCount}{' '}
+                {group.piecesCount === 1 ? 'pieza' : 'piezas'}
               </div>
             </CCol>
             <CCol xs={12} lg={5}>

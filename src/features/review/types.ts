@@ -17,10 +17,18 @@ export interface ReviewLine {
   linearM?: number
 }
 
-// Edge banding info on a piece; keys arrive in snake_case from the server.
+// Edge banding on a cut-list piece. No rotation here — the server sends the
+// requirement's own sides, which are nominal already — and no catalog ids: the
+// tapacanto is named, not identified.
 export interface ReviewEdges {
   sides?: string[]
-  band_type?: string
+  bandType?: string | null
+  productName?: string | null
+  color?: string | null
+  // Before this shape was typed the server forwarded a raw dict, snake_case and
+  // all. Kept for the window where the web deploys ahead of the API — the two
+  // live in separate repos — which `bandTypeOf` already reads through.
+  band_type?: string | null
 }
 
 // A cut-list piece on the public review (not billed per piece).
@@ -53,6 +61,9 @@ export interface ReviewPieceEdges {
   color?: string | null
   bandType?: string | null
   notation?: string | null
+  // The tapacanto's catalog name, joined in by the server so this and the cut
+  // list name the same tape.
+  productName?: string | null
 }
 
 // A piece as laid out on the sheet. `pieceId` is the label the client typed, optionally suffixed
@@ -97,6 +108,9 @@ export interface ReviewPreOrder {
   notes: string | null // commercial reference (project/site), same text printed on the order document
   currency: string
   subtotal: number
+  // Sent by the server, deliberately not rendered: "Precio 2" names one of the
+  // vendor's three catalog columns, and which one produced the number is not the
+  // client's business — the discount amount is.
   priceLevelName?: string
   // How far below the list price this quote landed, and what it would have cost
   // without the level. Informative: the lines already print their final price,

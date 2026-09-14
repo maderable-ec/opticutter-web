@@ -16,18 +16,33 @@ import CIcon from '@coreui/icons-react'
 import { cilChevronBottom, cilChevronRight } from '@coreui/icons'
 
 import CantoPreview from 'src/shared/components/CantoPreview'
-import { cantoNotation, cantoSides, edgesLabel } from './format'
+import { bandingName, cantoNotation, cantoSides, edgesLabel } from './format'
 import type { ReviewPiece } from './types'
 
-const Cantos = ({ piece }: { piece: ReviewPiece }) =>
-  piece.edges?.sides?.length ? (
-    <div className="d-flex align-items-center gap-2" title={edgesLabel(piece.edges)}>
-      <CantoPreview sides={cantoSides(piece.edges)} />
-      <span className="text-nowrap">{cantoNotation(piece.edges)}</span>
+// The notation says how many sides are banded; the second line says with WHAT.
+// It goes under the notation rather than in a column of its own because the
+// table lives in a ~440px rail from `lg` up, and because a material's pieces
+// almost always share one coordinated tape — a column would repeat the same
+// name down every row, which is the arrangement this list already abandoned
+// once for the board name.
+//
+// Both the phone cards and the desktop table render this, which is the point:
+// there is no hover on a phone, so the full name in `title` cannot be the only
+// place the tape is named.
+const Cantos = ({ piece, align = 'start' }: { piece: ReviewPiece; align?: 'start' | 'end' }) => {
+  if (!piece.edges?.sides?.length) return <span className="text-body-secondary">—</span>
+  const name = bandingName(piece.edges)
+  const title = [edgesLabel(piece.edges), piece.edges.productName].filter(Boolean).join(' · ')
+  return (
+    <div className={align === 'end' ? 'text-end' : undefined} title={title}>
+      <div className={`d-flex align-items-center gap-2 justify-content-${align}`}>
+        <CantoPreview sides={cantoSides(piece.edges)} />
+        <span className="text-nowrap">{cantoNotation(piece.edges)}</span>
+      </div>
+      {name && <div className="text-body-secondary small text-break">{name}</div>}
     </div>
-  ) : (
-    <span className="text-body-secondary">—</span>
   )
+}
 
 interface Row {
   piece: ReviewPiece
@@ -115,12 +130,12 @@ const ReviewPieces = ({ pieces }: ReviewPiecesProps) => {
                           <strong>{piece.quantity}</strong>
                         </div>
                       </div>
-                      <div className="d-flex justify-content-between align-items-center gap-2 mt-2">
+                      <div className="d-flex justify-content-between align-items-start gap-2 mt-2">
                         <span className="text-nowrap">
                           {piece.height} × {piece.width}{' '}
                           <span className="text-body-secondary small">mm</span>
                         </span>
-                        <Cantos piece={piece} />
+                        <Cantos piece={piece} align="end" />
                       </div>
                     </div>
                   ))}

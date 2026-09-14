@@ -6,6 +6,7 @@
 // nominal already, but a placed piece's `sides` come rotated into the frame of the drawing, so
 // pass its `nominalSides` instead: otherwise every rotated piece reads its 1L as a 1C.
 
+import { apiErrorMessage } from 'src/shared/api/errors'
 import { notationFromSides } from 'src/features/optimizer/optimizerForm'
 import type { CantoSides } from 'src/shared/components/CantoPreview'
 
@@ -33,7 +34,12 @@ const BAND_LABEL: Record<string, string> = {
 // untouched (snake_case), while the diagram's comes from a typed schema (camelCase). One accessor
 // so no caller has to care which it holds.
 type AnyEdges =
-  | { sides?: string[]; band_type?: string | null; bandType?: string | null }
+  | {
+      sides?: string[]
+      band_type?: string | null
+      bandType?: string | null
+      productName?: string | null
+    }
   | null
   | undefined
 
@@ -65,3 +71,31 @@ export const cantoNotation = (edges?: AnyEdges): string => {
   const band = bandType ? BAND_ABBR[bandType.toLowerCase()] : ''
   return band ? `${notation} ${band}` : notation
 }
+
+// The catalogue prefixes every single tapacanto with the word itself
+// ("TAPACANTO IBIZA 19X0.40MM") — 10 of 25 characters, under a label that
+// already says what this is. What identifies the tape is the design and the
+// size, so that is what gets the room; the full name rides on the cell's
+// `title` and on the piece detail.
+export const bandingName = (edges?: AnyEdges): string | null => {
+  const name = edges?.productName?.trim()
+  if (!name) return null
+  return name.replace(/^tapacantos?\s+/i, '') || name
+}
+
+// The client never sees a status code. `apiErrorMessage` prefers the server's own
+// message — which is what we want — but falls through to `error.message`, and for a
+// response carrying no error envelope `httpClient` synthesizes that as `HTTP 500`.
+export const reviewErrorMessage = (error: Error | null, fallback: string): string | null => {
+  const message = apiErrorMessage(error, fallback)
+  return message ? message.replace(/^HTTP \d+$/, fallback) : null
+}
+
+// Largo first, like every measurement the client reads on this page. `SheetSvg`'s own
+// default is `ancho×largo`, which on a rotated piece contradicted the cut list right
+// beside it.
+export const pieceTitle = (p: {
+  originalWidth: number
+  originalHeight: number
+  rotated: boolean
+}): string => `${p.originalHeight}×${p.originalWidth} mm${p.rotated ? ' (rotada 90°)' : ''}`

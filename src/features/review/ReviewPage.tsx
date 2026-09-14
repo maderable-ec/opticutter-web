@@ -22,7 +22,7 @@ import ReviewPlan from './ReviewPlan'
 import ReviewPieces from './ReviewPieces'
 import ReviewQuote from './ReviewQuote'
 import ReviewActions from './ReviewActions'
-import { fmtDate, fmtDateTime } from './format'
+import { fmtDate, fmtDateTime, reviewErrorMessage } from './format'
 import type { ReviewPreOrder } from './types'
 
 // Two independent axes, so the same state reads correctly at both breakpoints: `RailTab` is which
@@ -71,7 +71,7 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
       <div className="d-flex align-items-start justify-content-between flex-wrap gap-2">
         <div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <h5 className="mb-0">{data.reference}</h5>
+            <h5 className="mb-0">Cotización {data.reference}</h5>
             {data.status === 'changes_requested' && <CBadge color="info">Cambios pedidos</CBadge>}
             {data.status === 'confirmed' && <CBadge color="success">Confirmada</CBadge>}
           </div>
@@ -86,7 +86,7 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
             </div>
           )}
           {data.confirmedAt && (
-            <div className="text-body-secondary">Confirmada: {fmtDateTime(data.confirmedAt)}</div>
+            <div className="text-body-secondary">Confirmada el {fmtDateTime(data.confirmedAt)}</div>
           )}
           <div className="text-body-secondary">
             {data.totalBoardsUsed} {data.totalBoardsUsed === 1 ? 'tablero' : 'tableros'} ·{' '}
@@ -183,7 +183,7 @@ const ReviewPage = () => {
     if (errStatus === 404) {
       return (
         <InfoView title="Enlace no válido">
-          Este enlace no es válido o fue reemplazado. Pide a tu vendedor uno nuevo.
+          Este enlace no es válido o fue reemplazado. Pide a tu asesor uno nuevo.
         </InfoView>
       )
     }
@@ -202,7 +202,11 @@ const ReviewPage = () => {
         </Shell>
       )
     }
-    return <InfoView title="Ocurrió un error">{error.message}</InfoView>
+    return (
+      <InfoView title="Ocurrió un error">
+        {reviewErrorMessage(error, 'Intenta de nuevo en unos minutos.')}
+      </InfoView>
+    )
   }
 
   if (!token || !data) return null
@@ -213,7 +217,7 @@ const ReviewPage = () => {
     return (
       <InfoView title="Cotización vencida">
         Esta cotización venció{data.expiresAt ? ` el ${fmtDate(data.expiresAt)}` : ''}. Contacta a
-        ventas para solicitar una nueva.
+        tu asesor para solicitar una nueva.
       </InfoView>
     )
   }
@@ -221,7 +225,7 @@ const ReviewPage = () => {
   if (status === 'rejected') {
     return (
       <InfoView title="Cotización rechazada">
-        Esta cotización fue rechazada. Contacta a ventas para más información.
+        Esta cotización fue rechazada. Contacta a tu asesor para más información.
       </InfoView>
     )
   }
@@ -229,14 +233,18 @@ const ReviewPage = () => {
   if (status === 'cancelled') {
     return (
       <InfoView title="Cotización retirada">
-        Esta cotización ya no está disponible. Contacta a ventas para más información.
+        Esta cotización ya no está disponible. Contacta a tu asesor para más información.
       </InfoView>
     )
   }
 
   const open = status === 'sent' || status === 'changes_requested'
   if (!open && status !== 'confirmed') {
-    return <InfoView title="Estado no disponible">{`Estado: ${status}`}</InfoView>
+    return (
+      <InfoView title="Cotización no disponible">
+        Esta cotización todavía no está lista para revisión. Contacta a tu asesor.
+      </InfoView>
+    )
   }
 
   // Below `lg` only the selected view is on screen; from `lg` up the diagram and the rail always

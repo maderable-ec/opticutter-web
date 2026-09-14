@@ -48,7 +48,7 @@ const ReviewQuote = ({ data }: ReviewQuoteProps) => {
     <>
       <CCard className="mb-3">
         <CCardHeader>
-          <strong>Detalle de cobro</strong>
+          <strong>Cotización</strong>
         </CCardHeader>
         <CCardBody>
           <CTable small responsive>
@@ -88,7 +88,7 @@ const ReviewQuote = ({ data }: ReviewQuoteProps) => {
               {!!data.discountAmount && (
                 <>
                   <div>
-                    <span className="text-body-secondary me-2">Subtotal precio:</span>
+                    <span className="text-body-secondary me-2">Subtotal sin descuento:</span>
                     <span>{fmtMoney(data.listSubtotal, currency)}</span>
                   </div>
                   {/* The one number the client is here to see: the level is a
@@ -96,9 +96,7 @@ const ReviewQuote = ({ data }: ReviewQuoteProps) => {
                       already prints it and nothing else on the page says how
                       much was taken off. */}
                   <div className="fw-semibold text-success">
-                    <span className="me-2">
-                      Descuento{data.priceLevelName ? ` (${data.priceLevelName})` : ''}:
-                    </span>
+                    <span className="me-2">Descuento:</span>
                     <span>-{fmtMoney(data.discountAmount, currency)}</span>
                   </div>
                 </>
