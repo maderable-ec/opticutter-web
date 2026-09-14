@@ -43,6 +43,9 @@ export const preordersApi = {
   update: (id: number, data: Partial<PreOrderCreate>) =>
     httpClient.put<PreOrder>(`${BASE}/${id}`, data),
   remove: (id: number) => httpClient.delete<null>(`${BASE}/${id}`),
+  // Answers with the SUMMARY, not the detail: the endpoint deliberately skips the recompute so the
+  // wait lands on the destination page (which has a loading state) instead of on the button.
+  duplicate: (id: number) => httpClient.post<PreOrderSummary>(`${BASE}/${id}/duplicate`),
   createReviewLink: (id: number) => httpClient.post<ReviewLink>(`${BASE}/${id}/review-link`),
   getReviewLinkInfo: (id: number) => httpClient.get<ReviewLinkInfo>(`${BASE}/${id}/review-link`),
 }

@@ -1,6 +1,6 @@
 import { CAlert, CButton, CSpinner } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilExternalLink, cilLink } from '@coreui/icons'
+import { cilCopy, cilExternalLink, cilLink } from '@coreui/icons'
 
 import { fmtDate, fmtDateTime } from 'src/shared/utils/format'
 import { isOpen } from './status'
@@ -38,6 +38,11 @@ interface PreOrderStatusStripProps {
   // reason is the one thing worse than no button.
   shareBlockedReason?: string
   onViewOrder?: () => void
+  // Copies this quote into a fresh draft. Only ever given on a CLOSED quote: an open one is edited,
+  // and the server answers 422 to anything else. It is the only way out of an expired quote, which
+  // can no longer be edited, re-sent or confirmed — so it belongs beside the sentence that says so.
+  onDuplicate?: () => void
+  isDuplicatePending?: boolean
 }
 
 type Tone = 'info' | 'success' | 'warning' | 'danger' | 'secondary'
@@ -52,6 +57,8 @@ const PreOrderStatusStrip = ({
   isSharePending,
   shareBlockedReason,
   onViewOrder,
+  onDuplicate,
+  isDuplicatePending,
 }: PreOrderStatusStripProps) => {
   let tone: Tone = 'info'
   let sentence = ''
@@ -81,7 +88,9 @@ const PreOrderStatusStrip = ({
       break
     case 'expired':
       tone = 'warning'
-      sentence = `Esta cotización venció${expiresAt ? ` el ${fmtDate(expiresAt)}` : ''}.`
+      sentence = `Esta cotización venció${expiresAt ? ` el ${fmtDate(expiresAt)}` : ''}.${
+        onDuplicate ? ' Duplícala para cotizar lo mismo a precios de hoy.' : ''
+      }`
       break
     case 'cancelled':
       tone = 'secondary'
@@ -106,6 +115,11 @@ const PreOrderStatusStrip = ({
   // the next step and carries the brand colour.
   const shareLabel = link ? 'Regenerar enlace' : 'Compartir enlace'
   const shareIsNextStep = status !== 'sent'
+
+  // Same reasoning as `shareIsNextStep`, one status further on: on a quote that died (vencida,
+  // rechazada, cancelada) duplicating IS the next step and carries the brand colour; on a confirmed
+  // one the next step is the order it minted, so duplicating steps back to an outline beside it.
+  const duplicateIsNextStep = status !== 'confirmed'
 
   return (
     <CAlert color={tone} className="py-2 small mb-3">
@@ -144,6 +158,24 @@ const PreOrderStatusStrip = ({
             >
               <CIcon icon={cilExternalLink} className="me-1" />
               Ver orden
+            </CButton>
+          )}
+          {onDuplicate && !open && (
+            <CButton
+              size="sm"
+              color={duplicateIsNextStep ? 'primary' : 'secondary'}
+              variant={duplicateIsNextStep ? undefined : 'outline'}
+              type="button"
+              disabled={isDuplicatePending}
+              title="Crea una cotización nueva con los mismos materiales y piezas, a precios de hoy."
+              onClick={onDuplicate}
+            >
+              {isDuplicatePending ? (
+                <CSpinner size="sm" className="me-1" />
+              ) : (
+                <CIcon icon={cilCopy} className="me-1" />
+              )}
+              Duplicar cotización
             </CButton>
           )}
         </div>
