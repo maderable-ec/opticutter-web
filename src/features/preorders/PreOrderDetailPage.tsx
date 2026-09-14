@@ -40,6 +40,7 @@ import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import {
   useCreatePreOrderReviewLink,
   useDeletePreOrder,
+  useDuplicatePreOrder,
   usePreOrder,
   usePreOrderReviewLinkInfo,
   useUpdatePreOrder,
@@ -257,6 +258,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const [shareLink, setShareLink] = useState<ShareLinkState | null>(null)
   const [showRegenModal, setShowRegenModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   // Reference is edited through a modal on a draft, so "Cancelar" is just a close: `notes` (which
   // feeds the dirty signature) only moves when the user confirms.
@@ -343,7 +345,21 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const updatePreOrder = useUpdatePreOrder()
   const deletePreOrder = useDeletePreOrder()
   const createReviewLink = useCreatePreOrderReviewLink()
+  const duplicatePreOrder = useDuplicatePreOrder()
   const reviewLinkInfo = usePreOrderReviewLinkInfo(preOrder.id, preOrder.status)
+
+  // The way out of a quote that can no longer be edited, re-sent or confirmed: a new one with the
+  // same inputs, which re-optimizes at today's prices on its first read. The server copies the
+  // inputs, so nothing of the editor's state is sent — and nothing of it would be right anyway on a
+  // closed quote, where the editor is read-only.
+  const handleDuplicate = () =>
+    duplicatePreOrder.mutate(preOrder.id, {
+      onSuccess: (copy) => void navigate(`/preorders/${copy.id}`),
+      // Closed either way: on success we leave the page anyway, and on failure the reason (the
+      // open-quotes cap, an inactive branch) is an alert on the page — behind an open modal the
+      // seller would only see the button stop spinning.
+      onSettled: () => setShowDuplicateModal(false),
+    })
 
   const doSave = (variantValue: number) => {
     const { materials: mInputs, requirements: rInputs } = buildPayload(
@@ -668,6 +684,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             : createReviewLink.error.message || 'Error al generar el enlace.'}
         </CAlert>
       )}
+      {/* The one place the seller sees the open-quotes cap ("ciérrelas o espere a que expiren"),
+          which is an instruction and not just a failure. */}
+      {duplicatePreOrder.error && (
+        <CAlert color="danger" className="py-2 small">
+          {duplicatePreOrder.error.message || 'Error al duplicar la cotización.'}
+        </CAlert>
+      )}
 
       {/* Where the quote stands, its review link, and the next step — one line instead of five
           blocks. The action lives here rather than in the footer because it belongs to the quote's
@@ -689,6 +712,10 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         isSharePending={createReviewLink.isPending}
         shareBlockedReason={shareBlockedReason}
         onViewOrder={viewOrder}
+        // `canEdit` is `isOpen(status)`, so its negation is exactly the closed set the endpoint
+        // accepts. Anyone who can open this page can duplicate: the route is admin/vendedor only.
+        onDuplicate={canEdit ? undefined : () => setShowDuplicateModal(true)}
+        isDuplicatePending={duplicatePreOrder.isPending}
       />
 
       {/* One surface for the whole document. Each section carries a plain muted label instead of a
@@ -980,6 +1007,35 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             disabled={createReviewLink.isPending}
           >
             {createReviewLink.isPending ? <CSpinner size="sm" /> : 'Regenerar'}
+          </CButton>
+        </CModalFooter>
+      </CModal>
+
+      {/* Duplicate confirmation modal. Not a destructive action, so it is not a warning: the
+          question is worth asking because the button sits one click away in a strip the seller
+          reads on every closed quote, and an accidental copy costs a row plus a slot in the
+          client's open-quotes cap. The body says what the copy will and won't be, which is the
+          part nobody can guess from the label. */}
+      <CModal visible={showDuplicateModal} onClose={() => setShowDuplicateModal(false)}>
+        <CModalHeader>
+          <CModalTitle>Duplicar cotización</CModalTitle>
+        </CModalHeader>
+        <CModalBody>
+          <p className="mb-2">
+            Se creará una cotización nueva a partir de <strong>{preOrder.code}</strong>, con los
+            mismos materiales, piezas y servicios, y con una vigencia que arranca hoy.
+          </p>
+          <p className="mb-0 text-body-secondary small">
+            Los precios se recalculan con el catálogo actual, así que el total puede cambiar.{' '}
+            {preOrder.code} no se modifica.
+          </p>
+        </CModalBody>
+        <CModalFooter>
+          <CButton color="secondary" onClick={() => setShowDuplicateModal(false)}>
+            Cancelar
+          </CButton>
+          <CButton color="primary" onClick={handleDuplicate} disabled={duplicatePreOrder.isPending}>
+            {duplicatePreOrder.isPending ? <CSpinner size="sm" /> : 'Duplicar'}
           </CButton>
         </CModalFooter>
       </CModal>

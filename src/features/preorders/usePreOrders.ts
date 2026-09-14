@@ -46,6 +46,17 @@ export const useDeletePreOrder = () => {
   })
 }
 
+// Copies a CLOSED quote (expired / rejected / cancelled / confirmed) into a fresh draft. The server
+// re-checks the status, so the caller's gate is only about not offering a button that would 422.
+// Returns the new quote's summary; the caller navigates to it.
+export const useDuplicatePreOrder = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => preordersApi.duplicate(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['preorders'] }),
+  })
+}
+
 export const useCreatePreOrderReviewLink = () => {
   const qc = useQueryClient()
   return useMutation({
