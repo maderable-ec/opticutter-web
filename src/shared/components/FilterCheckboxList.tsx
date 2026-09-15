@@ -15,8 +15,8 @@ interface FilterCheckboxListProps<T extends string> {
 // Bare checkbox list (+ optional group headers) for a multi-value filter. No
 // dropdown/toggle of its own, and styled with Bootstrap's `.dropdown-item` /
 // `.dropdown-header` classes on the assumption it always renders inside a
-// `.dropdown-menu` — MultiSelectFilter wraps one in a standalone dropdown;
-// FilterMenu stacks several as sections inside one shared panel.
+// `.dropdown-menu` — FilterMenu stacks several as sections inside one shared
+// panel, which is the only way it is used.
 const FilterCheckboxList = <T extends string>({
   values,
   options,

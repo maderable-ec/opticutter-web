@@ -5,7 +5,6 @@ import {
   CAlert,
   CButton,
   CCol,
-  CFormInput,
   CFormLabel,
   CFormSelect,
   CFormTextarea,
@@ -19,7 +18,8 @@ import CIcon from '@coreui/icons-react'
 import { cilCart, cilUserPlus } from '@coreui/icons'
 
 import ClientForm from 'src/features/clients/ClientForm'
-import { useClientsMin, useCreateClient, useUpdateClient } from 'src/features/clients/useClients'
+import ClientPicker from 'src/features/clients/ClientPicker'
+import { useCreateClient, useUpdateClient } from 'src/features/clients/useClients'
 import type { Client, ClientPayload } from 'src/features/clients/types'
 import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
 import {
@@ -27,11 +27,11 @@ import {
   pricingWithServices,
   type ServiceLineForm,
 } from 'src/features/preorders/useServiceLines'
-import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
+import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
-import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
+import type { QuoteDraft } from '../useQuoteDraft'
 import type { MaterialInput, ModalContainer, OptimizeResponse, RequirementInput } from '../types'
 
 // Step 4. What used to be CreateQuoteModal, in a full-width step: the same four inputs the optimizer
@@ -56,6 +56,10 @@ interface QuoteStepProps {
   // Billed services entered in the Costos step. They ride along with the pre-order so a quote built
   // in the wizard is complete on arrival instead of needing a second pass on the detail page.
   services: ServiceLineForm[]
+  // Client, branch and reference. Owned by `OptimizerPage` (see `useQuoteDraft`) so stepping back to
+  // fix a measure and returning does not empty this form.
+  draft: QuoteDraft
+  onDraftChange: <K extends keyof QuoteDraft>(key: K, value: QuoteDraft[K]) => void
   container?: ModalContainer
   // Called after the pre-order is created (the page clears its autosave).
   onCreated?: () => void
@@ -68,30 +72,23 @@ const QuoteStep = ({
   priceLevel,
   variant,
   services,
+  draft,
+  onDraftChange,
   container,
   onCreated,
 }: QuoteStepProps) => {
   const navigate = useNavigate()
   const qc = useQueryClient()
 
-  const [clientSearch, setClientSearch] = useState('')
-  const debouncedSearch = useDebounce(clientSearch)
-  const [selectedClientId, setSelectedClientId] = useState('')
-  const [notes, setNotes] = useState('')
   // null = closed. `{ client: null }` is the new-client form, `{ client }` the edit form.
   const [clientModal, setClientModal] = useState<{ client: Client | null } | null>(null)
 
-  const user = useCurrentUser()
   const isAdmin = useHasRole('administrador')
   const isGlobalBranch = useIsGlobalBranchRole()
   const { data: branches = [] } = useActiveBranches()
 
-  // Admin: no pre-selection (required field). Sales rep: pre-selects their home branch.
-  const [branchId, setBranchId] = useState(() => (isAdmin ? '' : String(user?.branchId ?? '')))
-
-  const { data: clientsData } = useClientsMin(debouncedSearch)
-  const clients = clientsData?.items ?? []
-  const selectedClient = clients.find((c) => String(c.id) === String(selectedClientId))
+  const selectedClient = draft.client
+  const branchId = draft.branchId
   const missingPhone = !!selectedClient && selectedClient.phone == null
 
   const createClient = useCreateClient()
@@ -110,15 +107,16 @@ const QuoteStep = ({
   // does not exist yet, and the client exists but has no phone (which `blocked` enforces below) —
   // are answered here with the same form the /clients page uses.
   //
-  // `useClientsMin` caches under ['clients-min', search] while the CRUD hooks invalidate ['clients'],
-  // so the list this step reads would NOT refresh on its own. Invalidate it explicitly, then select
-  // the client and put its identifier in the search box so the refetch is certain to contain it.
+  // The saved client is written straight into the draft, which is what refreshes the picker's card
+  // after "Completar datos". `useClientsMin` caches under ['clients-min', search] while the CRUD
+  // hooks invalidate ['clients'], so the list behind the card is invalidated explicitly, and the
+  // identifier goes in the search box so the refetch is certain to contain the new client.
   const handleClientSubmit = (data: ClientPayload) => {
     const editing = clientModal?.client
     const onSuccess = (client: Client) => {
       void qc.invalidateQueries({ queryKey: ['clients-min'] })
-      setSelectedClientId(String(client.id))
-      setClientSearch(client.identifier)
+      onDraftChange('client', client)
+      onDraftChange('clientSearch', client.identifier)
       setClientModal(null)
     }
     if (editing) updateClient.mutate({ id: editing.id, data }, { onSuccess })
@@ -127,17 +125,28 @@ const QuoteStep = ({
 
   const createPreOrder = useCreatePreOrder()
   const isPending = createPreOrder.isPending
-  const blocked = !selectedClientId || missingPhone || (isAdmin && !branchId)
+  const blocked = !selectedClient || missingPhone || (isAdmin && !branchId)
+
+  // A disabled button has to say what it is waiting for — the same `nextHint`/`nextDisabled` idiom
+  // the pre-order detail uses. Without it "Crear cotización" is simply dim, which is how a seller
+  // ends up reporting that a click did nothing.
+  const blockedReason = !selectedClient
+    ? 'Falta elegir el cliente.'
+    : missingPhone
+      ? 'El cliente no tiene celular registrado.'
+      : isAdmin && !branchId
+        ? 'Falta elegir la sucursal.'
+        : undefined
 
   const pricing = result?.pricing ? pricingWithServices(result.pricing, services) : undefined
 
   const handleCreate = () => {
-    if (blocked) return
+    if (blocked || !selectedClient) return
     createPreOrder.mutate(
       {
-        clientId: Number(selectedClientId),
+        clientId: Number(selectedClient.id),
         source: 'dashboard',
-        notes: notes || undefined,
+        notes: draft.notes || undefined,
         priceLevel,
         variant,
         materials,
@@ -166,9 +175,11 @@ const QuoteStep = ({
   return (
     <CRow className="g-3">
       <CCol xs={12} lg={7}>
-        <div className="d-flex justify-content-between align-items-center gap-2">
+        <div className="d-flex justify-content-between align-items-center gap-2 mb-1">
+          {/* The asterisk belongs to the CHOICE, not to a search box: typing in the box is not
+              what the form is waiting for. */}
           <CFormLabel className="mb-0">
-            Buscar cliente <span className="text-danger">*</span>
+            Cliente <span className="text-danger">*</span>
           </CFormLabel>
           <CButton
             size="sm"
@@ -181,26 +192,13 @@ const QuoteStep = ({
             Nuevo cliente
           </CButton>
         </div>
-        <CFormInput
-          placeholder="Nombre o identificador…"
-          value={clientSearch}
-          onChange={(e) => setClientSearch(e.target.value)}
-          className="mb-1 mt-1"
+        <ClientPicker
+          value={draft.client}
+          onChange={(c) => onDraftChange('client', c)}
+          search={draft.clientSearch}
+          onSearchChange={(term) => onDraftChange('clientSearch', term)}
+          onCreateNew={() => openClientModal(null)}
         />
-        {/* Server-searched list, so this stays a plain listbox rather than SearchableSelect,
-            which filters what it already has in memory. */}
-        <CFormSelect
-          htmlSize={6}
-          value={selectedClientId}
-          onChange={(e) => setSelectedClientId(e.target.value)}
-        >
-          <option value="">— Seleccionar cliente —</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {fullClientLabel(c)}
-            </option>
-          ))}
-        </CFormSelect>
         {missingPhone && selectedClient && (
           <CAlert
             color="warning"
@@ -229,7 +227,7 @@ const QuoteStep = ({
             </CFormLabel>
             <CFormSelect
               value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
+              onChange={(e) => onDraftChange('branchId', e.target.value)}
               invalid={!!branchError}
             >
               <option value="">— Seleccionar sucursal —</option>
@@ -247,8 +245,8 @@ const QuoteStep = ({
         <CFormTextarea
           rows={2}
           maxLength={512}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          value={draft.notes}
+          onChange={(e) => onDraftChange('notes', e.target.value)}
           placeholder="Ej.: Proyecto Casa Pérez — cocina y closet"
         />
         <div className="form-text">
@@ -347,6 +345,9 @@ const QuoteStep = ({
             )}
             Crear cotización
           </CButton>
+          {blockedReason && !isPending && (
+            <div className="small text-body-secondary text-center mt-1">{blockedReason}</div>
+          )}
         </div>
       </CCol>
 
