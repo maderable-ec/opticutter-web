@@ -31,7 +31,9 @@ import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import OrderStatusStrip from './OrderStatusStrip'
 import OrderActionsMenu from './OrderActionsMenu'
-import OrderLinesTable from './OrderLinesTable'
+import OrderBoardsTable from './OrderBoardsTable'
+import OrderBandingTable from './OrderBandingTable'
+import OrderServicesTable from './OrderServicesTable'
 import OrderPiecesTable from './OrderPiecesTable'
 import OrderAttachmentsModal, { humanSize } from './OrderAttachmentsModal'
 import { attachmentsLocked, hasWorkshopPlan, transitionsFor } from './status'
@@ -295,6 +297,21 @@ const OrderDetailPage = () => {
   const pieceUnits = pieces.reduce((sum, p) => sum + (p.quantity ?? 0), 0)
   const piecesOpen = pieces.length > 0 && searchParams.get('panel') === 'piezas'
 
+  // The billing snapshot holds two kinds of line and they are billed by different units: a board
+  // by the sheet, a tapacanto by the metre. `linearM` is the server's own discriminant ("Null for
+  // boards"), which is what lets each table state a unit that is true of every row under it.
+  const lines = order.lines ?? []
+  const boardLines = lines.filter((l) => l.linearM == null)
+  const bandingLines = lines.filter((l) => l.linearM != null)
+  // The cut list names its tapes from here: a piece's frozen `edges` carries the product's id and
+  // nothing else, and the order already bills every tape it uses.
+  const bandingNames = new Map(
+    bandingLines
+      .filter((l) => l.productId != null)
+      .map((l) => [l.productId as number, l.productName] as const),
+  )
+  const services = order.additionalServices ?? []
+
   const files = attachments.data ?? []
   const filesBytes = files.reduce((sum, a) => sum + a.sizeBytes, 0)
 
@@ -375,12 +392,16 @@ const OrderDetailPage = () => {
       </div>
 
       {/* Where the order stands on both tracks — one line instead of four tinted cards. */}
+      {/* `plan` first: the cutting plan's copy of the activities carries the per-activity piece
+          progress, which `GET /orders/{id}` leaves null — and this page already asks for it.
+          It also runs `_ensure_activities`, which the order endpoint does not, so a legacy order
+          whose rows were never materialised gets them here rather than showing an empty strip. */}
       <OrderStatusStrip
         status={order.status}
         assignedToLabel={order.assignedToLabel}
         assignedAt={order.assignedAt}
         dispatchedByLabel={order.dispatchedByLabel}
-        activities={order.activities}
+        activities={plan?.activities ?? order.activities}
       />
 
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
@@ -452,12 +473,35 @@ const OrderDetailPage = () => {
           </div>
         )}
 
-        {order.lines?.length > 0 && (
+        {/* What is billed, one table per unit of sale. They were a single "Líneas de cobro"
+            table under the boards' vocabulary, where a tapacanto line read "Cant. 31.5" (metres)
+            with an empty "Eficiencia" column beside it. */}
+        {boardLines.length > 0 && (
           <>
             <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-              Líneas de cobro
+              Materiales
             </div>
-            <OrderLinesTable lines={order.lines} />
+            <OrderBoardsTable lines={boardLines} />
+          </>
+        )}
+
+        {bandingLines.length > 0 && (
+          <>
+            <div className="text-body-secondary small text-uppercase fw-semibold mb-2 mt-3">
+              Tapacantos
+            </div>
+            <OrderBandingTable lines={bandingLines} />
+          </>
+        )}
+
+        {/* The work billed besides the material — perforación, armado, bisagras. The lines have
+            always been on the wire; the page used to print only their total. */}
+        {services.length > 0 && (
+          <>
+            <div className="text-body-secondary small text-uppercase fw-semibold mb-2 mt-3">
+              Servicios adicionales
+            </div>
+            <OrderServicesTable services={services} />
           </>
         )}
 
@@ -575,11 +619,15 @@ const OrderDetailPage = () => {
           <CModalTitle>Lista de corte · {order.code}</CModalTitle>
         </CModalHeader>
         <CModalBody>
-          {/* Capped and centred. Six columns stretched across a full-screen dialog put "Etiqueta"
+          {/* Capped and centred. The columns stretched across a full-screen dialog put "Etiqueta"
               and "Puede rotar" a whole screen apart, so reading one row means tracking it across
-              1400px of whitespace. */}
-          <div className="mx-auto" style={{ maxWidth: 880 }}>
-            <OrderPiecesTable pieces={pieces} maxHeight="calc(100dvh - 12rem)" />
+              1400px of whitespace. The cap grew with the Cantos column. */}
+          <div className="mx-auto" style={{ maxWidth: 1040 }}>
+            <OrderPiecesTable
+              pieces={pieces}
+              bandingNames={bandingNames}
+              maxHeight="calc(100dvh - 12rem)"
+            />
           </div>
         </CModalBody>
         <CModalFooter>

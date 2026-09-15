@@ -12,27 +12,35 @@ import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { fmtMoney } from 'src/shared/utils/format'
 import type { OrderLine } from './types'
 
-// The billing snapshot: one row per material, priced at what it cost the day the quote was
-// confirmed. Rendered bare — the chrome belongs to the call site, as with `MaterialGroups` and
-// `StatusHistoryTable`.
+// The material half of the billing snapshot: one row per board, priced at what it cost the day
+// the quote was confirmed. Rendered bare — the chrome belongs to the call site, as with
+// `MaterialGroups` and `StatusHistoryTable`.
+//
+// Split out of `OrderLinesTable`, which printed boards and edge banding in one table using the
+// boards' vocabulary: a tapacanto line read "Cant. 31.5" (those are metres) under an "Eficiencia"
+// column that is meaningless for a tape. Two tables cost one heading each and let every column
+// header be true of every row under it.
 //
 // `.summary-table` rather than the grey `bg-body-tertiary` the header cells used to carry: this is
 // a read-out table like every other one in the app, and the brand rule is what marks it as such.
 // Those utility classes had to go, not just lose priority — Bootstrap's background utilities are
 // `!important` and would beat the `.summary-table` rule whatever the order of the stylesheets.
 
-interface OrderLinesTableProps {
+interface OrderBoardsTableProps {
   lines: OrderLine[]
 }
 
-const OrderLinesTable = ({ lines }: OrderLinesTableProps) => {
+const OrderBoardsTable = ({ lines }: OrderBoardsTableProps) => {
   if (lines.length === 0) return null
 
   return (
     <CTable small responsive hover className="summary-table mb-0">
       <CTableHead>
         <CTableRow>
-          <CTableHeaderCell>Producto</CTableHeaderCell>
+          {/* "Material", not "Tablero": a row here can be a catalog board, a retazo of the
+              workshop or one the client brought — the same wording the optimizer's own summary
+              settled on. */}
+          <CTableHeaderCell>Material</CTableHeaderCell>
           <CTableHeaderCell>Código</CTableHeaderCell>
           <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
           <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
@@ -65,4 +73,4 @@ const OrderLinesTable = ({ lines }: OrderLinesTableProps) => {
   )
 }
 
-export default OrderLinesTable
+export default OrderBoardsTable
