@@ -30,6 +30,7 @@ import { usePiecesEditor } from './usePiecesEditor'
 import { useCollapsedGroups } from './useCollapsedGroups'
 import { usePiecesNavigation } from './usePiecesNavigation'
 import { useEditorShortcuts } from './useEditorShortcuts'
+import { useQuoteDraft } from './useQuoteDraft'
 import { signatureOf, useOptimizerWizard } from './useOptimizerWizard'
 import type { StepId } from './useOptimizerWizard'
 import WizardSteps, { WizardFooter } from './WizardSteps'
@@ -111,6 +112,10 @@ const OptimizerPage = () => {
   // Billed additional services (Costos step). Workspace state like the pieces: it has to survive
   // stepping between Costos and Cotización, land in the autosave, and ride in a saved draft.
   const services = useServiceLines(() => (bootstrap?.services ?? []).map(serviceLineFromApi))
+  // Client, branch and reference of the Cotización step. Workspace state for the same reason the
+  // services are: only the active step is mounted, so holding it inside `QuoteStep` meant one
+  // "Atrás" emptied the form.
+  const quote = useQuoteDraft()
   const saveDraft = useSaveDraft()
   const groups = useCollapsedGroups(materials)
   // Finding a piece and getting to it. A view over the editor, never a filter — see the note in the
@@ -285,6 +290,7 @@ const OptimizerPage = () => {
     setMaterials([emptyMaterial()])
     pieces.clear()
     services.set([])
+    quote.reset()
     setDraftId(null)
     setDraftName('')
     setVariant(0)
@@ -342,6 +348,9 @@ const OptimizerPage = () => {
       pieces.addMany(d.payload.requirements, true)
       // Optional: drafts saved before services existed have no such key.
       services.set((d.payload.additionalServices ?? []).map(serviceLineFromApi))
+      // A loaded draft describes a different job, so the client and the reference of the previous
+      // one go with the result on screen.
+      quote.reset()
       setDraftId(d.id)
       setDraftName(d.name)
       setShowDrafts(false)
@@ -696,6 +705,8 @@ const OptimizerPage = () => {
             priceLevel={priceLevel}
             variant={variant}
             services={services.lines}
+            draft={quote.draft}
+            onDraftChange={quote.setField}
             container={modalContainer}
             onCreated={clearAutosave}
           />
