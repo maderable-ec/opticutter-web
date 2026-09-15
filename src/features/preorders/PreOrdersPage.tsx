@@ -144,16 +144,15 @@ const PreOrdersPage = () => {
                     <CTableRow key={po.id} onClick={() => void navigate(`/preorders/${po.id}`)}>
                       <CTableDataCell>
                         <strong>{po.code}</strong>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {/* Same move as the orders listing, for the same reason: the reference
+                            is what tells two quotes of one client apart, so it reads under the
+                            client instead of under the code. */}
+                        <div>{clientName(po.client)}</div>
                         <ReferenceNote notes={po.notes} />
                       </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{clientName(po.client)}</div>
-                        <div className="text-body-secondary small">@{po.client.identifier}</div>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{po.branch.name}</div>
-                        <div className="text-body-secondary small">{po.branch.code}</div>
-                      </CTableDataCell>
+                      <CTableDataCell>{po.branch.name}</CTableDataCell>
                       <CTableDataCell>
                         <PreOrderStatusBadge status={po.status} />
                       </CTableDataCell>

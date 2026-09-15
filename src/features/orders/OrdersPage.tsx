@@ -186,16 +186,19 @@ const OrdersPage = () => {
                             </CBadge>
                           )}
                         </div>
+                      </CTableDataCell>
+                      <CTableDataCell>
+                        {/* The reference sits under the CLIENT, not under the code: it is the
+                            project or site name, i.e. what tells two orders of the same client
+                            apart, so it belongs to the column that names the client rather than
+                            competing with the code that titles its own. It replaces the
+                            identifier, which is ficha data — and `clientName` already falls back
+                            to it for a client with no name. */}
+                        <div>{clientName(o.client)}</div>
                         <ReferenceNote notes={o.notes} />
                       </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{clientName(o.client)}</div>
-                        <div className="text-body-secondary small">@{o.client?.identifier}</div>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <div>{o.branch.name}</div>
-                        <div className="text-body-secondary small">{o.branch.code}</div>
-                      </CTableDataCell>
+                      {/* Name only: the code said the same thing twice on every row. */}
+                      <CTableDataCell>{o.branch.name}</CTableDataCell>
                       <CTableDataCell>
                         <OrderStatusBadge status={o.status} />
                         {/* How long it has been here — the whole point of the column for

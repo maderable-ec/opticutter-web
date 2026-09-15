@@ -1,6 +1,10 @@
 import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
-import type { PlacedPieceEdges, Remainder } from 'src/features/optimizer/types'
+import type {
+  AdditionalServiceInput,
+  PlacedPieceEdges,
+  Remainder,
+} from 'src/features/optimizer/types'
 
 export type OrderStatus =
   | 'confirmed'
@@ -55,6 +59,9 @@ export interface Attachment {
 
 export interface OrderLine {
   id: string
+  // Null when the material is outside the catalog (an offcut or a manual
+  // measurement); such a line is identified by its code/name alone.
+  productId?: number | null
   productCode: string
   productName: string
   quantity: number
@@ -63,6 +70,10 @@ export interface OrderLine {
   avgEfficiency?: number
   totalAreaM2?: number
   halfBoard?: boolean
+  // Linear meters incl. waste, and the discriminant of the two kinds of line:
+  // the server documents it as "Null for boards", so a line that carries it is
+  // edge banding and is billed by the metre rather than by the sheet.
+  linearM?: number | null
 }
 
 export interface OrderHistoryEntry {
@@ -77,15 +88,38 @@ export interface OrderHistoryEntry {
   note?: string
 }
 
+// Edge banding frozen on a cut-list row: the NOMINAL sides plus the tape.
+//
+// Keys are snake_case and that is not a bug to fix here — the server passes the
+// requirement's `edge_banding` through as a raw dict rather than through a
+// `CamelModel`, so this is the shape on the wire. `review/format.ts`'s helpers
+// already read both spellings (`bandTypeOf`), which is why they can be reused
+// verbatim on these.
+export interface OrderPieceEdges {
+  sides?: string[]
+  product_id?: number | null
+  band_type?: string | null
+  alias?: string | null
+}
+
 // A cut-list piece on an order, as returned by the server.
 export interface OrderPiece {
   id?: string
+  // The material this piece is cut from, as the optimization keys it. It is the
+  // identity that survives what `productId` cannot name: a client's offcut, a
+  // manual measurement, and two pools of the SAME board (one squared, one not).
+  // Null only on an order the backfill could not read.
+  materialKey?: string | null
+  productId?: number | null
+  productCode?: string | null
+  productName?: string | null
   label?: string
   height?: number
   width?: number
   quantity?: number
   priority?: number
   canRotate?: boolean
+  edges?: OrderPieceEdges | null
   [key: string]: unknown
 }
 
@@ -101,6 +135,10 @@ export interface Order {
   taxAmount?: number
   // Frozen NET sum of the additional services (they are registered tax-included).
   additionalServicesTotal?: number
+  // The lines behind that sum, frozen off the snapshot. `unitPrice` is the
+  // tax-INCLUDED price the counter typed, while the total above is net — the
+  // server does that conversion, and nothing here should redo it.
+  additionalServices?: AdditionalServiceInput[]
   client: Client
   // Owning branch (mandatory FK): always present in list and detail responses.
   branch: BranchRef

@@ -1,7 +1,10 @@
 import { CAlert } from '@coreui/react'
 
 import { fmtDateTime } from 'src/shared/utils/format'
-import { ACTIVITY_LABEL, orderedActivities } from './activities'
+import ActivityBadge from './ActivityBadge'
+import ElapsedNote from './ElapsedNote'
+import { activityClock } from './elapsed'
+import { orderedActivities } from './activities'
 import type { OrderActivity, OrderStatus } from './types'
 
 // One line for "where is this order". It replaces four tinted cards — En corte, Canteado,
@@ -10,9 +13,16 @@ import type { OrderActivity, OrderStatus } from './types'
 // banding all three were on screen at once, each costing a frame and a heading to say one sentence.
 //
 // The activities run in parallel under `in_process`: the cut can be done while the banding is
-// still running. So the order's status is the sentence and the activities ride the same line on
-// the right, the way the pre-order strip carries its review link. The full who/when trail of each
-// one, the only thing the compression drops, stays reachable in the line's `title`.
+// still running. So the order's status is the sentence and the activities ride right under it —
+// this is the one place the office reads to know who still owes work, and `in_process` alone
+// cannot say it ("En proceso" reads the same with the cut just started and with it finished
+// waiting on the canteador).
+//
+// They used to be plain 12px text at `opacity-75`, which is what made them invisible on the page
+// that exists to be read. They now use the same three parts the listing's Actividades column and
+// the shop-floor card already use — `ActivityBadge` (track + state as an icon), `ElapsedNote`
+// (how long, coloured by how late) and the actor — because a rule about who is late is not a
+// thing to draw three different ways.
 //
 // Payment is not here: it is not progress, it is money, and it now sits with the totals — the same
 // reasoning that put the price level next to the totals in the wizard rather than on a toolbar.
@@ -23,28 +33,16 @@ interface OrderStatusStripProps {
   assignedAt?: string | null
   // No `dispatchedAt`: the identity block's date line owns every timestamp on this page.
   dispatchedByLabel?: string | null
+  /**
+   * Prefer the cutting plan's copy over the order's own: `GET /orders/{id}` serializes these
+   * rows straight from the table and leaves `progress` null (each count would be a query per
+   * row), while `GET /orders/{id}/cutting-plan` fills it — and the detail page already asks
+   * for that endpoint. Without progress the strip simply omits the counts.
+   */
   activities?: OrderActivity[]
 }
 
 type Tone = 'info' | 'success' | 'warning' | 'danger' | 'secondary'
-
-// One activity in a few words: "Canteado listo · Ana". `pending` names no actor because there
-// is none yet.
-const activityLine = (activity: OrderActivity): string => {
-  const label = ACTIVITY_LABEL[activity.type]
-  switch (activity.status) {
-    case 'pending':
-      return `${label} pendiente`
-    case 'in_progress':
-      return activity.startedByLabel
-        ? `${label} en curso · ${activity.startedByLabel}`
-        : `${label} en curso`
-    case 'done':
-      return activity.finishedByLabel
-        ? `${label} listo · ${activity.finishedByLabel}`
-        : `${label} listo`
-  }
-}
 
 // `fmtDateTime` renders "09/08/2026, 09:20 a. m." — it already ends in a period, so a full stop
 // appended after a date reads as "a. m..".
@@ -58,6 +56,10 @@ const activityTrail = (activity: OrderActivity): string | undefined => {
   return parts.length > 0 ? parts.join(' · ') : undefined
 }
 
+// Who has it. `pending` names nobody because there is nobody yet.
+const actorOf = (activity: OrderActivity): string | null =>
+  (activity.status === 'done' ? activity.finishedByLabel : activity.startedByLabel) ?? null
+
 const OrderStatusStrip = ({
   status,
   assignedToLabel,
@@ -66,7 +68,7 @@ const OrderStatusStrip = ({
   activities,
 }: OrderStatusStripProps) => {
   let tone: Tone = 'info'
-  // Empty means "the badge already said it": with no banding track either, the strip renders
+  // Empty means "the badge already said it": with no activity track either, the strip renders
   // nothing rather than restating the status in a full-width block.
   let sentence = ''
 
@@ -83,7 +85,7 @@ const OrderStatusStrip = ({
     case 'cut':
       tone = 'warning'
       // Who has it and since when. With neither recorded there is nothing here the badge does not
-      // already say; the activities on the right carry the rest.
+      // already say; the activities below carry the rest.
       sentence =
         assignedToLabel || assignedAt
           ? endSentence(
@@ -114,24 +116,36 @@ const OrderStatusStrip = ({
 
   return (
     <CAlert color={tone} className="py-2 small mb-3">
-      <div className="d-flex flex-wrap align-items-center gap-2">
-        {sentence && <span>{sentence}</span>}
-        {work.length > 0 && (
-          // `ms-auto` only when there is a sentence to be pushed away from; on their own the
-          // activities are the line, not a note in its margin.
-          <span
-            className={
-              sentence ? 'ms-auto opacity-75 d-flex flex-wrap gap-2' : 'd-flex flex-wrap gap-2'
-            }
-          >
-            {work.map((activity) => (
-              <span key={activity.type} title={activityTrail(activity)}>
-                {activityLine(activity)}
-              </span>
-            ))}
-          </span>
-        )}
-      </div>
+      {sentence && <div className={work.length > 0 ? 'mb-2' : undefined}>{sentence}</div>}
+      {work.length > 0 && (
+        <div className="d-flex flex-wrap align-items-center gap-3">
+          {work.map((activity) => {
+            const progress = activity.progress
+            const actor = actorOf(activity)
+            return (
+              <div
+                key={activity.type}
+                className="d-flex align-items-center gap-2"
+                title={activityTrail(activity)}
+              >
+                <ActivityBadge activity={activity} />
+                {/* The colour rides on this text and never on the badge, whose palette already
+                    means the activity's own state. Note the amber tone is quieter here than on
+                    the listing — it sits on the amber alert of an order in process — while the
+                    red one, which is the signal that matters, still reads. Neither is the only
+                    carrier: the note says the number. */}
+                <ElapsedNote iso={activityClock(activity)} />
+                {progress && progress.totalPieces > 0 && (
+                  <span className="text-nowrap">
+                    {progress.cutPieces}/{progress.totalPieces} piezas
+                  </span>
+                )}
+                {actor && <span className="opacity-75 text-nowrap">{actor}</span>}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </CAlert>
   )
 }
