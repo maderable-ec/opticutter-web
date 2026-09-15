@@ -4,7 +4,6 @@ import type {
   AdditionalServiceInput,
   MaterialInput,
   OptimizeResponse,
-  PackingStrategy,
   RequirementInput,
 } from 'src/features/optimizer/types'
 
@@ -72,7 +71,6 @@ export interface PreOrder extends PreOrderSummary {
   sentAt: string | null
   confirmedAt: string | null
   priceLevel?: number
-  strategy?: PackingStrategy
   // Alternative-solution seed remembered for the recompute (0 = canonical).
   variant?: number
   // Always present in GET /preorders/{id} and PUT responses
@@ -88,7 +86,6 @@ export interface PreOrderCreate {
   notes?: string
   source?: string
   priceLevel?: number
-  strategy?: PackingStrategy
   variant?: number
   materials: MaterialInput[]
   requirements: RequirementInput[]

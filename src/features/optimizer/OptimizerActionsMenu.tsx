@@ -29,21 +29,7 @@ import {
 } from '@coreui/icons'
 
 import { KEY } from 'src/shared/utils/platform'
-import type { ModalContainer, PackingStrategy } from './types'
-
-// "Máxima eficiencia" first because it is the default: the list reads from the normal case to the
-// special one. This menu is the only place the heuristic is chosen — it used to be a CButtonGroup
-// declared twice, in OptimizeActionBar and in OptimizationPreview, with the options in opposite
-// orders.
-const STRATEGY_OPTIONS: { value: PackingStrategy; label: string }[] = [
-  { value: 'default', label: 'Máxima eficiencia' },
-  { value: 'longOffcuts', label: 'Retazos largos' },
-]
-
-const strategyHint = (s: PackingStrategy) =>
-  s === 'longOffcuts'
-    ? 'Agrupa el sobrante en una tira larga reutilizable'
-    : 'Minimiza el desperdicio total'
+import type { ModalContainer } from './types'
 
 // Every action that used to sit in a toolbar, in one menu. Two toolbars were removed for this: the
 // page title's (fullscreen / drafts) and the pieces card header's (import / export / clear). What is
@@ -63,7 +49,7 @@ interface OptimizerActionsMenuProps {
   onClear?: () => void
   // Wording differs: the optimizer also drops the material groups, pre-orders only the pieces.
   clearsMaterials?: boolean
-  // --- Optimización (the wizard's Costos step and the pre-order page pass these) ---
+  // --- Optimización (only the wizard's Costos step passes these) ---
   onOptimize?: () => void
   // A result is already on screen, so the run explores an alternative rather than being the first.
   hasResult?: boolean
@@ -71,8 +57,6 @@ interface OptimizerActionsMenuProps {
   isOptimizing?: boolean
   // Alternative-solution seed of the result on screen (0 = canonical).
   variant?: number
-  strategy?: PackingStrategy
-  onStrategyChange?: (s: PackingStrategy) => void
   onFind?: () => void
   // --- Vista ---
   onToggleCollapseAll?: () => void
@@ -116,8 +100,6 @@ const OptimizerActionsMenu = ({
   optimizeDisabled,
   isOptimizing,
   variant = 0,
-  strategy,
-  onStrategyChange,
   onFind,
   onToggleCollapseAll,
   allCollapsed,
@@ -135,7 +117,7 @@ const OptimizerActionsMenu = ({
   className,
 }: OptimizerActionsMenuProps) => {
   const hasPieces = !!(onFind || onImport || onExport || onClear)
-  const hasRun = !!(onOptimize || onStrategyChange)
+  const hasRun = !!onOptimize
   const hasView = !!(onToggleCollapseAll || onToggleFullscreen)
   const hasJob = !!(onNew || onOpenDrafts || onSaveDraft)
   const hasDoc = !!(onViewOrder || onDelete)
@@ -208,56 +190,30 @@ const OptimizerActionsMenu = ({
         {hasRun && (
           <>
             <CDropdownHeader className="text-body-secondary small">Optimización</CDropdownHeader>
-            {onOptimize && (
-              <CDropdownItem
-                as="button"
-                type="button"
-                className="d-flex align-items-center"
-                disabled={optimizeDisabled || isOptimizing}
-                onClick={onOptimize}
-                // Same reasoning the button carried: a plain re-run would return the identical
-                // layout (the backend caches by input hash), so once a result exists this bumps
-                // the alternative seed instead.
-                title={
-                  hasResult
-                    ? 'Genera una distribución alternativa con las mismas piezas'
-                    : 'Calcula la distribución de las piezas'
-                }
-              >
-                {isOptimizing ? (
-                  <CSpinner size="sm" className="me-2" />
-                ) : (
-                  <CIcon icon={hasResult ? cilLoopCircular : cilCalculator} className="me-2" />
-                )}
-                {hasResult ? 'Volver a optimizar' : 'Optimizar'}
-                {variant > 0 && <span className="ms-1 text-body-secondary">#{variant}</span>}
-                <Hint>{`${KEY.mod}+${KEY.enter}`}</Hint>
-              </CDropdownItem>
-            )}
-            {onStrategyChange && (
-              <>
-                {/* Sub-header only when there is a run item above it to be distinguished from;
-                    pre-orders pass the picker alone, and two stacked headings said nothing. */}
-                {onOptimize && (
-                  <CDropdownHeader className="text-body-secondary small fw-normal fst-italic">
-                    Heurística
-                  </CDropdownHeader>
-                )}
-                {STRATEGY_OPTIONS.map((o) => (
-                  <CDropdownItem
-                    key={o.value}
-                    as="button"
-                    type="button"
-                    active={strategy === o.value}
-                    disabled={isOptimizing}
-                    title={strategyHint(o.value)}
-                    onClick={() => onStrategyChange(o.value)}
-                  >
-                    {o.label}
-                  </CDropdownItem>
-                ))}
-              </>
-            )}
+            <CDropdownItem
+              as="button"
+              type="button"
+              className="d-flex align-items-center"
+              disabled={optimizeDisabled || isOptimizing}
+              onClick={onOptimize}
+              // Same reasoning the button carried: a plain re-run would return the identical
+              // layout (the backend caches by input hash), so once a result exists this bumps
+              // the alternative seed instead.
+              title={
+                hasResult
+                  ? 'Genera una distribución alternativa con las mismas piezas'
+                  : 'Calcula la distribución de las piezas'
+              }
+            >
+              {isOptimizing ? (
+                <CSpinner size="sm" className="me-2" />
+              ) : (
+                <CIcon icon={hasResult ? cilLoopCircular : cilCalculator} className="me-2" />
+              )}
+              {hasResult ? 'Volver a optimizar' : 'Optimizar'}
+              {variant > 0 && <span className="ms-1 text-body-secondary">#{variant}</span>}
+              <Hint>{`${KEY.mod}+${KEY.enter}`}</Hint>
+            </CDropdownItem>
           </>
         )}
 
