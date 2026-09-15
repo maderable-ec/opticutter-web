@@ -32,13 +32,7 @@ import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
-import type {
-  MaterialInput,
-  ModalContainer,
-  OptimizeResponse,
-  PackingStrategy,
-  RequirementInput,
-} from '../types'
+import type { MaterialInput, ModalContainer, OptimizeResponse, RequirementInput } from '../types'
 
 // Step 4. What used to be CreateQuoteModal, in a full-width step: the same four inputs the optimizer
 // cannot infer (client, branch, price level, reference) plus the confirmation summary that never fit
@@ -56,7 +50,6 @@ interface QuoteStepProps {
   // Chosen back in the Costos step, where its effect on the numbers is visible; carried here only
   // to be sent with the pre-order and shown in the summary.
   priceLevel: number
-  strategy: PackingStrategy
   // Alternative-solution seed of the layout on screen; persisted with the pre-order so every
   // recompute reproduces the chosen alternative.
   variant: number
@@ -73,7 +66,6 @@ const QuoteStep = ({
   materials,
   requirements,
   priceLevel,
-  strategy,
   variant,
   services,
   container,
@@ -147,7 +139,6 @@ const QuoteStep = ({
         source: 'dashboard',
         notes: notes || undefined,
         priceLevel,
-        strategy,
         variant,
         materials,
         requirements,

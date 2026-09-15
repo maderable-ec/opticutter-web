@@ -18,7 +18,7 @@ import {
   requirementIssues,
 } from './optimizerForm'
 import type { MaterialForm, RequirementForm, RequirementIssue } from './optimizerForm'
-import type { OptimizeResponse, OptimizerDraftPayload, PackingStrategy } from './types'
+import type { OptimizeResponse, OptimizerDraftPayload } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
 import {
   buildServiceLines,
@@ -73,7 +73,6 @@ const OptimizerPage = () => {
   const [showDrafts, setShowDrafts] = useState(false)
   const [showSaveDraft, setShowSaveDraft] = useState(false)
   const [priceLevel, setPriceLevel] = useState(1)
-  const [strategy, setStrategy] = useState<PackingStrategy>('default')
   // Alternative-solution seed: bumped by "Otra alternativa" to explore different layouts.
   const [variant, setVariant] = useState(0)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
@@ -199,8 +198,8 @@ const OptimizerPage = () => {
   // built from the payload actually SENT (post-prune), never from this render: pruning empty rows
   // changes the signature, and seeding it from here would make the auto-run loop.
   const signature = useMemo(
-    () => signatureOf(built.materials, built.requirements, strategy, variant, priceLevel),
-    [built, strategy, variant, priceLevel],
+    () => signatureOf(built.materials, built.requirements, variant, priceLevel),
+    [built, variant, priceLevel],
   )
   // Set on SUCCESS: it claims "the result on screen was computed from these inputs", which a failed
   // run has not earned.
@@ -364,17 +363,15 @@ const OptimizerPage = () => {
     (
       overrides: {
         variant?: number
-        strategy?: PackingStrategy
         priceLevel?: number
         materials?: MaterialForm[]
       } = {},
     ) => {
       const nextVariant = overrides.variant ?? variant
-      const nextStrategy = overrides.strategy ?? strategy
       const nextLevel = overrides.priceLevel ?? priceLevel
       // Read off the overrides rather than from a flag every caller would have to pass: only the
       // level change and the per-board marks (which travel as `materials`) are re-prices. Everything
-      // else — the auto-run, the heuristic, another alternative — searches.
+      // else — the auto-run, another alternative — searches.
       const reprice = overrides.priceLevel !== undefined || overrides.materials !== undefined
 
       const payload = buildPayload(overrides.materials ?? materials, pieces.requirements)
@@ -387,19 +384,12 @@ const OptimizerPage = () => {
         return
       }
       setIsSearching(!reprice)
-      const sent = signatureOf(
-        payload.materials,
-        payload.requirements,
-        nextStrategy,
-        nextVariant,
-        nextLevel,
-      )
+      const sent = signatureOf(payload.materials, payload.requirements, nextVariant, nextLevel)
       optimize.mutate(
         {
           materials: payload.materials,
           requirements: payload.requirements,
           priceLevel: nextLevel,
-          strategy: nextStrategy,
           variant: nextVariant,
         },
         {
@@ -415,7 +405,7 @@ const OptimizerPage = () => {
         },
       )
     },
-    [materials, pieces.requirements, variant, strategy, priceLevel, optimize, addToast],
+    [materials, pieces.requirements, variant, priceLevel, optimize, addToast],
   )
 
   // Leaving the Despiece step cleans up after the editor and then refuses ambiguous input: blank
@@ -476,11 +466,6 @@ const OptimizerPage = () => {
   ])
 
   const handleOptimize = () => runOptimize()
-
-  const handleStrategyChange = (newStrategy: PackingStrategy) => {
-    setStrategy(newStrategy)
-    if (canOptimize) runOptimize({ strategy: newStrategy })
-  }
 
   // Changing the price level recomputes on the spot: only the money in the response changes and
   // `/optimize` is cached by input hash, so the cut search is not redone — the cost tables just
@@ -642,8 +627,6 @@ const OptimizerPage = () => {
             optimizeDisabled={!canRunOptimize}
             isOptimizing={optimize.isPending}
             variant={variant}
-            strategy={onCosts ? strategy : undefined}
-            onStrategyChange={onCosts ? handleStrategyChange : undefined}
             onToggleCollapseAll={onPieces ? groups.toggleAll : undefined}
             allCollapsed={groups.allCollapsed}
             collapseDisabled={materials.length === 0}
@@ -711,7 +694,6 @@ const OptimizerPage = () => {
             materials={built.materials}
             requirements={built.requirements}
             priceLevel={priceLevel}
-            strategy={strategy}
             variant={variant}
             services={services.lines}
             container={modalContainer}

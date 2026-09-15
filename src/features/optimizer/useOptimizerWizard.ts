@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import type { MaterialInput, PackingStrategy, RequirementInput } from './types'
+import type { MaterialInput, RequirementInput } from './types'
 
 // The wizard's current step lives in a SEARCH PARAM, not a sub-route. `AppContent` keys its
 // ErrorBoundary on `location.pathname`, so a path change would remount this page and destroy the
@@ -57,10 +57,9 @@ export interface WizardGates {
 export const signatureOf = (
   materials: MaterialInput[],
   requirements: RequirementInput[],
-  strategy: PackingStrategy,
   variant: number,
   priceLevel: number,
-): string => JSON.stringify({ materials, requirements, strategy, variant, priceLevel })
+): string => JSON.stringify({ materials, requirements, variant, priceLevel })
 
 export const useOptimizerWizard = ({ hasPieceData, hasResult, canQuote }: WizardGates) => {
   const [params, setParams] = useSearchParams()

@@ -13,10 +13,10 @@ import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from './s
 // pre-order detail page; the optimizer wizard lays the same data out itself in `CostsStep`, and the
 // two share `CutLayoutDiagram` and the summary tables.
 //
-// No card. It used to carry one, whose header held an "Optimizar" button, a strategy picker and
-// "Otra alternativa" — none of which the only caller ever passed, since pre-orders drive the run
-// from the pinned footer and the ⋮ menu. What is left renders straight onto the page's surface,
-// under a plain label, the way the wizard steps do.
+// No card. It used to carry one, whose header held an "Optimizar" button and "Otra alternativa" —
+// neither of which the only caller ever passed, since pre-orders drive the run from the pinned
+// footer and the ⋮ menu. What is left renders straight onto the page's surface, under a plain
+// label, the way the wizard steps do.
 
 interface OptimizationPreviewProps {
   result?: OptimizeResponse

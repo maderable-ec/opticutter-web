@@ -6,8 +6,6 @@ import type { MaterialForm, RequirementForm } from './optimizerForm'
 // Response types for POST /api/v1/optimize/. The contract is deterministic and cached by
 // input hash; see the endpoint spec for field details.
 
-export type PackingStrategy = 'default' | 'longOffcuts'
-
 // Portal target for the optimizer's modals. CModal portals to document.body by default, which sits
 // OUTSIDE the element handed to the Fullscreen API — the modal would render behind the fullscreen
 // page and be invisible. Pointing it at the fullscreen host keeps it visible in both modes.
@@ -169,7 +167,6 @@ export interface OptimizeResponse {
   edgeBandingsSummary: EdgeBandingSummary[]
   layoutGroups: LayoutGroup[]
   pricing?: PricingData
-  strategy?: PackingStrategy
   // Alternative-solution seed this result was computed with (0 = canonical).
   variant?: number
   // Optional: a result cached before the field existed comes back without it.
@@ -252,7 +249,6 @@ export interface OptimizePayload {
   requirements: RequirementInput[]
   clientId?: number
   priceLevel?: number
-  strategy?: PackingStrategy
   // Alternative-solution seed: bump it ("Generar otra alternativa") to get a
   // genuinely different deterministic layout when alternatives exist.
   variant?: number

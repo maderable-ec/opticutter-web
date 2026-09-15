@@ -19,7 +19,6 @@ import type {
   InlineMaterialInput,
   MaterialInput,
   OptimizeResponse,
-  PackingStrategy,
   RequirementInput,
 } from 'src/features/optimizer/types'
 import type { PreOrder, PreOrderStatus } from './types'
@@ -206,7 +205,6 @@ function editSignature(
   services: ServiceLineForm[],
   notes: string,
   priceLevel: number,
-  strategy: PackingStrategy,
   variant: number,
 ): string {
   const { materials: mInputs, requirements: rInputs } = buildPayload(materials, requirements)
@@ -216,7 +214,6 @@ function editSignature(
     additionalServices: buildServiceLines(services),
     notes: notes || '',
     priceLevel,
-    strategy,
     variant,
   })
 }
@@ -244,9 +241,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const services = serviceLines.lines
   const [notes, setNotes] = useState(preOrder.notes ?? '')
   const [priceLevel, setPriceLevel] = useState(preOrder.priceLevel ?? 1)
-  const [strategy, setStrategy] = useState<PackingStrategy>(
-    preOrder.optimization.strategy ?? 'default',
-  )
   // Alternative-solution seed: persisted with the pre-order so every recompute
   // reproduces the chosen layout; bumped by "Otra alternativa".
   const [variant, setVariant] = useState(preOrder.variant ?? preOrder.optimization.variant ?? 0)
@@ -330,7 +324,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
     services,
     notes,
     priceLevel,
-    strategy,
     variant,
   )
   const [baselineSignature, setBaselineSignature] = useState(() => currentSignature)
@@ -375,7 +368,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           additionalServices: buildServiceLines(services),
           notes: notes || undefined,
           priceLevel,
-          strategy,
           variant: variantValue,
         },
       },
@@ -390,7 +382,6 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               services,
               notes,
               priceLevel,
-              strategy,
               variantValue,
             ),
           )
@@ -654,18 +645,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         </div>
         <div className="ms-auto">
           <OptimizerActionsMenu
-            // Piezas and Vista are not here: they act on the despiece, and the despiece has its own
-            // menu inside its panel. This one keeps what applies to the quote as a whole.
-            //
-            // The picker only; the run itself is the footer's primary button, and "Otra alternativa"
-            // sits next to it. Passing `onOptimize` here would put a Ctrl+Enter hint on an item this
-            // page binds no shortcut for.
+            // Documento only. Piezas and Vista act on the despiece, which has its own menu inside
+            // its panel; "Optimización" is not here either — the run is the footer's primary button
+            // and "Otra alternativa" sits next to it, so passing `onOptimize` would put a Ctrl+Enter
+            // hint on an item this page binds no shortcut for.
             //
             // The review link is not here either: it is the quote's next step, and it now sits on
             // the status strip beside the sentence that says why. Buried in this menu it read as one
             // more document chore, level with "Eliminar…".
-            strategy={strategy}
-            onStrategyChange={canEdit ? setStrategy : undefined}
             onViewOrder={viewOrder}
             onDelete={canEdit ? () => setShowDeleteModal(true) : undefined}
           />
