@@ -27,6 +27,9 @@ interface PreOrderStatusStripProps {
   status: PreOrderStatus
   clientNote?: string | null
   orderId?: number | null
+  // Named in the sentence rather than on the button: "Ver orden ORD-2026-0042" is a long button,
+  // and what the seller reads first is the line that says the quote closed.
+  orderCode?: string | null
   expiresAt?: string | null
   link?: ReviewLinkInfo | null
   // Mints the review link (or opens the regenerate confirmation). Omitted when the reader cannot act
@@ -51,6 +54,7 @@ const PreOrderStatusStrip = ({
   status,
   clientNote,
   orderId,
+  orderCode,
   expiresAt,
   link,
   onShare,
@@ -79,7 +83,7 @@ const PreOrderStatusStrip = ({
     case 'confirmed':
       tone = 'success'
       sentence = orderId
-        ? 'Cotización confirmada. Se generó la orden de producción.'
+        ? `Se generó la orden ${orderCode ?? 'de producción'}.`
         : 'Cotización confirmada.'
       break
     case 'rejected':

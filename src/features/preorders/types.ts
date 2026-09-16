@@ -49,6 +49,9 @@ export interface PreOrderSummary {
   notes: string | null
   source: string
   orderId: number | null
+  // Code of the order this quote became. The id routes, the code labels: naming it in the sentence
+  // is what makes "Se generó la orden ORD-2026-0042" possible without a second request.
+  orderCode: string | null
   createdAt: string
   updatedAt: string
   expiresAt: string | null

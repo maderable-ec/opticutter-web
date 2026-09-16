@@ -155,6 +155,13 @@ export interface Order {
   // Commercial reference (project/site name) inherited from the quote and frozen here: read-only
   // on the order (there is no endpoint to edit it). Printed on every document as the "Ref:" line.
   notes?: string | null
+  // The quote this order was born from — the mirror of the `orderId`/`orderCode` the pre-order
+  // carries. The id is the route, the code is the label: without it the page would need a second
+  // request just to name the link it is drawing. Null on an order created outside the review flow,
+  // and resolved server-side to the OLDEST quote pointing here (two quotes with the same client,
+  // branch, hash and totals dedupe into one order).
+  preorderId?: number | null
+  preorderCode?: string | null
   // Priority attention: sales' exception to the workshop's FIFO. Toggled with PATCH
   // /orders/:id/priority (orders:write, i.e. admin/vendedor) while the order is open; it moves the
   // order to the head of the shop-floor board and lights its card up. Nothing commercial.

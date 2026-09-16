@@ -54,15 +54,34 @@ export interface StatusTransition {
   label: string
   color: string
   roles: string[]
+  /**
+   * Never the footer's primary button, however few transitions the status offers. `queued` offers
+   * ONLY "Cancelar", and the positional `[0]` rule would have promoted it to the big brand-coloured
+   * call to action on an order the shop is about to cut.
+   */
+  destructive?: boolean
+  /**
+   * The modal's note stops being optional. The server rejects a cancellation with a blank `note`
+   * (422): there is no reason column and no `cancelled_by`, so that note is the only record of why
+   * a sale died. Declared here rather than derived from `to === 'cancelled'` so the generic modal
+   * keeps reading its rules off this table.
+   */
+  requiresNote?: boolean
 }
 
-// The forward move of each state comes first: the detail page's footer promotes `[0]` to its
-// primary button and renders the rest as outline siblings.
+// The forward move of each state comes first: the detail page's footer promotes the first
+// NON-destructive one to its primary button and renders the rest as outline siblings.
 //
 // The shop floor's two moves are NOT here: taking an order and finishing it are derived from
-// the activities (`activities.ts`), so `queued` offers nothing on this endpoint and
+// the activities (`activities.ts`), so `queued` offers nothing forward on this endpoint and
 // `in_process` only offers the admin rollback. What is left is what genuinely is a status
 // call: the commercial ones at both ends.
+//
+// Cancelling narrows as the order advances, and that mirrors `TRANSITION_ROLES` on the server:
+// from `confirmed` the quote merely died and admin/seller both retire it, but from `queued` the
+// client has already PAID — the payment is what gates the way into the queue — so it is admin
+// only. The seller who raised the order does not undo a collected sale, and the shop floor
+// (which does not reach this page anyway) never cancels work.
 export const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>> = {
   confirmed: [
     {
@@ -71,7 +90,24 @@ export const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>
       color: 'primary',
       roles: ['administrador', 'vendedor'],
     },
-    { to: 'cancelled', label: 'Cancelar', color: 'danger', roles: ['administrador', 'vendedor'] },
+    {
+      to: 'cancelled',
+      label: 'Cancelar',
+      color: 'danger',
+      roles: ['administrador', 'vendedor'],
+      destructive: true,
+      requiresNote: true,
+    },
+  ],
+  queued: [
+    {
+      to: 'cancelled',
+      label: 'Cancelar orden',
+      color: 'danger',
+      roles: ['administrador'],
+      destructive: true,
+      requiresNote: true,
+    },
   ],
   in_process: [
     { to: 'queued', label: 'Regresar a cola', color: 'secondary', roles: ['administrador'] },
