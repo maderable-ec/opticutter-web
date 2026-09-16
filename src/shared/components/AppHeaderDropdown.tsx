@@ -13,6 +13,7 @@ import CIcon from '@coreui/icons-react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
 import { ROLE_LABELS } from 'src/features/auth/roleLabels'
+import { THEME_OPTIONS } from './themeOptions'
 
 // Initials from the full name (first letter of the first two words) fall back to the email.
 const initialsFor = (fullName: string | null | undefined, email: string | undefined) => {
@@ -25,7 +26,12 @@ const initialsFor = (fullName: string | null | undefined, email: string | undefi
   return email ? email.charAt(0).toUpperCase() : '?'
 }
 
-const AppHeaderDropdown = () => {
+interface AppHeaderDropdownProps {
+  colorMode: string | undefined
+  onColorModeChange: (mode: string) => void
+}
+
+const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownProps) => {
   const user = useCurrentUser()
   const logout = useLogout()
   const navigate = useNavigate()
@@ -59,6 +65,26 @@ const AppHeaderDropdown = () => {
           <CIcon icon={cilLockLocked} className="me-2" />
           Cambiar contraseña
         </CDropdownItem>
+        {/* The header's own theme selector is hidden below `md` to give the title room, so on a
+            phone the choice lives here. A wrapper carries the breakpoint rather than each item:
+            the items' `d-flex` and `d-md-none` are both `!important`. */}
+        <div className="d-md-none">
+          <CDropdownDivider />
+          <CDropdownHeader className="text-body-secondary small">Tema</CDropdownHeader>
+          {THEME_OPTIONS.map((option) => (
+            <CDropdownItem
+              key={option.value}
+              active={colorMode === option.value}
+              className="d-flex align-items-center"
+              as="button"
+              type="button"
+              onClick={() => onColorModeChange(option.value)}
+            >
+              <CIcon icon={option.icon} className="me-2" />
+              {option.label}
+            </CDropdownItem>
+          ))}
+        </div>
         <CDropdownDivider />
         <CDropdownItem onClick={logout} style={{ cursor: 'pointer' }}>
           <CIcon icon={cilAccountLogout} className="me-2" />

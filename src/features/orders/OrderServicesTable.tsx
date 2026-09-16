@@ -9,6 +9,7 @@ import {
 } from '@coreui/react'
 
 import { fmtMoney } from 'src/shared/utils/format'
+import LineItemList from './LineItemList'
 import type { AdditionalServiceInput } from 'src/features/optimizer/types'
 
 // What the order bills BESIDES the material: perforación, armado, bisagras — the work the
@@ -42,44 +43,62 @@ const OrderServicesTable = ({ services }: OrderServicesTableProps) => {
   const total = services.reduce((sum, s) => sum + s.unitPrice * s.quantity, 0)
 
   return (
-    <CTable small responsive hover className="summary-table mb-0">
-      <CTableHead>
-        <CTableRow>
-          <CTableHeaderCell>Servicio</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
-          <CTableHeaderCell className="text-end" title="IVA incluido">
-            P. unit. (c/IVA)
-          </CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
-        </CTableRow>
-      </CTableHead>
-      <CTableBody>
-        {services.map((s, i) => (
-          // No stable id: `serviceId` is optional (the catalog entry may be gone) and two lines
-          // can name the same service. The list is read-only and never reordered, so the index
-          // is the identity — same call the pieces table makes.
-          <CTableRow key={s.serviceId ?? i}>
-            <CTableDataCell>{s.name}</CTableDataCell>
-            <CTableDataCell className="text-end">{s.quantity}</CTableDataCell>
-            <CTableDataCell className="text-end">{fmtMoney(s.unitPrice)}</CTableDataCell>
-            <CTableDataCell className="text-end">
-              {fmtMoney(s.unitPrice * s.quantity)}
-            </CTableDataCell>
-          </CTableRow>
-        ))}
-      </CTableBody>
-      {/* Only worth a total under more than one row: under a single one it just restates it. */}
-      {services.length > 1 && (
-        <CTableFoot>
-          <CTableRow>
-            <CTableDataCell colSpan={3} className="text-end text-body-secondary">
-              Total con IVA
-            </CTableDataCell>
-            <CTableDataCell className="text-end fw-semibold">{fmtMoney(total)}</CTableDataCell>
-          </CTableRow>
-        </CTableFoot>
-      )}
-    </CTable>
+    <>
+      {/* Phone: a stacked list, as in `OrderBoardsTable`. Same money rules as the table: the
+          tax-included price as typed, and a closing total only under more than one line. */}
+      <LineItemList
+        className="d-md-none"
+        items={services.map((s, i) => ({
+          key: s.serviceId ?? i,
+          title: s.name,
+          detail: `${s.quantity} × ${fmtMoney(s.unitPrice)} c/IVA`,
+          amount: fmtMoney(s.unitPrice * s.quantity),
+        }))}
+        footer={
+          services.length > 1 ? { label: 'Total con IVA', amount: fmtMoney(total) } : undefined
+        }
+      />
+      <div className="d-none d-md-block">
+        <CTable small responsive hover className="summary-table mb-0">
+          <CTableHead>
+            <CTableRow>
+              <CTableHeaderCell>Servicio</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
+              <CTableHeaderCell className="text-end" title="IVA incluido">
+                P. unit. (c/IVA)
+              </CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {services.map((s, i) => (
+              // No stable id: `serviceId` is optional (the catalog entry may be gone) and two lines
+              // can name the same service. The list is read-only and never reordered, so the index
+              // is the identity — same call the pieces table makes.
+              <CTableRow key={s.serviceId ?? i}>
+                <CTableDataCell>{s.name}</CTableDataCell>
+                <CTableDataCell className="text-end">{s.quantity}</CTableDataCell>
+                <CTableDataCell className="text-end">{fmtMoney(s.unitPrice)}</CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {fmtMoney(s.unitPrice * s.quantity)}
+                </CTableDataCell>
+              </CTableRow>
+            ))}
+          </CTableBody>
+          {/* Only worth a total under more than one row: under a single one it just restates it. */}
+          {services.length > 1 && (
+            <CTableFoot>
+              <CTableRow>
+                <CTableDataCell colSpan={3} className="text-end text-body-secondary">
+                  Total con IVA
+                </CTableDataCell>
+                <CTableDataCell className="text-end fw-semibold">{fmtMoney(total)}</CTableDataCell>
+              </CTableRow>
+            </CTableFoot>
+          )}
+        </CTable>
+      </div>
+    </>
   )
 }
 

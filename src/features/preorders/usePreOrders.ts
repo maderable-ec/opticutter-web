@@ -12,6 +12,18 @@ export const usePreOrders = (params?: PreOrderListParams) =>
     placeholderData: keepPreviousData,
   })
 
+// How many quotes a set of filters would return, without the rows: the phone filter sheet's
+// "Ver 12 cotizaciones". Same trick as `useOrdersTotal` — one row is the cheapest page that still
+// carries `pagination.total`.
+export const usePreOrdersTotal = (params: PreOrderListParams, enabled: boolean) =>
+  useQuery({
+    queryKey: ['preorders', 'total', params],
+    queryFn: () => preordersApi.list({ ...params, offset: 0, limit: 1 }),
+    select: (res) => res.pagination.total,
+    enabled,
+    placeholderData: keepPreviousData,
+  })
+
 export const usePreOrder = (id?: number) =>
   useQuery({
     queryKey: ['preorders', id],

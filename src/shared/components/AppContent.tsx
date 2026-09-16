@@ -16,7 +16,7 @@ const AppContent = () => {
   const fluid = routes.some((r) => r.fluid && matchPath(r.path, location.pathname))
 
   return (
-    <CContainer className="px-4" {...(fluid ? { fluid: true } : { lg: true })}>
+    <CContainer className="px-2 px-md-4" {...(fluid ? { fluid: true } : { lg: true })}>
       {/* Keyed by pathname so navigating away from a crashed route clears the error state. */}
       <ErrorBoundary key={location.pathname}>
         <Suspense fallback={<CSpinner color="primary" />}>

@@ -113,14 +113,18 @@ export const WizardFooter = ({
   <div className="wizard-footer">
     <div className="d-flex flex-wrap align-items-center gap-2 p-2 border rounded-3 bg-body shadow-sm">
       {onBack && (
+        // Below `sm` the label goes and only the chevron stays: on a phone "‹ Volver a órdenes"
+        // beside a status move pushed the bar onto two lines, and a two-line pinned bar is a fifth
+        // of the screen. The label survives as the accessible name.
         <CButton
           color="secondary"
           variant="outline"
           type="button"
           title={`${KEY.alt}+←`}
+          aria-label={backLabel}
           onClick={onBack}
         >
-          ‹ {backLabel}
+          ‹<span className="d-none d-sm-inline"> {backLabel}</span>
         </CButton>
       )}
       {left}
