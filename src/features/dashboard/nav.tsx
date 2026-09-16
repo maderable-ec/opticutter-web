@@ -14,6 +14,7 @@ export const dashboardNav: NavItem[] = [
       { component: CNavItem, name: 'Cuellos de botella', to: '/analytics/bottlenecks' },
       { component: CNavItem, name: 'Productividad', to: '/analytics/users' },
       { component: CNavItem, name: 'Asistencia', to: '/analytics/attendance' },
+      { component: CNavItem, name: 'Stock bajo', to: '/analytics/low-stock' },
     ],
   },
 ]

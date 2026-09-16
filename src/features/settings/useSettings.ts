@@ -8,6 +8,8 @@ import type {
   CuttingSettings,
   PreorderPayload,
   PreorderSettings,
+  StockPayload,
+  StockSettings,
   TaxPayload,
   TaxSettings,
 } from './types'
@@ -16,6 +18,7 @@ const CUTTING_KEY = ['settings', 'cutting']
 const COMPANY_KEY = ['settings', 'company']
 const PREORDER_KEY = ['settings', 'preorders']
 const TAX_KEY = ['settings', 'taxes']
+const STOCK_KEY = ['settings', 'stock']
 
 export const useCuttingSettings = () =>
   useQuery({
@@ -75,5 +78,25 @@ export const useUpdateTaxSettings = () => {
   return useMutation({
     mutationFn: (data: TaxPayload) => settingsApi.updateTaxes(data),
     onSuccess: (data: TaxSettings) => qc.setQueryData(TAX_KEY, data),
+  })
+}
+
+export const useStockSettings = () =>
+  useQuery({
+    queryKey: STOCK_KEY,
+    queryFn: settingsApi.getStock,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+
+export const useUpdateStockSettings = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: StockPayload) => settingsApi.updateStock(data),
+    onSuccess: (data: StockSettings) => {
+      qc.setQueryData(STOCK_KEY, data)
+      // The low-stock report is measured against these very numbers, so it is
+      // stale the instant they change.
+      void qc.invalidateQueries({ queryKey: ['analytics', 'lowStock'] })
+    },
   })
 }

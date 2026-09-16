@@ -5,6 +5,7 @@ const DashboardPage = lazy(() => import('./DashboardPage'))
 const BottlenecksPage = lazy(() => import('./BottlenecksPage'))
 const UsersProductivityPage = lazy(() => import('./UsersProductivityPage'))
 const AttendancePage = lazy(() => import('./AttendancePage'))
+const LowStockPage = lazy(() => import('./LowStockPage'))
 
 export const dashboardRoutes: AppRoute[] = [
   { path: '/', exact: true, name: 'Home' },
@@ -25,6 +26,12 @@ export const dashboardRoutes: AppRoute[] = [
     path: '/analytics/attendance',
     name: 'Asistencia',
     element: AttendancePage,
+    roles: ['administrador'],
+  },
+  {
+    path: '/analytics/low-stock',
+    name: 'Stock bajo',
+    element: LowStockPage,
     roles: ['administrador'],
   },
 ]

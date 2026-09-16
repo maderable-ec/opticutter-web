@@ -62,6 +62,8 @@ import {
 } from './useServiceLines'
 import { useServices } from 'src/features/services/useServices'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
+import StockAlert from 'src/features/inventory/StockAlert'
+import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
 import { WizardFooter } from 'src/features/optimizer/WizardSteps'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PreOrderStatusStrip from './PreOrderStatusStrip'
@@ -247,6 +249,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const [showImport, setShowImport] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
+  // Not memoised: React Query hashes the query key structurally, so a fresh
+  // array with the same contents is the same key and refetches nothing.
+  const stockItems = stockItemsFromPlan(
+    optimization?.materialsSummary,
+    optimization?.edgeBandingsSummary,
+  )
   // The minted link, shown exactly once. Null = the dialog is closed; it mounts on this value so
   // its "¡Copiado!" flash starts clean on every link.
   const [shareLink, setShareLink] = useState<ShareLinkState | null>(null)
@@ -757,6 +765,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             <hr className="my-4" />
           </>
         )}
+
+        {/* A saved quote re-optimizes on every read, so the plan is current — and
+            the stock beside it is read live too, which is the point of showing it
+            again here: a quote reopened days later may be on material that has
+            since run out. Informational, exactly as in the wizard. */}
+        <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />
 
         {/* The result, with the price level down on its totals row. The footer's primary button is
             what recomputes it: this page's "optimize" is Save+Recalculate, server-side. */}
