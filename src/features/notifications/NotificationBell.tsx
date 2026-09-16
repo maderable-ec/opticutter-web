@@ -81,7 +81,12 @@ const NotificationBell = () => {
           </CBadge>
         )}
       </CDropdownToggle>
-      <CDropdownMenu className="p-0" style={{ minWidth: 320, maxWidth: 380 }}>
+      {/* The minimum yields to the viewport: on a phone a fixed 320px is most of the screen and
+          has no room left to stay inside it. */}
+      <CDropdownMenu
+        className="p-0"
+        style={{ minWidth: 'min(320px, calc(100vw - 1rem))', maxWidth: 380 }}
+      >
         <CDropdownHeader className="d-flex align-items-center justify-content-between gap-2 bg-body-secondary">
           <span className="fw-semibold">Notificaciones</span>
           {count > 0 && (

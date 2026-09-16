@@ -325,8 +325,11 @@ const OrderDetailPage = () => {
     <>
       {/* Identity. The breadcrumb already says "Órdenes", so this says which one. */}
       <div className="d-flex align-items-start gap-2 mb-3">
-        <div className="min-w-0">
-          <div className="d-flex align-items-center gap-2">
+        {/* `minWidth: 0` inline: there is no global `.min-w-0` utility (the one in style.scss is
+            scoped to the workshop dialog), and without it the reference's line clamp made this
+            column as wide as its whole text — 665px on a phone, which zoomed the page out. */}
+        <div style={{ minWidth: 0 }}>
+          <div className="d-flex flex-wrap align-items-center gap-2">
             <h5 className="mb-0">{order.code ?? 'Sin código'}</h5>
             {/* The badge is the handle for the history: the history is the list of how the order
                 reached the status the badge is showing. */}
@@ -350,25 +353,29 @@ const OrderDetailPage = () => {
               </CBadge>
             )}
           </div>
-          <div className="text-body-secondary small">
-            {clientName(order.client)}
-            {order.client?.identifier && <span> @{order.client.identifier}</span>}
+          {/* One span per fact, and `.fact-line` draws the "·" between them. On a phone the line
+              becomes a column instead: wrapped inline, the dates broke inside "09:20 a. m." or left
+              a "·" leading the next line, and read as a broken list. */}
+          <div className="text-body-secondary small fact-line">
+            <span>
+              {clientName(order.client)}
+              {order.client?.identifier && ` @${order.client.identifier}`}
+            </span>
             {canManage && (
               <span>
-                {' · '}
                 {order.branch.name}
                 {order.branch.code && ` (${order.branch.code})`}
               </span>
             )}
-            {order.externalInvoiceId && <span>{` · Factura ${order.externalInvoiceId}`}</span>}
+            {order.externalInvoiceId && <span>Factura {order.externalInvoiceId}</span>}
           </div>
-          <div className="text-body-secondary small">
-            Creada {fmtDateTime(order.createdAt)}
-            {order.confirmedAt && ` · Confirmada ${fmtDateTime(order.confirmedAt)}`}
+          <div className="text-body-secondary small fact-line">
+            <span>Creada {fmtDateTime(order.createdAt)}</span>
+            {order.confirmedAt && <span>Confirmada {fmtDateTime(order.confirmedAt)}</span>}
             {/* When it reached the shop (i.e. when it was paid) — the date the workshop board
                 queues by, which is often nothing like the creation date. */}
-            {order.queuedAt && ` · En cola ${fmtDateTime(order.queuedAt)}`}
-            {order.dispatchedAt && ` · Despachada ${fmtDateTime(order.dispatchedAt)}`}
+            {order.queuedAt && <span>En cola {fmtDateTime(order.queuedAt)}</span>}
+            {order.dispatchedAt && <span>Despachada {fmtDateTime(order.dispatchedAt)}</span>}
           </div>
           {/* Reference inherited from the quote; read-only here (no endpoint edits it) and
               printed on the order's document. */}
@@ -424,8 +431,9 @@ const OrderDetailPage = () => {
                     into the child bar, where it overwrites the `width` the bar derives from
                     `value` — the bar renders empty at any percentage. Capped at all because a
                     finished order left to grow is a green bar the width of the page, which
-                    outshouts the counts it is only there to illustrate. */}
-                <div className="flex-grow-1" style={{ maxWidth: 200 }}>
+                    outshouts the counts it is only there to illustrate. Gone below `md`: on a
+                    phone it wrapped into a sliver, and the counts say the same fact exactly. */}
+                <div className="flex-grow-1 d-none d-md-block" style={{ maxWidth: 200 }}>
                   <CProgress height={6}>
                     <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
                   </CProgress>

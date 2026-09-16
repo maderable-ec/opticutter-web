@@ -24,7 +24,6 @@ import {
   CSpinner,
 } from '@coreui/react'
 import { useCurrentUser } from 'src/features/auth/useAuth'
-import PrintJobsPanel from 'src/features/print/PrintJobsPanel'
 import WorkshopQueueCard from './WorkshopQueueCard'
 import WorkshopMaterialsModal from './WorkshopMaterialsModal'
 import { useUpdateActivity, useWorkshopQueue } from './useOrders'
@@ -143,8 +142,6 @@ const WorkshopBoardPage = () => {
 
   return (
     <>
-      <PrintJobsPanel />
-
       {error ? (
         <CAlert color="danger">{error.message || 'No se pudo cargar el tablero de taller.'}</CAlert>
       ) : items.length === 0 ? (

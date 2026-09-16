@@ -10,6 +10,7 @@ import {
 
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { fmtMoney } from 'src/shared/utils/format'
+import LineItemList from './LineItemList'
 import type { OrderLine } from './types'
 
 // The material half of the billing snapshot: one row per board, priced at what it cost the day
@@ -34,42 +35,70 @@ const OrderBoardsTable = ({ lines }: OrderBoardsTableProps) => {
   if (lines.length === 0) return null
 
   return (
-    <CTable small responsive hover className="summary-table mb-0">
-      <CTableHead>
-        <CTableRow>
-          {/* "Material", not "Tablero": a row here can be a catalog board, a retazo of the
-              workshop or one the client brought — the same wording the optimizer's own summary
-              settled on. */}
-          <CTableHeaderCell>Material</CTableHeaderCell>
-          <CTableHeaderCell>Código</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Eficiencia avg</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Área m²</CTableHeaderCell>
-        </CTableRow>
-      </CTableHead>
-      <CTableBody>
-        {lines.map((l) => (
-          <CTableRow key={l.id}>
-            <CTableDataCell>
+    <>
+      {/* Phone: the seven columns become a stacked list; the table is the `md`+ view. */}
+      <LineItemList
+        className="d-md-none"
+        items={lines.map((l) => ({
+          key: l.id,
+          title: (
+            <>
               {stripHalfSuffix(l.productName) ?? '—'}{' '}
               {l.halfBoard && <CBadge color="info">½ medio</CBadge>}
-            </CTableDataCell>
-            <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
-            <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
-            <CTableDataCell className="text-end">{fmtMoney(l.unitPriceSnapshot)}</CTableDataCell>
-            <CTableDataCell className="text-end">{fmtMoney(l.lineTotal)}</CTableDataCell>
-            <CTableDataCell className="text-end">
-              {l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : '—'}
-            </CTableDataCell>
-            <CTableDataCell className="text-end">
-              {l.totalAreaM2 != null ? `${l.totalAreaM2.toFixed(3)} m²` : '—'}
-            </CTableDataCell>
-          </CTableRow>
-        ))}
-      </CTableBody>
-    </CTable>
+            </>
+          ),
+          detail: `${l.quantity} × ${fmtMoney(l.unitPriceSnapshot)}`,
+          meta: [
+            l.productCode,
+            l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : null,
+            l.totalAreaM2 != null ? `${l.totalAreaM2.toFixed(3)} m²` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          amount: fmtMoney(l.lineTotal),
+        }))}
+      />
+      <div className="d-none d-md-block">
+        <CTable small responsive hover className="summary-table mb-0">
+          <CTableHead>
+            <CTableRow>
+              {/* "Material", not "Tablero": a row here can be a catalog board, a retazo of the
+              workshop or one the client brought — the same wording the optimizer's own summary
+              settled on. */}
+              <CTableHeaderCell>Material</CTableHeaderCell>
+              <CTableHeaderCell>Código</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Eficiencia avg</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Área m²</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {lines.map((l) => (
+              <CTableRow key={l.id}>
+                <CTableDataCell>
+                  {stripHalfSuffix(l.productName) ?? '—'}{' '}
+                  {l.halfBoard && <CBadge color="info">½ medio</CBadge>}
+                </CTableDataCell>
+                <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
+                <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {fmtMoney(l.unitPriceSnapshot)}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">{fmtMoney(l.lineTotal)}</CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : '—'}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {l.totalAreaM2 != null ? `${l.totalAreaM2.toFixed(3)} m²` : '—'}
+                </CTableDataCell>
+              </CTableRow>
+            ))}
+          </CTableBody>
+        </CTable>
+      </div>
+    </>
   )
 }
 

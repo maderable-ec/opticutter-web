@@ -85,6 +85,31 @@ body {
   }
 }
 
+// On a phone the row leaves the trail ~140px, where three crumbs each ellipsized into nothing
+// readable. Below `md` it keeps only its LAST crumb and reads as the page's title. The last one and
+// not `.active`: a detail route (`/orders/:id`) has no crumb of its own — the trail only matches
+// literal paths — so there the last crumb is the "Órdenes" link, which is exactly the way back.
+@media (max-width: 767.98px) {
+  .header-breadcrumb .breadcrumb {
+    .breadcrumb-item:not(:last-child) {
+      display: none;
+    }
+
+    .breadcrumb-item:last-child {
+      padding-left: 0;
+      font-weight: 600;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    .breadcrumb-item.active {
+      color: var(--cui-body-color);
+    }
+  }
+}
+
 .footer {
   min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
 }
@@ -212,6 +237,12 @@ input[type='number'] {
   border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
   border-radius: var(--cui-border-radius-lg);
   background-color: var(--cui-body-bg);
+
+  // Together with the content container's `px-2` below `md`, this is ~40px of a 390px screen handed
+  // back to the content: a gutter plus a border plus a full rem of padding per side was a fifth of it.
+  @media (max-width: 767.98px) {
+    padding: 0.75rem;
+  }
 }
 
 // Wizard footer, pinned to the bottom of the viewport so "Siguiente" is reachable without scrolling
@@ -225,6 +256,9 @@ input[type='number'] {
   // painted over its own menus. Everything it must cover — the table's sticky cells — sits at 3.
   z-index: 990;
   padding-block: 0.75rem;
+  // Clear of the home indicator on a notched phone (`viewport-fit=cover` is set in index.html, which
+  // is what makes the inset non-zero).
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   margin-top: 0.25rem;
   background-color: var(--cui-tertiary-bg);
 }
@@ -623,6 +657,120 @@ input[type='number'] {
   &:focus-visible {
     opacity: 1;
   }
+}
+
+// The phone's filter panel (`FilterSheet`, a full-screen modal). Its fields are the dropdown's own
+// components, which style themselves as `.dropdown-item` rows sized for a mouse — so the sheet
+// re-sizes them for a finger through CoreUI's own dropdown variables rather than forking them.
+.filter-sheet {
+  .dropdown-menu {
+    --cui-dropdown-font-size: 1rem;
+    --cui-dropdown-item-padding-y: 0.625rem;
+    // A tap on a checkbox row would otherwise flash the whole row coral, which reads as "selected
+    // this row" rather than "ticked this box".
+    --cui-dropdown-link-active-bg: var(--cui-tertiary-bg);
+    --cui-dropdown-link-active-color: var(--cui-body-color);
+  }
+
+  // 16px and a 44px target. Below 16px iOS Safari zooms the page in when a field takes focus and
+  // leaves it zoomed after — the client search would do that on every visit.
+  .form-control,
+  .form-select {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .form-check-input {
+    width: 1.25em;
+    height: 1.25em;
+  }
+}
+
+// "Limpiar" and the apply button on one row, clear of the home indicator on a notched phone.
+.filter-sheet__footer {
+  flex-wrap: nowrap;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+// The orders listing on a phone (`OrderCard`). A divided list and not boxes: it already sits on a
+// `.surface`, and a bordered card inside a bordered plane is a double frame per order. The coral rule
+// on top is the one `.list-table` draws under its header, so the phone view carries the same cue.
+// The press state is the table's hover alpha — one declaration for both themes.
+.order-cards {
+  border-top: 2px solid var(--brand-coral);
+}
+
+.order-card {
+  display: block;
+  padding: 0.75rem 0.25rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  color: inherit;
+  text-decoration: none;
+
+  &:hover,
+  &:active {
+    color: inherit;
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+}
+
+// Elapsed · branch · date. The dots are drawn here so a missing first item (the elapsed note is
+// silent on a closed order) does not leave one dangling at the start of the line.
+.order-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  color: var(--cui-secondary-color);
+  font-size: 0.875em;
+
+  // The elapsed note brings its own `.small`, which would shrink it a second time in here.
+  > * {
+    font-size: inherit;
+  }
+
+  > * + *::before {
+    content: '·';
+    margin-inline: 0.4rem;
+    color: var(--cui-secondary-color);
+  }
+}
+
+// A header line of short facts ("Creada … · Confirmada … · En cola …"). Inline with dots from `md`;
+// below it, one fact per line and no dots — wrapped inline, a date broke inside "09:20 a. m." or a
+// dot led the next line. `nowrap` per fact is what keeps each one whole on a wide screen too.
+.fact-line {
+  > span {
+    white-space: nowrap;
+  }
+
+  > span + span::before {
+    content: '·';
+    margin-inline: 0.3em;
+  }
+
+  @media (max-width: 767.98px) {
+    display: flex;
+    flex-direction: column;
+
+    > span {
+      white-space: normal;
+    }
+
+    > span + span::before {
+      content: none;
+    }
+  }
+}
+
+// The billing lines of an order on a phone (`LineItemList`), in place of tables of four to seven
+// columns that scrolled sideways and hid the line total. Same rule on top as `.summary-table`.
+.line-items {
+  border-top: 2px solid var(--brand-coral);
+}
+
+.line-item {
+  padding: 0.5rem 0.25rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
 }
 
 // Pieces grid: 11 columns of mostly 3-4 digit numbers. Shrinking the header type and cell padding

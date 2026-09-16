@@ -27,6 +27,20 @@ export const useOrders = (params?: OrderListParams) =>
     refetchInterval: 60_000,
   })
 
+// How many orders a set of filters would return, without the rows: the phone filter sheet's
+// "Ver 37 órdenes". The endpoint has no count-only mode, and one row is the cheapest page that
+// still carries `pagination.total`. Keyed apart from the listing so it never serves a page of rows.
+export const useOrdersTotal = (params: OrderListParams, enabled: boolean) =>
+  useQuery({
+    queryKey: ['orders', 'total', params],
+    queryFn: () => ordersApi.list({ ...params, offset: 0, limit: 1 }),
+    select: (res) => res.pagination.total,
+    enabled,
+    // The previous count stays on the button while the next one loads, rather than blinking back
+    // to "Ver resultados" on every tap.
+    placeholderData: keepPreviousData,
+  })
+
 export const useOrder = (id?: string) =>
   useQuery({
     queryKey: ['orders', id],
@@ -110,9 +124,8 @@ export const useWorkshopQueue = () =>
     queryKey: WORKSHOP_QUEUE_KEY,
     queryFn: () => ordersApi.getWorkshopQueue(),
     // The board is shared: the operador takes an order on the shop-floor panel and, without this,
-    // the canteador's screen keeps offering "Tomar" on it until someone reloads. Same interval as
-    // `usePrintJobs`, which paints directly above it. It also keeps each card's "en cola hace N min"
-    // moving without a re-render of its own.
+    // the canteador's screen keeps offering "Tomar" on it until someone reloads. It also keeps each
+    // card's "en cola hace N min" moving without a re-render of its own.
     refetchInterval: 15000,
   })
 

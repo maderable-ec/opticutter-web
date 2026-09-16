@@ -33,7 +33,7 @@ const FilterMenu = ({ activeCount, onClear, children }: FilterMenuProps) => (
       )}
     </CDropdownToggle>
     <CDropdownMenu style={{ minWidth: 280, maxWidth: 360, padding: '0.5rem 0' }}>
-      {/* Five sections (status, client, branch, dates, order) overflow a fixed 420px, and the
+      {/* Five sections (branch, client, dates, status, order) overflow a fixed 420px, and the
           viewport-relative cap keeps the panel inside a laptop screen instead of running off it. */}
       <div style={{ maxHeight: 'min(70vh, 520px)', overflowY: 'auto' }}>{children}</div>
       {activeCount > 0 && (

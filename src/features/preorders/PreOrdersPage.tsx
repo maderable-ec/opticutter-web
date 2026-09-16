@@ -18,12 +18,14 @@ import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
 import { useListParams } from 'src/shared/hooks/useListParams'
+import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { clientName, fmtDate } from 'src/shared/utils/format'
 
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PreOrdersFilters, {
   activeCount,
+  preorderFilterParams,
   usePreOrdersFilterChips,
   type PreOrdersFilterValues,
 } from './PreOrdersFilters'
@@ -37,8 +39,17 @@ const FILTER_KEYS = ['q', 'status', 'clientId', 'branchId', 'createdFrom', 'crea
 const PreOrdersPage = () => {
   const navigate = useNavigate()
   const isGlobalBranch = useIsGlobalBranchRole()
-  const { getParam, getParams, setParam, clearParams, offset, setOffset, limit, setLimit } =
-    useListParams()
+  const {
+    getParam,
+    getParams,
+    setParam,
+    setParams,
+    clearParams,
+    offset,
+    setOffset,
+    limit,
+    setLimit,
+  } = useListParams()
 
   const search = getParam('q')
   const values: PreOrdersFilterValues = {
@@ -56,6 +67,18 @@ const PreOrdersPage = () => {
   ) => {
     setParam(key, value)
   }
+  // The phone's sheet applies its whole draft in one url write, which also closes it (see
+  // `useFilterSheet` for the history this leaves).
+  const handleApply = (next: PreOrdersFilterValues) =>
+    setParams(
+      {
+        ...next,
+        // The default order stays out of the URL, as it does when nobody touches the select.
+        sort: next.sort === 'recent' ? undefined : next.sort,
+        [FILTER_SHEET_PARAM]: undefined,
+      },
+      { replace: true },
+    )
   const handleClear = () => clearParams(FILTER_KEYS)
 
   const chips = usePreOrdersFilterChips(values, isGlobalBranch, handleChange)
@@ -64,12 +87,7 @@ const PreOrdersPage = () => {
   // Built inline, not memoised: React Query hashes the query key structurally, so a fresh object
   // with the same contents is the same key and does not refetch.
   const { data, isLoading, isError, error, refetch } = usePreOrders({
-    search: search || undefined,
-    status: values.status.length ? values.status : undefined,
-    clientId: values.clientId ? Number(values.clientId) : undefined,
-    branchId: values.branchId ? Number(values.branchId) : undefined,
-    createdFrom: values.createdFrom || undefined,
-    createdTo: values.createdTo || undefined,
+    ...preorderFilterParams(values, search),
     sort: values.sort,
     offset,
     limit,
@@ -91,7 +109,9 @@ const PreOrdersPage = () => {
         />
         <PreOrdersFilters
           values={values}
+          search={search}
           onChange={handleChange}
+          onApply={handleApply}
           onClear={handleClear}
           showBranch={isGlobalBranch}
         />

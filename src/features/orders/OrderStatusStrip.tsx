@@ -117,15 +117,17 @@ const OrderStatusStrip = ({
   return (
     <CAlert color={tone} className="py-2 small mb-3">
       {sentence && <div className={work.length > 0 ? 'mb-2' : undefined}>{sentence}</div>}
+      {/* Below `md` one activity per line, and each line may wrap: badge, clock, count and actor
+          are all `nowrap` and together ran past a phone's width. */}
       {work.length > 0 && (
-        <div className="d-flex flex-wrap align-items-center gap-3">
+        <div className="d-flex flex-column flex-md-row flex-md-wrap align-items-start align-items-md-center gap-2 column-gap-md-3">
           {work.map((activity) => {
             const progress = activity.progress
             const actor = actorOf(activity)
             return (
               <div
                 key={activity.type}
-                className="d-flex align-items-center gap-2"
+                className="d-flex flex-wrap align-items-center column-gap-2 row-gap-1"
                 title={activityTrail(activity)}
               >
                 <ActivityBadge activity={activity} />
