@@ -33,6 +33,11 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
   const [printConsolidated, setPrintConsolidated] = useState(
     branch?.printConsolidatedEnabled ?? true,
   )
+  // Empty on purpose for a new branch: the mapping to the vendor's warehouse is
+  // something somebody has to look up, not guess. Empty = no stock consulted.
+  const [warehouseCode, setWarehouseCode] = useState(
+    branch?.warehouseCode != null ? String(branch.warehouseCode) : '',
+  )
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,6 +50,9 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
         isActive,
         printLabelsEnabled: printLabels,
         printConsolidatedEnabled: printConsolidated,
+        // Explicit null clears it (the API PATCH only touches what it is sent),
+        // which is how a branch stops consulting stock.
+        warehouseCode: warehouseCode.trim() === '' ? null : Number(warehouseCode),
       }
       onSubmit(payload)
     } else {
@@ -55,6 +63,7 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
         phone: phone || undefined,
         printLabelsEnabled: printLabels,
         printConsolidatedEnabled: printConsolidated,
+        warehouseCode: warehouseCode.trim() === '' ? null : Number(warehouseCode),
       }
       onSubmit(payload)
     }
@@ -125,6 +134,24 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
             />
           </div>
         )}
+
+        <div className="mb-3">
+          <CFormLabel htmlFor="bf-warehouse">Código de bodega (inventario)</CFormLabel>
+          <CFormInput
+            id="bf-warehouse"
+            type="number"
+            min={1}
+            step={1}
+            value={warehouseCode}
+            onChange={(e) => setWarehouseCode(e.target.value)}
+            disabled={isSubmitting}
+            placeholder="Ej.: 1"
+          />
+          <div className="form-text">
+            Bodega de esta sucursal en el sistema de inventario. Sin este código no se consulta
+            stock: ni aviso al cotizar, ni filas en el reporte de stock bajo.
+          </div>
+        </div>
 
         <div className="mb-2">
           <CFormLabel>Impresión en el taller</CFormLabel>

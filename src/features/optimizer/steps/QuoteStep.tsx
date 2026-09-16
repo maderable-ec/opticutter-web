@@ -29,6 +29,8 @@ import {
 } from 'src/features/preorders/useServiceLines'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
+import StockAlert from 'src/features/inventory/StockAlert'
+import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
 import type { QuoteDraft } from '../useQuoteDraft'
@@ -89,6 +91,10 @@ const QuoteStep = ({
 
   const selectedClient = draft.client
   const branchId = draft.branchId
+  // What the plan consumes, in the units the warehouse counts. Not memoised:
+  // React Query hashes the query key structurally, so a fresh array with the
+  // same contents is the same key and refetches nothing.
+  const stockItems = stockItemsFromPlan(result?.materialsSummary, result?.edgeBandingsSummary)
   const missingPhone = !!selectedClient && selectedClient.phone == null
 
   const createClient = useCreateClient()
@@ -240,6 +246,13 @@ const QuoteStep = ({
             {branchError && <div className="invalid-feedback d-block">{branchError}</div>}
           </>
         )}
+
+        {/* Stock is per branch, so this is the first step that can ask: the
+            material of the plan is settled by now and the warehouse is finally
+            known. Purely informational — it never gates "Crear cotización". */}
+        <div className="mt-3">
+          <StockAlert branchId={branchId ? Number(branchId) : null} items={stockItems} />
+        </div>
 
         <CFormLabel className="mt-3">Referencia</CFormLabel>
         <CFormTextarea

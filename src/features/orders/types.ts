@@ -219,6 +219,11 @@ export interface UpdateStatusPayload {
   status: OrderStatus
   note?: string
   payment?: { cashAmount?: number; transferAmount?: number; creditAmount?: number }
+  // Required by the server on `confirmed → queued`, unless the order already
+  // carries one: entering the queue is where the sale is collected. Same field
+  // as `POST /orders/{id}/invoice`, so sending one the order already has is a
+  // no-op and sending a different one is a 409.
+  externalInvoiceId?: string
 }
 
 // --- Change branch (rebalancing before the workshop starts cutting) ---

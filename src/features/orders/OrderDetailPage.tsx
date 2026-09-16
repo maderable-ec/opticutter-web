@@ -30,13 +30,16 @@ import { clientName, fmtDateTime, fmtMoney } from 'src/shared/utils/format'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import OrderStatusStrip from './OrderStatusStrip'
+import { fieldErrorsFromApiError } from 'src/shared/api/errors'
+import StockAlert from 'src/features/inventory/StockAlert'
+import { stockItemsFromLines } from 'src/features/inventory/stockItems'
 import OrderActionsMenu from './OrderActionsMenu'
 import OrderBoardsTable from './OrderBoardsTable'
 import OrderBandingTable from './OrderBandingTable'
 import OrderServicesTable from './OrderServicesTable'
 import OrderPiecesTable from './OrderPiecesTable'
 import OrderAttachmentsModal, { humanSize } from './OrderAttachmentsModal'
-import { attachmentsLocked, hasWorkshopPlan, transitionsFor } from './status'
+import { attachmentsLocked, hasWorkshopPlan, isTerminal, transitionsFor } from './status'
 import { ACTIVITY_LABEL, orderedActivities } from './activities'
 import type { StatusTransition } from './status'
 import {
@@ -123,6 +126,13 @@ const OrderDetailPage = () => {
   const [transferInput, setTransferInput] = useState('')
   const [creditInput, setCreditInput] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
+  // The invoice number is captured HERE and not in the "Asociar factura" modal:
+  // entering the queue is the moment the sale is collected, and the server now
+  // refuses the transition without it.
+  const [invoiceInput, setInvoiceInput] = useState('')
+  // The server hangs its 422 off `externalInvoiceId`, so the message lands under
+  // the input instead of in the generic block at the bottom of the modal.
+  const invoiceError = fieldErrorsFromApiError(updateStatus.error).externalInvoiceId
 
   const openTransition = (transition: StatusTransition) => {
     setTransitionNote('')
@@ -151,6 +161,9 @@ const OrderDetailPage = () => {
     setTransferInput('')
     setCreditInput('')
     setPaymentNote('')
+    // Prefilled when one was already associated: the server accepts it again as
+    // a no-op, and re-typing what the order already carries is busy work.
+    setInvoiceInput(order?.externalInvoiceId ?? '')
     updateStatus.reset()
     setPaymentModal(true)
   }
@@ -196,7 +209,15 @@ const OrderDetailPage = () => {
     if (transfer > 0) payment.transferAmount = transfer
     if (credit > 0) payment.creditAmount = credit
     updateStatus.mutate(
-      { id, data: { status: 'queued', payment, note: paymentNote || undefined } },
+      {
+        id,
+        data: {
+          status: 'queued',
+          payment,
+          externalInvoiceId: invoiceInput.trim(),
+          note: paymentNote || undefined,
+        },
+      },
       { onSuccess: closePayment },
     )
   }
@@ -309,6 +330,11 @@ const OrderDetailPage = () => {
   // boards"), which is what lets each table state a unit that is true of every row under it.
   const lines = order.lines ?? []
   const boardLines = lines.filter((l) => l.linearM == null)
+  // Boards AND edge banding: both are stocked, and `quantity` already comes in
+  // the units the warehouse counts (sheets / linear metres). Not memoised:
+  // React Query hashes the query key structurally, so a fresh array with the
+  // same contents is the same key and refetches nothing.
+  const stockItems = stockItemsFromLines(lines)
   const bandingLines = lines.filter((l) => l.linearM != null)
   // The cut list names its tapes from here: a piece's frozen `edges` carries the product's id and
   // nothing else, and the order already bills every tape it uses.
@@ -435,6 +461,14 @@ const OrderDetailPage = () => {
         activities={plan?.activities ?? order.activities}
         cancellationNote={cancellationNote}
       />
+
+      {/* The order is a frozen snapshot, but the warehouse is not: an order
+          waiting to be cut can be sitting on material that has since run out.
+          The quantities are the ones frozen on the billing lines; the stock
+          beside them is read live. Hidden once nothing more will be cut. */}
+      {!isTerminal(order.status) && (
+        <StockAlert branchId={order.branch?.id ?? null} items={stockItems} />
+      )}
 
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
           row instead of a card header. */}
@@ -781,6 +815,27 @@ const OrderDetailPage = () => {
                     {fmtMoney(orderTotal)}).
                   </div>
                 )}
+                <div className="mb-3">
+                  <CFormLabel>
+                    N.º de factura <span className="text-danger">*</span>
+                  </CFormLabel>
+                  <CFormInput
+                    type="text"
+                    maxLength={64}
+                    value={invoiceInput}
+                    onChange={(e) => setInvoiceInput(e.target.value)}
+                    placeholder="Ej.: 001-001-000012345"
+                    invalid={!!invoiceError}
+                  />
+                  {invoiceError ? (
+                    <div className="invalid-feedback d-block">{invoiceError}</div>
+                  ) : (
+                    <div className="form-text">
+                      Obligatorio para enviar a cola. Es la misma factura que queda asociada a la
+                      orden.
+                    </div>
+                  )}
+                </div>
                 <div className="mb-2">
                   <CFormLabel>Nota (opcional)</CFormLabel>
                   <CFormTextarea
@@ -810,7 +865,10 @@ const OrderDetailPage = () => {
             disabled={(() => {
               const entered = enteredPayment()
               return (
-                updateStatus.isPending || entered <= 0 || Math.abs(entered - order.total) > 0.01
+                updateStatus.isPending ||
+                entered <= 0 ||
+                Math.abs(entered - order.total) > 0.01 ||
+                invoiceInput.trim().length === 0
               )
             })()}
           >

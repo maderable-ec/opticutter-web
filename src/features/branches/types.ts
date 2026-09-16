@@ -16,6 +16,10 @@ export interface Branch extends BranchPrintingSwitches {
   address: string | null
   phone: string | null
   isActive: boolean
+  // The vendor's warehouse this branch's stock lives in (SIFAC `mbodega.cod`).
+  // Null means the branch does not consult stock: no low-stock alert while
+  // quoting and no rows of its own in the low-stock report.
+  warehouseCode: number | null
 }
 
 // Compact branch reference embedded in orders, pre-orders, and drafts. The FK is mandatory
@@ -35,6 +39,7 @@ export interface BranchPayload {
   phone?: string
   printLabelsEnabled?: boolean
   printConsolidatedEnabled?: boolean
+  warehouseCode?: number | null
 }
 
 export interface BranchUpdatePayload {
@@ -45,6 +50,7 @@ export interface BranchUpdatePayload {
   isActive?: boolean
   printLabelsEnabled?: boolean
   printConsolidatedEnabled?: boolean
+  warehouseCode?: number | null
 }
 
 export interface BranchListParams {

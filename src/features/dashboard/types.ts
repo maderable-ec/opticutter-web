@@ -127,3 +127,27 @@ export interface AttendanceUser {
 export interface AttendanceData {
   users: AttendanceUser[] // only users with a login in the date range
 }
+
+// --- Low stock (#4): not a metric over a window but a state right now, which is
+// why this is the one analytics report that takes no date range.
+export interface LowStockItem {
+  productId: number
+  code: string
+  name: string
+  type: 'board' | 'edge_banding'
+  /** Material subtype (MDP, Plywood, Canto Solido…). Null for a product whose
+   *  attributes never carried one. */
+  subtype: string | null
+  /** 'sheets' for a board, 'linear_m' for edge banding. */
+  unit: 'sheets' | 'linear_m'
+  branch: { id: number; code: string; name: string }
+  available: number
+  threshold: number
+}
+
+export interface LowStockReport {
+  /** False when the vendor's inventory did not answer — NOT "all well stocked". */
+  checked: boolean
+  thresholds: { board: number; edgeBanding: number }
+  items: LowStockItem[]
+}

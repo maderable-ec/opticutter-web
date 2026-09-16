@@ -46,3 +46,17 @@ export interface TaxSettings {
 }
 
 export type TaxPayload = Partial<TaxSettings>
+
+/**
+ * Low-stock thresholds, one per product type. The UNITS are not the same and
+ * that is the whole reason there are two: the vendor counts boards in whole
+ * sheets and edge banding in linear metres.
+ */
+export interface StockSettings {
+  /** Boards: sheets held by the branch. */
+  board: number
+  /** Edge banding: linear metres held by the branch. */
+  edgeBanding: number
+}
+
+export type StockPayload = Partial<StockSettings>
