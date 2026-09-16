@@ -12,15 +12,43 @@ import {
   CSpinner,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilBell } from '@coreui/icons'
+import {
+  cilArrowCircleLeft,
+  cilArrowCircleRight,
+  cilBell,
+  cilCheckCircle,
+  cilLayers,
+  cilTask,
+} from '@coreui/icons'
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
   useUnreadNotificationCount,
 } from './useNotifications'
-import type { Notification } from './types'
+import type { Notification, NotificationType } from './types'
 import { relativeTime } from 'src/shared/utils/date'
+
+interface NotificationVisual {
+  icon: string[]
+  className: string
+}
+
+/** One entry per ``NotificationType``: with five events the list is a wall of
+ *  text otherwise, and the icon is what lets the operator tell an order landing
+ *  in their queue from one leaving it without reading either line. */
+const VISUALS: Record<NotificationType, NotificationVisual> = {
+  'order.confirmed': { icon: cilCheckCircle, className: 'text-success' },
+  'order.queued': { icon: cilLayers, className: 'text-primary' },
+  'order.completed': { icon: cilTask, className: 'text-success' },
+  'order.branch_arrived': { icon: cilArrowCircleRight, className: 'text-info' },
+  'order.branch_left': { icon: cilArrowCircleLeft, className: 'text-body-secondary' },
+}
+
+/** A type this build doesn't know about still renders, with the bell. The map is
+ *  exhaustive over the union, so a new event fails typecheck here first. */
+const visualFor = (type: string): NotificationVisual =>
+  VISUALS[type as NotificationType] ?? { icon: cilBell, className: 'text-body-secondary' }
 
 const NotificationBell = () => {
   const navigate = useNavigate()
@@ -74,23 +102,29 @@ const NotificationBell = () => {
               <CSpinner size="sm" />
             </div>
           ) : list.data && list.data.items.length > 0 ? (
-            list.data.items.map((notification) => (
-              <CDropdownItem
-                key={notification.id}
-                as="button"
-                type="button"
-                className={`d-block text-wrap py-2 ${
-                  notification.readAt === null ? 'fw-semibold bg-body-tertiary' : ''
-                }`}
-                onClick={() => handleItemClick(notification)}
-              >
-                <div>{notification.title}</div>
-                <div className="small text-body-secondary fw-normal">{notification.body}</div>
-                <div className="small text-body-secondary fw-normal">
-                  {relativeTime(notification.createdAt)}
-                </div>
-              </CDropdownItem>
-            ))
+            list.data.items.map((notification) => {
+              const visual = visualFor(notification.type)
+              return (
+                <CDropdownItem
+                  key={notification.id}
+                  as="button"
+                  type="button"
+                  className={`d-flex gap-2 text-wrap py-2 ${
+                    notification.readAt === null ? 'fw-semibold bg-body-tertiary' : ''
+                  }`}
+                  onClick={() => handleItemClick(notification)}
+                >
+                  <CIcon icon={visual.icon} className={`mt-1 flex-shrink-0 ${visual.className}`} />
+                  <div className="flex-grow-1">
+                    <div>{notification.title}</div>
+                    <div className="small text-body-secondary fw-normal">{notification.body}</div>
+                    <div className="small text-body-secondary fw-normal">
+                      {relativeTime(notification.createdAt)}
+                    </div>
+                  </div>
+                </CDropdownItem>
+              )
+            })
           ) : (
             <div className="text-center text-body-secondary p-3 small">
               No tienes notificaciones
