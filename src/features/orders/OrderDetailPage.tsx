@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   CAlert,
   CBadge,
@@ -133,11 +133,15 @@ const OrderDetailPage = () => {
     updateStatus.reset()
   }
 
+  // Trimmed, because the server trims too: a note of three spaces is a 422, not a reason.
+  const noteMissing =
+    !!transitionModal.transition?.requiresNote && transitionNote.trim().length === 0
+
   const confirmTransition = () => {
     const { transition } = transitionModal
-    if (!id || !transition) return
+    if (!id || !transition || noteMissing) return
     updateStatus.mutate(
-      { id, data: { status: transition.to, note: transitionNote || undefined } },
+      { id, data: { status: transition.to, note: transitionNote.trim() || undefined } },
       { onSuccess: closeTransition },
     )
   }
@@ -266,8 +270,11 @@ const OrderDetailPage = () => {
   const orderId = order.id
   const transitions = transitionsFor(order.status, currentUser?.role)
   // The forward move comes first in every row of the graph, so it is the footer's primary; the rest
-  // ("Cancelar", "Regresar a cola") ride beside it as outline buttons.
-  const [primary, ...secondary] = transitions
+  // ("Cancelar", "Regresar a cola") ride beside it as outline buttons. Destructive moves are never
+  // promoted, however few the status offers: `queued` offers ONLY "Cancelar orden", and a positional
+  // `[0]` made it the big brand-coloured call to action on an order the shop is about to cut.
+  const primary = transitions.find((t) => !t.destructive)
+  const secondary = transitions.filter((t) => t !== primary)
   const canChangeBranch = canManage && (order.status === 'confirmed' || order.status === 'queued')
   // Prioritizing a closed order means nothing (the board doesn't list it) — the API refuses it too.
   const canPrioritize = canManage && !['finished', 'dispatched', 'cancelled'].includes(order.status)
@@ -320,6 +327,13 @@ const OrderDetailPage = () => {
   const credit = order.paymentCreditAmount ?? 0
   const hasPayment = cash > 0 || transfer > 0 || credit > 0
   const hasHistory = !!order.history && order.history.length > 0
+  // Why it was cancelled, off the transition's own history row — the last one, because an order
+  // reaches `cancelled` once and nothing follows it. The server makes that note mandatory, so it is
+  // there; the fallback covers an order cancelled before the rule existed.
+  const cancellationNote =
+    order.status === 'cancelled'
+      ? ((order.history ?? []).filter((h) => h.toStatus === 'cancelled').at(-1)?.note ?? null)
+      : null
 
   return (
     <>
@@ -368,6 +382,16 @@ const OrderDetailPage = () => {
               </span>
             )}
             {order.externalInvoiceId && <span>Factura {order.externalInvoiceId}</span>}
+            {/* Back to where the order came from, the mirror of the quote's "Ver orden". Gated on
+                `canManage` because the shop floor holds no `preorders` permission and the link
+                would 403 on arrival. */}
+            {canManage && order.preorderId && (
+              <span>
+                <Link to={`/preorders/${order.preorderId}`}>
+                  Cotización {order.preorderCode ?? `#${order.preorderId}`}
+                </Link>
+              </span>
+            )}
           </div>
           <div className="text-body-secondary small fact-line">
             <span>Creada {fmtDateTime(order.createdAt)}</span>
@@ -409,6 +433,7 @@ const OrderDetailPage = () => {
         assignedAt={order.assignedAt}
         dispatchedByLabel={order.dispatchedByLabel}
         activities={plan?.activities ?? order.activities}
+        cancellationNote={cancellationNote}
       />
 
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
@@ -803,14 +828,27 @@ const OrderDetailPage = () => {
           <p>
             ¿Confirmar: <strong>{transitionModal.transition?.label}</strong>?
           </p>
-          <CFormLabel>Nota (opcional)</CFormLabel>
+          <CFormLabel>
+            {transitionModal.transition?.requiresNote ? 'Motivo' : 'Nota (opcional)'}
+          </CFormLabel>
           <CFormTextarea
             rows={2}
             maxLength={512}
             value={transitionNote}
             onChange={(e) => setTransitionNote(e.target.value)}
-            placeholder="Motivo o comentario…"
+            placeholder={
+              transitionModal.transition?.requiresNote
+                ? 'Por qué se cancela…'
+                : 'Motivo o comentario…'
+            }
           />
+          {/* Said out loud rather than left to a disabled button: cancelling is the only move on
+              this page whose reason is the entire record it leaves behind. */}
+          {transitionModal.transition?.requiresNote && (
+            <div className="text-body-secondary small mt-1">
+              Queda en el historial de la orden y es el único registro de por qué se canceló.
+            </div>
+          )}
           {updateStatus.error && (
             <div className="text-danger small mt-2">
               {updateStatus.error.message || 'Error al cambiar estado.'}
@@ -824,7 +862,7 @@ const OrderDetailPage = () => {
           <CButton
             color={transitionModal.transition?.color ?? 'primary'}
             onClick={confirmTransition}
-            disabled={updateStatus.isPending}
+            disabled={updateStatus.isPending || noteMissing}
           >
             {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
           </CButton>

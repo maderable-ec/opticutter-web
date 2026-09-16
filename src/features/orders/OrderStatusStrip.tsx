@@ -40,6 +40,12 @@ interface OrderStatusStripProps {
    * for that endpoint. Without progress the strip simply omits the counts.
    */
   activities?: OrderActivity[]
+  /**
+   * Why the order was cancelled, read off the history row of the transition. It is the whole
+   * reason the server made that note mandatory, and leaving it behind the badge -> history dialog
+   * meant the one fact a cancelled order carries took two clicks to reach.
+   */
+  cancellationNote?: string | null
 }
 
 type Tone = 'info' | 'success' | 'warning' | 'danger' | 'secondary'
@@ -66,6 +72,7 @@ const OrderStatusStrip = ({
   assignedAt,
   dispatchedByLabel,
   activities,
+  cancellationNote,
 }: OrderStatusStripProps) => {
   let tone: Tone = 'info'
   // Empty means "the badge already said it": with no activity track either, the strip renders
@@ -106,7 +113,9 @@ const OrderStatusStrip = ({
       break
     case 'cancelled':
       tone = 'secondary'
-      sentence = 'Orden cancelada.'
+      sentence = cancellationNote?.trim()
+        ? endSentence(`Orden cancelada: ${cancellationNote.trim()}`)
+        : 'Orden cancelada.'
       break
   }
 

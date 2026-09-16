@@ -15,6 +15,7 @@ import CIcon from '@coreui/icons-react'
 import {
   cilArrowCircleLeft,
   cilArrowCircleRight,
+  cilBan,
   cilBell,
   cilCheckCircle,
   cilLayers,
@@ -34,7 +35,7 @@ interface NotificationVisual {
   className: string
 }
 
-/** One entry per ``NotificationType``: with five events the list is a wall of
+/** One entry per ``NotificationType``: with six events the list is a wall of
  *  text otherwise, and the icon is what lets the operator tell an order landing
  *  in their queue from one leaving it without reading either line. */
 const VISUALS: Record<NotificationType, NotificationVisual> = {
@@ -43,6 +44,7 @@ const VISUALS: Record<NotificationType, NotificationVisual> = {
   'order.completed': { icon: cilTask, className: 'text-success' },
   'order.branch_arrived': { icon: cilArrowCircleRight, className: 'text-info' },
   'order.branch_left': { icon: cilArrowCircleLeft, className: 'text-body-secondary' },
+  'order.cancelled': { icon: cilBan, className: 'text-danger' },
 }
 
 /** A type this build doesn't know about still renders, with the bell. The map is

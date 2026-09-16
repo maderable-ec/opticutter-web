@@ -687,6 +687,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         status={preOrder.status}
         clientNote={preOrder.clientNote}
         orderId={preOrder.orderId}
+        orderCode={preOrder.orderCode}
         expiresAt={preOrder.expiresAt}
         link={reviewLinkInfo.data}
         onShare={
