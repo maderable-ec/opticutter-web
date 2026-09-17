@@ -16,8 +16,9 @@ export type FillableField =
   | 'edgeBandingProductId'
   | 'edgeBandingBandType'
   | 'hingingCode'
-  | 'assemblyCode'
   | 'groovingCode'
+  | 'assemblyCode'
+  | 'divisionCode'
 export type FillScope = 'all' | 'selected'
 
 // Fields a pasted column of values can land in, and the ones among them that stay text (the rest
@@ -29,13 +30,15 @@ export type PasteableField =
   | 'quantity'
   | 'label'
   | 'hingingCode'
-  | 'assemblyCode'
   | 'groovingCode'
+  | 'assemblyCode'
+  | 'divisionCode'
 const TEXT_FIELDS = new Set<PasteableField>([
   'label',
   'hingingCode',
-  'assemblyCode',
   'groovingCode',
+  'assemblyCode',
+  'divisionCode',
 ])
 
 // Campos por los que se puede ordenar una tabla de grupo.

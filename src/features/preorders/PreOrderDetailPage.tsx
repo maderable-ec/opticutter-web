@@ -193,8 +193,9 @@ function formFromPreOrderData(
         }
       : emptyEdgeBanding(),
     hingingCode: r.hingingCode ?? '',
-    assemblyCode: r.assemblyCode ?? '',
     groovingCode: r.groovingCode ?? '',
+    assemblyCode: r.assemblyCode ?? '',
+    divisionCode: r.divisionCode ?? '',
   }))
   return { materials: matForms, requirements: reqForms }
 }

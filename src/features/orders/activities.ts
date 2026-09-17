@@ -14,8 +14,8 @@ export const ACTIVITY_LABEL: Record<ActivityType, string> = {
 }
 
 // Which role registers which activity: the mirror of the backend's ACTIVITY_ROLES. The operator
-// cuts; the canteador bands and does the additional work (abisagrado, ensamble, ranurado — the
-// pieces the seller gave a workshop code, never the billed services).
+// cuts; the canteador bands and does the additional work (abisagrado, ranurado, ensamble, división —
+// the pieces the seller gave a workshop code, never the billed services).
 export const ACTIVITY_ROLES: Record<ActivityType, string[]> = {
   cutting: ['administrador', 'operador'],
   banding: ['administrador', 'canteador'],

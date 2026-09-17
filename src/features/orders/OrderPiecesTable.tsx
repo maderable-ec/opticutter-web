@@ -110,7 +110,7 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
             {withWorkshop && (
               <CTableHeaderCell
                 style={stickyHead}
-                title="Abisagrado (Abis), ensamble (Ens) y ranurado (Ran)"
+                title="Abisagrado (Abis), ranurado (Ran), ensamble (Ens) y división (Div)"
               >
                 Taller
               </CTableHeaderCell>

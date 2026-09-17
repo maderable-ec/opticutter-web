@@ -120,10 +120,11 @@ export interface OrderPiece {
   priority?: number
   canRotate?: boolean
   edges?: OrderPieceEdges | null
-  // Workshop codes (abisagrado / ensamble / ranurado); null = no such work.
+  // Workshop codes (abisagrado / ranurado / ensamble / división); null = no such work.
   hingingCode?: string | null
-  assemblyCode?: string | null
   groovingCode?: string | null
+  assemblyCode?: string | null
+  divisionCode?: string | null
   [key: string]: unknown
 }
 
@@ -389,8 +390,9 @@ export interface CutPiece {
   // Workshop codes of the cut-list row this piece comes from; null = no such work. What the
   // operator reads under the canto, and what the bander's "Adicionales" is counted on.
   hingingCode?: string | null
-  assemblyCode?: string | null
   groovingCode?: string | null
+  assemblyCode?: string | null
+  divisionCode?: string | null
   cut: boolean
   cutAt: string | null
   // Who marked the piece as cut.
