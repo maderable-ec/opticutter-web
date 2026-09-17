@@ -40,7 +40,15 @@ import {
 } from './optimizerForm'
 import type { ModalContainer } from './types'
 import EdgeBandingPickerModal from './EdgeBandingPickerModal'
-import type { FillScope, FillableField, PiecesEditor, SortDir, SortField } from './usePiecesEditor'
+import type {
+  FillScope,
+  FillableField,
+  PasteableField,
+  PiecesEditor,
+  SortDir,
+  SortField,
+} from './usePiecesEditor'
+import { WORKSHOP_CODES, WORKSHOP_CODE_MAX_LENGTH } from 'src/shared/utils/workshopCodes'
 import { parsePieces } from './piecesCsv'
 import { rowsToRequirements } from './piecesImport'
 
@@ -68,10 +76,16 @@ interface PieceRowsTableProps {
 }
 
 // Fields that accept a pasted column of values to create rows.
-const PASTEABLE_FIELDS = new Set(['height', 'width', 'quantity', 'label'])
+const PASTEABLE_FIELDS = new Set<string>([
+  'height',
+  'width',
+  'quantity',
+  'label',
+  ...WORKSHOP_CODES.map((c) => c.field),
+])
 
 // data-col → field mapping (material and priority columns removed). Cols 4-6 are the banding
-// controls.
+// controls; 7-9 the workshop codes, in `WORKSHOP_CODES` order.
 const COL_FIELDS: FillableField[] = [
   'height', // col 0
   'width', // col 1
@@ -80,7 +94,9 @@ const COL_FIELDS: FillableField[] = [
   'edgeBandingSides', // col 4 — banding sides (Canto)
   'edgeBandingBandType', // col 5 — banding type (Tipo: suave/duro)
   'edgeBandingProductId', // col 6 — banding product (Tapacanto)
+  ...WORKSHOP_CODES.map((c) => c.field), // cols 7-9 — Abisagrado, Ensamble, Ranurado
 ]
+const CODE_COL_START = 7
 // Width of the Tapacanto column, declared once because the cell and the block inside it have to
 // agree. It is the widest in the grid and the only one holding a catalogue NAME rather than a number
 // ("TAPACANTO PVC NOGAL TERRA 22MM X 0.45MM (TC-NOG-22)"), so 170 showed a stub of it.
@@ -100,9 +116,18 @@ const COL_FIELDS: FillableField[] = [
 // that floor there, and past ~270 the checkbox and "#" gutters start giving way instead.
 const TAPACANTO_COL_W = 260
 
-// Tapacanto (product) is a SearchableSelect outside the grid, so keyboard nav ends at Tipo (col 5).
-const LAST_COL = 5
-const TEXT_COL = 3
+// Tapacanto (product, col 6) is a SearchableSelect outside the grid, so keyboard nav steps from Tipo
+// straight over it to the first workshop code. The arrows walk this list, not raw column numbers.
+const NAV_COLS = [0, 1, 2, 3, 4, 5, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k)]
+const LAST_COL = NAV_COLS[NAV_COLS.length - 1] ?? 0
+// Free-text cells: the horizontal arrows move the caret until it reaches the edge of the text.
+const TEXT_COLS = new Set([3, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k)])
+const stepCol = (col: number, delta: 1 | -1): number =>
+  NAV_COLS[NAV_COLS.indexOf(col) + delta] ?? col
+// Narrow on purpose: a code the workshop knows is a few characters ("B2"), and this row is already
+// tight on a 1280 laptop (see TAPACANTO_COL_W). The header says Abis./Ens./Ran. with the word on the
+// title for the same reason.
+const CODE_COL_W = 64
 // Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
 // Tipo is a pair of buttons that should move rows like every other cell.
 const SELECT_COLS = new Set([4])
@@ -281,27 +306,25 @@ const PieceRowsTable = ({
         break
 
       case 'ArrowRight': {
-        if (col === LAST_COL) {
-          e.preventDefault()
-          if (row < rows.length - 1) focusCell(row + 1, 0)
-          break
-        }
-        if (col === TEXT_COL) {
+        // Inside text the caret moves first; the last column is a text cell now, so this has to
+        // run before the wrap to the next row.
+        if (TEXT_COLS.has(col)) {
           const inp = e.currentTarget as HTMLInputElement
           if (inp.selectionStart !== inp.value.length) return
         }
         e.preventDefault()
-        focusCell(row, col + 1)
+        if (col === LAST_COL) {
+          if (row < rows.length - 1) focusCell(row + 1, 0)
+          break
+        }
+        focusCell(row, stepCol(col, 1))
         break
       }
 
       case 'ArrowLeft': {
-        if (col === TEXT_COL) {
+        if (TEXT_COLS.has(col)) {
           const inp = e.currentTarget as HTMLInputElement
           if (inp.selectionStart !== 0) return
-          e.preventDefault()
-          focusCell(row, col - 1)
-          break
         }
         if (col === 0) {
           e.preventDefault()
@@ -309,7 +332,7 @@ const PieceRowsTable = ({
           break
         }
         e.preventDefault()
-        focusCell(row, col - 1)
+        focusCell(row, stepCol(col, -1))
         break
       }
     }
@@ -341,7 +364,7 @@ const PieceRowsTable = ({
       }
 
       if (!(active instanceof HTMLInputElement)) return
-      const field = active.dataset.field as 'height' | 'width' | 'quantity' | 'label'
+      const field = active.dataset.field as PasteableField | undefined
       if (!field || !PASTEABLE_FIELDS.has(field) || isNaN(rawRow)) return
       e.preventDefault()
       pasteIntoField(startFlat, field, lines)
@@ -514,6 +537,15 @@ const PieceRowsTable = ({
               {renderFill('edgeBandingBandType', 'Igualar tipo (suave/duro)')}
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>Tapacanto</CTableHeaderCell>
+            {WORKSHOP_CODES.map(({ field, label, abbr }) => (
+              <CTableHeaderCell
+                key={field}
+                style={thStyle}
+                title={`${label}: código del taller (en blanco = no lleva)`}
+              >
+                {abbr}.{renderFill(field, `Igualar ${label.toLowerCase()}`)}
+              </CTableHeaderCell>
+            ))}
             <CTableHeaderCell style={thStyle} />
           </CTableRow>
         </CTableHead>
@@ -767,6 +799,28 @@ const PieceRowsTable = ({
                   </div>
                   {renderHandle(local, 6)}
                 </CTableDataCell>
+                {WORKSHOP_CODES.map(({ field, label }, k) => {
+                  const col = CODE_COL_START + k
+                  return (
+                    <CTableDataCell key={field} style={cellStyle(col, local, CODE_COL_W)}>
+                      <CFormInput
+                        size="sm"
+                        data-row={local}
+                        data-col={col}
+                        data-field={field}
+                        maxLength={WORKSHOP_CODE_MAX_LENGTH}
+                        value={req[field] ?? ''}
+                        title={label}
+                        aria-label={`${label} (código del taller)`}
+                        style={{ width: CODE_COL_W }}
+                        onFocus={() => setActiveCell({ row: local, col })}
+                        onChange={(e) => update(i, field, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, local, col)}
+                      />
+                      {renderHandle(local, col)}
+                    </CTableDataCell>
+                  )
+                })}
                 <CTableDataCell className="text-nowrap">
                   <CButton
                     size="sm"
@@ -794,7 +848,7 @@ const PieceRowsTable = ({
           })}
           {rows.length === 0 && (
             <CTableRow>
-              <CTableDataCell colSpan={11} className="text-center text-body-secondary small py-3">
+              <CTableDataCell colSpan={14} className="text-center text-body-secondary small py-3">
                 Sin piezas en este material. Usa “Agregar pieza” o la entrada rápida.
               </CTableDataCell>
             </CTableRow>

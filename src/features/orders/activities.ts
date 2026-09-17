@@ -14,11 +14,21 @@ export const ACTIVITY_LABEL: Record<ActivityType, string> = {
 }
 
 // Which role registers which activity: the mirror of the backend's ACTIVITY_ROLES. The operator
-// cuts; the canteador bands and does the additional work.
+// cuts; the canteador bands and does the additional work (abisagrado, ensamble, ranurado — the
+// pieces the seller gave a workshop code, never the billed services).
 export const ACTIVITY_ROLES: Record<ActivityType, string[]> = {
   cutting: ['administrador', 'operador'],
   banding: ['administrador', 'canteador'],
   additional: ['administrador', 'canteador'],
+}
+
+// How each activity's own piece set is named — the mirror of the backend's `_PIECE_SET_QUALIFIER`,
+// so a greyed-out button says exactly what the API would answer. The cut works on every piece and
+// needs no qualifier.
+export const ACTIVITY_PIECES_QUALIFIER: Record<ActivityType, string> = {
+  cutting: '',
+  banding: 'con canto',
+  additional: 'con trabajo de taller',
 }
 
 // Badge copy per activity and status. `pending` reads as "waiting", not as a problem: an
@@ -87,14 +97,16 @@ export const isDone = (activity: OrderActivity | undefined) => activity?.status 
  *
  * Mirrors the backend's floors so the card can say WHY it is greyed out instead of
  * bouncing the tap: starting needs one piece of the activity's own set cut, finishing needs
- * them all — except `additional`, which the canteador closes on their own word. The button
- * stays on screen and disables: on a shop-floor panel, an action that silently disappears is
- * indistinguishable from a bug.
+ * them all — every piece for the cut, the banded ones for the banding, the ones carrying a
+ * workshop code for the additional work. The button stays on screen and disables: on a
+ * shop-floor panel, an action that silently disappears is indistinguishable from a bug.
  */
 export const activityAction = (activity: OrderActivity): CardAction | null => {
   const label = ACTIVITY_LABEL[activity.type]
   const progress = activity.progress ?? { cutPieces: 0, totalPieces: 0 }
   const missing = progress.totalPieces - progress.cutPieces
+  const qualifier = ACTIVITY_PIECES_QUALIFIER[activity.type]
+  const which = qualifier ? ` ${qualifier}` : ''
 
   if (activity.status === 'pending') {
     // The cut is its own floor: it IS the cutting, so nothing has to be cut first.
@@ -105,26 +117,18 @@ export const activityAction = (activity: OrderActivity): CardAction | null => {
       label: `Iniciar ${label.toLowerCase()}`,
       color: 'primary',
       disabled: blocked,
-      reason: blocked
-        ? activity.type === 'banding'
-          ? 'Falta cortar la primera pieza con canto'
-          : 'Falta cortar la primera pieza'
-        : undefined,
+      reason: blocked ? `Falta cortar la primera pieza${which}` : undefined,
     }
   }
   if (activity.status === 'in_progress') {
-    const blocked = activity.type !== 'additional' && missing > 0
+    const blocked = missing > 0
     return {
       kind: 'finish',
       activity: activity.type,
       label: `Terminar ${label.toLowerCase()}`,
       color: 'success',
       disabled: blocked,
-      reason: blocked
-        ? activity.type === 'banding'
-          ? `Faltan ${missing} pieza(s) con canto por cortar`
-          : `Faltan ${missing} pieza(s) por cortar`
-        : undefined,
+      reason: blocked ? `Faltan ${missing} pieza(s)${which} por cortar` : undefined,
     }
   }
   return null

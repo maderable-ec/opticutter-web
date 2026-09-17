@@ -15,7 +15,28 @@ export type FillableField =
   | 'edgeBandingSides'
   | 'edgeBandingProductId'
   | 'edgeBandingBandType'
+  | 'hingingCode'
+  | 'assemblyCode'
+  | 'groovingCode'
 export type FillScope = 'all' | 'selected'
+
+// Fields a pasted column of values can land in, and the ones among them that stay text (the rest
+// are measurements, parsed as numbers). The workshop codes are text even when they look numeric: "02"
+// is not "2".
+export type PasteableField =
+  | 'height'
+  | 'width'
+  | 'quantity'
+  | 'label'
+  | 'hingingCode'
+  | 'assemblyCode'
+  | 'groovingCode'
+const TEXT_FIELDS = new Set<PasteableField>([
+  'label',
+  'hingingCode',
+  'assemblyCode',
+  'groovingCode',
+])
 
 // Campos por los que se puede ordenar una tabla de grupo.
 export type SortField = 'height' | 'width' | 'quantity' | 'label'
@@ -362,18 +383,14 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
 
   // Pastes a column of values into `field` starting at `startIndex`. Overwrites existing rows and
   // creates new ones (cloned from the source row) when they run out; reclusters to keep groups intact.
-  const pasteIntoField = (
-    startIndex: number,
-    field: 'height' | 'width' | 'quantity' | 'label',
-    rawValues: string[],
-  ) => {
+  const pasteIntoField = (startIndex: number, field: PasteableField, rawValues: string[]) => {
     applyWithHistory((rs) => {
       if (rawValues.length === 0 || startIndex >= rs.length) return rs
       const src = rs[startIndex]
       if (!src) return rs
       const result = [...rs]
       const toValue = (s: string): string | number => {
-        if (field === 'label') return s.trim()
+        if (TEXT_FIELDS.has(field)) return s.trim()
         const n = Number(s.trim().replace(',', '.'))
         return Number.isFinite(n) ? n : s.trim()
       }

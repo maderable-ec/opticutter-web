@@ -17,6 +17,7 @@ import {
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import { useSwipeNav } from 'src/shared/hooks/useSwipeNav'
 import ZoomControls from 'src/shared/components/ZoomControls'
+import { workshopCodesBare, workshopCodesLine } from 'src/shared/utils/workshopCodes'
 import BoardDimensions from 'src/shared/components/BoardDimensions'
 import BoardGrain from 'src/shared/components/BoardGrain'
 import EdgeDimensions from 'src/shared/components/EdgeDimensions'
@@ -39,8 +40,8 @@ interface WorkshopBoardSvgProps {
 const CHECK_COLOR = '#2b8a3e' // verde del ✓ de pieza cortada
 
 // Renders a physical board from the cutting plan using the same geometry as the optimizer, adding
-// per-piece cut state (dimmed + ✓), the edge-banding notation, hatched waste areas, and a tap
-// target over each full rectangle. It fills the height its container gives it — the page owns the
+// per-piece cut state (dimmed + ✓), the edge-banding notation with the workshop codes under it,
+// hatched waste areas, and a tap target over each full rectangle. It fills the height its container gives it — the page owns the
 // viewport, this owns the drawing.
 const WorkshopBoardSvg = ({
   board,
@@ -103,19 +104,47 @@ const WorkshopBoardSvg = ({
     // A cut piece belongs to the ✓: the canto no longer decides anything there. Revealed earlier
     // than the measurements (a 4-character string needs far less room), and the qualifier only once
     // the piece is big enough for two lines.
-    const showNote =
-      !piece.cut && !!notation && piece.width * scale > 60 && piece.height * scale > 60
+    const roomy = !piece.cut && piece.width * scale > 60 && piece.height * scale > 60
+    const showNote = roomy && !!notation
+    const showBandNote = showNote && !!bandNote && showPieceDims(piece.width, piece.height, scale)
+    // The workshop codes ("B2 · R1", bare: the shop knows its own codes, and the service word only
+    // cost room on a small piece) go UNDER the canto: they are what the operator sets
+    // aside for the bander, so they are revealed as early as the canto itself rather than with the
+    // qualifier. Sized off their own length, like the notation, so a long line stays inside a
+    // narrow piece.
+    const codes = workshopCodesBare(piece)
+    const codesSize = clamp(
+      Math.min(minSide / 7, piece.height / Math.max(codes.length * 0.58, 1)),
+      12,
+      44,
+    )
+    const cx = piece.x + piece.width / 2
+    const cy = piece.y + piece.height / 2
+    // The lines stacked over the piece's centre, top to bottom. A piece's on-screen height is
+    // `piece.width` (see above), so when the stack would not fit it is shrunk as a whole: every
+    // line stays, just smaller — zooming in brings it back.
+    const stack = [
+      showNote ? { key: 'note', text: notation, size: noteSize } : null,
+      showBandNote ? { key: 'band', text: bandNote, size: noteSize * 0.75 } : null,
+      roomy && codes ? { key: 'codes', text: codes, size: codesSize } : null,
+    ].filter((line): line is { key: string; text: string; size: number } => !!line)
+    const LINE_PITCH = 1.1
+    const stackHeight = stack.reduce((h, line) => h + line.size * LINE_PITCH, 0)
+    const fit = stackHeight > 0 ? Math.min(1, (piece.width * 0.85) / stackHeight) : 1
+    let top = cy - (stackHeight * fit) / 2
+    const lines = stack.map((line) => {
+      const size = line.size * fit
+      const y = top + (size * LINE_PITCH) / 2
+      top += size * LINE_PITCH
+      return { ...line, size, y }
+    })
     return {
       piece,
       color: colorFor(pieceSig(piece)),
-      cx: piece.x + piece.width / 2,
-      cy: piece.y + piece.height / 2,
+      cx,
+      cy,
       checkSize: clamp(minSide * 0.55, 36, 220),
-      notation,
-      bandNote,
-      noteSize,
-      showNote,
-      showBandNote: showNote && !!bandNote && showPieceDims(piece.width, piece.height, scale),
+      lines,
     }
   })
 
@@ -184,6 +213,7 @@ const WorkshopBoardSvg = ({
                 {p.label} · {p.originalWidth}×{p.originalHeight} mm
                 {p.rotated ? ' (rotada 90°)' : ''}
                 {p.edges?.notation ? ` · canto ${p.edges.notation}` : ''}
+                {workshopCodesLine(p) ? ` · ${workshopCodesLine(p)}` : ''}
                 {p.cut ? ' — cortada' : ''}
                 {p.cut && p.cutByLabel ? ` por ${p.cutByLabel}` : ''}
               </title>
@@ -230,67 +260,52 @@ const WorkshopBoardSvg = ({
               screen-space group below, which paints after this one — and leaving the canto and the
               ✓ inside the piece groups had the texture running straight through them. Both are
               `pointerEvents: none`, so a tap still lands on the piece rect underneath. */}
-          {drawn.map(
-            ({
-              piece: p,
-              cx,
-              cy,
-              checkSize,
-              notation,
-              bandNote,
-              noteSize,
-              showNote,
-              showBandNote,
-            }) => (
-              <g key={`label-${p.id}`}>
-                {/* Edge-banding notation over the piece it belongs to: how many sides are banded is
-                    what decides the cut, so it leads; the type and alias name the tapacanto to fetch
-                    and ride underneath, smaller.
+          {drawn.map(({ piece: p, cx, cy, checkSize, lines }) => (
+            <g key={`label-${p.id}`}>
+              {/* Edge-banding notation over the piece it belongs to: how many sides are banded is
+                  what decides the cut, so it leads; the type and alias name the tapacanto to fetch
+                  and ride underneath, smaller; the workshop codes close the stack.
 
-                    Plain text, in the same colour and weight as the measurements on the edges. It
-                    used to be bold and haloed in white for legibility on a dusty shop screen, which
-                    made a qualifier shout louder than the numbers it qualifies — and the
-                    measurements have always read over these same fills without any of it. */}
-                {showNote && (
-                  <text
-                    x={cx}
-                    y={cy}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill={PIECE_LABEL}
-                    transform={uprightText(cx, cy)}
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                  >
-                    <tspan x={cx} dy={showBandNote ? -noteSize * 0.32 : 0} fontSize={noteSize}>
-                      {notation}
+                  Plain text, in the same colour and weight as the measurements on the edges. It
+                  used to be bold and haloed in white for legibility on a dusty shop screen, which
+                  made a qualifier shout louder than the numbers it qualifies — and the
+                  measurements have always read over these same fills without any of it. */}
+              {lines.length > 0 && (
+                <text
+                  x={cx}
+                  y={cy}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill={PIECE_LABEL}
+                  transform={uprightText(cx, cy)}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {lines.map((line) => (
+                    <tspan key={line.key} x={cx} y={line.y} fontSize={line.size}>
+                      {line.text}
                     </tspan>
-                    {showBandNote && (
-                      <tspan x={cx} dy={noteSize * 0.9} fontSize={noteSize * 0.75}>
-                        {bandNote}
-                      </tspan>
-                    )}
-                  </text>
-                )}
+                  ))}
+                </text>
+              )}
 
-                {/* ✓ at full opacity above the dimmed layer, so the cut state reads at a glance */}
-                {p.cut && (
-                  <text
-                    x={cx}
-                    y={cy}
-                    fontSize={checkSize}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill={CHECK_COLOR}
-                    fontWeight={700}
-                    transform={uprightText(cx, cy)}
-                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                  >
-                    ✓
-                  </text>
-                )}
-              </g>
-            ),
-          )}
+              {/* ✓ at full opacity above the dimmed layer, so the cut state reads at a glance */}
+              {p.cut && (
+                <text
+                  x={cx}
+                  y={cy}
+                  fontSize={checkSize}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill={CHECK_COLOR}
+                  fontWeight={700}
+                  transform={uprightText(cx, cy)}
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  ✓
+                </text>
+              )}
+            </g>
+          ))}
         </g>
 
         {/* Measurements drawn on the edges (not centered): positioned in screen space, so this

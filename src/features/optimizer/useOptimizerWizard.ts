@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { WORKSHOP_CODES } from 'src/shared/utils/workshopCodes'
 import type { MaterialInput, RequirementInput } from './types'
 
 // The wizard's current step lives in a SEARCH PARAM, not a sub-route. `AppContent` keys its
@@ -54,12 +55,28 @@ export interface WizardGates {
 
 // Signature of everything that determines a result. Compared against the signature of the payload
 // actually sent, it tells whether what's on screen still describes the current inputs.
+//
+// The workshop codes are left out: they move no piece and no price (the API keeps them out of its
+// hash too), so typing one must not turn the result stale and send the Costos step back through the
+// search overlay. They still ride in the payload, which is what the quote and the order read.
+const withoutWorkshopCodes = (r: RequirementInput): RequirementInput => {
+  const geometry = { ...r }
+  for (const { field } of WORKSHOP_CODES) delete geometry[field]
+  return geometry
+}
+
 export const signatureOf = (
   materials: MaterialInput[],
   requirements: RequirementInput[],
   variant: number,
   priceLevel: number,
-): string => JSON.stringify({ materials, requirements, variant, priceLevel })
+): string =>
+  JSON.stringify({
+    materials,
+    requirements: requirements.map(withoutWorkshopCodes),
+    variant,
+    priceLevel,
+  })
 
 export const useOptimizerWizard = ({ hasPieceData, hasResult, canQuote }: WizardGates) => {
   const [params, setParams] = useSearchParams()

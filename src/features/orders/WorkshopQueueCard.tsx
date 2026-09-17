@@ -18,6 +18,13 @@ const pct = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
 const isDone = ({ cutPieces, totalPieces }: WorkshopQueueItem['progress']) =>
   totalPieces > 0 && cutPieces >= totalPieces
 
+// What a per-activity bar counts. Shorter than `ACTIVITY_PIECES_QUALIFIER` on purpose: the bar's
+// label shares its line with the bar and must not wrap on a narrow card.
+const SET_BAR_NOUN: Record<string, string> = {
+  banding: 'con canto',
+  additional: 'con trabajo',
+}
+
 // Default icon per kind: `activities.ts` derives the buttons and is deliberately icon-free.
 const ACTION_ICON: Record<CardAction['kind'], string[]> = {
   take: cilMediaPlay,
@@ -86,9 +93,12 @@ const WorkshopQueueCard = ({
   // Badges for the work only once the shop has actually started: on a queued card every
   // activity is pending and "Corte pendiente" says nothing the "En cola" badge does not.
   const showActivities = item.status === 'in_process'
-  // The banding is the only activity whose piece set differs from the card's own bar
-  // (`additional` runs over every piece, so its bar would be a duplicate).
-  const banding = activities.find((a) => a.type === 'banding')
+  // The activities whose piece set differs from the card's own bar: the banding (banded pieces)
+  // and the additional work (pieces with a workshop code). The cut runs over every piece, so its
+  // bar would be a duplicate.
+  const setBars = activities.filter(
+    (a) => a.type !== 'cutting' && a.progress && a.progress.totalPieces > 0,
+  )
   // Only the first reason is shown: stacking three would push the card taller than the ones
   // beside it, and the shop acts on one button at a time.
   const blockedReason = actions.find((a) => a.reason)?.reason
@@ -161,21 +171,21 @@ const WorkshopQueueCard = ({
           </div>
         )}
 
-        {/* The banded pieces get their own bar because they are their own gate: the bander
-            waits on THESE, not on the cut as a whole. Without it the card would grey out the
-            banding button while the bar above happily advances on pieces that carry no canto. */}
-        {banding?.progress && banding.progress.totalPieces > 0 && (
-          <div className="d-flex align-items-center gap-3">
-            <CProgress className="flex-grow-1">
-              <CProgressBar
-                value={pct(banding.progress)}
-                color={isDone(banding.progress) ? 'success' : 'info'}
-              />
-            </CProgress>
-            <span className="fw-semibold text-nowrap">
-              {banding.progress.cutPieces}/{banding.progress.totalPieces} con canto
-            </span>
-          </div>
+        {/* The banded pieces and the ones with a workshop code get their own bars because they
+            are their own gates: the bander waits on THESE, not on the cut as a whole. Without them
+            the card would grey out the button while the bar above happily advances on pieces that
+            are not the bander's. */}
+        {setBars.map(({ type, progress }) =>
+          progress ? (
+            <div key={type} className="d-flex align-items-center gap-3">
+              <CProgress className="flex-grow-1">
+                <CProgressBar value={pct(progress)} color={isDone(progress) ? 'success' : 'info'} />
+              </CProgress>
+              <span className="fw-semibold text-nowrap">
+                {progress.cutPieces}/{progress.totalPieces} {SET_BAR_NOUN[type]}
+              </span>
+            </div>
+          ) : null,
         )}
 
         <div className="d-flex flex-column">

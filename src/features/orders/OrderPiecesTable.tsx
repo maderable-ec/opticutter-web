@@ -10,6 +10,7 @@ import {
 
 import CantoPreview from 'src/shared/components/CantoPreview'
 import { bandingName, cantoNotation, cantoSides } from 'src/features/review/format'
+import { hasWorkshopCodes, workshopCodesLine } from 'src/shared/utils/workshopCodes'
 import type { OrderPiece } from './types'
 
 // The cut list an order was created with, read-only: unlike a quote, a confirmed order's despiece
@@ -22,7 +23,7 @@ import type { OrderPiece } from './types'
 // paint over the brand tint.
 const stickyHead: CSSProperties = { position: 'sticky', top: 0, zIndex: 2 }
 
-const COLUMNS = 7
+const BASE_COLUMNS = 7
 
 interface PieceGroup {
   key: string
@@ -85,6 +86,10 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
   // One group with no material of its own is an order the backfill never reached: a rubric
   // reading "Sin material" over the whole list is a frame around nothing.
   const named = !(groups.length === 1 && groups[0]?.key === '')
+  // "Taller" only when some piece carries a workshop code — the same rule the printed ORDEN DE
+  // PEDIDO follows, so an order without that work keeps the table it always had.
+  const withWorkshop = pieces.some(hasWorkshopCodes)
+  const columns = BASE_COLUMNS + (withWorkshop ? 1 : 0)
 
   return (
     <div style={{ maxHeight, overflow: 'auto' }}>
@@ -102,6 +107,14 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
               Cant.
             </CTableHeaderCell>
             <CTableHeaderCell style={stickyHead}>Cantos</CTableHeaderCell>
+            {withWorkshop && (
+              <CTableHeaderCell
+                style={stickyHead}
+                title="Abisagrado (Abis), ensamble (Ens) y ranurado (Ran)"
+              >
+                Taller
+              </CTableHeaderCell>
+            )}
             <CTableHeaderCell style={stickyHead} className="text-end">
               Prioridad
             </CTableHeaderCell>
@@ -118,7 +131,7 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
             <Fragment key={group.key}>
               {named && (
                 <CTableRow className="table-active">
-                  <CTableDataCell colSpan={COLUMNS}>
+                  <CTableDataCell colSpan={columns}>
                     <span className="fw-semibold">{group.name}</span>
                     <span className="text-body-secondary ms-2">
                       {group.pieces.length} {group.pieces.length === 1 ? 'pieza' : 'piezas'} ·{' '}
@@ -155,6 +168,11 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
                         <span className="text-body-secondary">—</span>
                       )}
                     </CTableDataCell>
+                    {withWorkshop && (
+                      <CTableDataCell className="text-nowrap">
+                        {workshopCodesLine(p) || <span className="text-body-secondary">—</span>}
+                      </CTableDataCell>
+                    )}
                     <CTableDataCell className="text-end">{p.priority}</CTableDataCell>
                     <CTableDataCell className="text-center">
                       {p.canRotate ? 'Sí' : 'No'}
