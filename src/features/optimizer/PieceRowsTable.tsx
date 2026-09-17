@@ -647,7 +647,7 @@ const PieceRowsTable = ({
                   <CFormInput
                     size="sm"
                     type="number"
-                    min={1}
+                    min={0}
                     max={10000}
                     data-row={local}
                     data-col={2}

@@ -212,7 +212,7 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   materialUid,
   height: '',
   width: '',
-  quantity: 1,
+  quantity: 0,
   label: '',
   canRotate: false,
   edgeBanding: emptyEdgeBanding(),
@@ -254,9 +254,13 @@ export const piecesMissingBandingProduct = (requirements: RequirementForm[]): nu
 export const validMaterialUids = (materials: MaterialForm[]): Set<string> =>
   new Set(materials.filter(isMaterialValid).map((m) => m.uid))
 
-// A piece is valid (included in optimization) if it references a valid material and has dimensions > 0.
+// A piece is valid (included in optimization) if it references a valid material, has dimensions > 0
+// and a declared quantity > 0.
 export const isRequirementValid = (r: RequirementForm, validUids: Set<string>): boolean =>
-  validUids.has(r.materialUid) && Number(r.height) > 0 && Number(r.width) > 0
+  validUids.has(r.materialUid) &&
+  Number(r.height) > 0 &&
+  Number(r.width) > 0 &&
+  Number(r.quantity) > 0
 
 // A "blank" row (just added, untouched): not highlighted as an error even if invalid.
 export const isRequirementEmpty = (r: RequirementForm): boolean =>
@@ -294,7 +298,7 @@ export const piecesSummary = (
   let invalid = 0
   for (const r of requirements) {
     if (isRequirementValid(r, validUids)) {
-      const qty = Number(r.quantity) || 1
+      const qty = Number(r.quantity)
       pieces += 1
       units += qty
       areaM2 += (Number(r.height) * Number(r.width) * qty) / 1_000_000
@@ -325,6 +329,7 @@ export const requirementIssues = (
     if (!validUids.has(r.materialUid)) reasons.push('sin material definido')
     if (!(Number(r.height) > 0)) reasons.push('falta el largo')
     if (!(Number(r.width) > 0)) reasons.push('falta el ancho')
+    if (!(Number(r.quantity) > 0)) reasons.push('falta la cantidad')
     issues.push({ index, reasons })
   })
   return issues
@@ -513,7 +518,7 @@ export const buildPayload = (
       materialKey: canonicalKey.get(r.materialUid) ?? r.materialUid,
       height: Number(r.height),
       width: Number(r.width),
-      quantity: Number(r.quantity) || 1,
+      quantity: Number(r.quantity),
       // The editor has no priority column any more: the seller never ranked a piece and the
       // number rode along at 0. It still ships because the schema demands it
       // (`Requirement.priority` is a required NonNegativeInt), and a constant 0 is inert — the

@@ -154,7 +154,8 @@ const MaterialGroupCard = ({
 
   const invalidCount = rows.filter(
     (r) =>
-      !(materialValid && Number(r.height) > 0 && Number(r.width) > 0) && !isRequirementEmpty(r),
+      !(materialValid && Number(r.height) > 0 && Number(r.width) > 0 && Number(r.quantity) > 0) &&
+      !isRequirementEmpty(r),
   ).length
 
   const board = m.boardId ? boards.find((b) => String(b.id) === String(m.boardId)) : undefined
