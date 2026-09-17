@@ -232,6 +232,11 @@ export interface RequirementInput {
   label?: string
   canRotate: boolean
   edgeBanding?: EdgeBandingSpec
+  // Workshop codes (abisagrado / ensamble / ranurado). Production data, not geometry: the API keeps
+  // them out of the optimization hash, and `signatureOf` keeps them out of the staleness check.
+  hingingCode?: string
+  assemblyCode?: string
+  groovingCode?: string
 }
 
 // Billed additional service on a quote (qty × editable unit price). Not cut

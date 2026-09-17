@@ -1,4 +1,5 @@
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
+import { WORKSHOP_CODES, hasWorkshopCodes } from 'src/shared/utils/workshopCodes'
 import type {
   EdgeSide,
   InlineMaterialInput,
@@ -82,6 +83,12 @@ export interface RequirementForm {
   label: string
   canRotate: boolean
   edgeBanding: EdgeBandingForm
+  // Workshop codes (abisagrado / ensamble / ranurado); '' = no such work. Required here so every
+  // place that builds a row has to say so, but read with `?? ''` anyway: an autosave or a draft saved
+  // before the columns existed comes back without the keys.
+  hingingCode: string
+  assemblyCode: string
+  groovingCode: string
 }
 
 export const SOURCE_LABELS: Record<MaterialSourceKind, string> = {
@@ -209,6 +216,9 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   label: '',
   canRotate: false,
   edgeBanding: emptyEdgeBanding(),
+  hingingCode: '',
+  assemblyCode: '',
+  groovingCode: '',
 })
 
 // A starter group the user never touched: nothing filled in at all. Used after a
@@ -250,7 +260,11 @@ export const isRequirementValid = (r: RequirementForm, validUids: Set<string>): 
 
 // A "blank" row (just added, untouched): not highlighted as an error even if invalid.
 export const isRequirementEmpty = (r: RequirementForm): boolean =>
-  r.height === '' && r.width === '' && !r.label.trim() && !hasEdgeBanding(r.edgeBanding)
+  r.height === '' &&
+  r.width === '' &&
+  !r.label.trim() &&
+  !hasEdgeBanding(r.edgeBanding) &&
+  !hasWorkshopCodes(r)
 
 // Deep clone of a piece (edgeBanding.sides is an object) used when duplicating rows.
 export const cloneRequirement = (r: RequirementForm): RequirementForm => ({
@@ -490,6 +504,11 @@ export const buildPayload = (
     const sides = selectedSides(r.edgeBanding)
     const pid = Number(r.edgeBanding.productId) || undefined
     const edgeBanding = sides.length ? { sides, ...(pid ? { productId: pid } : {}) } : undefined
+    // Only the codes typed in: a blank one is "no such work", and the API reads a missing key the
+    // same way.
+    const codes = Object.fromEntries(
+      WORKSHOP_CODES.map(({ field }) => [field, (r[field] ?? '').trim()]).filter(([, v]) => v),
+    ) as Pick<RequirementInput, 'hingingCode' | 'assemblyCode' | 'groovingCode'>
     return {
       materialKey: canonicalKey.get(r.materialUid) ?? r.materialUid,
       height: Number(r.height),
@@ -504,6 +523,7 @@ export const buildPayload = (
       label: r.label.trim() || undefined,
       canRotate: r.canRotate,
       ...(edgeBanding ? { edgeBanding } : {}),
+      ...codes,
     }
   })
 
