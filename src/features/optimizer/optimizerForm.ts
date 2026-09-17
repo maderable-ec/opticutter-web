@@ -83,12 +83,13 @@ export interface RequirementForm {
   label: string
   canRotate: boolean
   edgeBanding: EdgeBandingForm
-  // Workshop codes (abisagrado / ensamble / ranurado); '' = no such work. Required here so every
+  // Workshop codes (abisagrado / ranurado / ensamble / división); '' = no such work. Required here so every
   // place that builds a row has to say so, but read with `?? ''` anyway: an autosave or a draft saved
   // before the columns existed comes back without the keys.
   hingingCode: string
-  assemblyCode: string
   groovingCode: string
+  assemblyCode: string
+  divisionCode: string
 }
 
 export const SOURCE_LABELS: Record<MaterialSourceKind, string> = {
@@ -217,8 +218,9 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   canRotate: false,
   edgeBanding: emptyEdgeBanding(),
   hingingCode: '',
-  assemblyCode: '',
   groovingCode: '',
+  assemblyCode: '',
+  divisionCode: '',
 })
 
 // A starter group the user never touched: nothing filled in at all. Used after a
@@ -513,7 +515,7 @@ export const buildPayload = (
     // same way.
     const codes = Object.fromEntries(
       WORKSHOP_CODES.map(({ field }) => [field, (r[field] ?? '').trim()]).filter(([, v]) => v),
-    ) as Pick<RequirementInput, 'hingingCode' | 'assemblyCode' | 'groovingCode'>
+    ) as Pick<RequirementInput, 'hingingCode' | 'groovingCode' | 'assemblyCode' | 'divisionCode'>
     return {
       materialKey: canonicalKey.get(r.materialUid) ?? r.materialUid,
       height: Number(r.height),

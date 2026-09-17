@@ -85,7 +85,7 @@ const PASTEABLE_FIELDS = new Set<string>([
 ])
 
 // data-col → field mapping (material and priority columns removed). Cols 4-6 are the banding
-// controls; 7-9 the workshop codes, in `WORKSHOP_CODES` order.
+// controls; 7-10 the workshop codes, in `WORKSHOP_CODES` order.
 const COL_FIELDS: FillableField[] = [
   'height', // col 0
   'width', // col 1
@@ -94,7 +94,7 @@ const COL_FIELDS: FillableField[] = [
   'edgeBandingSides', // col 4 — banding sides (Canto)
   'edgeBandingBandType', // col 5 — banding type (Tipo: suave/duro)
   'edgeBandingProductId', // col 6 — banding product (Tapacanto)
-  ...WORKSHOP_CODES.map((c) => c.field), // cols 7-9 — Abisagrado, Ensamble, Ranurado
+  ...WORKSHOP_CODES.map((c) => c.field), // cols 7-10 — Abisagrado, Ranurado, Ensamble, División
 ]
 const CODE_COL_START = 7
 // Width of the Tapacanto column, declared once because the cell and the block inside it have to
@@ -110,11 +110,14 @@ const CODE_COL_START = 7
 // with the full name on the cell's `title`.
 //
 // 260 is what is left after the row's other claims: the whole row has to stay inside the pane on a
-// 1280 laptop, the narrowest screen a vendedor quotes from, and Largo/Ancho keep a floor of 100 so
-// they do not collapse to a 3-digit box when it is tight. A horizontal scroll is the very thing this
-// is fixing, so this number gives way before that floor does — at 260 the dimensions sit exactly on
-// that floor there, and past ~270 the checkbox and "#" gutters start giving way instead.
+// 1280 laptop, the narrowest screen a vendedor quotes from, and Largo/Ancho keep a floor
+// (`DIM_COL_W`) so they do not collapse below a 4-digit box when it is tight.
 const TAPACANTO_COL_W = 260
+
+// Floor of Largo and Ancho. A dimension is at most 4 digits ("2440"), which with the small input's
+// padding and the number spinner fits in 72; it was 100, and those 56 px across the two columns are
+// what pays for the fourth workshop code without pushing the row past the pane.
+const DIM_COL_W = 72
 
 // Tapacanto (product, col 6) is a SearchableSelect outside the grid, so keyboard nav steps from Tipo
 // straight over it to the first workshop code. The arrows walk this list, not raw column numbers.
@@ -125,9 +128,13 @@ const TEXT_COLS = new Set([3, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k
 const stepCol = (col: number, delta: 1 | -1): number =>
   NAV_COLS[NAV_COLS.indexOf(col) + delta] ?? col
 // Narrow on purpose: a code the workshop knows is a few characters ("B2"), and this row is already
-// tight on a 1280 laptop (see TAPACANTO_COL_W). The header says Abis./Ens./Ran. with the word on the
+// tight on a 1280 laptop (see TAPACANTO_COL_W). The header says Abis./Ran./Ens./Div. with the word on the
 // title for the same reason.
 const CODE_COL_W = 64
+// Every header cell: checkbox, #, Largo, Ancho, Cant., Etiqueta, Rotar, Canto, Tipo, Tapacanto, one per
+// workshop code, and the actions gutter. Derived so the empty-group row keeps spanning the whole table
+// when a code is added.
+const COLUMN_COUNT = 10 + WORKSHOP_CODES.length + 1
 // Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
 // Tipo is a pair of buttons that should move rows like every other cell.
 const SELECT_COLS = new Set([4])
@@ -613,7 +620,7 @@ const PieceRowsTable = ({
                     <span>{i + 1}</span>
                   </div>
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(0, local, 100)}>
+                <CTableDataCell style={cellStyle(0, local, DIM_COL_W)}>
                   <CFormInput
                     size="sm"
                     type="number"
@@ -628,7 +635,7 @@ const PieceRowsTable = ({
                   />
                   {renderHandle(local, 0)}
                 </CTableDataCell>
-                <CTableDataCell style={cellStyle(1, local, 100)}>
+                <CTableDataCell style={cellStyle(1, local, DIM_COL_W)}>
                   <CFormInput
                     size="sm"
                     type="number"
@@ -848,7 +855,10 @@ const PieceRowsTable = ({
           })}
           {rows.length === 0 && (
             <CTableRow>
-              <CTableDataCell colSpan={14} className="text-center text-body-secondary small py-3">
+              <CTableDataCell
+                colSpan={COLUMN_COUNT}
+                className="text-center text-body-secondary small py-3"
+              >
                 Sin piezas en este material. Usa “Agregar pieza” o la entrada rápida.
               </CTableDataCell>
             </CTableRow>
