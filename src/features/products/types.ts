@@ -8,7 +8,6 @@ export interface BoardAttributes {
   thickness?: number
   grainDirection?: string
   subtype?: string
-  family?: string
 }
 
 export interface EdgeBandingAttributes {
@@ -18,8 +17,17 @@ export interface EdgeBandingAttributes {
   bandType?: string
   color?: string
   subtype?: string
-  family?: string
-  alias?: string
+}
+
+/** The design group a product coordinates through.
+ *
+ *  `family` and `alias` used to be keys of `attributes`. They are columns of the
+ *  product now, because the catalog sync replaces that bag wholesale on every
+ *  pass: anything set from this dashboard was wiped on the next sync. What is
+ *  left in `attributes` is the vendor's alone. */
+export interface ProductFamilyRef {
+  id: number
+  name: string
 }
 
 interface ProductBase {
@@ -35,6 +43,12 @@ interface ProductBase {
   price2?: number | null
   price3?: number | null
   isActive: boolean
+  // What you WRITE is `familyId`; `family` is what you read.
+  familyId?: number | null
+  family?: ProductFamilyRef | null
+  // Edge banding only — the short code the workshop notation prints (`1L CS CSH`).
+  // Independent of the family, which coordinates but is never printed.
+  alias?: string | null
 }
 
 export interface BoardProduct extends ProductBase {
@@ -63,6 +77,10 @@ export interface ProductListParams {
   // body already used `isActive`.
   isActive?: boolean
   sort?: ListSort
+  familyId?: number
+  // Two parameters rather than one nullable filter: a query string cannot carry
+  // a null, so `?familyId=` would arrive as '' and 422 on its way to an int.
+  unassigned?: boolean
 }
 
 export interface ProductPayload {
@@ -74,6 +92,8 @@ export interface ProductPayload {
   price2?: number | null
   price3?: number | null
   isActive?: boolean
+  familyId?: number | null
+  alias?: string | null
   attributes: BoardAttributes | EdgeBandingAttributes
 }
 
@@ -100,12 +120,20 @@ export interface ProductSyncResult {
   /** Rows whose data couldn't be parsed. Skipped, never fatal — and left
    *  untouched in the catalog rather than treated as removed. */
   skippedInvalid: number
+  /** Design groups the pass had to create because an incoming article named one
+   *  the catalog didn't have. The sync seeds a family only when it CREATES a
+   *  product; a family it invents is the one row it adds on our side. */
+  familiesCreated: number
   issues: ProductSyncIssue[]
-  /** Rows that WERE imported but whose design data can't do its job: a
-   *  tapacanto with no familia or no alias, or a familia declared on only one
-   *  of the two categories. Nothing was skipped — it's reported because
-   *  board<->tapacanto coordination is an exact match that otherwise fails
-   *  silently, and the preview is where the operator would want to see it. */
+  /** Rows that WERE imported but that somebody should look at: a price level the
+   *  vendor inverted, a tax rate that isn't the configured one, a board whose
+   *  sides came in backwards — defects of the SOURCE, fixable only there. Plus
+   *  the one coordination case left here: a NEW article that arrived with
+   *  nothing to seed its family from, so it landed uncoordinated.
+   *
+   *  What moved out: "this family has no counterpart" and "no stocked width
+   *  covers this board" are now computed over OUR rows, on the Familias screen —
+   *  read from the vendor's `obs` they would flag designs already fixed here. */
   warnings: ProductSyncIssue[]
   /** True when the pass ran and rolled back: a preview, nothing was written. */
   dryRun: boolean

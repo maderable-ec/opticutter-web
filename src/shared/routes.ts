@@ -6,6 +6,7 @@ import { ordersRoutes } from 'src/features/orders/routes'
 import { preordersRoutes } from 'src/features/preorders/routes'
 import { optimizerRoutes } from 'src/features/optimizer/routes'
 import { printRoutes } from 'src/features/print/routes'
+import { productFamiliesRoutes } from 'src/features/productFamilies/routes'
 import { productsRoutes } from 'src/features/products/routes'
 import { servicesRoutes } from 'src/features/services/routes'
 import { settingsRoutes } from 'src/features/settings/routes'
@@ -35,6 +36,7 @@ export const routes: AppRoute[] = [
   ...preordersRoutes,
   ...optimizerRoutes,
   ...productsRoutes,
+  ...productFamiliesRoutes,
   ...servicesRoutes,
   ...settingsRoutes,
   ...profileRoutes,

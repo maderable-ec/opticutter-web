@@ -13,6 +13,7 @@ import {
 import { ApiError } from 'src/shared/api/types'
 import type { ApiErrorItem } from 'src/shared/api/types'
 import { useCatalogSyncPreview, useSyncCatalog } from './useProducts'
+import { Link } from 'react-router-dom'
 import type { ProductSyncIssue, ProductSyncResult } from './types'
 
 interface SyncCatalogModalProps {
@@ -39,6 +40,11 @@ const summaryLines = (result: ProductSyncResult): string[] => {
     lines.push(`${plural(result.skippedInactive, 'de baja', 'de baja')} en el inventario`)
   if (result.skippedInvalid > 0)
     lines.push(`${plural(result.skippedInvalid, 'omitido', 'omitidos')} con datos ilegibles`)
+  // The one row the sync adds on our side. Worth saying out loud in the preview:
+  // a family the pass invents is a grouping nobody asked for, and the operator
+  // may prefer to point the new article at an existing design instead.
+  if (result.familiesCreated > 0)
+    lines.push(`${plural(result.familiesCreated, 'familia nueva', 'familias nuevas')}`)
   return lines
 }
 
@@ -89,10 +95,12 @@ const WarningList = ({ warnings }: { warnings: ProductSyncIssue[] }) => (
     headline={
       <>
         <strong>{warnings.length}</strong>{' '}
-        {warnings.length === 1 ? 'artículo importado' : 'artículos importados'} con la coordinación
-        incompleta. <strong>Sí entran al catálogo</strong>, pero el tapacanto no se va a ofrecer
-        junto a su tablero. Se corrige en la columna OBS. del sistema de inventario, escrita{' '}
-        <code>FAMILIA</code> o <code>FAMILIA - ALIAS</code>.
+        {warnings.length === 1 ? 'artículo importado' : 'artículos importados'} para revisar.{' '}
+        <strong>Todos entran al catálogo.</strong> Los de precio, IVA o medidas se corrigen en el
+        sistema de inventario; los que llegaron <em>sin coordinar</em> son artículos nuevos cuya
+        columna OBS. venía vacía, y se resuelven asignándoles una familia en{' '}
+        <Link to="/product-families">Productos → Familias</Link> — de ahí en adelante manda lo que
+        se elija acá, no lo que diga el inventario.
       </>
     }
   />

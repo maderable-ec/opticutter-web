@@ -16,6 +16,7 @@ import {
 } from '@coreui/react'
 
 import { ApiError } from 'src/shared/api/types'
+import { useAllProductFamilies } from 'src/features/productFamilies/useProductFamilies'
 import FieldError from 'src/shared/components/FieldError'
 import { BOARD_SUBTYPES, EDGE_BANDING_SUBTYPES, subtypeLabel } from './productSubtypes'
 import type { Product, ProductPayload, ProductType } from './types'
@@ -34,8 +35,6 @@ interface AttrsForm {
   color?: string
   length?: number | string
   subtype?: string
-  family?: string
-  alias?: string
 }
 
 interface ProductFormState {
@@ -48,6 +47,12 @@ interface ProductFormState {
   price2: number | string
   price3: number | string
   isActive: boolean
+  // Columns of the product, not keys of the attributes bag: the catalog sync
+  // replaces that bag on every pass, so anything set here used to be wiped on
+  // the next sync. The family is picked from a list rather than typed — an
+  // equality on free text is exactly how a board and its tape drifted apart.
+  familyId: number | ''
+  alias: string
 }
 
 const EMPTY_BOARD_ATTRS: AttrsForm = {
@@ -56,7 +61,6 @@ const EMPTY_BOARD_ATTRS: AttrsForm = {
   thickness: '',
   grainDirection: '',
   subtype: '',
-  family: '',
 }
 const EMPTY_EDGE_ATTRS: AttrsForm = {
   thickness: '',
@@ -65,8 +69,6 @@ const EMPTY_EDGE_ATTRS: AttrsForm = {
   color: '',
   length: '',
   subtype: '',
-  family: '',
-  alias: '',
 }
 
 const initAttrs = (product: Product | null): AttrsForm => {
@@ -79,7 +81,6 @@ const initAttrs = (product: Product | null): AttrsForm => {
       thickness: a.thickness ?? '',
       grainDirection: a.grainDirection ?? '',
       subtype: a.subtype ?? '',
-      family: a.family ?? '',
     }
   }
   const a = product.attributes ?? {}
@@ -90,8 +91,6 @@ const initAttrs = (product: Product | null): AttrsForm => {
     color: a.color ?? '',
     length: a.length ?? '',
     subtype: a.subtype ?? '',
-    family: a.family ?? '',
-    alias: a.alias ?? '',
   }
 }
 
@@ -120,6 +119,9 @@ interface ProductFormProps {
 
 const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: ProductFormProps) => {
   const isEdit = !!product
+  // The catalog's design groups, for the family picker. A reference list, cached
+  // and small enough to fetch whole (75 designs on the live catalog).
+  const { data: families = [] } = useAllProductFamilies()
 
   const [type, setType] = useState<ProductType>(product?.type ?? 'board')
   const [form, setForm] = useState<ProductFormState>({
@@ -130,6 +132,8 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
     price2: product?.price2 ?? '',
     price3: product?.price3 ?? '',
     isActive: product?.isActive ?? true,
+    familyId: product?.familyId ?? '',
+    alias: product?.alias ?? '',
   })
   const [attrs, setAttrs] = useState<AttrsForm>(initAttrs(product))
 
@@ -161,7 +165,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             thickness: Number(attrs.thickness),
             grainDirection: attrs.grainDirection || null,
             subtype: attrs.subtype || undefined,
-            family: attrs.family?.trim() || undefined,
           }
         : {
             thickness: Number(attrs.thickness),
@@ -170,8 +173,6 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
             color: attrs.color || null,
             length: attrs.length ? Number(attrs.length) : null,
             subtype: attrs.subtype || undefined,
-            family: attrs.family?.trim() || undefined,
-            alias: attrs.alias?.trim() || undefined,
           }
 
     onSubmit({
@@ -183,6 +184,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
       price2: form.price2 === '' ? null : Number(form.price2),
       price3: form.price3 === '' ? null : Number(form.price3),
       isActive: form.isActive,
+      familyId: form.familyId === '' ? null : Number(form.familyId),
+      // Edge banding only; the API's discriminated union drops it on a board.
+      alias: type === 'edge_banding' ? form.alias.trim() || null : null,
       attributes,
     })
   }
@@ -370,17 +374,28 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               </CCol>
               <CCol xs={12}>
                 <CFormLabel>Familia</CFormLabel>
-                <CFormInput
-                  value={attrs.family}
-                  onChange={setAttr('family')}
-                  maxLength={64}
-                  placeholder="Ej: Cashmere"
-                />
+                <CFormSelect
+                  value={form.familyId}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      familyId: e.target.value === '' ? '' : Number(e.target.value),
+                    }))
+                  }
+                >
+                  <option value="">— Sin familia —</option>
+                  {families.map((fam) => (
+                    <option key={fam.id} value={fam.id}>
+                      {fam.name}
+                    </option>
+                  ))}
+                </CFormSelect>
                 <small className="text-body-secondary">
-                  Debe coincidir con la familia del tapacanto para coordinarlos. En los productos
-                  sincronizados sale de la columna OBS. del inventario.
+                  El diseño con el que coordinan los tapacantos. Se administra en Productos →
+                  Familias; en un artículo sincronizado se siembra una sola vez desde la columna
+                  OBS. del inventario, y a partir de ahí manda lo que se elija acá.
                 </small>
-                <FieldError name="family" errors={fieldErrors} />
+                <FieldError name="familyId" errors={fieldErrors} />
               </CCol>
             </>
           )}
@@ -466,28 +481,38 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
               </CCol>
               <CCol xs={6}>
                 <CFormLabel>Familia</CFormLabel>
-                <CFormInput
-                  value={attrs.family}
-                  onChange={setAttr('family')}
-                  maxLength={64}
-                  placeholder="Ej: Cashmere"
-                />
+                <CFormSelect
+                  value={form.familyId}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      familyId: e.target.value === '' ? '' : Number(e.target.value),
+                    }))
+                  }
+                >
+                  <option value="">— Sin familia —</option>
+                  {families.map((fam) => (
+                    <option key={fam.id} value={fam.id}>
+                      {fam.name}
+                    </option>
+                  ))}
+                </CFormSelect>
                 <small className="text-body-secondary">
-                  Para coordinar con el tablero (no se imprime en documentos).
+                  Coordina con el tablero; nunca se imprime. Se administra en Productos → Familias.
                 </small>
-                <FieldError name="family" errors={fieldErrors} />
+                <FieldError name="familyId" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
                 <CFormLabel>Alias</CFormLabel>
                 <CFormInput
-                  value={attrs.alias}
-                  onChange={setAttr('alias')}
+                  value={form.alias}
+                  onChange={(e) => setForm((f) => ({ ...f, alias: e.target.value }))}
                   maxLength={20}
                   placeholder="Ej: CSH"
                 />
                 <small className="text-body-secondary">
-                  Código corto impreso en la notación de despiece/documentos. En los productos
-                  sincronizados es el sufijo de OBS. (<code>Cashmere - CSH</code>).
+                  Código corto que imprime la notación del taller (<code>1L CS CSH</code>), para
+                  distinguir dos diseños canteados en la misma orden. Es del rollo, no del diseño.
                 </small>
                 <FieldError name="alias" errors={fieldErrors} />
               </CCol>

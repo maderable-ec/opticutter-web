@@ -18,6 +18,7 @@ import { memo } from 'react'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { preordersNav } from 'src/features/preorders/nav'
 import { printNav } from 'src/features/print/nav'
+import { productFamiliesNav } from 'src/features/productFamilies/nav'
 import { productsNav } from 'src/features/products/nav'
 import { servicesNav } from 'src/features/services/nav'
 import { settingsNav } from 'src/features/settings/nav'
@@ -34,6 +35,7 @@ const allNavItems = [
   ...workshopBoardNav,
   ...clientsNav,
   ...productsNav,
+  ...productFamiliesNav,
   ...servicesNav,
   ...branchesNav,
   ...printNav,
