@@ -32,6 +32,7 @@ import ProductsFilters, {
   prunedSubtypes,
   type ProductsFilterValues,
 } from './ProductsFilters'
+import { useAllProductFamilies } from 'src/features/productFamilies/useProductFamilies'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { fmtMoney } from 'src/shared/utils/format'
@@ -52,7 +53,7 @@ const TYPE_CONFIG: Record<string, StatusConfigEntry> = {
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
-const FILTER_KEYS = ['q', 'type', 'subtype', 'isActive']
+const FILTER_KEYS = ['q', 'type', 'subtype', 'isActive', 'family']
 
 interface ProductModalState {
   visible: boolean
@@ -77,6 +78,24 @@ const PriceCell = ({ product }: { product: Product }) => {
   )
 }
 
+/** The design group the product coordinates through, plus the tape's printed code.
+ *
+ *  Read off the `family` relationship rather than the attributes bag: both moved
+ *  to columns of their own because the catalog sync rewrites that bag wholesale
+ *  on every pass. An em dash here on a board means its picker comes back empty. */
+const FamilyCell = ({ product }: { product: Product }) => (
+  <CTableDataCell className="text-nowrap">
+    {product.family ? (
+      <>
+        {product.family.name}
+        {product.alias && <span className="text-body-secondary"> · {product.alias}</span>}
+      </>
+    ) : (
+      <span className="text-body-secondary">—</span>
+    )}
+  </CTableDataCell>
+)
+
 const ProductsPage = () => {
   const isReadOnly = useHasRole('vendedor')
   const queryClient = useQueryClient()
@@ -92,11 +111,15 @@ const ProductsPage = () => {
     setLimit,
   } = useListParams()
 
+  // Shared with the filter menu; the chip needs the name, not just the id.
+  const { data: families = [] } = useAllProductFamilies()
+
   const search = getParam('q')
   const values: ProductsFilterValues = {
     type: getParams('type') as ProductType[],
     subtype: getParams('subtype'),
     isActive: getParam('isActive'),
+    family: getParam('family'),
     sort: (getParam('sort') || 'name') as ListSort,
   }
 
@@ -117,7 +140,8 @@ const ProductsPage = () => {
   }
   const handleClear = () => clearParams(FILTER_KEYS)
 
-  const chips = productsFilterChips(values, handleChange)
+  const selectedFamily = families.find((f) => String(f.id) === values.family)
+  const chips = productsFilterChips(values, handleChange, selectedFamily?.name)
   const isFiltered = activeCount(values) > 0 || search !== ''
 
   const [formModal, setFormModal] = useState<ProductModalState>({ visible: false, product: null })
@@ -138,6 +162,10 @@ const ProductsPage = () => {
     type: values.type.length ? values.type : undefined,
     subtype: values.subtype.length ? values.subtype : undefined,
     isActive: values.isActive ? values.isActive === 'true' : undefined,
+    // 'none' is the assignment queue. Two API parameters rather than one
+    // nullable filter, because a query string cannot carry a null.
+    familyId: values.family && values.family !== 'none' ? Number(values.family) : undefined,
+    unassigned: values.family === 'none' ? true : undefined,
     sort: values.sort,
     offset,
     limit,
@@ -188,6 +216,7 @@ const ProductsPage = () => {
           <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
           <CTableHeaderCell>Dimensiones</CTableHeaderCell>
           <CTableHeaderCell>Grosor</CTableHeaderCell>
+          <CTableHeaderCell>Familia</CTableHeaderCell>
           <CTableHeaderCell>Estado</CTableHeaderCell>
           <CTableHeaderCell />
         </>
@@ -204,6 +233,7 @@ const ProductsPage = () => {
           <CTableHeaderCell>Ancho</CTableHeaderCell>
           <CTableHeaderCell>Tipo</CTableHeaderCell>
           <CTableHeaderCell>Color</CTableHeaderCell>
+          <CTableHeaderCell>Familia</CTableHeaderCell>
           <CTableHeaderCell>Estado</CTableHeaderCell>
           <CTableHeaderCell />
         </>
@@ -264,6 +294,7 @@ const ProductsPage = () => {
             {a.height && a.width ? `${a.height} × ${a.width} mm` : '—'}
           </CTableDataCell>
           <CTableDataCell>{a.thickness ? `${a.thickness} mm` : '—'}</CTableDataCell>
+          <FamilyCell product={p} />
           <CTableDataCell>{statusBadge}</CTableDataCell>
           {actions}
         </CTableRow>
@@ -286,6 +317,7 @@ const ProductsPage = () => {
             {a.bandType ? (BAND_TYPE_LABELS[a.bandType] ?? a.bandType) : '—'}
           </CTableDataCell>
           <CTableDataCell>{a.color ?? '—'}</CTableDataCell>
+          <FamilyCell product={p} />
           <CTableDataCell>{statusBadge}</CTableDataCell>
           {actions}
         </CTableRow>

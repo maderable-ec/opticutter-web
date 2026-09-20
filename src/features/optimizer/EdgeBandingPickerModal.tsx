@@ -41,8 +41,14 @@ interface EdgeBandingPickerModalProps {
   onClose: () => void
 }
 
+// The search haystack. `family` and `alias` are columns of the product now, not
+// keys of `attributes` — the catalog sync rewrites that bag on every pass, so
+// nothing configurable could live there. Reading them from the old place still
+// COMPILES if the fields are left on the type (`?? ''` swallows the undefined),
+// and the picker silently stops finding anything by design or by code; removing
+// them from `ProductBase`'s attributes is what turns that into a type error.
 const attrText = (p: EdgeBandingProduct): string =>
-  `${p.name} ${p.code} ${p.attributes.color ?? ''} ${p.attributes.family ?? ''} ${p.attributes.alias ?? ''}`
+  `${p.name} ${p.code} ${p.attributes.color ?? ''} ${p.family?.name ?? ''} ${p.alias ?? ''}`
 
 const num = (n?: number): string => (n == null ? '—' : String(n))
 
