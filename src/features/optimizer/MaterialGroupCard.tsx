@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
 import { CBadge, CButton, CFormCheck, CFormInput } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
@@ -30,6 +30,7 @@ import {
 import type { PiecesEditor } from './usePiecesEditor'
 import { useBoardEdgeBandings } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
+import { reresolveSpecialEdges } from './specialEdges'
 
 // Short forms for the summary line; the modal spells them out in full.
 const FILL_ORDER_LABELS: Record<PoolFillOrder, string> = {
@@ -199,6 +200,28 @@ const MaterialGroupCard = ({
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m.uid, boardId, coordinatedKey, missingProduct])
+
+  // Cantos especiales on a board change: the seller named a design and a type, so each one keeps
+  // them and moves to the width that covers the NEW board (a 36mm board needs a wider tape than the
+  // 18mm one did). Never on mount, for the same reason as the rule above — a saved quote keeps its
+  // tapes — and never touched by that rule either: the auto re-inference only writes `edgeBanding`.
+  const edgeBandingById = useMemo(
+    () => new Map(edgeBandings.map((p) => [String(p.id), p])),
+    [edgeBandings],
+  )
+  const prevSpecialBoardId = useRef(boardId)
+  useEffect(() => {
+    if (prevSpecialBoardId.current === boardId || edgeBandings.length === 0) return
+    prevSpecialBoardId.current = boardId
+    const thickness = board?.attributes.thickness
+    editor.updateGroup(m.uid, (r) => {
+      if (!r.specialEdges?.length) return r
+      const next = reresolveSpecialEdges(r.specialEdges, edgeBandings, thickness, edgeBandingById)
+      const moved = next.some((e, k) => e.productId !== r.specialEdges[k]?.productId)
+      return moved ? { ...r, specialEdges: next } : r
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.uid, boardId, edgeBandings.length])
 
   // Retazos of this same material. Editing them lives in `MaterialModal`; the
   // card only reports them, in one line, so the cut list keeps the screen.

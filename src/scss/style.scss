@@ -659,6 +659,22 @@ input[type='number'] {
   }
 }
 
+// The same pill as a tag inside a `sm` table cell: the cantos especiales of the despiece ("L1 CS
+// CHM"). Monospaced digits keep a column of them aligned; `--warning` marks a tape that no longer
+// covers the board, or one the active catalog does not have.
+.filter-chip--sm {
+  gap: 0.2rem;
+  padding: 0 0.25rem 0 0.45rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.filter-chip--warning {
+  border-color: rgba(var(--cui-warning-rgb), 0.7);
+  background-color: rgba(var(--cui-warning-rgb), 0.18);
+}
+
 // The phone's filter panel (`FilterSheet`, a full-screen modal). Its fields are the dropdown's own
 // components, which style themselves as `.dropdown-item` rows sized for a mouse — so the sheet
 // re-sizes them for a finger through CoreUI's own dropdown variables rather than forking them.

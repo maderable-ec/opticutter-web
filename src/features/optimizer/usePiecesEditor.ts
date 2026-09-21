@@ -15,6 +15,7 @@ export type FillableField =
   | 'edgeBandingSides'
   | 'edgeBandingProductId'
   | 'edgeBandingBandType'
+  | 'specialEdges'
   | 'hingingCode'
   | 'groovingCode'
   | 'assemblyCode'
@@ -95,6 +96,9 @@ const applyField = (
   }
   if (field === 'edgeBandingProductId') {
     return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
+  }
+  if (field === 'specialEdges') {
+    return { ...r, specialEdges: (src.specialEdges ?? []).map((e) => ({ ...e })) }
   }
   if (field === 'edgeBandingBandType') {
     // Mirror the manual "Tipo" select: the band type and its coordinated tapacanto travel

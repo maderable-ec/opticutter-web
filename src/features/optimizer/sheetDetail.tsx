@@ -7,10 +7,12 @@ import {
   bandedSides,
   boardRotation,
   clamp,
+  notationTapes,
   pieceSig,
   uprightText,
 } from 'src/shared/utils/cutDrawing'
 import type { SideLine } from 'src/shared/utils/cutDrawing'
+import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
 import type { EdgeSide, Layout, PlacedPiece } from './types'
 
 // Per-sheet detail panels, shared by the wizard's inline sheet viewer and the pre-order's expanded
@@ -59,7 +61,11 @@ export const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
   const noteSize = clamp(minDim * 0.1, 14, 44) // center notation
   const dimInset = dimSize * 0.95 // offset of the dimension label from the edge
 
-  const notation = piece.edges?.notation ?? ''
+  // One line per tape (`2L1C CS CSH` over `1C CS BNL`): a single line with every tape in it read as
+  // one tape. Shrunk to the longest line so a long one stays inside the piece.
+  const tapes = notationTapes(piece.edges?.notation)
+  const longest = Math.max(1, ...tapes.map((t) => t.length))
+  const tapeSize = Math.min(noteSize, (h * 0.9) / (longest * 0.6))
 
   return (
     <svg
@@ -124,19 +130,23 @@ export const PiecePreview = ({ piece, colorFor }: PiecePreviewProps) => {
         </text>
       </g>
 
-      {/* Edge notation centered */}
-      {notation && (
+      {/* Edge notation centered, one line per tape */}
+      {tapes.length > 0 && (
         <text
           x={h / 2}
           y={w / 2}
-          fontSize={noteSize}
+          fontSize={tapeSize}
           textAnchor="middle"
           dominantBaseline="central"
           fill="#212529"
           fontWeight={600}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
         >
-          {notation}
+          {tapes.map((tape, k) => (
+            <tspan key={tape} x={h / 2} y={w / 2 + (k - (tapes.length - 1) / 2) * tapeSize * 1.2}>
+              {tape}
+            </tspan>
+          ))}
         </text>
       )}
     </svg>
@@ -208,6 +218,18 @@ export const PieceDetailCard = ({
                 }
               />
             )}
+            {/* One row per special tape, its sides counted in the piece's own frame (`2L`), the
+                way the seller typed them. */}
+            {groupByTape(
+              (piece.edges?.special ?? []).map((e) => ({ ...e, side: e.nominal_side })),
+              (e) => String(e.product_id),
+            ).map(({ tape, sides, first }) => (
+              <Detail
+                key={tape}
+                label={`Canto especial ${sidesNotation(sides)}`}
+                value={[first.code, first.color].filter(Boolean).join(' · ') || '—'}
+              />
+            ))}
           </div>
         </>
       ) : (

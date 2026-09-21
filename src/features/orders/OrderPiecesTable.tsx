@@ -11,6 +11,7 @@ import {
 import CantoPreview from 'src/shared/components/CantoPreview'
 import { bandingName, cantoNotation, cantoSides } from 'src/features/review/format'
 import { hasWorkshopCodes, workshopCodesLine } from 'src/shared/utils/workshopCodes'
+import { groupByTape, specialEdgeNotation } from 'src/shared/utils/specialEdges'
 import type { OrderPiece } from './types'
 
 // The cut list an order was created with, read-only: unlike a quote, a confirmed order's despiece
@@ -142,13 +143,25 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
               )}
               {group.pieces.map((p, i) => {
                 const edges = p.edges
-                const banded = !!edges?.sides?.length
+                // A canto especial takes its side from the auto banding, which keeps the rest: the
+                // auto part is written over the sides left to it (the backend's `edge_notation`).
+                const special = edges?.special_edges ?? []
+                const taken = new Set<string>(special.map((e) => e.side))
+                const autoEdges = edges && {
+                  ...edges,
+                  sides: (edges.sides ?? []).filter((s) => !taken.has(s)),
+                }
+                const autoBanded = !!autoEdges?.sides.length
+                const banded = autoBanded || special.length > 0
+                const figure = cantoSides({
+                  sides: [...(autoEdges?.sides ?? []), ...special.map((e) => e.side)],
+                })
                 // The tape's own name, shortened the way the review shortens it: the catalogue
                 // prefixes every tapacanto with the word itself, which is ten characters under a
                 // column header that already says it.
-                const tape = banded
-                  ? bandingName({ productName: bandingNames?.get(edges?.product_id ?? -1) })
-                  : null
+                const nameOf = (id?: number | null) =>
+                  bandingName({ productName: bandingNames?.get(id ?? -1) })
+                const tape = autoBanded ? nameOf(edges?.product_id) : null
                 return (
                   // `OrderPiece.id` is optional in the API contract, and the index is stable here:
                   // the list is read-only and never reordered.
@@ -159,10 +172,26 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
                     <CTableDataCell className="text-end">{p.quantity}</CTableDataCell>
                     <CTableDataCell>
                       {banded ? (
-                        <span className="d-inline-flex align-items-center gap-2">
-                          <CantoPreview sides={cantoSides(edges)} />
-                          <span className="text-nowrap">{cantoNotation(edges)}</span>
+                        <span className="d-inline-flex flex-wrap align-items-center gap-2">
+                          <CantoPreview sides={figure} />
+                          {autoBanded && (
+                            <span className="text-nowrap">{cantoNotation(autoEdges)}</span>
+                          )}
                           {tape && <span className="text-body-secondary">{tape}</span>}
+                          {/* One entry per special tape, in the notation the seller typed. */}
+                          {groupByTape(special, (e) => String(e.product_id)).map(
+                            ({ tape, sides, first }, k) => (
+                              <span key={tape} className="text-nowrap">
+                                {(autoBanded || k > 0) && '· '}
+                                {specialEdgeNotation(sides, first.band_type, first.alias)}
+                                {nameOf(first.product_id) && (
+                                  <span className="text-body-secondary ms-2">
+                                    {nameOf(first.product_id)}
+                                  </span>
+                                )}
+                              </span>
+                            ),
+                          )}
                         </span>
                       ) : (
                         <span className="text-body-secondary">—</span>

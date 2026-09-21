@@ -34,12 +34,27 @@ export interface OptimizeMaterialSheet {
 
 // Edge banding for a piece. Keys arrive in snake_case from the server.
 export interface PlacedPieceEdges {
-  // Banded sides in geometric space (post-rotation).
+  // Banded sides in geometric space (post-rotation), cantos especiales included.
   sides: EdgeSide[]
+  // The auto tape's identity: null when every side it banded went special.
   product_id: number | null
   code: string | null
   color: string | null
+  // "1L1C CS CSH · L1 CD BLN": the auto part, then each canto especial.
   notation: string | null
+  special?: PlacedSpecialEdge[]
+}
+
+// A canto especial on a placed piece: `side` is geometric (where to paint it), `nominal_side` the
+// piece's own (the one its L1/C2 token names).
+export interface PlacedSpecialEdge {
+  side: EdgeSide
+  nominal_side: EdgeSide
+  product_id: number
+  code: string | null
+  color: string | null
+  band_type: string | null
+  alias: string | null
 }
 
 export interface PlacedPiece {
@@ -223,6 +238,12 @@ export interface EdgeBandingSpec {
   productId?: number
 }
 
+// A canto especial as the API takes it. The type and the alias are the product's.
+export interface SpecialEdgeSpec {
+  side: EdgeSide
+  productId: number
+}
+
 export interface RequirementInput {
   materialKey: string
   height: number
@@ -232,6 +253,8 @@ export interface RequirementInput {
   label?: string
   canRotate: boolean
   edgeBanding?: EdgeBandingSpec
+  // Per-side tapes that win over `edgeBanding` on the sides they name. Omitted when empty.
+  specialEdges?: SpecialEdgeSpec[]
   // Workshop codes (abisagrado / ranurado / ensamble / división). Production data, not geometry: the API keeps
   // them out of the optimization hash, and `signatureOf` keeps them out of the staleness check.
   hingingCode?: string

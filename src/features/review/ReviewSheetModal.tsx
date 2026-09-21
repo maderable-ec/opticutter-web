@@ -13,6 +13,7 @@ import {
 
 import SheetSvg from 'src/shared/components/SheetSvg'
 import CantoPreview from 'src/shared/components/CantoPreview'
+import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { pieceLabel } from 'src/shared/utils/cutDrawing'
 import { cantoNotation, cantoSides, edgesLabel, pieceTitle } from './format'
@@ -59,6 +60,17 @@ const PieceDetail = ({ piece }: { piece: ReviewPlacedPiece | null }) => {
         <Detail label="Notación" value={edges.notation || cantoNotation(edges)} />
       ) : null}
       {edges?.productName && <Detail label="Tapacanto" value={edges.productName} />}
+      {/* One row per special tape, its sides counted in the piece's own frame (`2L`). */}
+      {groupByTape(
+        (edges?.special ?? []).map((e) => ({ ...e, side: e.nominalSide })),
+        (e) => `${e.productName ?? ''}|${e.bandType ?? ''}`,
+      ).map(({ tape, sides, first }) => (
+        <Detail
+          key={tape}
+          label={`Canto especial ${sidesNotation(sides)}`}
+          value={first.productName ?? '—'}
+        />
+      ))}
       {/* "Color", not "Color del canto": it sits under a row that already says tapacanto. */}
       {edges?.color && <Detail label="Color" value={edges.color} />}
       {piece.rotated && (

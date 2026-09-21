@@ -7,6 +7,7 @@
 // pass its `nominalSides` instead: otherwise every rotated piece reads its 1L as a 1C.
 
 import { apiErrorMessage } from 'src/shared/api/errors'
+import { stripBandingPrefix } from 'src/shared/utils/text'
 import { notationFromSides } from 'src/features/optimizer/optimizerForm'
 import type { CantoSides } from 'src/shared/components/CantoPreview'
 
@@ -72,15 +73,12 @@ export const cantoNotation = (edges?: AnyEdges): string => {
   return band ? `${notation} ${band}` : notation
 }
 
-// The catalogue prefixes every single tapacanto with the word itself
-// ("TAPACANTO IBIZA 19X0.40MM") — 10 of 25 characters, under a label that
-// already says what this is. What identifies the tape is the design and the
-// size, so that is what gets the room; the full name rides on the cell's
-// `title` and on the piece detail.
+// The tape's name without the catalogue's "TAPACANTO" prefix (`stripBandingPrefix`); the full
+// name rides on the cell's `title` and on the piece detail.
 export const bandingName = (edges?: AnyEdges): string | null => {
   const name = edges?.productName?.trim()
   if (!name) return null
-  return name.replace(/^tapacantos?\s+/i, '') || name
+  return stripBandingPrefix(name)
 }
 
 // The client never sees a status code. `apiErrorMessage` prefers the server's own
