@@ -1,5 +1,6 @@
 import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
+import type { EdgeSide } from 'src/shared/utils/cutDrawing'
 import type {
   AdditionalServiceInput,
   PlacedPieceEdges,
@@ -98,6 +99,16 @@ export interface OrderHistoryEntry {
 export interface OrderPieceEdges {
   sides?: string[]
   product_id?: number | null
+  band_type?: string | null
+  alias?: string | null
+  // Cantos especiales, only on a piece that has one. They win over the keys above on their side:
+  // `sides` is the Canto column as typed, so a side listed in both carries the special tape.
+  special_edges?: OrderPieceSpecialEdge[]
+}
+
+export interface OrderPieceSpecialEdge {
+  side: EdgeSide
+  product_id: number
   band_type?: string | null
   alias?: string | null
 }

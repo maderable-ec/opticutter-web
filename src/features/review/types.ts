@@ -21,14 +21,29 @@ export interface ReviewLine {
 // requirement's own sides, which are nominal already — and no catalog ids: the
 // tapacanto is named, not identified.
 export interface ReviewEdges {
+  // Every banded side, cantos especiales included; `bandType`/`productName` are the auto tape's.
   sides?: string[]
   bandType?: string | null
   productName?: string | null
   color?: string | null
+  // Server-built notation ("1L1C CS · L1 CD BLN"). Optional: a backend older than it doesn't send
+  // it, and the page then counts the sides itself.
+  notation?: string | null
+  special?: ReviewSpecialEdge[]
   // Before this shape was typed the server forwarded a raw dict, snake_case and
   // all. Kept for the window where the web deploys ahead of the API — the two
   // live in separate repos — which `bandTypeOf` already reads through.
   band_type?: string | null
+}
+
+// A canto especial: one side carrying a tape of its own. `side` is in the frame of the object that
+// holds it (nominal on the cut list, geometric on the diagram); `nominalSide` is always the piece's.
+export interface ReviewSpecialEdge {
+  side: EdgeSide
+  nominalSide: EdgeSide
+  bandType?: string | null
+  productName?: string | null
+  color?: string | null
 }
 
 // A cut-list piece on the public review (not billed per piece).
@@ -64,6 +79,7 @@ export interface ReviewPieceEdges {
   // The tapacanto's catalog name, joined in by the server so this and the cut
   // list name the same tape.
   productName?: string | null
+  special?: ReviewSpecialEdge[]
 }
 
 // A piece as laid out on the sheet. `pieceId` is the label the client typed, optionally suffixed

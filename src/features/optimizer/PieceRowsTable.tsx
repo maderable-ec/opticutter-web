@@ -36,10 +36,12 @@ import {
   isRequirementEmpty,
   needsBandingProduct,
   notationFromSides,
+  selectedSides,
   sidesFromNotation,
 } from './optimizerForm'
 import type { ModalContainer } from './types'
 import EdgeBandingPickerModal from './EdgeBandingPickerModal'
+import SpecialEdgesCell from './SpecialEdgesCell'
 import type {
   FillScope,
   FillableField,
@@ -49,6 +51,7 @@ import type {
   SortField,
 } from './usePiecesEditor'
 import { WORKSHOP_CODES, WORKSHOP_CODE_MAX_LENGTH } from 'src/shared/utils/workshopCodes'
+import { stripBandingPrefix } from 'src/shared/utils/text'
 import { parsePieces } from './piecesCsv'
 import { rowsToRequirements } from './piecesImport'
 
@@ -84,8 +87,8 @@ const PASTEABLE_FIELDS = new Set<string>([
   ...WORKSHOP_CODES.map((c) => c.field),
 ])
 
-// data-col → field mapping (material and priority columns removed). Cols 4-6 are the banding
-// controls; 7-10 the workshop codes, in `WORKSHOP_CODES` order.
+// data-col → field mapping (material and priority columns removed). Cols 4-6 are the auto banding
+// controls, 7 the cantos especiales; 8-11 the workshop codes, in `WORKSHOP_CODES` order.
 const COL_FIELDS: FillableField[] = [
   'height', // col 0
   'width', // col 1
@@ -94,12 +97,14 @@ const COL_FIELDS: FillableField[] = [
   'edgeBandingSides', // col 4 — banding sides (Canto)
   'edgeBandingBandType', // col 5 — banding type (Tipo: suave/duro)
   'edgeBandingProductId', // col 6 — banding product (Tapacanto)
-  ...WORKSHOP_CODES.map((c) => c.field), // cols 7-10 — Abisagrado, Ranurado, Ensamble, División
+  'specialEdges', // col 7 — Cantos especiales
+  ...WORKSHOP_CODES.map((c) => c.field), // cols 8-11 — Abisagrado, Ranurado, Ensamble, División
 ]
-const CODE_COL_START = 7
+const SPECIAL_COL = 7
+const CODE_COL_START = 8
 // Width of the Tapacanto column, declared once because the cell and the block inside it have to
 // agree. It is the widest in the grid and the only one holding a catalogue NAME rather than a number
-// ("TAPACANTO PVC NOGAL TERRA 22MM X 0.45MM (TC-NOG-22)"), so 170 showed a stub of it.
+// ("PVC NOGAL TERRA 22MM X 0.45MM (TC-NOG-22)"), so 170 showed a stub of it.
 //
 // A DEFINITE width, not just a minimum: the select's label is `white-space: nowrap`, and in a table
 // with auto layout that text is the column's min-content — `text-truncate` does not shrink it there,
@@ -109,10 +114,16 @@ const CODE_COL_START = 7
 // column's min-content, so the row stays inside the pane and the label truncates with an ellipsis —
 // with the full name on the cell's `title`.
 //
-// 260 is what is left after the row's other claims: the whole row has to stay inside the pane on a
-// 1280 laptop, the narrowest screen a vendedor quotes from, and Largo/Ancho keep a floor
-// (`DIM_COL_W`) so they do not collapse below a 4-digit box when it is tight.
-const TAPACANTO_COL_W = 260
+// What is left after the row's other claims: the whole row has to stay inside the pane on a 1280
+// laptop, the narrowest screen a vendedor quotes from, and Largo/Ancho keep a floor (`DIM_COL_W`)
+// so they do not collapse below a 4-digit box when it is tight. It was 260 while every option began
+// with the word "TAPACANTO"; dropping it from the label (`stripBandingPrefix`) is what pays for the
+// Cantos especiales column beside it.
+const TAPACANTO_COL_W = 200
+
+// Cantos especiales: a tag per special edge ("L1 CS CHM") above a small input. One tag per line at
+// this width, which is the common case — most pieces carry none, a few carry one.
+const SPECIAL_COL_W = 112
 
 // Floor of Largo and Ancho. A dimension is at most 4 digits ("2440"), which with the small input's
 // padding and the number spinner fits in 72; it was 100, and those 56 px across the two columns are
@@ -120,21 +131,30 @@ const TAPACANTO_COL_W = 260
 const DIM_COL_W = 72
 
 // Tapacanto (product, col 6) is a SearchableSelect outside the grid, so keyboard nav steps from Tipo
-// straight over it to the first workshop code. The arrows walk this list, not raw column numbers.
-const NAV_COLS = [0, 1, 2, 3, 4, 5, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k)]
+// straight over it to the cantos especiales input. The arrows walk this list, not raw column numbers.
+const NAV_COLS = [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  SPECIAL_COL,
+  ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k),
+]
 const LAST_COL = NAV_COLS[NAV_COLS.length - 1] ?? 0
 // Free-text cells: the horizontal arrows move the caret until it reaches the edge of the text.
-const TEXT_COLS = new Set([3, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k)])
+const TEXT_COLS = new Set([3, SPECIAL_COL, ...WORKSHOP_CODES.map((_, k) => CODE_COL_START + k)])
 const stepCol = (col: number, delta: 1 | -1): number =>
   NAV_COLS[NAV_COLS.indexOf(col) + delta] ?? col
 // Narrow on purpose: a code the workshop knows is a few characters ("B2"), and this row is already
 // tight on a 1280 laptop (see TAPACANTO_COL_W). The header says Abis./Ran./Ens./Div. with the word on the
 // title for the same reason.
 const CODE_COL_W = 64
-// Every header cell: checkbox, #, Largo, Ancho, Cant., Etiqueta, Rotar, Canto, Tipo, Tapacanto, one per
-// workshop code, and the actions gutter. Derived so the empty-group row keeps spanning the whole table
-// when a code is added.
-const COLUMN_COUNT = 10 + WORKSHOP_CODES.length + 1
+// Every header cell: checkbox, #, Largo, Ancho, Cant., Etiqueta, Rotar, Canto, Tipo, Tapacanto,
+// Cantos especiales, one per workshop code, and the actions gutter. Derived so the empty-group row
+// keeps spanning the whole table when a code is added.
+const COLUMN_COUNT = 11 + WORKSHOP_CODES.length + 1
 // Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
 // Tipo is a pair of buttons that should move rows like every other cell.
 const SELECT_COLS = new Set([4])
@@ -544,6 +564,15 @@ const PieceRowsTable = ({
               {renderFill('edgeBandingBandType', 'Igualar tipo (suave/duro)')}
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>Tapacanto</CTableHeaderCell>
+            {/* No fill-down button here, unlike its neighbours: the header is `nowrap`, so the
+                button would widen the column by its own width on a row that already runs past a
+                1280 pane. The cell's drag handle still copies the special edges down. */}
+            <CTableHeaderCell
+              style={thStyle}
+              title="Otro tapacanto en algunos lados de la pieza, con la notación del Canto: 2L CS BLN, o 1L BLN para usar el tipo de la pieza. En esos lados manda sobre el canto de las columnas anteriores."
+            >
+              Cantos especiales
+            </CTableHeaderCell>
             {WORKSHOP_CODES.map(({ field, label, abbr }) => (
               <CTableHeaderCell
                 key={field}
@@ -576,16 +605,23 @@ const PieceRowsTable = ({
             // so the assigned product is always appended when missing.
             const options: SelectOption[] = [
               { value: '', label: '— Sin tapacanto —' },
+              // The label drops the catalogue's "TAPACANTO" prefix — the column already says it — and
+              // only the label: the value, the code (searchable as the sublabel) and the cell's
+              // title keep the product as it is.
               ...tapacantoOptions.map((p) => ({
                 value: String(p.id),
-                label: p.name,
+                label: stripBandingPrefix(p.name),
                 sublabel: p.code,
               })),
             ]
             const assignedId = String(req.edgeBanding.productId)
             const assigned = assignedId ? byId.get(assignedId) : undefined
             if (assigned && !options.some((o) => o.value === assignedId)) {
-              options.push({ value: assignedId, label: assigned.name, sublabel: assigned.code })
+              options.push({
+                value: assignedId,
+                label: stripBandingPrefix(assigned.name),
+                sublabel: assigned.code,
+              })
             }
             const isDropTarget =
               !!rowDrag && rowDrag.srcRow !== rowDrag.targetRow && rowDrag.targetRow === local
@@ -805,6 +841,27 @@ const PieceRowsTable = ({
                     />
                   </div>
                   {renderHandle(local, 6)}
+                </CTableDataCell>
+                <CTableDataCell
+                  style={cellStyle(SPECIAL_COL, local, SPECIAL_COL_W)}
+                  onFocus={() => setActiveCell({ row: local, col: SPECIAL_COL })}
+                >
+                  <div style={{ width: SPECIAL_COL_W }}>
+                    <SpecialEdgesCell
+                      value={req.specialEdges ?? []}
+                      onChange={(next) => update(i, 'specialEdges', next)}
+                      catalog={edgeBandings}
+                      byId={byId}
+                      thickness={boardThickness}
+                      inheritedBandType={cantoBandType}
+                      autoSides={selectedSides(req.edgeBanding)}
+                      row={local}
+                      col={SPECIAL_COL}
+                      onFocus={() => setActiveCell({ row: local, col: SPECIAL_COL })}
+                      onNavigate={(e) => handleKeyDown(e, local, SPECIAL_COL)}
+                    />
+                  </div>
+                  {renderHandle(local, SPECIAL_COL)}
                 </CTableDataCell>
                 {WORKSHOP_CODES.map(({ field, label }, k) => {
                   const col = CODE_COL_START + k

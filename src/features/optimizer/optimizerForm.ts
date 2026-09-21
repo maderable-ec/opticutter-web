@@ -1,5 +1,6 @@
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import { WORKSHOP_CODES, hasWorkshopCodes } from 'src/shared/utils/workshopCodes'
+import { sortBySide } from 'src/shared/utils/specialEdges'
 import type {
   EdgeSide,
   InlineMaterialInput,
@@ -75,6 +76,15 @@ export interface EdgeBandingForm {
   bandType?: '' | BandType
 }
 
+// A canto especial: one side banded with a tape of its own, winning over the auto banding on that
+// side (and adding the side when the Canto column left it bare). Only the resolved product is kept —
+// the type and the alias the seller typed are the product's, read back from the catalog to display
+// it. See `specialEdges.ts`.
+export interface SpecialEdgeForm {
+  side: EdgeSide
+  productId: string
+}
+
 export interface RequirementForm {
   materialUid: string
   height: number | string
@@ -83,6 +93,9 @@ export interface RequirementForm {
   label: string
   canRotate: boolean
   edgeBanding: EdgeBandingForm
+  // Cantos especiales, at most one per side. Read with `?? []`: an autosave, a draft or a pre-order
+  // from before the column existed comes back without the key.
+  specialEdges: SpecialEdgeForm[]
   // Workshop codes (abisagrado / ranurado / ensamble / división); '' = no such work. Required here so every
   // place that builds a row has to say so, but read with `?? ''` anyway: an autosave or a draft saved
   // before the columns existed comes back without the keys.
@@ -217,6 +230,7 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   label: '',
   canRotate: false,
   edgeBanding: emptyEdgeBanding(),
+  specialEdges: [],
   hingingCode: '',
   groovingCode: '',
   assemblyCode: '',
@@ -239,11 +253,19 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
 
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean => selectedSides(eb).length > 0
 
+// The Canto column's sides that still carry the auto tapacanto: the ones no canto especial took.
+// Mirrors the precedence of `Requirement.side_products` in the backend.
+export const autoBandedSides = (r: RequirementForm): EdgeSide[] => {
+  const taken = new Set((r.specialEdges ?? []).map((e) => e.side))
+  return selectedSides(r.edgeBanding).filter((side) => !taken.has(side))
+}
+
 // A piece has edge-banding sides selected but no tapacanto (product) chosen. Allowed for a raw
 // optimize (geometry only, productId assigned later), but must be resolved before quoting so the
 // banding can be priced and drawn — otherwise it produces an unidentified/unpriced banding line.
+// Sides a canto especial took do not count: their tape is already named.
 export const needsBandingProduct = (r: RequirementForm): boolean =>
-  hasEdgeBanding(r.edgeBanding) && !r.edgeBanding.productId
+  autoBandedSides(r).length > 0 && !r.edgeBanding.productId
 
 // Flat indices of pieces with sides defined but no tapacanto — used to block quoting and flag rows.
 export const piecesMissingBandingProduct = (requirements: RequirementForm[]): number[] =>
@@ -270,6 +292,7 @@ export const isRequirementEmpty = (r: RequirementForm): boolean =>
   r.width === '' &&
   !r.label.trim() &&
   !hasEdgeBanding(r.edgeBanding) &&
+  !r.specialEdges?.length &&
   !hasWorkshopCodes(r)
 
 // Deep clone of a piece (edgeBanding.sides is an object) used when duplicating rows.
@@ -280,6 +303,7 @@ export const cloneRequirement = (r: RequirementForm): RequirementForm => ({
     sides: { ...r.edgeBanding.sides },
     bandType: r.edgeBanding.bandType ?? '',
   },
+  specialEdges: (r.specialEdges ?? []).map((e) => ({ ...e })),
 })
 
 export interface PiecesSummary {
@@ -511,6 +535,11 @@ export const buildPayload = (
     const sides = selectedSides(r.edgeBanding)
     const pid = Number(r.edgeBanding.productId) || undefined
     const edgeBanding = sides.length ? { sides, ...(pid ? { productId: pid } : {}) } : undefined
+    // Only when there is one, in L1-L2-C1-C2 order: a piece without keeps the payload — and the
+    // staleness signature built from it — exactly what it was before the column existed.
+    const specialEdges = sortBySide(r.specialEdges ?? [])
+      .map((e) => ({ side: e.side, productId: Number(e.productId) }))
+      .filter((e) => e.productId > 0)
     // Only the codes typed in: a blank one is "no such work", and the API reads a missing key the
     // same way.
     const codes = Object.fromEntries(
@@ -530,6 +559,7 @@ export const buildPayload = (
       label: r.label.trim() || undefined,
       canRotate: r.canRotate,
       ...(edgeBanding ? { edgeBanding } : {}),
+      ...(specialEdges.length ? { specialEdges } : {}),
       ...codes,
     }
   })

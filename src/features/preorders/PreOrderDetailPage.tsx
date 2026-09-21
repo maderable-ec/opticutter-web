@@ -192,6 +192,10 @@ function formFromPreOrderData(
           },
         }
       : emptyEdgeBanding(),
+    specialEdges: (r.specialEdges ?? []).map((e) => ({
+      side: e.side,
+      productId: String(e.productId),
+    })),
     hingingCode: r.hingingCode ?? '',
     groovingCode: r.groovingCode ?? '',
     assemblyCode: r.assemblyCode ?? '',

@@ -16,6 +16,7 @@ import CIcon from '@coreui/icons-react'
 import { cilChevronBottom, cilChevronRight } from '@coreui/icons'
 
 import CantoPreview from 'src/shared/components/CantoPreview'
+import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
 import { bandingName, cantoNotation, cantoSides, edgesLabel } from './format'
 import type { ReviewPiece } from './types'
 
@@ -31,15 +32,37 @@ import type { ReviewPiece } from './types'
 // place the tape is named.
 const Cantos = ({ piece, align = 'start' }: { piece: ReviewPiece; align?: 'start' | 'end' }) => {
   if (!piece.edges?.sides?.length) return <span className="text-body-secondary">—</span>
-  const name = bandingName(piece.edges)
-  const title = [edgesLabel(piece.edges), piece.edges.productName].filter(Boolean).join(' · ')
+  // One line per tape: the auto one, then each special tape with the sides it takes (`2L: …`),
+  // counted the way the notation above counts them.
+  const special = piece.edges.special ?? []
+  const names = [
+    bandingName(piece.edges),
+    ...groupByTape(
+      special.map((e) => ({ ...e, side: e.nominalSide })),
+      (e) => `${e.productName ?? ''}|${e.bandType ?? ''}`,
+    ).map(({ sides, first }) => {
+      const name = bandingName(first)
+      return name && `${sidesNotation(sides)}: ${name}`
+    }),
+  ].filter(Boolean)
+  const title = [
+    edgesLabel(piece.edges),
+    piece.edges.productName,
+    ...special.map((e) => e.productName),
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div className={align === 'end' ? 'text-end' : undefined} title={title}>
       <div className={`d-flex align-items-center gap-2 justify-content-${align}`}>
         <CantoPreview sides={cantoSides(piece.edges)} />
-        <span className="text-nowrap">{cantoNotation(piece.edges)}</span>
+        <span className="text-nowrap">{piece.edges.notation || cantoNotation(piece.edges)}</span>
       </div>
-      {name && <div className="text-body-secondary small text-break">{name}</div>}
+      {names.map((name) => (
+        <div key={name} className="text-body-secondary small text-break">
+          {name}
+        </div>
+      ))}
     </div>
   )
 }

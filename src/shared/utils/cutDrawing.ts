@@ -198,6 +198,17 @@ export const splitNotation = (notation?: string | null): [string, string] => {
   return [head, rest.join(' ')]
 }
 
+// The notation of each tape on its own line: `2L1C CS CSH · 1C CS BNL` → `['2L1C CS CSH', '1C CS BNL']`.
+// The server writes the auto banding first and then one group per canto especial, joined by ` · `
+// (`edge_notation`, opticutter-api). Splitting at the FIRST WORD instead, as `splitNotation` does,
+// put the auto tape's type and alias on one line with every special tape after it, which read as
+// one tape. A piece with a single tape is a single entry — the old string, whole.
+export const notationTapes = (notation?: string | null): string[] =>
+  (notation ?? '')
+    .split(' · ')
+    .map((tape) => tape.trim())
+    .filter(Boolean)
+
 export interface SideLine {
   x1: number
   y1: number
