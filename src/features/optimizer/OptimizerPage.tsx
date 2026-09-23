@@ -18,7 +18,7 @@ import {
   requirementIssues,
 } from './optimizerForm'
 import type { MaterialForm, RequirementForm, RequirementIssue } from './optimizerForm'
-import type { OptimizeResponse, OptimizerDraftPayload } from './types'
+import type { LayoutAdjustment, OptimizeResponse, OptimizerDraftPayload } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
 import {
   buildServiceLines,
@@ -44,6 +44,8 @@ import DeleteMaterialModal from './DeleteMaterialModal'
 import ImportPiecesModal from './ImportPiecesModal'
 import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
+import LayoutEditorModal from './layoutEditor/LayoutEditorModal'
+import type { EditorFocus } from './layoutEditor/useLayoutEditor'
 
 // One-line summary of the blocked rows, for the toast. The per-row reasons stay in the alert.
 const issuesSummary = (issues: RequirementIssue[]): string => {
@@ -76,6 +78,14 @@ const OptimizerPage = () => {
   const [priceLevel, setPriceLevel] = useState(1)
   // Alternative-solution seed: bumped by "Otra alternativa" to explore different layouts.
   const [variant, setVariant] = useState(0)
+  // The seller's hand adjustments to the plan (the layout editor), sent with every run. They are
+  // laid over the server's cached plan, so applying one re-prices instead of searching again.
+  const [layoutAdjustments, setLayoutAdjustments] = useState<LayoutAdjustment[] | null>(
+    () => bootstrap?.layoutAdjustments ?? null,
+  )
+  const [editingLayout, setEditingLayout] = useState(false)
+  // The sheet the diagram viewer was showing when "Ajustar distribución" was pressed.
+  const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -203,8 +213,8 @@ const OptimizerPage = () => {
   // built from the payload actually SENT (post-prune), never from this render: pruning empty rows
   // changes the signature, and seeding it from here would make the auto-run loop.
   const signature = useMemo(
-    () => signatureOf(built.materials, built.requirements, variant, priceLevel),
-    [built, variant, priceLevel],
+    () => signatureOf(built.materials, built.requirements, variant, priceLevel, layoutAdjustments),
+    [built, variant, priceLevel, layoutAdjustments],
   )
   // Set on SUCCESS: it claims "the result on screen was computed from these inputs", which a failed
   // run has not earned.
@@ -243,13 +253,22 @@ const OptimizerPage = () => {
           materials,
           requirements: pieces.requirements,
           services: buildServiceLines(services.lines),
+          layoutAdjustments,
         })
       } else {
         clearAutosave()
       }
     }, 800)
     return () => clearTimeout(t)
-  }, [materials, pieces.requirements, services.lines, draftId, draftName, hasWork])
+  }, [
+    materials,
+    pieces.requirements,
+    services.lines,
+    draftId,
+    draftName,
+    hasWork,
+    layoutAdjustments,
+  ])
 
   // Clean up the "Guardado" flash and pending-recompute timers on unmount.
   useEffect(
@@ -284,6 +303,7 @@ const OptimizerPage = () => {
     materials,
     requirements: pieces.requirements,
     additionalServices: buildServiceLines(services.lines),
+    layoutAdjustments,
   })
 
   const resetWorkspace = () => {
@@ -294,6 +314,7 @@ const OptimizerPage = () => {
     setDraftId(null)
     setDraftName('')
     setVariant(0)
+    setLayoutAdjustments(null)
     setIssues([])
     optimize.reset()
     setLastResult(undefined)
@@ -348,6 +369,8 @@ const OptimizerPage = () => {
       pieces.addMany(d.payload.requirements, true)
       // Optional: drafts saved before services existed have no such key.
       services.set((d.payload.additionalServices ?? []).map(serviceLineFromApi))
+      // Keyed by the form uids the draft restores, so they still name the same materials.
+      setLayoutAdjustments(d.payload.layoutAdjustments ?? null)
       // A loaded draft describes a different job, so the client and the reference of the previous
       // one go with the result on screen.
       quote.reset()
@@ -374,14 +397,20 @@ const OptimizerPage = () => {
         variant?: number
         priceLevel?: number
         materials?: MaterialForm[]
+        layoutAdjustments?: LayoutAdjustment[] | null
       } = {},
     ) => {
       const nextVariant = overrides.variant ?? variant
       const nextLevel = overrides.priceLevel ?? priceLevel
+      const nextAdjustments =
+        overrides.layoutAdjustments !== undefined ? overrides.layoutAdjustments : layoutAdjustments
       // Read off the overrides rather than from a flag every caller would have to pass: only the
-      // level change and the per-board marks (which travel as `materials`) are re-prices. Everything
-      // else — the auto-run, another alternative — searches.
-      const reprice = overrides.priceLevel !== undefined || overrides.materials !== undefined
+      // level change, the per-board marks (which travel as `materials`) and a hand adjustment are
+      // re-prices. Everything else — the auto-run, another alternative — searches.
+      const reprice =
+        overrides.priceLevel !== undefined ||
+        overrides.materials !== undefined ||
+        overrides.layoutAdjustments !== undefined
 
       const payload = buildPayload(overrides.materials ?? materials, pieces.requirements)
       if (payload.validCount === 0) {
@@ -393,17 +422,32 @@ const OptimizerPage = () => {
         return
       }
       setIsSearching(!reprice)
-      const sent = signatureOf(payload.materials, payload.requirements, nextVariant, nextLevel)
+      const signatureWith = (adjustments: LayoutAdjustment[] | null) =>
+        signatureOf(payload.materials, payload.requirements, nextVariant, nextLevel, adjustments)
+      let sent = signatureWith(nextAdjustments)
       optimize.mutate(
         {
           materials: payload.materials,
           requirements: payload.requirements,
           priceLevel: nextLevel,
           variant: nextVariant,
+          layoutAdjustments: nextAdjustments,
         },
         {
           onSuccess: (data) => {
             setLastResult(data)
+            // A hand adjustment the new inputs no longer admit (a piece added, a board changed) is
+            // dropped by the server, which says so. Keep only what it applied, so the next run does
+            // not send it again — and so the result is not immediately "stale" against it.
+            if (nextAdjustments && data.layoutIssues?.length) {
+              const applied = data.layoutAdjustments?.length ? data.layoutAdjustments : null
+              setLayoutAdjustments(applied)
+              sent = signatureWith(applied)
+              addToast(
+                'Se descartaron ajustes manuales que ya no aplican a este despiece.',
+                'warning',
+              )
+            }
             setResultSignature(sent)
           },
           onSettled: () => {
@@ -414,7 +458,7 @@ const OptimizerPage = () => {
         },
       )
     },
-    [materials, pieces.requirements, variant, priceLevel, optimize, addToast],
+    [materials, pieces.requirements, variant, priceLevel, layoutAdjustments, optimize, addToast],
   )
 
   // Leaving the Despiece step cleans up after the editor and then refuses ambiguous input: blank
@@ -551,9 +595,42 @@ const OptimizerPage = () => {
   // different when alternatives exist. This is what "Volver a optimizar" does once a result exists.
   const handleAlternative = () => {
     if (!canOptimize) return
+    // Another alternative is another plan: hand adjustments made on this one would pin its sheets
+    // over the new search and hide it. So they go, and the seller is asked first.
+    if (
+      layoutAdjustments &&
+      !window.confirm('Otra alternativa descarta los ajustes manuales de la distribución. ¿Seguir?')
+    )
+      return
     const next = variant + 1
     setVariant(next)
-    runOptimize({ variant: next })
+    setLayoutAdjustments(null)
+    runOptimize({ variant: next, layoutAdjustments: null })
+  }
+
+  // The editor works on the plan on screen, so it opens only when that plan matches the inputs.
+  const adjustDisabledReason = optimize.isPending
+    ? 'Calculando…'
+    : isStale
+      ? 'Cambiaste el despiece: vuelve a optimizar antes de ajustar la distribución.'
+      : undefined
+
+  // Memoised: the editor keys its callbacks on it, and a fresh object per render would make every
+  // one of them — and the first-load effect — look new.
+  const editorRequest = useMemo(
+    () => ({
+      materials: built.materials,
+      requirements: built.requirements,
+      priceLevel,
+      variant,
+    }),
+    [built, priceLevel, variant],
+  )
+
+  const handleApplyLayout = (next: LayoutAdjustment[] | null) => {
+    setEditingLayout(false)
+    setLayoutAdjustments(next)
+    runOptimize({ layoutAdjustments: next })
   }
 
   // What the menu's "Optimizar / Volver a optimizar" and Ctrl+Enter both do: with a result on screen a
@@ -693,6 +770,22 @@ const OptimizerPage = () => {
             onAddService={services.add}
             onUpdateService={services.update}
             onRemoveService={services.remove}
+            onAdjustLayout={(focus) => {
+              setEditorFocus(focus)
+              setEditingLayout(true)
+            }}
+            adjustDisabledReason={adjustDisabledReason}
+            container={modalContainer}
+          />
+        )}
+
+        {editingLayout && (
+          <LayoutEditorModal
+            request={editorRequest}
+            initial={layoutAdjustments}
+            focus={editorFocus}
+            onApply={handleApplyLayout}
+            onClose={() => setEditingLayout(false)}
             container={modalContainer}
           />
         )}
@@ -704,6 +797,7 @@ const OptimizerPage = () => {
             requirements={built.requirements}
             priceLevel={priceLevel}
             variant={variant}
+            layoutAdjustments={layoutAdjustments}
             services={services.lines}
             draft={quote.draft}
             onDraftChange={quote.setField}

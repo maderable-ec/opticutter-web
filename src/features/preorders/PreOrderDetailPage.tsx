@@ -17,6 +17,7 @@ import type {
 } from 'src/features/optimizer/optimizerForm'
 import type {
   InlineMaterialInput,
+  LayoutAdjustment,
   MaterialInput,
   OptimizeResponse,
   RequirementInput,
@@ -62,6 +63,8 @@ import {
 } from './useServiceLines'
 import { useServices } from 'src/features/services/useServices'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
+import LayoutEditorModal from 'src/features/optimizer/layoutEditor/LayoutEditorModal'
+import type { EditorFocus } from 'src/features/optimizer/layoutEditor/useLayoutEditor'
 import StockAlert from 'src/features/inventory/StockAlert'
 import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
 import { WizardFooter } from 'src/features/optimizer/WizardSteps'
@@ -254,6 +257,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // Alternative-solution seed: persisted with the pre-order so every recompute
   // reproduces the chosen layout; bumped by "Otra alternativa".
   const [variant, setVariant] = useState(preOrder.variant ?? preOrder.optimization.variant ?? 0)
+  // The seller's hand adjustments to the plan (the layout editor). Saved on their own, straight
+  // from the editor's "Aplicar", not as one more pending edit of "Actualizar cotización".
+  const [layoutAdjustments, setLayoutAdjustments] = useState<LayoutAdjustment[] | null>(
+    preOrder.layoutAdjustments ?? null,
+  )
+  const [editingLayout, setEditingLayout] = useState(false)
+  const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
   const [optimization, setOptimization] = useState<OptimizeResponse>(preOrder.optimization)
@@ -370,7 +380,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       onSettled: () => setShowDuplicateModal(false),
     })
 
-  const doSave = (variantValue: number) => {
+  const doSave = (variantValue: number, extra: { layoutAdjustments?: null } = {}) => {
     const { materials: mInputs, requirements: rInputs } = buildPayload(
       materials,
       editor.requirements,
@@ -385,11 +395,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           notes: notes || undefined,
           priceLevel,
           variant: variantValue,
+          ...extra,
         },
       },
       {
         onSuccess: (updated) => {
           setOptimization(updated.optimization)
+          // The server keeps the hand adjustments an edit did not break and drops the rest.
+          setLayoutAdjustments(updated.layoutAdjustments ?? null)
           // The saved state is the new baseline, so "Actualizar" disables again until further edits.
           setBaselineSignature(
             editSignature(
@@ -411,9 +424,48 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // "Otra alternativa": bump the seed and save+recompute immediately — the
   // pre-order persists the seed so the alternative survives every recompute.
   const handleAlternative = () => {
+    // Another alternative is another plan: hand adjustments made on this one would pin its sheets
+    // over the new search and hide it, so they go — after asking.
+    if (
+      layoutAdjustments &&
+      !window.confirm('Otra alternativa descarta los ajustes manuales de la distribución. ¿Seguir?')
+    )
+      return
     const next = variant + 1
     setVariant(next)
-    doSave(next)
+    doSave(next, layoutAdjustments ? { layoutAdjustments: null } : {})
+  }
+
+  // The editor works on the SAVED plan (the one on screen), so unsaved edits come first.
+  const adjustDisabledReason = updatePreOrder.isPending
+    ? 'Guardando…'
+    : isDirty
+      ? 'Guarda los cambios de la cotización antes de ajustar la distribución.'
+      : undefined
+
+  // What the editor evaluates against: the saved quote, which is what the form holds while it is
+  // not dirty (the only time the editor opens). Memoised: the editor keys its callbacks on it.
+  const editorRequest = useMemo(() => {
+    const built = buildPayload(materials, editor.requirements)
+    return {
+      materials: built.materials,
+      requirements: built.requirements,
+      priceLevel,
+      variant,
+    }
+  }, [materials, editor.requirements, priceLevel, variant])
+
+  const handleApplyLayout = (next: LayoutAdjustment[] | null) => {
+    updatePreOrder.mutate(
+      { id: preOrder.id, data: { layoutAdjustments: next } },
+      {
+        onSuccess: (updated) => {
+          setOptimization(updated.optimization)
+          setLayoutAdjustments(updated.layoutAdjustments ?? null)
+          setEditingLayout(false)
+        },
+      },
+    )
   }
 
   // Returns the new uid so the list can open its material modal on it: with the
@@ -792,6 +844,15 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           wholeBoardKeys={wholeBoardKeys}
           onToggleWholeBoard={toggleWholeBoard}
           marksDisabled={!canEdit || updatePreOrder.isPending}
+          onAdjustLayout={
+            canEdit
+              ? (focus) => {
+                  setEditorFocus(focus)
+                  setEditingLayout(true)
+                }
+              : undefined
+          }
+          adjustDisabledReason={adjustDisabledReason}
           priceLevel={
             canEdit ? (
               <div className="d-flex flex-wrap align-items-center gap-2">
@@ -808,6 +869,16 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           }
         />
       </div>
+
+      {editingLayout && (
+        <LayoutEditorModal
+          request={editorRequest}
+          initial={layoutAdjustments}
+          focus={editorFocus}
+          onApply={handleApplyLayout}
+          onClose={() => setEditingLayout(false)}
+        />
+      )}
 
       {/* Pinned footer: leaving, the running totals, the bulk actions, and the one primary action.
           It replaces OptimizeActionBar, a near-copy that sat at the sticky z-tier (1020) and so

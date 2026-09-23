@@ -1,5 +1,5 @@
 import type { MaterialForm, RequirementForm } from './optimizerForm'
-import type { AdditionalServiceInput } from './types'
+import type { AdditionalServiceInput, LayoutAdjustment } from './types'
 
 // Optimizer autosave in localStorage: safety net against accidental page refresh. Stores a copy of
 // the current session (this browser), complementary to named drafts on the server.
@@ -18,6 +18,8 @@ export interface OptimizerAutosave {
   // an older payload still loads, whereas bumping the key would throw away whatever work is sitting
   // in an open tab right now.
   services?: AdditionalServiceInput[]
+  // Hand adjustments to the plan. Additive for the same reason as `services`.
+  layoutAdjustments?: LayoutAdjustment[] | null
 }
 
 export const loadAutosave = (): OptimizerAutosave | null => {

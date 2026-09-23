@@ -2,6 +2,7 @@ import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type {
   AdditionalServiceInput,
+  LayoutAdjustment,
   MaterialInput,
   OptimizeResponse,
   RequirementInput,
@@ -76,6 +77,8 @@ export interface PreOrder extends PreOrderSummary {
   priceLevel?: number
   // Alternative-solution seed remembered for the recompute (0 = canonical).
   variant?: number
+  // The seller's hand adjustments to the plan, laid over every recompute; null = none.
+  layoutAdjustments?: LayoutAdjustment[] | null
   // Always present in GET /preorders/{id} and PUT responses
   materials: MaterialInput[]
   requirements: RequirementInput[]
@@ -90,6 +93,9 @@ export interface PreOrderCreate {
   source?: string
   priceLevel?: number
   variant?: number
+  // Checked by the server on save (422 if a sheet could not be cut). On an update, `null` clears
+  // them and leaving the key out keeps them — minus any the edit made invalid.
+  layoutAdjustments?: LayoutAdjustment[] | null
   materials: MaterialInput[]
   requirements: RequirementInput[]
   additionalServices?: AdditionalServiceInput[]

@@ -12,11 +12,19 @@ import {
   CRow,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
-import { cilFullscreen } from '@coreui/icons'
+import { cilFullscreen, cilMove } from '@coreui/icons'
 
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
-import type { LayoutGroup, MaterialSummary, ModalContainer, PlacedPiece } from './types'
+import { fmtMoney } from 'src/features/review/format'
+import type { EditorFocus } from './layoutEditor/useLayoutEditor'
+import type {
+  AdjustmentSummary,
+  LayoutGroup,
+  MaterialSummary,
+  ModalContainer,
+  PlacedPiece,
+} from './types'
 import { usePieceColors } from './pieceColors'
 import { GroupedPiecesList, PieceDetailCard, SheetStats } from './sheetDetail'
 
@@ -43,6 +51,10 @@ interface SheetDetailModalProps {
   // document.body sits outside it and the modal would render invisibly behind the page.
   container?: ModalContainer
   onClose: () => void
+  // "Ajustar distribución": the seller decides to adjust while LOOKING at the plan, so the way in
+  // is here, and it opens the editor on the sheet on screen. `adjustDisabledReason` greys it out.
+  onAdjust?: (focus: EditorFocus) => void
+  adjustDisabledReason?: string
 }
 
 const SheetDetailModal = ({
@@ -53,6 +65,8 @@ const SheetDetailModal = ({
   colorFor,
   container,
   onClose,
+  onAdjust,
+  adjustDisabledReason,
 }: SheetDetailModalProps) => {
   const [hoverPiece, setHoverPiece] = useState<PlacedPiece | null>(null)
   const [hoverSig, setHoverSig] = useState<string | null>(null)
@@ -97,8 +111,11 @@ const SheetDetailModal = ({
       scrollable
       container={container}
     >
-      <CModalHeader>
-        <CModalTitle className="d-flex align-items-center gap-2 flex-wrap">
+      <CModalHeader className="d-flex align-items-center gap-2">
+        {/* The title grows to fill the bar so the button sits beside the close cross: Bootstrap's
+            `.btn-close` already carries `margin-left: auto`, and a second auto margin would park
+            the button in the middle of the header. */}
+        <CModalTitle className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
           <span>
             {group ? `Patrón ${group.patternId}` : ''}
             {group && group.count > 1 ? ` · ×${group.count} hojas` : ''}
@@ -106,6 +123,26 @@ const SheetDetailModal = ({
           </span>
           {group?.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
         </CModalTitle>
+        {onAdjust && group && (
+          // The wrapper carries the tooltip: a disabled button fires no pointer events.
+          <span title={adjustDisabledReason}>
+            <CButton
+              size="sm"
+              color="primary"
+              variant="outline"
+              disabled={!!adjustDisabledReason}
+              onClick={() =>
+                onAdjust({
+                  materialKey: group.layout.material.materialKey,
+                  sheetNumber: group.layout.material.sheetNumber,
+                })
+              }
+            >
+              <CIcon icon={cilMove} className="me-1" />
+              Ajustar distribución
+            </CButton>
+          </span>
+        )}
       </CModalHeader>
       <CModalBody style={{ scrollbarGutter: 'stable' }}>
         {layout && (
@@ -200,6 +237,35 @@ interface CutLayoutDiagramProps {
   extra?: ReactNode
   // Portal target for the expanded-sheet modal; see SheetDetailModalProps.container.
   modalContainer?: ModalContainer
+  // Opens the layout editor, from the diagram viewer, on the sheet it shows. Absent where the plan
+  // cannot be adjusted (a closed quote, the review, the workshop); `adjustDisabledReason` greys the
+  // button out and says why.
+  onAdjust?: (focus: EditorFocus) => void
+  adjustDisabledReason?: string
+  // What the seller's hand adjustments changed, when the plan carries any.
+  adjustment?: AdjustmentSummary | null
+}
+
+// "3 piezas movidas · 1 tablero menos · −$42.10": what a hand adjustment did, in one line. Only the
+// parts that moved: an offcut kept whole changes no piece and no price, and "0 piezas movidas"
+// would say nothing. Empty when nothing is left to say.
+export const adjustmentLine = (a: AdjustmentSummary): string => {
+  const parts: string[] = []
+  if (a.movedPieces > 0) {
+    parts.push(`${a.movedPieces} ${a.movedPieces === 1 ? 'pieza movida' : 'piezas movidas'}`)
+  }
+  const whole = a.wholeOffcuts ?? 0
+  if (whole > 0) {
+    parts.push(`${whole} ${whole === 1 ? 'retazo entero' : 'retazos enteros'}`)
+  }
+  if (a.boardsDelta !== 0) {
+    const n = Math.abs(a.boardsDelta)
+    parts.push(`${n} ${n === 1 ? 'tablero' : 'tableros'} ${a.boardsDelta < 0 ? 'menos' : 'más'}`)
+  }
+  if (a.boardCostDelta !== 0) {
+    parts.push(`${a.boardCostDelta < 0 ? '−' : '+'}${fmtMoney(Math.abs(a.boardCostDelta))}`)
+  }
+  return parts.join(' · ')
 }
 
 const CutLayoutDiagram = ({
@@ -207,6 +273,9 @@ const CutLayoutDiagram = ({
   materialsSummary,
   extra,
   modalContainer,
+  onAdjust,
+  adjustDisabledReason,
+  adjustment,
 }: CutLayoutDiagramProps) => {
   // The open sheet is held as an INDEX, not the group object, so the modal can page to the next one.
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
@@ -260,6 +329,13 @@ const CutLayoutDiagram = ({
         <CBadge color={totals.efficiency >= 80 ? 'success' : 'warning'}>
           {totals.efficiency.toFixed(1)}% aprovechamiento
         </CBadge>
+        {/* A plan the seller rearranged says so, and what it changed, where the plan is summed up. */}
+        {adjustment && (
+          <CBadge color="info" title={adjustmentLine(adjustment) || undefined}>
+            Ajustado a mano
+            {adjustmentLine(adjustment) ? ` · ${adjustmentLine(adjustment)}` : ''}
+          </CBadge>
+        )}
         <CButton
           size="sm"
           color="primary"
@@ -280,6 +356,16 @@ const CutLayoutDiagram = ({
         colorFor={colorFor}
         container={modalContainer}
         onClose={() => setDetailIndex(null)}
+        onAdjust={
+          onAdjust
+            ? (focus) => {
+                // The viewer steps aside for the editor, which opens on this same sheet.
+                setDetailIndex(null)
+                onAdjust(focus)
+              }
+            : undefined
+        }
+        adjustDisabledReason={adjustDisabledReason}
       />
     </div>
   )

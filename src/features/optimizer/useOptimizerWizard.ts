@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { WORKSHOP_CODES } from 'src/shared/utils/workshopCodes'
-import type { MaterialInput, RequirementInput } from './types'
+import type { LayoutAdjustment, MaterialInput, RequirementInput } from './types'
 
 // The wizard's current step lives in a SEARCH PARAM, not a sub-route. `AppContent` keys its
 // ErrorBoundary on `location.pathname`, so a path change would remount this page and destroy the
@@ -65,17 +65,21 @@ const withoutWorkshopCodes = (r: RequirementInput): RequirementInput => {
   return geometry
 }
 
+//
+// The hand adjustments ARE in: they decide which sheets exist and where every piece sits.
 export const signatureOf = (
   materials: MaterialInput[],
   requirements: RequirementInput[],
   variant: number,
   priceLevel: number,
+  layoutAdjustments: LayoutAdjustment[] | null = null,
 ): string =>
   JSON.stringify({
     materials,
     requirements: requirements.map(withoutWorkshopCodes),
     variant,
     priceLevel,
+    layoutAdjustments,
   })
 
 export const useOptimizerWizard = ({ hasPieceData, hasResult, canQuote }: WizardGates) => {

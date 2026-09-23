@@ -15,6 +15,8 @@ import type { ModalContainer, OptimizeResponse } from '../types'
 import CutLayoutDiagram from '../CutLayoutDiagram'
 import OptimizingOverlay from '../OptimizingOverlay'
 import UnplacedPiecesAlert from '../UnplacedPiecesAlert'
+import LayoutIssuesAlert from '../layoutEditor/LayoutIssuesAlert'
+import type { EditorFocus } from '../layoutEditor/useLayoutEditor'
 import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from '../summaryTables'
 
 // Step 2, and the step that runs the search. There used to be an `Optimización` step before this
@@ -68,6 +70,10 @@ interface CostsStepProps {
     value: ServiceLineForm[K],
   ) => void
   onRemoveService: (uid: string) => void
+  // Opens the layout editor (from the diagram viewer, on the sheet it shows); `adjustDisabledReason`
+  // says why it cannot.
+  onAdjustLayout?: (focus: EditorFocus) => void
+  adjustDisabledReason?: string
   container?: ModalContainer
 }
 
@@ -89,6 +95,8 @@ const CostsStep = ({
   onAddService,
   onUpdateService,
   onRemoveService,
+  onAdjustLayout,
+  adjustDisabledReason,
   container,
 }: CostsStepProps) => {
   const boardsCost = result?.totalBoardsCost ?? 0
@@ -165,6 +173,7 @@ const CostsStep = ({
             unplaced={result.unplaced}
             materialsSummary={result.materialsSummary}
           />
+          <LayoutIssuesAlert issues={result.layoutIssues} />
 
           {/* Under the money, not over it: the tiles are what the step is for, and the plan is the
               thing you check against them. `container` is not optional here — the workspace can be
@@ -174,6 +183,9 @@ const CostsStep = ({
             layoutGroups={result.layoutGroups}
             materialsSummary={result.materialsSummary}
             modalContainer={container}
+            onAdjust={onAdjustLayout}
+            adjustDisabledReason={adjustDisabledReason}
+            adjustment={result.adjustmentSummary}
             extra={
               <>
                 {/* Same weight as the counts beside them — they are the same kind of fact, and the

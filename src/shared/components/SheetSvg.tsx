@@ -1,3 +1,5 @@
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+
 import useZoomPan from 'src/shared/hooks/useZoomPan'
 import ZoomControls from 'src/shared/components/ZoomControls'
 import EdgeDimensions from 'src/shared/components/EdgeDimensions'
@@ -8,6 +10,8 @@ import {
   BOARD_OUTLINE,
   EDGE_COLOR,
   PIECE_LABEL,
+  WHOLE_OFFCUT_FILL,
+  WHOLE_OFFCUT_OUTLINE,
   WASTE_FILL,
   WASTE_LABEL,
   WASTE_OUTLINE,
@@ -22,7 +26,7 @@ import {
   showRemainderDims,
   uprightText,
 } from 'src/shared/utils/cutDrawing'
-import type { DrawableLayout, DrawnPiece } from 'src/shared/utils/cutDrawing'
+import type { DrawableLayout, DrawableRemainder, DrawnPiece } from 'src/shared/utils/cutDrawing'
 
 interface SheetSvgProps<P extends DrawnPiece> {
   layout: DrawableLayout<P>
@@ -49,6 +53,22 @@ interface SheetSvgProps<P extends DrawnPiece> {
   // measurement largo-first, and a tooltip contradicting the cut list beside it is worse
   // than no tooltip.
   titleFor?: (p: P) => string
+  // The layout editor's hooks. `overlay` is drawn inside the rotated board group, on top of
+  // everything, in the sheet's own millimetres — so the editor draws its free zones and the piece
+  // in hand without a second renderer. `onRemainderTap` makes the offcuts clickable, and
+  // `markAdjusted` outlines the pieces that were moved by hand.
+  overlay?: ReactNode
+  onRemainderTap?: (r: DrawableRemainder, index: number) => void
+  selectedRemainder?: number | null
+  markAdjusted?: boolean
+  // The editor's pieces are dragged, not tapped: this takes the press itself, marks the piece
+  // `data-no-pan` so the zoom/pan never moves the sheet under it, and shows the grab cursor.
+  onPiecePointerDown?: (p: P, e: ReactPointerEvent<SVGGElement>) => void
+  // Outlined without dimming the rest (unlike `highlightId`).
+  selectedId?: string | null
+  // A tap on the bare board (not on a piece nor an offcut): the editor's "click elsewhere to
+  // deselect".
+  onBackgroundTap?: () => void
 }
 
 const defaultLabel = (p: DrawnPiece) =>
@@ -73,6 +93,13 @@ const SheetSvg = <P extends DrawnPiece>({
   zoomPlacement,
   labelFor = defaultLabel,
   titleFor = defaultTitle,
+  overlay,
+  onRemainderTap,
+  selectedRemainder = null,
+  markAdjusted = false,
+  onPiecePointerDown,
+  selectedId = null,
+  onBackgroundTap,
 }: SheetSvgProps<P>) => {
   const { material, placedPieces, remainders } = layout
   const W = material.width
@@ -127,6 +154,7 @@ const SheetSvg = <P extends DrawnPiece>({
           stroke={BOARD_OUTLINE}
           strokeWidth={1.5}
           vectorEffect="non-scaling-stroke"
+          onClick={onBackgroundTap}
         />
 
         {/* Offcuts / waste: a flat fill inside a dashed outline, which is already the whole
@@ -136,17 +164,28 @@ const SheetSvg = <P extends DrawnPiece>({
             texture competing with the grain. The <title> carries the size regardless of the
             on-screen scale. */}
         {remainders.map((r, idx) => (
-          <g key={`rem-${idx}`}>
+          <g
+            key={`rem-${idx}`}
+            onClick={onRemainderTap ? () => onRemainderTap(r, idx) : undefined}
+            role={onRemainderTap ? 'button' : undefined}
+            style={{ cursor: onRemainderTap ? 'pointer' : 'default' }}
+          >
             <title>{remainderTitle(r)}</title>
             <rect
               x={r.x}
               y={r.y}
               width={r.width}
               height={r.height}
-              fill={WASTE_FILL}
-              stroke={WASTE_OUTLINE}
-              strokeWidth={1}
-              strokeDasharray="6 6"
+              fill={r.keptWhole ? WHOLE_OFFCUT_FILL : WASTE_FILL}
+              stroke={
+                selectedRemainder === idx
+                  ? BOARD_OUTLINE
+                  : r.keptWhole
+                    ? WHOLE_OFFCUT_OUTLINE
+                    : WASTE_OUTLINE
+              }
+              strokeWidth={selectedRemainder === idx || r.keptWhole ? 2.5 : 1}
+              strokeDasharray={r.keptWhole || selectedRemainder === idx ? undefined : '6 6'}
               vectorEffect="non-scaling-stroke"
             />
           </g>
@@ -165,8 +204,13 @@ const SheetSvg = <P extends DrawnPiece>({
               onMouseEnter={() => onPieceEnter?.(p)}
               onMouseLeave={() => onPieceLeave?.()}
               onClick={onPieceTap ? () => onPieceTap(p) : undefined}
-              role={onPieceTap ? 'button' : undefined}
-              style={{ cursor: onPieceTap ? 'pointer' : 'default' }}
+              onPointerDown={onPiecePointerDown ? (e) => onPiecePointerDown(p, e) : undefined}
+              data-piece-id={p.pieceId}
+              data-no-pan={onPiecePointerDown ? '' : undefined}
+              role={onPieceTap || onPiecePointerDown ? 'button' : undefined}
+              style={{
+                cursor: onPiecePointerDown ? 'grab' : onPieceTap ? 'pointer' : 'default',
+              }}
             >
               <title>{titleFor(p)}</title>
               <rect
@@ -176,10 +220,30 @@ const SheetSvg = <P extends DrawnPiece>({
                 height={p.height}
                 fill={color}
                 fillOpacity={0.85}
-                stroke={highlightId === p.pieceId ? BOARD_OUTLINE : 'rgba(0,0,0,0.35)'}
-                strokeWidth={highlightId === p.pieceId ? 3 : 1}
+                stroke={
+                  highlightId === p.pieceId || selectedId === p.pieceId
+                    ? BOARD_OUTLINE
+                    : 'rgba(0,0,0,0.35)'
+                }
+                strokeWidth={highlightId === p.pieceId || selectedId === p.pieceId ? 3 : 1}
                 vectorEffect="non-scaling-stroke"
               />
+              {/* Moved by hand: a dashed inner outline, so "what changed" reads at a glance
+                  without a legend. Inset like the edge bands, never over the cut line. */}
+              {markAdjusted && p.adjusted && (
+                <rect
+                  x={p.x + edgeWidth * 1.5}
+                  y={p.y + edgeWidth * 1.5}
+                  width={Math.max(0, p.width - edgeWidth * 3)}
+                  height={Math.max(0, p.height - edgeWidth * 3)}
+                  fill="none"
+                  stroke={BOARD_OUTLINE}
+                  strokeWidth={2}
+                  strokeDasharray="8 6"
+                  vectorEffect="non-scaling-stroke"
+                  pointerEvents="none"
+                />
+              )}
 
               {/* Edge banding: thick band inset from the piece border (does not overlap the cut line) */}
               {bandedSides(p).map((side) => {
@@ -236,6 +300,8 @@ const SheetSvg = <P extends DrawnPiece>({
             </text>
           )
         })}
+
+        {overlay}
       </g>
 
       {/* Measurements drawn on the edges (not centered): positioned in screen space, so this is
