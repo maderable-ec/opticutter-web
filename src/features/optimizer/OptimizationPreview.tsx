@@ -7,6 +7,8 @@ import type { OptimizeResponse } from './types'
 import CutLayoutDiagram from './CutLayoutDiagram'
 import OptimizingOverlay from './OptimizingOverlay'
 import UnplacedPiecesAlert from './UnplacedPiecesAlert'
+import LayoutIssuesAlert from './layoutEditor/LayoutIssuesAlert'
+import type { EditorFocus } from './layoutEditor/useLayoutEditor'
 import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from './summaryTables'
 
 // The result of a cut run: KPIs, cost tables and the diagram bar stacked together. Used by the
@@ -35,6 +37,10 @@ interface OptimizationPreviewProps {
   onToggleWholeBoard?: (materialKey: string) => void
   // Freezes both marks (a closed quote, or a recompute in flight).
   marksDisabled?: boolean
+  // Opens the layout editor from the diagram viewer (open quotes only); `adjustDisabledReason` says
+  // why it cannot.
+  onAdjustLayout?: (focus: EditorFocus) => void
+  adjustDisabledReason?: string
 }
 
 const OptimizationPreview = ({
@@ -47,6 +53,8 @@ const OptimizationPreview = ({
   wholeBoardKeys,
   onToggleWholeBoard,
   marksDisabled,
+  onAdjustLayout,
+  adjustDisabledReason,
 }: OptimizationPreviewProps) => (
   <>
     <div className="text-body-secondary small text-uppercase fw-semibold mb-2">Resultado</div>
@@ -91,6 +99,7 @@ const OptimizationPreview = ({
             unplaced={result.unplaced}
             materialsSummary={result.materialsSummary}
           />
+          <LayoutIssuesAlert issues={result.layoutIssues} />
 
           <MaterialsSummaryTable
             rows={result.materialsSummary ?? []}
@@ -105,6 +114,9 @@ const OptimizationPreview = ({
           <CutLayoutDiagram
             layoutGroups={result.layoutGroups}
             materialsSummary={result.materialsSummary}
+            onAdjust={onAdjustLayout}
+            adjustDisabledReason={adjustDisabledReason}
+            adjustment={result.adjustmentSummary}
           />
 
           {/* Level picker and totals on one line, the same pairing the Costos step uses. The level

@@ -68,6 +68,8 @@ export interface PlacedPiece {
   originalWidth: number
   // Edge banding applied to the piece, or null if none. See PlacedPieceEdges.
   edges?: PlacedPieceEdges | null
+  // Moved by hand: not where the optimizer put it. Present only when true.
+  adjusted?: boolean
 }
 
 export interface Remainder {
@@ -75,6 +77,8 @@ export interface Remainder {
   y: number
   height: number
   width: number
+  // A «retazo entero»: the seller asked for it to be cut out in one piece. Present only when true.
+  keptWhole?: boolean
 }
 
 export interface LayoutStatistics {
@@ -91,6 +95,8 @@ export interface Layout {
   placedPieces: PlacedPiece[]
   statistics: LayoutStatistics
   remainders: Remainder[]
+  // This sheet differs from what the optimizer produced. Present only when true.
+  adjusted?: boolean
 }
 
 export interface MaterialSummary {
@@ -186,6 +192,153 @@ export interface OptimizeResponse {
   variant?: number
   // Optional: a result cached before the field existed comes back without it.
   unplaced?: UnplacedPiece[]
+  // Hand adjustments that were NOT applied, and why (the pool fell back to the optimizer's plan).
+  layoutIssues?: LayoutIssue[]
+  // What the applied hand adjustments changed against the optimizer's plan; null without any.
+  adjustmentSummary?: AdjustmentSummary | null
+  // The hand adjustments actually applied to this plan (empty sheets left out); null without any.
+  layoutAdjustments?: LayoutAdjustment[] | null
+}
+
+// --- Hand adjustments to the plan (the layout editor) ---
+//
+// A sheet is its placements: which stock it is and where each piece instance sits. Cuts, offcuts,
+// metrics and prices are all derived by the server, which is also the only judge of what is valid —
+// the editor snaps to the positions it offers. An adjustment REPLACES the optimizer's sheets for its
+// pool (the material the pieces point at plus the retazos pooled to it).
+
+export interface AdjustedPiece {
+  pieceId: string
+  x: number
+  y: number
+  rotated: boolean
+}
+
+// A «retazo entero»: free space the seller wants cut out in one piece. A wish about free space, not
+// an obstacle — a piece placed on it later simply uses it.
+export interface WholeOffcut {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface AdjustedSheet {
+  materialKey: string
+  halfBoard: boolean
+  pieces: AdjustedPiece[]
+  wholeOffcuts: WholeOffcut[]
+}
+
+export interface LayoutAdjustment {
+  poolKey: string
+  sheets: AdjustedSheet[]
+}
+
+export interface LayoutIssue {
+  poolKey: string
+  code: string
+  // Seller-facing, in Spanish.
+  message: string
+  sheetIndex: number | null
+  pieceIds: string[]
+}
+
+export interface AdjustmentSummary {
+  movedPieces: number
+  boardsDelta: number
+  boardCostDelta: number
+  // Offcuts the seller asked to keep whole.
+  wholeOffcuts?: number
+}
+
+export interface EditablePiece {
+  pieceId: string
+  label: string
+  width: number
+  height: number
+  canRotate: boolean
+}
+
+export interface SheetBinInfo {
+  materialKey: string
+  halfBoard: boolean
+  width: number
+  height: number
+  costPerUnit: number
+  label: string
+  // Units still unused (retazos); null = unlimited.
+  remaining: number | null
+}
+
+export interface EditableSheet extends AdjustedSheet {
+  // Derived by the server; null for a sheet with nothing on it yet.
+  layout: Layout | null
+}
+
+export interface EditablePool {
+  poolKey: string
+  label: string
+  bins: SheetBinInfo[]
+  pieces: EditablePiece[]
+  pending: string[]
+  sheets: EditableSheet[]
+  adjusted: boolean
+  // Only retazos, no board to open: pieces may stay pending when the job is applied.
+  finite: boolean
+}
+
+export interface LayoutEvaluateResponse extends OptimizeResponse {
+  pools: EditablePool[]
+}
+
+export type LayoutProbe =
+  | { kind: 'piece'; poolKey: string; pieceId: string; sheetIndex: number | null }
+  | {
+      kind: 'leftover'
+      poolKey: string
+      sheetIndex: number
+      x: number
+      y: number
+      width: number
+      height: number
+    }
+  | { kind: 'sheet'; poolKey: string; sheetIndex: number }
+
+export interface CandidatePosition {
+  x: number
+  y: number
+  rotated: boolean
+  // Whole offcuts of the sheet (indices into its `wholeOffcuts`) this position lands on: placing the
+  // piece there uses them, so they are no longer kept whole.
+  usesWholeOffcuts?: number[]
+}
+
+export interface SheetFit {
+  sheetIndex: number
+  fits: boolean
+  fitsRotated: boolean
+  positions: CandidatePosition[]
+  freeRects: Remainder[]
+}
+
+// In the sheet's own axes: `x` runs along its width, `y` along its height (the largo).
+export type LeftoverDirection = 'x+' | 'x-' | 'y+' | 'y-'
+
+export interface LeftoverExtension extends WholeOffcut {
+  direction: LeftoverDirection
+}
+
+export interface SheetConversion {
+  halfBoard: boolean
+  shiftX: number
+  shiftY: number
+}
+
+export interface LayoutCandidatesResponse {
+  sheets: SheetFit[]
+  extensions: LeftoverExtension[]
+  conversions: SheetConversion[]
 }
 
 // --- Request inputs (what the frontend sends) ---
@@ -281,6 +434,13 @@ export interface OptimizePayload {
   // Alternative-solution seed: bump it ("Generar otra alternativa") to get a
   // genuinely different deterministic layout when alternatives exist.
   variant?: number
+  // The seller's hand adjustments to the plan, one entry per pool. Applied after the server's
+  // cache, so they never re-run the search.
+  layoutAdjustments?: LayoutAdjustment[] | null
+}
+
+export interface LayoutCandidatesPayload extends OptimizePayload {
+  probe: LayoutProbe
 }
 
 // --- Optimizer drafts (persistence) ---
@@ -296,6 +456,9 @@ export interface OptimizerDraftPayload {
   // do not carry the key; the backend stores `payload` as an opaque JSON object, so adding it needed
   // no schema change on that side.
   additionalServices?: AdditionalServiceInput[]
+  // Hand adjustments to the plan, keyed by the payload's material keys — which are the form's
+  // uids, persisted above, so they still name the same pools when the draft is loaded back.
+  layoutAdjustments?: LayoutAdjustment[] | null
 }
 
 // List item (no payload).

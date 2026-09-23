@@ -34,7 +34,13 @@ import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
 import type { QuoteDraft } from '../useQuoteDraft'
-import type { MaterialInput, ModalContainer, OptimizeResponse, RequirementInput } from '../types'
+import type {
+  LayoutAdjustment,
+  MaterialInput,
+  ModalContainer,
+  OptimizeResponse,
+  RequirementInput,
+} from '../types'
 
 // Step 4. What used to be CreateQuoteModal, in a full-width step: the same four inputs the optimizer
 // cannot infer (client, branch, price level, reference) plus the confirmation summary that never fit
@@ -55,6 +61,8 @@ interface QuoteStepProps {
   // Alternative-solution seed of the layout on screen; persisted with the pre-order so every
   // recompute reproduces the chosen alternative.
   variant: number
+  // The seller's hand adjustments to that layout; they ride with the pre-order the same way.
+  layoutAdjustments: LayoutAdjustment[] | null
   // Billed services entered in the Costos step. They ride along with the pre-order so a quote built
   // in the wizard is complete on arrival instead of needing a second pass on the detail page.
   services: ServiceLineForm[]
@@ -73,6 +81,7 @@ const QuoteStep = ({
   requirements,
   priceLevel,
   variant,
+  layoutAdjustments,
   services,
   draft,
   onDraftChange,
@@ -155,6 +164,7 @@ const QuoteStep = ({
         notes: draft.notes || undefined,
         priceLevel,
         variant,
+        layoutAdjustments,
         materials,
         requirements,
         additionalServices: buildServiceLines(services),

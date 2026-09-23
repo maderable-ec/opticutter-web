@@ -118,6 +118,8 @@ export interface DrawablePiece {
   originalHeight: number
   rotated: boolean
   edges?: DrawableEdges | null
+  // Moved by hand (the layout editor): not where the optimizer put it.
+  adjusted?: boolean
 }
 
 // A piece the renderer can also identify, for highlighting and tap callbacks.
@@ -130,6 +132,8 @@ export interface DrawableRemainder {
   y: number
   width: number
   height: number
+  // A «retazo entero»: the seller asked for it to be cut out in one piece.
+  keptWhole?: boolean
 }
 
 // What SheetSvg needs to render one sheet, regardless of which endpoint produced it. Generic over
@@ -148,7 +152,12 @@ export const remainderLabel = (r: DrawableRemainder) =>
 // Hover text. Carries the unit and the area because it has the room the rectangle may not have, and
 // it is the only way to read a small leftover without zooming in.
 export const remainderTitle = (r: DrawableRemainder) =>
-  `Retazo ${remainderLabel(r)} mm · ${((r.width * r.height) / 1_000_000).toFixed(2)} m²`
+  `${r.keptWhole ? 'Retazo entero' : 'Retazo'} ${remainderLabel(r)} mm · ${((r.width * r.height) / 1_000_000).toFixed(2)} m²`
+
+// A «retazo entero» (kept in one piece on purpose) reads apart from an ordinary leftover by its outline:
+// solid instead of dashed, in a teal no piece colour or edge band uses, over a tinted fill.
+export const WHOLE_OFFCUT_OUTLINE = '#1f6f8b'
+export const WHOLE_OFFCUT_FILL = '#dcebf1'
 
 // Identical pieces share the same nominal dimensions (originalWidth×originalHeight).
 export const pieceSig = (p: Pick<DrawablePiece, 'originalWidth' | 'originalHeight'>) =>

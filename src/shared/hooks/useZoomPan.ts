@@ -123,6 +123,10 @@ const useZoomPan = ({
     }
 
     const onPointerDown = (e: PointerEvent) => {
+      // An element marked `data-no-pan` owns its own drag (the layout editor's pieces): this
+      // listener sits on the <svg> itself and runs BEFORE React's delegated handlers, so a
+      // `stopPropagation` there could never keep the sheet from panning under the piece.
+      if (e.target instanceof Element && e.target.closest('[data-no-pan]')) return
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (pointers.current.size === 1) {
         moved.current = false
