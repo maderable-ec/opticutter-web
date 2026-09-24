@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from 'src/shared/store/authStore'
 import { authApi } from './authApi'
-import { isGlobalBranchRole } from './permissions'
+import { hasAnyRole, isGlobalBranchRole } from './permissions'
 import type { Role, User } from './types'
 
 export const useLogin = () => {
@@ -32,12 +32,13 @@ export const useLogout = () => {
 
 export const useCurrentUser = (): User | null => useAuthStore((s) => s.user)
 
+// True when the user holds ANY of `roles` (the permissions of several roles are their union).
 export const useHasRole = (...roles: Role[]): boolean => {
   const user = useAuthStore((s) => s.user)
-  return user ? roles.includes(user.role) : false
+  return hasAnyRole(user?.roles, roles)
 }
 
 export const useIsGlobalBranchRole = (): boolean => {
   const user = useAuthStore((s) => s.user)
-  return isGlobalBranchRole(user?.role)
+  return isGlobalBranchRole(user?.roles)
 }

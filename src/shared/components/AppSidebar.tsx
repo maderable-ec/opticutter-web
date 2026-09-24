@@ -24,6 +24,7 @@ import { servicesNav } from 'src/features/services/nav'
 import { settingsNav } from 'src/features/settings/nav'
 import { sygnet } from 'src/assets/brand/sygnet'
 import { useAuthStore } from 'src/shared/store/authStore'
+import { hasAnyRole } from 'src/features/auth/permissions'
 import useUIStore from 'src/shared/store/uiStore'
 import { usersNav } from 'src/features/users/nav'
 
@@ -48,11 +49,9 @@ const AppSidebar = () => {
   const sidebarShow = useUIStore((state) => state.sidebarShow)
   const setSidebarShow = useUIStore((state) => state.setSidebarShow)
   const setSidebarUnfoldable = useUIStore((state) => state.setSidebarUnfoldable)
-  const userRole = useAuthStore((s) => s.user?.role)
+  const userRoles = useAuthStore((s) => s.user?.roles)
 
-  const navigation = allNavItems.filter(
-    (item) => !item.roles || (userRole && item.roles.includes(userRole)),
-  )
+  const navigation = allNavItems.filter((item) => !item.roles || hasAnyRole(userRoles, item.roles))
 
   return (
     <CSidebar

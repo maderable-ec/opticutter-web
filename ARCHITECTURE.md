@@ -123,7 +123,7 @@ Handles JWT injection, automatic token refresh (single-flight pattern on concurr
 
 ### Auth & Session
 
-Zustand `authStore` holds `token`, `refreshToken`, `user` (with role), and `status`.
+Zustand `authStore` holds `token`, `refreshToken`, `user` (with its `roles`), and `status`.
 `App.tsx` restores session on load by calling `/api/v1/auth/me` with the stored token.
 `httpClient` reads the token from the store and auto-refreshes on 401.
 
@@ -135,8 +135,14 @@ Four roles with distinct route access and landing pages:
 |------|--------|---------|
 | `administrador` | All features | `/dashboard` |
 | `vendedor` | Optimizer, Pre-orders, Orders, Products, Clients | `/optimizer` |
-| `operador` | Orders (cutting workshop) | `/orders` |
-| `canteador` | Orders (banding queue) | `/banding` |
+| `operador` | Workshop board, cutting canvas (`/orders/:id/workshop`) | `/workshop-board` |
+| `canteador` | Workshop board (banding and additional work) | `/workshop-board` |
+
+A user holds a **list** of roles (`user.roles`) and gets the **union** of their access: every
+check goes through `hasAnyRole` (`features/auth/permissions.ts`), and the landing page is the
+highest one (`homePathForRoles`). Only the workshop roles combine — a `canteador` learning to cut
+is `operador` + `canteador` — which the user form enforces with `toggleRole` and the API with a
+`422` on `roles`.
 
 ### State Management
 

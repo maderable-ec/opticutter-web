@@ -25,13 +25,12 @@ import UsersFilters, {
 } from './UsersFilters'
 import type { Role, User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
-import { ROLE_BADGE_CONFIG } from 'src/features/auth/roleLabels'
+import RoleBadge from 'src/features/dashboard/components/RoleBadge'
 import SearchInput from 'src/shared/components/SearchInput'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
 import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
-import StatusBadge from 'src/shared/components/StatusBadge'
 import type { ListSort } from 'src/shared/components/FilterSortSection'
 import { useListParams } from 'src/shared/hooks/useListParams'
 
@@ -150,7 +149,7 @@ const UsersPage = () => {
                 <CTableHeaderCell>ID</CTableHeaderCell>
                 <CTableHeaderCell>Email</CTableHeaderCell>
                 <CTableHeaderCell>Nombre</CTableHeaderCell>
-                <CTableHeaderCell>Rol</CTableHeaderCell>
+                <CTableHeaderCell>Roles</CTableHeaderCell>
                 <CTableHeaderCell>Sucursal</CTableHeaderCell>
                 <CTableHeaderCell>Estado</CTableHeaderCell>
                 <CTableHeaderCell />
@@ -181,10 +180,10 @@ const UsersPage = () => {
                     <CTableDataCell>{u.email}</CTableDataCell>
                     <CTableDataCell>{u.fullName ?? '—'}</CTableDataCell>
                     <CTableDataCell>
-                      <StatusBadge config={ROLE_BADGE_CONFIG} value={u.role} />
+                      <RoleBadge roles={u.roles} />
                     </CTableDataCell>
                     <CTableDataCell>
-                      {u.role === 'administrador'
+                      {u.roles.includes('administrador')
                         ? 'Global'
                         : u.branchId != null
                           ? (branchName.get(u.branchId) ?? '—')

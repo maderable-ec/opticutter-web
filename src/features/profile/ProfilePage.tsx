@@ -18,7 +18,7 @@ import CIcon from '@coreui/icons-react'
 import { cilCheckAlt, cilLockLocked, cilSave } from '@coreui/icons'
 import { ApiError } from 'src/shared/api/types'
 import { useCurrentUser } from 'src/features/auth/useAuth'
-import { ROLE_LABELS } from 'src/features/auth/roleLabels'
+import { rolesLabel } from 'src/features/auth/roleLabels'
 import { useSavedFlash } from 'src/features/settings/useSavedFlash'
 import { useUpdateProfile } from './useProfile'
 
@@ -97,8 +97,8 @@ const ProfilePage = () => {
                   <CFormInput type="email" value={user.email} disabled readOnly />
                 </CCol>
                 <CCol xs={12} md={6}>
-                  <CFormLabel>Rol</CFormLabel>
-                  <CFormInput value={ROLE_LABELS[user.role]} disabled readOnly />
+                  <CFormLabel>{user.roles.length > 1 ? 'Roles' : 'Rol'}</CFormLabel>
+                  <CFormInput value={rolesLabel(user.roles)} disabled readOnly />
                 </CCol>
                 <CCol xs={12} md={6}>
                   <CFormLabel>Nombre completo</CFormLabel>
@@ -135,7 +135,7 @@ const ProfilePage = () => {
 
         <div className="text-body-secondary small">
           <CIcon icon={cilLockLocked} className="me-1" />
-          El email y el rol los gestiona un administrador.
+          El email y los roles los gestiona un administrador.
         </div>
       </CCol>
     </CRow>

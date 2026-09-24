@@ -1,3 +1,4 @@
+import { hasAnyRole } from 'src/features/auth/permissions'
 import type { StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import type { OrderStatus } from './types'
 
@@ -122,7 +123,8 @@ export const STATUS_TRANSITIONS: Partial<Record<OrderStatus, StatusTransition[]>
   ],
 }
 
-export const transitionsFor = (status: OrderStatus, role: string | undefined) =>
+/** The moves a user's roles may make from `status` (any one of their roles is enough). */
+export const transitionsFor = (status: OrderStatus, roles: readonly string[] | undefined) =>
   isTerminal(status)
     ? []
-    : (STATUS_TRANSITIONS[status] ?? []).filter((t) => t.roles.includes(role ?? ''))
+    : (STATUS_TRANSITIONS[status] ?? []).filter((t) => hasAnyRole(roles, t.roles))

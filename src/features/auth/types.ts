@@ -6,7 +6,9 @@ export interface User {
   id: number
   email: string
   fullName: string | null
-  role: Role
+  // One or more roles, in canonical order; the permissions are their union. Only the workshop roles
+  // combine (operador + canteador), so a user with several is always a workshop one.
+  roles: Role[]
   isActive: boolean
   createdAt: string
   // Staff branch. Required for vendedor/operador/canteador; null for administrador (global role).

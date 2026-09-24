@@ -8,6 +8,10 @@ export const ROLE_LABELS: Record<Role, string> = {
   canteador: 'Canteador',
 }
 
+/** Every role of a user, spelled out: «Operador · Canteador». */
+export const rolesLabel = (roles: readonly Role[] | undefined): string =>
+  (roles ?? []).map((role) => ROLE_LABELS[role] ?? role).join(' · ')
+
 /** Compact labels for badges in tables. */
 export const ROLE_SHORT_LABELS: Record<Role, string> = {
   administrador: 'Admin',

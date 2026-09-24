@@ -126,7 +126,7 @@ const AttendancePage = () => {
               <CTableHead>
                 <CTableRow>
                   <CTableHeaderCell className="bg-body-tertiary">Usuario</CTableHeaderCell>
-                  <CTableHeaderCell className="bg-body-tertiary">Rol</CTableHeaderCell>
+                  <CTableHeaderCell className="bg-body-tertiary">Roles</CTableHeaderCell>
                   {dates.map((d) => (
                     <CTableHeaderCell key={d} className="bg-body-tertiary text-center">
                       {fmtColDate(d)}
@@ -139,7 +139,7 @@ const AttendancePage = () => {
                   <CTableRow key={user.userId}>
                     <CTableDataCell>{user.fullName}</CTableDataCell>
                     <CTableDataCell>
-                      <RoleBadge role={user.role} />
+                      <RoleBadge roles={user.roles} />
                     </CTableDataCell>
                     {dates.map((d) => {
                       const day = byDate.get(d)
