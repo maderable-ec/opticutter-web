@@ -163,15 +163,30 @@ export interface PricingData {
   total: number
 }
 
-// A piece the available stock could not hold, grouped by size. Only a pool of
-// finite retazos can actually run out of material, so this is empty on every
-// quote anchored on a catalog board.
+// Why the plan leaves a piece out: bigger than the sheet itself, bigger than its useful area but
+// not than the sheet (it would fit with «sin refilar»), it fits but the retazos ran out, or it fits
+// but the hand adjustment of its group left it on no sheet.
+export type UnplacedReason =
+  | 'larger_than_sheet'
+  | 'larger_than_trimmed_sheet'
+  | 'out_of_stock'
+  | 'pending'
+
+// A piece the available stock could not hold, grouped by size: larger than its board, or a pool of
+// finite retazos that ran out. The plan does not cut it, so no quote can be created or sent with
+// one — the API answers 422 `UNPLACED_PIECES` and the wizard does not reach Cotización.
 export interface UnplacedPiece {
   materialKey: string
+  // The optimizer's own id (`piece_3`) when the row has no label: never shown as such.
   label: string | null
   height: number
   width: number
   quantity: number
+  // The board or retazo the pieces were meant for, its useful area (trims off) and why.
+  materialName?: string | null
+  usableHeight?: number | null
+  usableWidth?: number | null
+  reason?: UnplacedReason | null
 }
 
 export interface OptimizeResponse {

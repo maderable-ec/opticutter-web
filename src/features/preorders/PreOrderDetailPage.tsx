@@ -64,6 +64,7 @@ import {
 import { useServices } from 'src/features/services/useServices'
 import OptimizationPreview from 'src/features/optimizer/OptimizationPreview'
 import LayoutEditorModal from 'src/features/optimizer/layoutEditor/LayoutEditorModal'
+import { unplacedReason } from 'src/features/optimizer/useOptimizerWizard'
 import type { EditorFocus } from 'src/features/optimizer/layoutEditor/useLayoutEditor'
 import StockAlert from 'src/features/inventory/StockAlert'
 import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
@@ -604,11 +605,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // someone who cannot be invoiced), and finding that out by clicking is a wasted round trip.
   // Unsaved edits block the share for a different reason: the link points at the SAVED quote, so
   // sharing while dirty hands the client the previous version without saying so.
+  //
+  // Pieces the saved plan does not cut block it too: the API refuses the link anyway (422
+  // UNPLACED_PIECES), and a quote saved before that rule — pre-order 157 — must not go out again.
+  const unplacedCount = (optimization?.unplaced ?? []).reduce((acc, u) => acc + u.quantity, 0)
   const shareBlockedReason = !preOrder.client.phone?.trim()
     ? 'El cliente no tiene celular registrado'
     : isDirty
       ? 'Guarda los cambios antes de compartir'
-      : undefined
+      : unplacedCount > 0
+        ? `${unplacedReason(unplacedCount)}; corrige el despiece antes de compartir`
+        : undefined
 
   // Reached from two places on purpose: the strip's button is the next step once a quote is
   // confirmed, and the menu keeps its entry because on a closed quote that is the only thing left in

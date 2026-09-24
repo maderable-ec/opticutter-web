@@ -49,9 +49,17 @@ export interface WizardGates {
   // A result is on screen. No longer part of the ladder (see `maxIndex`), only of the reason a
   // blocked step gives for being blocked.
   hasResult: boolean
-  // A result plus every banded piece has its tapacanto product.
+  // A result plus every banded piece has its tapacanto product, and no piece left out of the plan.
   canQuote: boolean
+  // Pieces the result on screen does NOT cut (sum of `unplaced[].quantity`). A quote may never go
+  // out with one: pre-order 157 did, behind a warning nobody read, so this is a wall, not a notice.
+  unplacedCount: number
 }
+
+// "Una pieza no entra" / "3 piezas no entran": the reason the Cotización step gives while the plan
+// leaves pieces out. Exported so the Cotización step itself says the same words.
+export const unplacedReason = (count: number): string =>
+  `${count === 1 ? 'Una pieza no entra' : `${count} piezas no entran`} en el material`
 
 // Signature of everything that determines a result. Compared against the signature of the payload
 // actually sent, it tells whether what's on screen still describes the current inputs.
@@ -82,7 +90,12 @@ export const signatureOf = (
     layoutAdjustments,
   })
 
-export const useOptimizerWizard = ({ hasPieceData, hasResult, canQuote }: WizardGates) => {
+export const useOptimizerWizard = ({
+  hasPieceData,
+  hasResult,
+  canQuote,
+  unplacedCount,
+}: WizardGates) => {
   const [params, setParams] = useSearchParams()
 
   // Furthest step the current data allows. Backwards is always free; forwards is gated.
@@ -114,15 +127,17 @@ export const useOptimizerWizard = ({ hasPieceData, hasResult, canQuote }: Wizard
     }
   }, [raw, step, setParams])
 
-  // Why a step cannot be reached. Cotización has two different answers now that the run happens
-  // inside Costos — "no hay resultado" and "faltan tapacantos" — and its static text only covers
-  // the second. Used by the trail's tooltip as well as the footer's hint, so both agree.
+  // Why a step cannot be reached. Cotización has three different answers now that the run happens
+  // inside Costos — "no hay resultado", "piezas que no entran" and "faltan tapacantos" — and its
+  // static text only covers the last. Used by the trail's tooltip as well as the footer's hint, so
+  // both agree.
   const blockedReasonFor = useCallback(
     (id: StepId): string => {
       if (id === 'quote' && !hasResult) return 'Primero hay que optimizar'
+      if (id === 'quote' && unplacedCount > 0) return unplacedReason(unplacedCount)
       return STEPS[STEP_IDS.indexOf(id)]?.blockedReason ?? ''
     },
-    [hasResult],
+    [hasResult, unplacedCount],
   )
 
   const goTo = useCallback(
