@@ -225,10 +225,15 @@ const OptimizerPage = () => {
   // and "this is what we are showing" stop being the same thing as soon as a run can fail.
   const attemptedSignature = useRef<string | null>(null)
 
+  // The first wall against a quote with pieces its plan does not cut: the Cotización step stays
+  // locked until every piece fits. The API refuses the same quote too, but by then the seller has
+  // filled in the client and the reference for nothing.
+  const unplacedCount = (result?.unplaced ?? []).reduce((acc, u) => acc + u.quantity, 0)
   const wizard = useOptimizerWizard({
     hasPieceData,
     hasResult,
-    canQuote: hasResult && missingBanding.length === 0,
+    canQuote: hasResult && missingBanding.length === 0 && unplacedCount === 0,
+    unplacedCount,
   })
   const onPieces = wizard.step === 'pieces'
   const onCosts = wizard.step === 'costs'

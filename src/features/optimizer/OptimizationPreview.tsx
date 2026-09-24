@@ -92,9 +92,10 @@ const OptimizationPreview = ({
             <Kpi label="Tapacanto lineal" value={meters(result.totalEdgeBandingLinearM)} />
           </CRow>
 
-          {/* A pre-order re-optimizes on every read, so a retazo the client already
-              used elsewhere can turn a quote that fitted into one that no longer
-              does. Saying it here is what keeps that from reaching the workshop. */}
+          {/* A pre-order re-optimizes on every read, so a catalog change or a quote
+              saved before the rule can show pieces that no longer fit. Saying it
+              here, with the send blocked, is what keeps that from reaching the
+              client and the workshop. */}
           <UnplacedPiecesAlert
             unplaced={result.unplaced}
             materialsSummary={result.materialsSummary}

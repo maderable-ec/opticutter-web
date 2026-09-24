@@ -4,9 +4,10 @@ import { useStockCheck } from './useStockCheck'
 import type { StockAlertItem, StockCheckItem, StockUnit } from './types'
 
 // Material that is running out in the branch the job belongs to. Informational
-// on purpose and modelled on `optimizer/UnplacedPiecesAlert`: it never disables
-// a button and never blocks a save. The seller decides whether to quote it
-// anyway, swap the board, or call the warehouse.
+// on purpose: it never disables a button and never blocks a save. The seller
+// decides whether to quote it anyway, swap the board, or call the warehouse.
+// (Its model, `optimizer/UnplacedPiecesAlert`, no longer is: a piece the plan
+// does not cut blocks the quote.)
 //
 // Rendered above the money, not below it, because it changes what to do next
 // rather than describing what was decided.

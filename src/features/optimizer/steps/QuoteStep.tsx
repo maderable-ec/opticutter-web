@@ -34,6 +34,7 @@ import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
 import type { QuoteDraft } from '../useQuoteDraft'
+import { unplacedReason } from '../useOptimizerWizard'
 import type {
   LayoutAdjustment,
   MaterialInput,
@@ -140,18 +141,24 @@ const QuoteStep = ({
 
   const createPreOrder = useCreatePreOrder()
   const isPending = createPreOrder.isPending
-  const blocked = !selectedClient || missingPhone || (isAdmin && !branchId)
+  // The wizard does not reach this step while the plan leaves pieces out; checked again here because
+  // a quote with them must never be created, whatever the route in.
+  const unplacedCount = (result?.unplaced ?? []).reduce((acc, u) => acc + u.quantity, 0)
+  const blocked = unplacedCount > 0 || !selectedClient || missingPhone || (isAdmin && !branchId)
 
   // A disabled button has to say what it is waiting for — the same `nextHint`/`nextDisabled` idiom
   // the pre-order detail uses. Without it "Crear cotización" is simply dim, which is how a seller
   // ends up reporting that a click did nothing.
-  const blockedReason = !selectedClient
-    ? 'Falta elegir el cliente.'
-    : missingPhone
-      ? 'El cliente no tiene celular registrado.'
-      : isAdmin && !branchId
-        ? 'Falta elegir la sucursal.'
-        : undefined
+  const blockedReason =
+    unplacedCount > 0
+      ? `${unplacedReason(unplacedCount)}; corrígelo en Costos.`
+      : !selectedClient
+        ? 'Falta elegir el cliente.'
+        : missingPhone
+          ? 'El cliente no tiene celular registrado.'
+          : isAdmin && !branchId
+            ? 'Falta elegir la sucursal.'
+            : undefined
 
   const pricing = result?.pricing ? pricingWithServices(result.pricing, services) : undefined
 

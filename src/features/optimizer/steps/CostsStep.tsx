@@ -168,7 +168,7 @@ const CostsStep = ({
           </CRow>
 
           {/* Above the plan: it changes what the seller does next, rather than describing what
-              was done. Empty on every quote anchored on a catalog board. */}
+              was done. While it shows, the Cotización step stays locked. */}
           <UnplacedPiecesAlert
             unplaced={result.unplaced}
             materialsSummary={result.materialsSummary}
