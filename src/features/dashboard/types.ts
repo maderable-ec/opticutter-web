@@ -87,7 +87,7 @@ export interface BottlenecksData {
 export interface UserProductivity {
   userId: number
   fullName: string
-  role: Role
+  roles: Role[]
   branchName: string | null
   // Cutting (operador)
   piecesCut: number
@@ -119,7 +119,7 @@ export interface AttendanceDay {
 export interface AttendanceUser {
   userId: number
   fullName: string
-  role: Role
+  roles: Role[]
   branchName: string | null
   days: AttendanceDay[]
 }

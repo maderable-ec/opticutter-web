@@ -11,6 +11,8 @@ import {
   CSpinner,
 } from '@coreui/react'
 import type { Role, User } from 'src/features/auth/types'
+import { ROLE_ORDER, toggleRole } from 'src/features/auth/permissions'
+import { ROLE_LABELS } from 'src/features/auth/roleLabels'
 import type { UserPayload, UserUpdatePayload } from './types'
 import { ApiError } from 'src/shared/api/types'
 import { apiErrorMessage } from 'src/shared/api/errors'
@@ -25,31 +27,24 @@ interface UserFormProps {
   error: Error | null
 }
 
-const ROLES: { value: Role; label: string }[] = [
-  { value: 'administrador', label: 'Administrador' },
-  { value: 'vendedor', label: 'Vendedor' },
-  { value: 'operador', label: 'Operador' },
-  { value: 'canteador', label: 'Canteador' },
-]
-
 const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormProps) => {
   const isEdit = user !== null
 
   const [email, setEmail] = useState(user?.email ?? '')
   const [fullName, setFullName] = useState(user?.fullName ?? '')
-  const [role, setRole] = useState<Role>(user?.role ?? 'vendedor')
+  const [roles, setRoles] = useState<Role[]>(user?.roles ?? ['vendedor'])
   const [isActive, setIsActive] = useState(user?.isActive ?? true)
   const [password, setPassword] = useState('')
   const [branchId, setBranchId] = useState<number | null>(user?.branchId ?? null)
 
   // Admin is global: branch only applies (and is required) for vendedor/operador/canteador.
-  const isStaff = role !== 'administrador'
+  const isStaff = !roles.includes('administrador')
   const { data: branches = [] } = useActiveBranches()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (isEdit) {
-      const payload: UserUpdatePayload = { email, fullName: fullName || undefined, role, isActive }
+      const payload: UserUpdatePayload = { email, fullName: fullName || undefined, roles, isActive }
       if (password) payload.password = password
       if (isStaff) payload.branchId = branchId
       onSubmit(payload)
@@ -57,7 +52,7 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
       const payload: UserPayload = {
         email,
         password,
-        role,
+        roles,
         fullName: fullName || undefined,
       }
       if (isStaff) payload.branchId = branchId
@@ -65,10 +60,10 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
     }
   }
 
-  const branchError =
-    error instanceof ApiError
-      ? error.errors.find((e) => e.field === 'branchId')?.message
-      : undefined
+  const fieldError = (field: string) =>
+    error instanceof ApiError ? error.errors.find((e) => e.field === field)?.message : undefined
+  const branchError = fieldError('branchId')
+  const rolesError = fieldError('roles')
 
   const errorMsg = apiErrorMessage(error)
 
@@ -103,21 +98,29 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
           />
         </div>
 
-        <div className="mb-3">
-          <CFormLabel htmlFor="uf-role">Rol</CFormLabel>
-          <CFormSelect
-            id="uf-role"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Role)}
-            disabled={isSubmitting}
-          >
-            {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </CFormSelect>
-        </div>
+        {/* One checkbox per role. Only the workshop roles combine (a bander learning to cut holds
+            both): ticking a global role leaves it alone, ticking a workshop one drops any global
+            role. The server holds the same rule and answers on `roles` if it is ever broken. */}
+        <fieldset className="mb-3">
+          <legend className="form-label fs-6 mb-2">Roles</legend>
+          {ROLE_ORDER.map((r) => (
+            <CFormCheck
+              key={r}
+              id={`uf-role-${r}`}
+              label={ROLE_LABELS[r]}
+              checked={roles.includes(r)}
+              onChange={(e) => setRoles((prev) => toggleRole(prev, r, e.target.checked))}
+              invalid={!!rolesError}
+              disabled={isSubmitting}
+            />
+          ))}
+          <div className="form-text">
+            {roles.length === 0
+              ? 'Elige al menos un rol.'
+              : 'Solo operador y canteador se pueden combinar.'}
+          </div>
+          {rolesError && <div className="invalid-feedback d-block">{rolesError}</div>}
+        </fieldset>
 
         {isStaff && (
           <div className="mb-3">
@@ -174,7 +177,7 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
         <CButton color="secondary" onClick={onCancel} disabled={isSubmitting}>
           Cancelar
         </CButton>
-        <CButton color="primary" type="submit" disabled={isSubmitting}>
+        <CButton color="primary" type="submit" disabled={isSubmitting || roles.length === 0}>
           {isSubmitting ? <CSpinner size="sm" /> : isEdit ? 'Guardar' : 'Crear'}
         </CButton>
       </CModalFooter>

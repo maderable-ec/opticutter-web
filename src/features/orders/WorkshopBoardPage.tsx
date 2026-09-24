@@ -29,7 +29,7 @@ import WorkshopMaterialsModal from './WorkshopMaterialsModal'
 import { useUpdateActivity, useWorkshopQueue } from './useOrders'
 import {
   ACTIVITY_LABEL,
-  activitiesForRole,
+  activitiesForRoles,
   activityAction,
   findActivity,
   orderedActivities,
@@ -92,7 +92,7 @@ const WorkshopBoardPage = () => {
   const { data: items = [], isLoading, error } = useWorkshopQueue()
   const updateActivity = useUpdateActivity()
   // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).
-  const allowed = activitiesForRole(useCurrentUser()?.role)
+  const allowed = activitiesForRoles(useCurrentUser()?.roles)
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   // One dialog for the whole board rather than one per card: only one can be open at a time, and it
   // pages through the queue. State is the ORDER ID, not the index the dialog's API speaks: the queue

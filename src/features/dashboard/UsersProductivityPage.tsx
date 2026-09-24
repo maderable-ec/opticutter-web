@@ -36,7 +36,7 @@ const ROLE_FILTERS: { value: '' | Role; label: string }[] = [
   { value: 'canteador', label: 'Canteador' },
 ]
 
-type MetricKey = Exclude<keyof UserProductivity, 'userId' | 'fullName' | 'role' | 'branchName'>
+type MetricKey = Exclude<keyof UserProductivity, 'userId' | 'fullName' | 'roles' | 'branchName'>
 type SortKey = 'fullName' | MetricKey
 
 type Group = 'corte' | 'canteado' | 'comercial'
@@ -160,7 +160,7 @@ const UsersProductivityPage = () => {
                     Usuario{arrow('fullName')}
                   </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary" rowSpan={2}>
-                    Rol
+                    Roles
                   </CTableHeaderCell>
                   <CTableHeaderCell className="bg-body-tertiary" rowSpan={2}>
                     Sucursal
@@ -203,10 +203,10 @@ const UsersProductivityPage = () => {
                     <CTableRow key={u.userId}>
                       <CTableDataCell>{u.fullName}</CTableDataCell>
                       <CTableDataCell>
-                        <RoleBadge role={u.role} />
+                        <RoleBadge roles={u.roles} />
                       </CTableDataCell>
                       <CTableDataCell>
-                        {u.role === 'administrador' ? 'Global' : (u.branchName ?? '—')}
+                        {u.roles.includes('administrador') ? 'Global' : (u.branchName ?? '—')}
                       </CTableDataCell>
                       {METRIC_COLS.map((c) => (
                         <CTableDataCell

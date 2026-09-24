@@ -4,14 +4,14 @@ import { CContainer, CSpinner } from '@coreui/react'
 
 import { routes } from '../routes'
 import { useAuthStore } from 'src/shared/store/authStore'
-import { homePathForRole } from 'src/features/auth/permissions'
+import { hasAnyRole, homePathForRoles } from 'src/features/auth/permissions'
 import ErrorBoundary from './ErrorBoundary'
 
 const AppContent = () => {
-  const userRole = useAuthStore((s) => s.user?.role)
+  const userRoles = useAuthStore((s) => s.user?.roles)
   const location = useLocation()
   // Role-based home path: lands on an accessible route to avoid the / → /dashboard → / redirect loop.
-  const home = homePathForRole(userRole)
+  const home = homePathForRoles(userRoles)
   // Routes that opt out of the centered container's max-width (see AppRoute.fluid).
   const fluid = routes.some((r) => r.fluid && matchPath(r.path, location.pathname))
 
@@ -23,7 +23,7 @@ const AppContent = () => {
           <Routes>
             {routes.map((route, idx) => {
               if (!route.element) return null
-              if (route.roles && (!userRole || !route.roles.includes(userRole))) {
+              if (route.roles && !hasAnyRole(userRoles, route.roles)) {
                 return (
                   <Route key={idx} path={route.path} element={<Navigate to={home} replace />} />
                 )

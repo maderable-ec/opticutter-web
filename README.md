@@ -30,8 +30,11 @@ React 19 · TypeScript (strict) · CoreUI React 5 · React Router 7 · TanStack 
 |------|--------|
 | `administrador` | All features |
 | `vendedor` | Optimizer, quotes, orders, products, clients |
-| `operador` | Order cutting workshop |
-| `canteador` | Edge-banding queue |
+| `operador` | Workshop board and cutting canvas |
+| `canteador` | Workshop board (banding and additional work) |
+
+A user can hold several roles and gets the union of their access; only `operador` and
+`canteador` combine.
 
 ## Docs
 

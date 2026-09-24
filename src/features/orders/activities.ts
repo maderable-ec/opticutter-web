@@ -1,5 +1,6 @@
 import { cilCheckAlt, cilClock, cilMediaPlay } from '@coreui/icons'
 
+import { hasAnyRole } from 'src/features/auth/permissions'
 import type { ActivityStatus, ActivityType, CardAction, OrderActivity } from './types'
 
 // The work UNDER `in_process`, in one place — the companion of `status.ts`. The board used to
@@ -15,7 +16,8 @@ export const ACTIVITY_LABEL: Record<ActivityType, string> = {
 
 // Which role registers which activity: the mirror of the backend's ACTIVITY_ROLES. The operator
 // cuts; the canteador bands and does the additional work (abisagrado, ranurado, ensamble, división —
-// the pieces the seller gave a workshop code, never the billed services).
+// the pieces the seller gave a workshop code, never the billed services). A user with several roles
+// registers the union: a bander learning to cut (operador + canteador) gets all three.
 export const ACTIVITY_ROLES: Record<ActivityType, string[]> = {
   cutting: ['administrador', 'operador'],
   banding: ['administrador', 'canteador'],
@@ -143,6 +145,6 @@ export const orderedActivities = (activities: OrderActivity[] | undefined): Orde
     (a): a is OrderActivity => !!a,
   )
 
-/** Which activities a role may register, in process order. */
-export const activitiesForRole = (role: string | undefined): ActivityType[] =>
-  role ? ACTIVITY_ORDER.filter((type) => ACTIVITY_ROLES[type].includes(role)) : []
+/** Which activities a user's roles may register (their union), in process order. */
+export const activitiesForRoles = (roles: readonly string[] | undefined): ActivityType[] =>
+  ACTIVITY_ORDER.filter((type) => hasAnyRole(roles, ACTIVITY_ROLES[type]))

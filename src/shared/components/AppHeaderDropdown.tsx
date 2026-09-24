@@ -12,7 +12,7 @@ import { cilAccountLogout, cilLockLocked, cilUser } from '@coreui/icons'
 import CIcon from '@coreui/icons-react'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
-import { ROLE_LABELS } from 'src/features/auth/roleLabels'
+import { rolesLabel } from 'src/features/auth/roleLabels'
 import { THEME_OPTIONS } from './themeOptions'
 
 // Initials from the full name (first letter of the first two words) fall back to the email.
@@ -38,7 +38,7 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
 
   const displayName = user?.fullName ?? user?.email ?? '—'
   const firstName = user?.fullName?.trim().split(/\s+/)[0] ?? displayName
-  const roleLabel = user?.role ? (ROLE_LABELS[user.role] ?? user.role) : ''
+  const roleLabel = rolesLabel(user?.roles)
   const initials = initialsFor(user?.fullName, user?.email)
 
   return (

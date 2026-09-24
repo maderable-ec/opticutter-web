@@ -289,7 +289,7 @@ const OrderDetailPage = () => {
   }
 
   const orderId = order.id
-  const transitions = transitionsFor(order.status, currentUser?.role)
+  const transitions = transitionsFor(order.status, currentUser?.roles)
   // The forward move comes first in every row of the graph, so it is the footer's primary; the rest
   // ("Cancelar", "Regresar a cola") ride beside it as outline buttons. Destructive moves are never
   // promoted, however few the status offers: `queued` offers ONLY "Cancelar orden", and a positional
