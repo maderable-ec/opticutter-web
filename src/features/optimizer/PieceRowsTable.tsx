@@ -563,15 +563,20 @@ const PieceRowsTable = ({
               Tipo
               {renderFill('edgeBandingBandType', 'Igualar tipo (suave/duro)')}
             </CTableHeaderCell>
-            <CTableHeaderCell style={thStyle}>Tapacanto</CTableHeaderCell>
-            {/* No fill-down button here, unlike its neighbours: the header is `nowrap`, so the
-                button would widen the column by its own width on a row that already runs past a
-                1280 pane. The cell's drag handle still copies the special edges down. */}
+            {/* Fits without widening: TAPACANTO_COL_W bounds the column well past the label + button. */}
+            <CTableHeaderCell style={thStyle}>
+              Tapacanto
+              {renderFill('edgeBandingProductId', 'Igualar tapacanto')}
+            </CTableHeaderCell>
+            {/* Abbreviated like Cant. and the codes, and for the same reason: the header is `nowrap`,
+                and «Cantos especiales» plus its fill-down button measured 24px past SPECIAL_COL_W on
+                a row that already runs past a 1280 pane. «C. especiales» fits inside it. */}
             <CTableHeaderCell
               style={thStyle}
-              title="Otro tapacanto en algunos lados de la pieza, con la notación del Canto: 2L CS BLN, o 1L BLN para usar el tipo de la pieza. En esos lados manda sobre el canto de las columnas anteriores."
+              title="Cantos especiales: otro tapacanto en algunos lados de la pieza, con la notación del Canto: 2L CS BLN, o 1L BLN para usar el tipo de la pieza. En esos lados manda sobre el canto de las columnas anteriores."
             >
-              Cantos especiales
+              C. especiales
+              {renderFill('specialEdges', 'Igualar cantos especiales')}
             </CTableHeaderCell>
             {WORKSHOP_CODES.map(({ field, label, abbr }) => (
               <CTableHeaderCell

@@ -75,6 +75,21 @@ const rangeOf = (rs: RequirementForm[], uid: string): [number, number] => {
   return [start, end]
 }
 
+// A row whose Canto is not '—': the only kind with a Tapacanto cell to fill (it is disabled otherwise).
+const hasCanto = (r: RequirementForm): boolean => Object.values(r.edgeBanding.sides).some(Boolean)
+
+// Where a fill takes its value from: the first index of `candidates`. Tapacanto skips the rows with
+// no canto — their cell is empty and disabled — so a group whose first piece is a plain back panel
+// does not blank every other row's tapacanto.
+const fillSource = (
+  rs: RequirementForm[],
+  candidates: number[],
+  field: FillableField,
+): number | undefined =>
+  field === 'edgeBandingProductId'
+    ? candidates.find((i) => rs[i] !== undefined && hasCanto(rs[i]))
+    : candidates[0]
+
 // Applies a single field value from `src` onto `r`. Edge-banding sub-fields are copied immutably.
 const applyField = (
   r: RequirementForm,
@@ -95,7 +110,18 @@ const applyField = (
     return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
   }
   if (field === 'edgeBandingProductId') {
-    return { ...r, edgeBanding: { ...r.edgeBanding, productId: src.edgeBanding.productId } }
+    // A row with no canto keeps its disabled cell empty: a product stored there would beat the
+    // board's coordinated one the day the row gets a canto. The band type travels along, as it does
+    // when the tapacanto is picked by hand, so Tipo never contradicts the product.
+    if (!hasCanto(r)) return r
+    return {
+      ...r,
+      edgeBanding: {
+        ...r.edgeBanding,
+        productId: src.edgeBanding.productId,
+        bandType: src.edgeBanding.bandType ?? '',
+      },
+    }
   }
   if (field === 'specialEdges') {
     return { ...r, specialEdges: (src.specialEdges ?? []).map((e) => ({ ...e })) }
@@ -243,8 +269,9 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   const fillDown = (field: FillableField, scope: FillScope) => {
     applyWithHistory((rs) => {
       const hasSel = scope === 'selected' && selected.size > 0
-      const srcIndex = hasSel ? Math.min(...selected) : 0
-      const src = rs[srcIndex]
+      const candidates = hasSel ? [...selected].sort((a, b) => a - b) : rs.map((_, i) => i)
+      const srcIndex = fillSource(rs, candidates, field)
+      const src = srcIndex === undefined ? undefined : rs[srcIndex]
       if (!src) return rs
       const inTarget = (i: number) => (hasSel ? selected.has(i) : true)
       return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))
@@ -257,10 +284,13 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     applyWithHistory((rs) => {
       const [start, end] = rangeOf(rs, materialUid)
       if (start >= end) return rs
-      const selInGroup = [...selected].filter((i) => i >= start && i < end)
+      const selInGroup = [...selected].filter((i) => i >= start && i < end).sort((a, b) => a - b)
       const hasSel = scope === 'selected' && selInGroup.length > 0
-      const srcIndex = hasSel ? Math.min(...selInGroup) : start
-      const src = rs[srcIndex]
+      const candidates = hasSel
+        ? selInGroup
+        : Array.from({ length: end - start }, (_, k) => start + k)
+      const srcIndex = fillSource(rs, candidates, field)
+      const src = srcIndex === undefined ? undefined : rs[srcIndex]
       if (!src) return rs
       const inTarget = (i: number) => i >= start && i < end && (hasSel ? selected.has(i) : true)
       return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))

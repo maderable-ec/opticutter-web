@@ -441,6 +441,13 @@ const OrderDetailPage = () => {
         <div className="ms-auto">
           <OrderActionsMenu
             onOrderPdf={() => void ordersApi.downloadOrderDocument(orderId)}
+            onExportPieces={(format) =>
+              void ordersApi.downloadOrderPieces(
+                orderId,
+                format,
+                `piezas_${order.code ?? orderId}.${format}`,
+              )
+            }
             onInvoice={
               canManage && !order.externalInvoiceId ? () => setInvoiceModal(true) : undefined
             }
