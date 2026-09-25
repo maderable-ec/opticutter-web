@@ -31,6 +31,9 @@ interface PreOrderStatusStripProps {
   // Named in the sentence rather than on the button: "Ver orden ORD-2026-0042" is a long button,
   // and what the seller reads first is the line that says the quote closed.
   orderCode?: string | null
+  // The plan on the page is the one the order froze, not a recompute: said once, on the line that
+  // names the order, so nobody reads a later engine's plan into what the client confirmed.
+  planFrozen?: boolean
   expiresAt?: string | null
   link?: ReviewLinkInfo | null
   // Mints the review link (or opens the regenerate confirmation). Omitted when the reader cannot act
@@ -56,6 +59,7 @@ const PreOrderStatusStrip = ({
   clientNote,
   orderId,
   orderCode,
+  planFrozen,
   expiresAt,
   link,
   onShare,
@@ -86,6 +90,7 @@ const PreOrderStatusStrip = ({
       sentence = orderId
         ? `Se generó la orden ${orderCode ?? 'de producción'}.`
         : 'Cotización confirmada.'
+      if (planFrozen) sentence += ' El plan y los precios son los que se confirmaron.'
       break
     case 'rejected':
       tone = 'danger'

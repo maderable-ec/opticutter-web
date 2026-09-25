@@ -91,6 +91,27 @@ const WorkshopPage = () => {
     }
   }, [])
 
+  // ← / → page between boards, the same as the `‹ ›` in the top bar and the swipe on the diagram,
+  // for whoever reads the canvas on a desktop (the admin auditing a dispatched order). Nothing here
+  // takes typed input, so the arrows cost no field its own. Modifiers are left alone because
+  // Alt+← is the browser's own "back". An open modal (the board picker, the cut confirmation) owns
+  // the keyboard while it is up.
+  useEffect(() => {
+    const boards = plan?.boards ?? []
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      if (document.body.classList.contains('modal-open')) return
+      const index = boards.findIndex((b) => b.id === selectedBoardId)
+      const next = boards[index + (e.key === 'ArrowRight' ? 1 : -1)]
+      if (index < 0 || !next) return
+      e.preventDefault()
+      setSelectedBoardId(next.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [plan, selectedBoardId])
+
   // Stable color keyed by dimension signature across all boards, so identical pieces share
   // the same color across sheets (same logic as the optimizer).
   const colorFor = useMemo(() => {

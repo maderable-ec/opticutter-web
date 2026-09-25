@@ -38,16 +38,11 @@ export const statusLabel = (status: OrderStatus) => ORDER_STATUS_CONFIG[status].
 // Nothing more happens to the order.
 const TERMINAL_STATES: OrderStatus[] = ['dispatched', 'cancelled']
 
-// States where the cutting plan is relevant: queued (interactive in the workshop) and beyond
-// (read-only, auditing what was cut).
-const WORKSHOP_STATES: OrderStatus[] = ['queued', 'in_process', 'finished']
-
 // States where attachments are frozen (matches the backend 422 gate). Note this includes
 // `finished`, unlike the terminal set which only covers dispatched/cancelled.
 const ATTACHMENTS_LOCKED: OrderStatus[] = ['finished', 'dispatched', 'cancelled']
 
 export const isTerminal = (status: OrderStatus) => TERMINAL_STATES.includes(status)
-export const hasWorkshopPlan = (status: OrderStatus) => WORKSHOP_STATES.includes(status)
 export const attachmentsLocked = (status: OrderStatus) => ATTACHMENTS_LOCKED.includes(status)
 
 export interface StatusTransition {

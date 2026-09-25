@@ -84,6 +84,9 @@ export interface PreOrder extends PreOrderSummary {
   requirements: RequirementInput[]
   additionalServices: AdditionalServiceInput[]
   optimization: OptimizeResponse
+  // `live`: recomputed on this read, at today's prices and engine. `order`: a confirmed quote shows
+  // the plan and prices its order froze, so an engine upgrade never rewrites what was cut.
+  optimizationSource?: 'live' | 'order'
   history: PreOrderStatusHistoryEntry[]
 }
 

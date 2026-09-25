@@ -19,6 +19,7 @@ import SearchInput from 'src/shared/components/SearchInput'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
+import RememberedList from 'src/shared/components/RememberedList'
 import { useListParams } from 'src/shared/hooks/useListParams'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
@@ -52,7 +53,7 @@ const FILTER_KEYS = [
   'activityStatus',
 ]
 
-const OrdersPage = () => {
+const OrdersList = () => {
   const navigate = useNavigate()
   // Operador can view orders but cannot create quotes (that belongs to the optimizer).
   const canCreate = useHasRole('administrador', 'vendedor')
@@ -286,5 +287,13 @@ const OrdersPage = () => {
     </div>
   )
 }
+
+// Coming back from an order by any door (the detail's "Volver", the breadcrumb, the sidebar) lands on
+// the list as it was left, not on a bare one: see `RememberedList`.
+const OrdersPage = () => (
+  <RememberedList list="orders">
+    <OrdersList />
+  </RememberedList>
+)
 
 export default OrdersPage

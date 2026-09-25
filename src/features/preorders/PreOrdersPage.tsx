@@ -18,6 +18,7 @@ import SearchInput from 'src/shared/components/SearchInput'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
+import RememberedList from 'src/shared/components/RememberedList'
 import { useListParams } from 'src/shared/hooks/useListParams'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
@@ -37,7 +38,7 @@ import type { PreOrderSort, PreOrderStatus } from './types'
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
 const FILTER_KEYS = ['q', 'status', 'clientId', 'branchId', 'createdFrom', 'createdTo']
 
-const PreOrdersPage = () => {
+const PreOrdersList = () => {
   const navigate = useNavigate()
   const isGlobalBranch = useIsGlobalBranchRole()
   const {
@@ -206,5 +207,13 @@ const PreOrdersPage = () => {
     </div>
   )
 }
+
+// Coming back from a quote by any door (the detail's "Volver", the breadcrumb, the sidebar) lands on
+// the list as it was left, not on a bare one: see `RememberedList`.
+const PreOrdersPage = () => (
+  <RememberedList list="preorders">
+    <PreOrdersList />
+  </RememberedList>
+)
 
 export default PreOrdersPage
