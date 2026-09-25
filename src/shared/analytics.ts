@@ -115,10 +115,16 @@ const start = (posthog: PostHog, key: string) => {
     defaults: '2026-08-30',
     persistence: 'localStorage',
     person_profiles: 'identified_only',
-    // Only the events above. Autocapture and rage clicks record element text, which here is full
-    // of client names; page views are not what we are asking.
+    // Only the events above. Autocapture, rage clicks and dead clicks record element text, which
+    // here is full of client names; page views are not what we are asking. Every automatic
+    // capture is switched off HERE, as a boolean: the SDK lets the project's remote config turn
+    // on whatever the init leaves undecided, and a new PostHog project ships dead clicks on.
     autocapture: false,
     rageclick: false,
+    capture_dead_clicks: false,
+    capture_heatmaps: false,
+    // Error messages can quote what was on screen.
+    capture_exceptions: false,
     capture_pageview: false,
     capture_pageleave: false,
     disable_surveys: true,
