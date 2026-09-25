@@ -6,7 +6,8 @@ import { PAGE_SIZE } from 'src/shared/constants'
 // state. Three things follow from that and none of them work otherwise: the view is linkable, the
 // back button undoes a filter choice, and coming back from a detail page restores the exact list
 // the row was clicked from — which is what `ordersFilterStore` used to approximate with a zustand
-// singleton that survived the unmount but not a refresh.
+// singleton that survived the unmount but not a refresh. That last one only holds for the browser's
+// back; the in-app ways back land on the bare path, and `RememberedList` puts the search back there.
 //
 // A search param leaves `pathname` alone, so `AppContent`'s ErrorBoundary (keyed on pathname) never
 // remounts the page. Same reasoning as the optimizer's `?step=` and the pre-order's `?panel=`.

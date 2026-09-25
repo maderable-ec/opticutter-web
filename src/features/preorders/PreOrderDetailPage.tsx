@@ -238,6 +238,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const navigate = useNavigate()
   const isGlobalBranch = useIsGlobalBranchRole()
   const canEdit = isOpen(preOrder.status)
+  // A confirmed quote shows what its order froze instead of re-optimizing (see `optimizationSource`).
+  const planFrozen = preOrder.optimizationSource === 'order'
 
   // Compute initial form state only once at mount from API-provided fields.
   const initialFormData = useMemo(() => {
@@ -766,6 +768,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         clientNote={preOrder.clientNote}
         orderId={preOrder.orderId}
         orderCode={preOrder.orderCode}
+        planFrozen={planFrozen}
         expiresAt={preOrder.expiresAt}
         link={reviewLinkInfo.data}
         onShare={
@@ -839,8 +842,10 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         {/* A saved quote re-optimizes on every read, so the plan is current — and
             the stock beside it is read live too, which is the point of showing it
             again here: a quote reopened days later may be on material that has
-            since run out. Informational, exactly as in the wizard. */}
-        <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />
+            since run out. Informational, exactly as in the wizard. Not on a
+            confirmed quote: its plan is the order's, frozen, and the order's own
+            page is where its stock is watched until it is cut. */}
+        {!planFrozen && <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />}
 
         {/* The result, with the price level down on its totals row. The footer's primary button is
             what recomputes it: this page's "optimize" is Save+Recalculate, server-side. */}

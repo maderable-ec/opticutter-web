@@ -40,7 +40,7 @@ import OrderBandingTable from './OrderBandingTable'
 import OrderServicesTable from './OrderServicesTable'
 import OrderPiecesTable from './OrderPiecesTable'
 import OrderAttachmentsModal, { humanSize } from './OrderAttachmentsModal'
-import { attachmentsLocked, hasWorkshopPlan, isTerminal, transitionsFor } from './status'
+import { attachmentsLocked, isTerminal, transitionsFor } from './status'
 import { ACTIVITY_LABEL, orderedActivities } from './activities'
 import type { StatusTransition } from './status'
 import {
@@ -79,7 +79,10 @@ const OrderDetailPage = () => {
   const isOperator = useHasRole('operador')
   const currentUser = useCurrentUser()
   const { data: order, isLoading } = useOrder(id)
-  const cuttingPlan = useCuttingPlan(id, !!order && hasWorkshopPlan(order.status))
+  // Every order has its cutting plan, frozen when it was confirmed, so it is shown in every status:
+  // a `confirmed` order is about to be cut, and a `dispatched` or `cancelled` one is how somebody
+  // checks what the shop actually cut when a client disputes it.
+  const cuttingPlan = useCuttingPlan(id, !!order)
   const updateStatus = useUpdateOrderStatus()
   const associateInvoice = useAssociateInvoice()
   const changeBranch = useChangeOrderBranch()
@@ -305,7 +308,6 @@ const OrderDetailPage = () => {
   const locked = attachmentsLocked(order.status)
 
   const plan = cuttingPlan.data
-  const showProduction = hasWorkshopPlan(order.status)
   const planPct =
     plan && plan.progress.totalPieces > 0
       ? Math.round((plan.progress.cutPieces / plan.progress.totalPieces) * 100)
@@ -474,49 +476,49 @@ const OrderDetailPage = () => {
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
           row instead of a card header. */}
       <div className="surface">
-        {showProduction && (
-          <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
-            <span className="small text-body-secondary text-uppercase fw-semibold">Producción</span>
-            {cuttingPlan.isLoading ? (
-              <CSpinner size="sm" />
-            ) : plan ? (
-              <>
-                <span className="small">
-                  <strong>{plan.progress.cutPieces}</strong> de{' '}
-                  <strong>{plan.progress.totalPieces}</strong> piezas cortadas ·{' '}
-                  <strong>{plan.boards.length}</strong>{' '}
-                  {plan.boards.length === 1 ? 'tablero' : 'tableros'}
-                </span>
-                {/* Capped by a wrapper, not by `style` on the CProgress: CoreUI merges that prop
-                    into the child bar, where it overwrites the `width` the bar derives from
-                    `value` — the bar renders empty at any percentage. Capped at all because a
-                    finished order left to grow is a green bar the width of the page, which
-                    outshouts the counts it is only there to illustrate. Gone below `md`: on a
-                    phone it wrapped into a sliver, and the counts say the same fact exactly. */}
-                <div className="flex-grow-1 d-none d-md-block" style={{ maxWidth: 200 }}>
-                  <CProgress height={6}>
-                    <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
-                  </CProgress>
-                </div>
-                <CButton
-                  size="sm"
-                  color="primary"
-                  variant="outline"
-                  className="ms-auto"
-                  onClick={() => void navigate(`/orders/${orderId}/workshop`)}
-                >
-                  {order.status === 'queued' || order.status === 'cutting'
-                    ? 'Abrir taller'
-                    : 'Ver corte'}
-                </CButton>
-              </>
-            ) : (
-              <span className="small text-body-secondary">
-                {cuttingPlan.error?.message || 'No se pudo cargar el plan de corte.'}
+        <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
+          <span className="small text-body-secondary text-uppercase fw-semibold">Producción</span>
+          {cuttingPlan.isLoading ? (
+            <CSpinner size="sm" />
+          ) : plan ? (
+            <>
+              <span className="small">
+                <strong>{plan.progress.cutPieces}</strong> de{' '}
+                <strong>{plan.progress.totalPieces}</strong> piezas cortadas ·{' '}
+                <strong>{plan.boards.length}</strong>{' '}
+                {plan.boards.length === 1 ? 'tablero' : 'tableros'}
               </span>
-            )}
-          </div>
-        )}
+              {/* Capped by a wrapper, not by `style` on the CProgress: CoreUI merges that prop
+                  into the child bar, where it overwrites the `width` the bar derives from
+                  `value` — the bar renders empty at any percentage. Capped at all because a
+                  finished order left to grow is a green bar the width of the page, which
+                  outshouts the counts it is only there to illustrate. Gone below `md`: on a
+                  phone it wrapped into a sliver, and the counts say the same fact exactly. */}
+              <div className="flex-grow-1 d-none d-md-block" style={{ maxWidth: 200 }}>
+                <CProgress height={6}>
+                  <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
+                </CProgress>
+              </div>
+              <CButton
+                size="sm"
+                color="primary"
+                variant="outline"
+                className="ms-auto"
+                onClick={() => void navigate(`/orders/${orderId}/workshop`)}
+              >
+                {/* The workshop is live for these two; in any other status the canvas is a read-only
+                    record of the plan. */}
+                {order.status === 'queued' || order.status === 'in_process'
+                  ? 'Abrir taller'
+                  : 'Ver corte'}
+              </CButton>
+            </>
+          ) : (
+            <span className="small text-body-secondary">
+              {cuttingPlan.error?.message || 'No se pudo cargar el plan de corte.'}
+            </span>
+          )}
+        </div>
 
         {/* The cut list as one line and a full-screen panel behind it. Rendering it inline meant a
             two-hundred-piece order put two hundred rows between the header and the totals. */}
