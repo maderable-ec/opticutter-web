@@ -274,6 +274,7 @@ export const usePreOrdersFilterChips = (
       key: 'clientId',
       label: `Cliente: ${selectedClient ? clientName(selectedClient) : values.clientId}`,
       onRemove: () => onChange('clientId', ''),
+      private: true,
     })
   }
   if (values.createdFrom) {

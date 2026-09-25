@@ -17,6 +17,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilChevronLeft, cilChevronRight } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import { useSwipeNav } from 'src/shared/hooks/useSwipeNav'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
@@ -121,7 +122,7 @@ const WorkshopMaterialsModal = ({
             <CModalTitle className="materials-title">{item?.orderCode ?? '—'}</CModalTitle>
             {/* Who the order is for, because paging changes it under you: the code alone is not
                 enough to tell you where you landed. */}
-            <div className="materials-client">
+            <div className="materials-client" {...MASK}>
               {item ? `${item.client.firstName} ${item.client.lastName}` : ''}
             </div>
           </div>

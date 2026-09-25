@@ -2,6 +2,7 @@ import { CButton, CCard, CCardBody, CProgress, CProgressBar, CSpinner } from '@c
 import CIcon from '@coreui/icons-react'
 import { cilArrowRight, cilBolt, cilCheckAlt, cilChevronRight, cilMediaPlay } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { relativeTime } from 'src/shared/utils/date'
 import { fmtDateTime } from 'src/shared/utils/format'
@@ -138,7 +139,7 @@ const WorkshopQueueCard = ({
         </div>
 
         <div>
-          <div className="fw-semibold">
+          <div className="fw-semibold" {...MASK}>
             {item.client.firstName} {item.client.lastName}
           </div>
           {/* Reference (project/site): tells apart several orders of the same client. */}

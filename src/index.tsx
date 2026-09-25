@@ -4,7 +4,11 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import 'core-js'
 
 import App from './App'
+import { initAnalytics } from 'src/shared/analytics'
 import { DEFAULT_STALE_TIME } from 'src/shared/constants'
+
+// Before the first render, so the session restore that identifies the user is already observed.
+initAnalytics()
 
 // App-wide query defaults: a short stale window plus one retry, and no refetch on window
 // focus — mutations invalidate their query families explicitly, so focus refetching only

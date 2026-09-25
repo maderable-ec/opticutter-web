@@ -2,11 +2,16 @@ import { CButton } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilX } from '@coreui/icons'
 
+import { NO_CAPTURE } from 'src/shared/analytics'
+
 export interface FilterChip {
   // Stable identity for the chip (usually `${field}:${value}`).
   key: string
   label: string
   onRemove: () => void
+  // The label names a person (the client filter). Session replay then records the chip as an empty
+  // box: the label also rides in the remove button's aria-label, which text masking does not reach.
+  private?: boolean
 }
 
 interface FilterChipsProps {
@@ -23,7 +28,7 @@ const FilterChips = ({ chips, onClearAll }: FilterChipsProps) => {
   return (
     <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
       {chips.map((chip) => (
-        <span key={chip.key} className="filter-chip">
+        <span key={chip.key} className={chip.private ? `filter-chip ${NO_CAPTURE}` : 'filter-chip'}>
           <span className="text-truncate" style={{ maxWidth: 220 }}>
             {chip.label}
           </span>

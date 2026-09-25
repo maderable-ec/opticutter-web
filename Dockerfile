@@ -14,6 +14,10 @@ WORKDIR /app
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+# PostHog project key, also inlined at build time. Empty = analytics off (see shared/analytics.ts).
+ARG VITE_POSTHOG_KEY=""
+ENV VITE_POSTHOG_KEY=$VITE_POSTHOG_KEY
+
 # Copied separately so the dependency layer is cached across source changes.
 # npm ci needs the lockfile and installs devDependencies -- vite, typescript and
 # the plugins all live there, so NODE_ENV must not be `production` here.

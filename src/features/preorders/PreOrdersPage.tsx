@@ -12,6 +12,7 @@ import CIcon from '@coreui/icons-react'
 import { cilPlus } from '@coreui/icons'
 
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
+import { MASK } from 'src/shared/analytics'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import SearchInput from 'src/shared/components/SearchInput'
 import FilterChips from 'src/shared/components/FilterChips'
@@ -169,7 +170,7 @@ const PreOrdersPage = () => {
                         {/* Same move as the orders listing, for the same reason: the reference
                             is what tells two quotes of one client apart, so it reads under the
                             client instead of under the code. */}
-                        <div>{clientName(po.client)}</div>
+                        <div {...MASK}>{clientName(po.client)}</div>
                         <ReferenceNote notes={po.notes} />
                       </CTableDataCell>
                       <CTableDataCell>{po.branch.name}</CTableDataCell>

@@ -31,6 +31,7 @@ import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import StockAlert from 'src/features/inventory/StockAlert'
 import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
+import { MASK, trackPreorderCreated } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
 import type { QuoteDraft } from '../useQuoteDraft'
@@ -179,6 +180,7 @@ const QuoteStep = ({
       },
       {
         onSuccess: (preOrder) => {
+          trackPreorderCreated(preOrder.id, (layoutAdjustments?.length ?? 0) > 0)
           onCreated?.()
           void navigate(`/preorders/${preOrder.id}`)
         },
@@ -297,7 +299,7 @@ const QuoteStep = ({
           <div className="text-body-secondary small text-uppercase fw-semibold mb-2">Resumen</div>
           <div className="d-flex justify-content-between gap-3 py-1 border-bottom">
             <span className="text-body-secondary small">Cliente</span>
-            <span className="small fw-semibold text-end">
+            <span className="small fw-semibold text-end" {...MASK}>
               {selectedClient ? fullClientLabel(selectedClient) : 'Sin seleccionar'}
             </span>
           </div>

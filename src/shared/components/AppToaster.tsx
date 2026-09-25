@@ -1,5 +1,6 @@
 import { CToast, CToastBody, CToaster } from '@coreui/react'
 
+import { MASK } from 'src/shared/analytics'
 import { useToastStore } from 'src/shared/store/toastStore'
 
 // Single toaster mounted in the admin layout. CToaster renders CToast children as-is (it only
@@ -21,7 +22,7 @@ const AppToaster = () => {
           className="text-white"
           onClose={() => removeToast(t.id)}
         >
-          <CToastBody>{t.message}</CToastBody>
+          <CToastBody {...(t.mask ? MASK : {})}>{t.message}</CToastBody>
         </CToast>
       ))}
     </CToaster>

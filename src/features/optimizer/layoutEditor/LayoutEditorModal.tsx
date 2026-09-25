@@ -18,6 +18,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 
+import { track } from 'src/shared/analytics'
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { adjustmentLine } from '../CutLayoutDiagram'
 import { fmtMoney } from 'src/features/review/format'
@@ -188,7 +189,14 @@ const LayoutEditorModal = ({
 
   const closeWithConfirm = () => {
     if (editor.dirty && !window.confirm('¿Descartar los ajustes que no aplicaste?')) return
+    track('layout_editor_cancelled', { dirty: editor.dirty })
     onClose()
+  }
+
+  const apply = () => {
+    const adjustments = editor.result()
+    track('layout_editor_applied', { pools: adjustments?.length ?? 0 })
+    onApply(adjustments)
   }
 
   // Keys: R turns the piece in hand, Esc lets go of it (and only then closes), Supr sends it to the
@@ -809,11 +817,7 @@ const LayoutEditorModal = ({
           <CButton color="secondary" variant="ghost" onClick={closeWithConfirm}>
             Cancelar
           </CButton>
-          <CButton
-            color="primary"
-            disabled={!!editor.blockedReason || !evaluation}
-            onClick={() => onApply(editor.result())}
-          >
+          <CButton color="primary" disabled={!!editor.blockedReason || !evaluation} onClick={apply}>
             Aplicar
           </CButton>
         </div>

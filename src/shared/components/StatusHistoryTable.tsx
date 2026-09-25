@@ -8,6 +8,7 @@ import {
 } from '@coreui/react'
 
 import type { ReactNode } from 'react'
+import { MASK } from 'src/shared/analytics'
 import { fmtDateTime } from 'src/shared/utils/format'
 import StatusBadge, { type StatusConfigEntry } from './StatusBadge'
 
@@ -69,7 +70,8 @@ const StatusHistoryTable = ({ entries, renderStatus }: StatusHistoryTableProps) 
               <span className="me-2">{h.actorLabel ?? '—'}</span>
               {h.actor && <StatusBadge config={ACTOR_CONFIG} value={h.actor} />}
             </CTableDataCell>
-            <CTableDataCell>{h.note ?? '—'}</CTableDataCell>
+            {/* The client's own words when they reject a quote or ask for changes. */}
+            <CTableDataCell {...MASK}>{h.note ?? '—'}</CTableDataCell>
             <CTableDataCell className="text-nowrap">{fmtDateTime(h.createdAt)}</CTableDataCell>
           </CTableRow>
         ))}

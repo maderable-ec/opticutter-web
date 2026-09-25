@@ -19,6 +19,7 @@ import SyncClientsModal from './SyncClientsModal'
 import { useClients, useCreateClient, useDeleteClient, useUpdateClient } from './useClients'
 import ClientsFilters, { type ClientsFilterValues } from './ClientsFilters'
 import type { Client, ClientPayload } from './types'
+import { MASK, NO_CAPTURE } from 'src/shared/analytics'
 import { clientName } from 'src/shared/utils/format'
 import SearchInput from 'src/shared/components/SearchInput'
 import Pagination from 'src/shared/components/Pagination'
@@ -159,12 +160,12 @@ const ClientsPage = () => {
                 clients.map((c) => (
                   <CTableRow key={c.id} onClick={() => openEdit(c)}>
                     <CTableDataCell className="text-body-secondary">{c.id}</CTableDataCell>
-                    <CTableDataCell>
+                    <CTableDataCell {...MASK}>
                       <strong>{c.identifier}</strong>
                     </CTableDataCell>
-                    <CTableDataCell>{clientName(c)}</CTableDataCell>
-                    <CTableDataCell>{c.phone ?? '—'}</CTableDataCell>
-                    <CTableDataCell>{c.email ?? '—'}</CTableDataCell>
+                    <CTableDataCell {...MASK}>{clientName(c)}</CTableDataCell>
+                    <CTableDataCell {...MASK}>{c.phone ?? '—'}</CTableDataCell>
+                    <CTableDataCell {...MASK}>{c.email ?? '—'}</CTableDataCell>
                     <CTableDataCell>{c.source ?? '—'}</CTableDataCell>
                     <CTableDataCell className="text-end text-nowrap">
                       {/* The row opens the editor, so only the destructive action keeps a button —
@@ -173,6 +174,8 @@ const ClientsPage = () => {
                         variant="ghost"
                         color="danger"
                         size="sm"
+                        // Its aria-label names the client, which text masking does not reach.
+                        className={NO_CAPTURE}
                         aria-label={`Eliminar ${clientName(c)}`}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -219,8 +222,10 @@ const ClientsPage = () => {
         onConfirm={handleDelete}
         isPending={deleteMutation.isPending}
       >
-        ¿Eliminar a <strong>{deleteModal.client && clientName(deleteModal.client)}</strong> (
-        {deleteModal.client?.identifier})? Esta acción no se puede deshacer.
+        <span {...MASK}>
+          ¿Eliminar a <strong>{deleteModal.client && clientName(deleteModal.client)}</strong> (
+          {deleteModal.client?.identifier})? Esta acción no se puede deshacer.
+        </span>
       </DeleteConfirmModal>
 
       <SyncClientsModal

@@ -10,6 +10,7 @@ import {
   CSpinner,
 } from '@coreui/react'
 
+import { MASK } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
 import type { ApiErrorItem } from 'src/shared/api/types'
 import { useClientsSyncPreview, useSyncClients } from './useClients'
@@ -45,7 +46,9 @@ const summaryLines = (result: ClientSyncResult): string[] => {
 const RowList = ({ rows, headline }: { rows: ClientSyncIssue[]; headline: ReactNode }) => (
   <>
     <p className="small mb-1">{headline}</p>
-    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+    {/* Masked in session replay: every row names a client, and the message quotes the cédula,
+        phone or e-mail it rejected. */}
+    <div style={{ maxHeight: 220, overflowY: 'auto' }} {...MASK}>
       <ul className="small mb-0 ps-3">
         {rows.map((row, i) => (
           <li key={`${row.code}-${i}`}>
@@ -187,7 +190,8 @@ const SyncClientsModal = ({ visible, onClose, onSynced }: SyncClientsModalProps)
                 ? 'No se pudo conectar con el sistema externo. No se modificó ningún cliente — vuelve a intentarlo en un momento.'
                 : 'El sistema externo devolvió datos que no se pudieron procesar. No se creó ni actualizó ningún cliente.'}
             </CAlert>
-            <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+            {/* The rows the validation rejected, quoted back: masked like the report lists. */}
+            <div style={{ maxHeight: 260, overflowY: 'auto' }} {...MASK}>
               <ul className="small mb-0 ps-3">
                 {errorItems(error).map((e, i) => (
                   <li key={i}>{e.message}</li>

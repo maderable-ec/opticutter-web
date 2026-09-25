@@ -48,6 +48,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
+import { MASK } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
 import { clientName, fmtDate, fmtDateTime } from 'src/shared/utils/format'
 import CIcon from '@coreui/icons-react'
@@ -670,8 +671,10 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             )}
           </div>
           <div className="text-body-secondary small">
-            {clientLabel}
-            {preOrder.client.identifier && <span> @{preOrder.client.identifier}</span>}
+            <span {...MASK}>
+              {clientLabel}
+              {preOrder.client.identifier && <span> @{preOrder.client.identifier}</span>}
+            </span>
             {isGlobalBranch && (
               <span>
                 {' · '}

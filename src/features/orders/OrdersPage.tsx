@@ -12,6 +12,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilBolt, cilPlus } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import SearchInput from 'src/shared/components/SearchInput'
@@ -223,7 +224,7 @@ const OrdersPage = () => {
                             competing with the code that titles its own. It replaces the
                             identifier, which is ficha data — and `clientName` already falls back
                             to it for a client with no name. */}
-                          <div>{clientName(o.client)}</div>
+                          <div {...MASK}>{clientName(o.client)}</div>
                           <ReferenceNote notes={o.notes} />
                         </CTableDataCell>
                         {/* Name only: the code said the same thing twice on every row. */}
