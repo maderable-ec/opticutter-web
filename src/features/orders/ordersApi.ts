@@ -1,6 +1,6 @@
 import { httpClient } from 'src/shared/api/httpClient'
 import { toQuery } from 'src/shared/api/crudApi'
-import { openInNewTab } from 'src/shared/utils/download'
+import { downloadBlob, openInNewTab } from 'src/shared/utils/download'
 import type {
   ActivityPayload,
   ActivityResult,
@@ -12,6 +12,7 @@ import type {
   MarkPieceResponse,
   Order,
   OrderListParams,
+  PiecesExportFormat,
   UpdateStatusPayload,
   SetPriorityPayload,
   WorkshopQueueItem,
@@ -76,6 +77,14 @@ export const ordersApi = {
   // production and dispatch sheets are gone — their content lives in this one.
   downloadOrderDocument: async (id: string) => {
     openInNewTab(await httpClient.download(`${BASE}/${id}/document?format=pdf`))
+  },
+  // The cut list as the workshop's commercial cutting program reads it: the inverse of the
+  // optimizer's piece import. A file to save, not to view, so it downloads.
+  downloadOrderPieces: async (id: string, format: PiecesExportFormat, filename: string) => {
+    downloadBlob(
+      await httpClient.download(`${BASE}/${id}/pieces/export?format=${format}`),
+      filename,
+    )
   },
   // Attachments: response is `{ data: Attachment[] }` with no pagination → use `get`, not `list`.
   listAttachments: (id: string) => httpClient.get<Attachment[]>(`${BASE}/${id}/attachments`),

@@ -442,10 +442,15 @@ export interface CutBoard {
   cuts?: BoardCut[]
 }
 
+// The cut list's two files for the workshop's commercial cutting program (GET /pieces/export).
+export type PiecesExportFormat = 'csv' | 'xml'
+
 export interface CuttingPlan {
   orderId: number
   orderCode: string
   status: OrderStatus
+  // Whose job is on the saw: the reference alone does not say it.
+  client: Client
   notes?: string | null
   progress: CutProgress
   // The order's activities: with `cutting` and `cut` merged into one status, this is what

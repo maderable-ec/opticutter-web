@@ -978,15 +978,24 @@ input[type='number'] {
   border-bottom: 1px solid var(--cui-border-color);
 }
 
-// Order code, status, banding and reference. The one part allowed to shrink: everything to its
-// right is a control, and a control that truncates is a control you cannot hit.
+// Order code, status, banding and reference, with the client on a second line. The one part
+// allowed to shrink: everything to its right is a control, and a control that truncates is a
+// control you cannot hit. Two short lines fit the height of the `lg` controls, so the bar does not
+// grow; on one line, the name was the only item able to shrink and vanished on a tablet.
 .workshop-identity {
   display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workshop-identity__line {
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  overflow: hidden;
 }
 
 .workshop-pager {

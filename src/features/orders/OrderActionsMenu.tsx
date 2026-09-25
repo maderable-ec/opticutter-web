@@ -6,8 +6,17 @@ import {
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
+import {
+  cilBolt,
+  cilBuilding,
+  cilCloudDownload,
+  cilExternalLink,
+  cilFile,
+  cilOptions,
+} from '@coreui/icons'
+
 import CIcon from '@coreui/icons-react'
-import { cilBolt, cilBuilding, cilExternalLink, cilFile, cilOptions } from '@coreui/icons'
+import type { PiecesExportFormat } from './types'
 
 // The order's paperwork and its administrative moves, in one ⋮ — the same grammar as the
 // optimizer's menu (sections that render only when their handler arrives, muted headers, items as
@@ -20,12 +29,13 @@ import { cilBolt, cilBuilding, cilExternalLink, cilFile, cilOptions } from '@cor
 // which at most one gets pressed per visit — and the lone "Cambiar sucursal" button that was the
 // second row of the "Acciones" card, where it sat next to the status transitions as if it were one.
 //
-// "Documentos" is down to a single entry: the API emits ONE pdf per order (the ORDEN DE PEDIDO
-// with its diagram, annexes and the delivery block the client signs). The production and dispatch
-// sheets no longer exist.
+// "Documentos" holds ONE pdf per order (the ORDEN DE PEDIDO with its diagram, annexes and the
+// delivery block the client signs) — the production and dispatch sheets no longer exist — plus the
+// cut list in the two files the workshop's commercial cutting program loads.
 
 interface OrderActionsMenuProps {
   onOrderPdf?: () => void
+  onExportPieces?: (format: PiecesExportFormat) => void
   // Omitted once a factura is already linked — the identity block shows the id, so a permanently
   // disabled entry repeating it would be the section's only content on most closed orders.
   onInvoice?: () => void
@@ -37,14 +47,21 @@ interface OrderActionsMenuProps {
   isPriority?: boolean
 }
 
+// The export entries, in menu order.
+const PIECES_EXPORTS: { format: PiecesExportFormat; label: string }[] = [
+  { format: 'csv', label: 'Piezas CSV' },
+  { format: 'xml', label: 'Piezas XML' },
+]
+
 const OrderActionsMenu = ({
   onOrderPdf,
+  onExportPieces,
   onInvoice,
   onChangeBranch,
   onTogglePriority,
   isPriority = false,
 }: OrderActionsMenuProps) => {
-  const hasDocs = !!onOrderPdf
+  const hasDocs = !!(onOrderPdf || onExportPieces)
   const hasManage = !!(onInvoice || onChangeBranch || onTogglePriority)
 
   return (
@@ -67,6 +84,19 @@ const OrderActionsMenu = ({
                 Orden de pedido PDF
               </CDropdownItem>
             )}
+            {onExportPieces &&
+              PIECES_EXPORTS.map(({ format, label }) => (
+                <CDropdownItem
+                  key={format}
+                  as="button"
+                  type="button"
+                  className="d-flex align-items-center"
+                  onClick={() => onExportPieces(format)}
+                >
+                  <CIcon icon={cilCloudDownload} className="me-2" />
+                  {label}
+                </CDropdownItem>
+              ))}
           </>
         )}
 

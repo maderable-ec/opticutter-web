@@ -28,8 +28,10 @@ import { PALETTE, pieceSig } from 'src/shared/utils/cutDrawing'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
 import { useToastStore } from 'src/shared/store/toastStore'
+import { MASK } from 'src/shared/analytics'
 import AppToaster from 'src/shared/components/AppToaster'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
+import { clientName } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
 import { findActivity, orderedActivities } from './activities'
@@ -247,23 +249,30 @@ const WorkshopPage = () => {
       </CButton>
 
       <div className="workshop-identity">
-        <strong className="text-nowrap">{plan.orderCode}</strong>
-        <OrderStatusBadge status={plan.status} />
-        {/* The parallel work, read-only: the operator does not register it, but seeing that
+        <div className="workshop-identity__line">
+          <strong className="text-nowrap">{plan.orderCode}</strong>
+          <OrderStatusBadge status={plan.status} />
+          {/* The parallel work, read-only: the operator does not register it, but seeing that
             the canteador is still on the order is what stops them asking. The plan carries the
             activities now, so this no longer costs a second request for the whole order. */}
-        {orderedActivities(plan.activities)
-          .filter((activity) => activity.type !== 'cutting')
-          .map((activity) => (
-            <span className="workshop-banding-badge" key={activity.type}>
-              <ActivityBadge activity={activity} />
-            </span>
-          ))}
-        {/* No "solo lectura" label: the status badge already says `Cortada`, the action bar is gone
+          {orderedActivities(plan.activities)
+            .filter((activity) => activity.type !== 'cutting')
+            .map((activity) => (
+              <span className="workshop-banding-badge" key={activity.type}>
+                <ActivityBadge activity={activity} />
+              </span>
+            ))}
+          {/* No "solo lectura" label: the status badge already says `Cortada`, the action bar is gone
             and the pieces carry no pointer affordance — a third copy only cost the width that
             truncated the badges next to it. */}
-        {/* Which job of this client is on the saw. First thing to go when the bar runs out of room. */}
-        <ReferenceNote notes={plan.notes} maxWidth={220} className="d-none d-xl-block" />
+          {/* Which job of this client is on the saw. First thing to go when the bar runs out of room. */}
+          <ReferenceNote notes={plan.notes} maxWidth={220} className="d-none d-xl-block" />
+        </div>
+        {/* Whose job is on the saw, under its code. Its own line, so it keeps the whole width of the
+            block at every size; no `title`, since touch panels have no hover. */}
+        <div className="small fw-semibold text-truncate lh-sm" {...MASK}>
+          {clientName(plan.client)}
+        </div>
       </div>
 
       {current && (
