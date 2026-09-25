@@ -1,6 +1,11 @@
 // The `notes` field of a quote/order used as its commercial reference: project or site name,
 // the differentiator when the same client has several jobs running. Renders nothing when empty,
 // so every call site can drop it in unconditionally.
+//
+// A reference often names the client or the site, and it rides in `title` too, which session replay
+// text masking does not reach: so the whole note is recorded as an empty box (NO_CAPTURE).
+
+import { NO_CAPTURE } from 'src/shared/analytics'
 
 interface ReferenceNoteProps {
   notes?: string | null
@@ -31,7 +36,11 @@ const ReferenceNote = ({
 
   if (variant === 'header') {
     return (
-      <div className={`text-body-secondary small ${className}`} style={clampTwoLines} title={text}>
+      <div
+        className={`text-body-secondary small ${NO_CAPTURE} ${className}`}
+        style={clampTwoLines}
+        title={text}
+      >
         Referencia: <strong className="text-body">{text}</strong>
       </div>
     )
@@ -39,7 +48,7 @@ const ReferenceNote = ({
 
   return (
     <div
-      className={`text-body-secondary small text-truncate ${className}`}
+      className={`text-body-secondary small text-truncate ${NO_CAPTURE} ${className}`}
       style={{ maxWidth }}
       title={text}
     >

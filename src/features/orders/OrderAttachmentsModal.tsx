@@ -19,6 +19,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilExternalLink } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import { fmtDateTime } from 'src/shared/utils/format'
 import { ordersApi } from './ordersApi'
 import { useAttachments, useDeleteAttachment, useUploadAttachment } from './useOrders'
@@ -133,7 +134,8 @@ const OrderAttachmentsModal = ({
                     >
                       {att.contentType.split('/')[1]?.toUpperCase() ?? 'ARCHIVO'}
                     </CBadge>
-                    {att.filename}
+                    {/* Uploaded under whatever name it had, often the client's: masked in replay. */}
+                    <span {...MASK}>{att.filename}</span>
                   </CTableDataCell>
                   <CTableDataCell>{humanSize(att.sizeBytes)}</CTableDataCell>
                   <CTableDataCell>{fmtDateTime(att.createdAt)}</CTableDataCell>

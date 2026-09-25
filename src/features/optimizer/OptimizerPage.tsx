@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { resetOptimizerSession, track } from 'src/shared/analytics'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
 import AppToaster from 'src/shared/components/AppToaster'
 import { useToastStore } from 'src/shared/store/toastStore'
@@ -294,6 +295,7 @@ const OptimizerPage = () => {
         ? `Restauramos tu trabajo de la sesión anterior. Borrador: ${bootstrap.draftName}.`
         : 'Restauramos tu trabajo de la sesión anterior.',
       'info',
+      { mask: !!bootstrap.draftName },
     )
   }, [bootstrap, addToast])
 
@@ -326,6 +328,7 @@ const OptimizerPage = () => {
     setResultSignature(null)
     attemptedSignature.current = null
     clearAutosave()
+    resetOptimizerSession()
     wizard.goTo('pieces')
   }
 
@@ -376,6 +379,7 @@ const OptimizerPage = () => {
       services.set((d.payload.additionalServices ?? []).map(serviceLineFromApi))
       // Keyed by the form uids the draft restores, so they still name the same materials.
       setLayoutAdjustments(d.payload.layoutAdjustments ?? null)
+      resetOptimizerSession()
       // A loaded draft describes a different job, so the client and the reference of the previous
       // one go with the result on screen.
       quote.reset()
@@ -607,6 +611,7 @@ const OptimizerPage = () => {
       !window.confirm('Otra alternativa descarta los ajustes manuales de la distribución. ¿Seguir?')
     )
       return
+    if (layoutAdjustments) track('layout_adjustments_discarded')
     const next = variant + 1
     setVariant(next)
     setLayoutAdjustments(null)

@@ -2,6 +2,7 @@ import { CAlert, CButton, CSpinner } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilCopy, cilExternalLink, cilLink } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import { fmtDate, fmtDateTime } from 'src/shared/utils/format'
 import { isOpen } from './status'
 import type { PreOrderStatus, ReviewLinkInfo } from './types'
@@ -189,7 +190,7 @@ const PreOrderStatusStrip = ({
           light enough to read against a warning alert is unreadable in dark mode. */}
       {status === 'changes_requested' && clientNote && (
         <div className="mt-2 ps-2 border-start border-2">
-          <strong>Nota del cliente:</strong> {clientNote}
+          <strong>Nota del cliente:</strong> <span {...MASK}>{clientNote}</span>
         </div>
       )}
     </CAlert>

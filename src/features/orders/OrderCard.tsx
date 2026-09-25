@@ -3,6 +3,7 @@ import { CBadge } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import { cilBolt } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
@@ -46,7 +47,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
 
       {/* Client and reference on one line: the reference is what tells two jobs of the same client
           apart, and it is the part that truncates. */}
-      <div className="text-truncate mt-1">
+      <div className="text-truncate mt-1" {...MASK}>
         {clientName(order.client)}
         {reference && <span className="text-body-secondary"> · {reference}</span>}
       </div>

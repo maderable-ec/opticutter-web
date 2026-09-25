@@ -48,11 +48,15 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          # Empty on purpose: the SPA and the API share an origin behind Caddy,
-          # so the bundle issues relative /api/v1/... requests and this image can
-          # be promoted anywhere without a rebuild.
+          # VITE_API_BASE_URL is empty on purpose: the SPA and the API share an
+          # origin behind Caddy, so the bundle issues relative /api/v1/... requests
+          # and this image can be promoted anywhere without a rebuild.
+          # VITE_POSTHOG_KEY comes from a repository VARIABLE (Settings → Variables),
+          # not a secret: a PostHog project key is public and ships in the bundle.
+          # Unset, the image is built with analytics off.
           build-args: |
             VITE_API_BASE_URL=
+            VITE_POSTHOG_KEY=${{ vars.POSTHOG_KEY }}
           tags: |
             ${{ env.IMAGE }}:sha-${{ steps.vars.outputs.short }}
             ${{ env.IMAGE }}:latest

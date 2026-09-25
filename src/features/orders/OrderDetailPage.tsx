@@ -23,6 +23,7 @@ import { cilBolt } from '@coreui/icons'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { WizardFooter } from 'src/features/optimizer/WizardSteps'
+import { MASK } from 'src/shared/analytics'
 import StatusHistoryTable from 'src/shared/components/StatusHistoryTable'
 import PricingBlock from 'src/shared/components/PricingBlock'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
@@ -397,7 +398,7 @@ const OrderDetailPage = () => {
               becomes a column instead: wrapped inline, the dates broke inside "09:20 a. m." or left
               a "·" leading the next line, and read as a broken list. */}
           <div className="text-body-secondary small fact-line">
-            <span>
+            <span {...MASK}>
               {clientName(order.client)}
               {order.client?.identifier && ` @${order.client.identifier}`}
             </span>

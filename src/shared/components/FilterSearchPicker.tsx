@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CButton, CFormInput, CSpinner } from '@coreui/react'
+import { MASK } from 'src/shared/analytics'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { SEARCH_DEBOUNCE_MS } from 'src/shared/constants'
 
@@ -57,7 +58,9 @@ const FilterSearchPicker = ({
   if (value) {
     return (
       <div className="d-flex align-items-center gap-2 px-3 py-1">
-        <span className="text-truncate flex-grow-1">{selectedLabel || value}</span>
+        <span className="text-truncate flex-grow-1" {...MASK}>
+          {selectedLabel || value}
+        </span>
         <CButton color="link" size="sm" className="px-1 flex-shrink-0" onClick={() => onChange('')}>
           Quitar
         </CButton>
@@ -75,7 +78,9 @@ const FilterSearchPicker = ({
           onChange={(e) => setTerm(e.target.value)}
         />
       </div>
-      <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+      {/* Masked in session replay: the options are search results, and the one filter that uses
+          this picker searches clients. */}
+      <div style={{ maxHeight: 180, overflowY: 'auto' }} {...MASK}>
         {isLoading ? (
           <div className="text-center py-2">
             <CSpinner size="sm" color="primary" />

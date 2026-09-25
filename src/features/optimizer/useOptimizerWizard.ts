@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { track } from 'src/shared/analytics'
 import { WORKSHOP_CODES } from 'src/shared/utils/workshopCodes'
 import type { LayoutAdjustment, MaterialInput, RequirementInput } from './types'
 
@@ -126,6 +127,12 @@ export const useOptimizerWizard = ({
       )
     }
   }, [raw, step, setParams])
+
+  // One event per step the seller lands on: the clamped one, so a refreshed `?step=quote` that falls
+  // back to Despiece counts as Despiece. `index` only ever changes together with `step`.
+  useEffect(() => {
+    track('optimizer_step_viewed', { step, index })
+  }, [step, index])
 
   // Why a step cannot be reached. Cotización has three different answers now that the run happens
   // inside Costos — "no hay resultado", "piezas que no entran" and "faltan tapacantos" — and its

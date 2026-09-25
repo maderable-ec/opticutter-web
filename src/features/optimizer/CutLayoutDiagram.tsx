@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   CBadge,
@@ -14,6 +14,7 @@ import {
 import CIcon from '@coreui/icons-react'
 import { cilFullscreen, cilMove } from '@coreui/icons'
 
+import { track } from 'src/shared/analytics'
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { fmtMoney } from 'src/features/review/format'
@@ -279,6 +280,9 @@ const CutLayoutDiagram = ({
 }: CutLayoutDiagramProps) => {
   // The open sheet is held as an INDEX, not the group object, so the modal can page to the next one.
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
+  // The viewer as analytics sees it: when it opened and which sheets were paged to. "Ver diagrama" is
+  // one click; whether the seller then reads the plan or closes it at once is the question.
+  const view = useRef<{ openedAt: number; seen: Set<number> } | null>(null)
 
   const { colorFor } = usePieceColors(layoutGroups)
 
@@ -302,6 +306,30 @@ const CutLayoutDiagram = ({
     }
     return { sheets, pieces, efficiency: sheets > 0 ? effSum / sheets : 0 }
   }, [layoutGroups])
+
+  const openViewer = () => {
+    view.current = { openedAt: Date.now(), seen: new Set([0]) }
+    track('cut_diagram_opened', { patterns: layoutGroups.length, sheets: totals.sheets })
+    setDetailIndex(0)
+  }
+
+  const pageViewer = (i: number) => {
+    view.current?.seen.add(i)
+    setDetailIndex(i)
+  }
+
+  const closeViewer = (reason: 'close' | 'adjust') => {
+    if (view.current) {
+      track('cut_diagram_closed', {
+        patterns: layoutGroups.length,
+        patterns_seen: view.current.seen.size,
+        seconds_open: Math.round((Date.now() - view.current.openedAt) / 1000),
+        reason,
+      })
+      view.current = null
+    }
+    setDetailIndex(null)
+  }
 
   if (!layoutGroups.length) return null
 
@@ -341,7 +369,7 @@ const CutLayoutDiagram = ({
           color="primary"
           variant="outline"
           className="ms-auto"
-          onClick={() => setDetailIndex(0)}
+          onClick={openViewer}
         >
           <CIcon icon={cilFullscreen} className="me-1" />
           Ver diagrama
@@ -351,16 +379,17 @@ const CutLayoutDiagram = ({
       <SheetDetailModal
         groups={layoutGroups}
         index={detailIndex}
-        onIndexChange={setDetailIndex}
+        onIndexChange={pageViewer}
         materialNameFor={materialName}
         colorFor={colorFor}
         container={modalContainer}
-        onClose={() => setDetailIndex(null)}
+        onClose={() => closeViewer('close')}
         onAdjust={
           onAdjust
             ? (focus) => {
                 // The viewer steps aside for the editor, which opens on this same sheet.
-                setDetailIndex(null)
+                closeViewer('adjust')
+                track('layout_editor_opened')
                 onAdjust(focus)
               }
             : undefined

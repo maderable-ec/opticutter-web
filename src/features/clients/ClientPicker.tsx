@@ -3,6 +3,7 @@ import { CButton, CFormInput, CListGroup, CListGroupItem, CSpinner } from '@core
 import CIcon from '@coreui/icons-react'
 import { cilCheckAlt } from '@coreui/icons'
 
+import { MASK } from 'src/shared/analytics'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { clientName } from 'src/shared/utils/format'
 import { useClientsMin } from './useClients'
@@ -60,7 +61,7 @@ const ClientPicker = ({
     return (
       <div className="border rounded-3 p-2 d-flex align-items-center gap-2">
         <CIcon icon={cilCheckAlt} className="text-primary flex-shrink-0" />
-        <div className="flex-grow-1 min-w-0">
+        <div className="flex-grow-1 min-w-0" {...MASK}>
           <div className="fw-semibold text-truncate">{clientName(value)}</div>
           <div className="small text-body-secondary text-truncate">
             @{value.identifier}
@@ -118,7 +119,7 @@ const ClientPicker = ({
                 className="d-flex align-items-center gap-2 text-start"
                 onClick={() => pick(c)}
               >
-                <div className="flex-grow-1 min-w-0">
+                <div className="flex-grow-1 min-w-0" {...MASK}>
                   <div className="fw-semibold text-truncate">{clientName(c)}</div>
                   <div className="small text-body-secondary">@{c.identifier}</div>
                 </div>
@@ -139,6 +140,7 @@ const ClientPicker = ({
           className="px-0 mt-1"
           type="button"
           onClick={() => setChangingFrom(null)}
+          {...MASK}
         >
           Cancelar y dejar {clientName(value)}
         </CButton>

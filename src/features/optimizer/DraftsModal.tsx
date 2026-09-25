@@ -17,6 +17,7 @@ import { cilTrash } from '@coreui/icons'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useState } from 'react'
+import { MASK } from 'src/shared/analytics'
 import { fmtDate } from 'src/shared/utils/format'
 import type { ModalContainer } from './types'
 
@@ -82,7 +83,10 @@ const DraftsModal = ({ visible, loadingId, onLoad, container, onClose }: DraftsM
                   className="d-flex align-items-center justify-content-between gap-2"
                 >
                   <div style={{ minWidth: 0 }}>
-                    <div className="fw-semibold text-truncate">{d.name}</div>
+                    {/* Named by the seller, often after the client: masked in session replay. */}
+                    <div className="fw-semibold text-truncate" {...MASK}>
+                      {d.name}
+                    </div>
                     <div className="small text-body-secondary">
                       {d.branch.name} · Actualizado el {fmtDate(d.updatedAt)}
                     </div>
