@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CCol, CRow } from '@coreui/react'
 
 import {
@@ -15,9 +15,10 @@ import type { SideLine } from 'src/shared/utils/cutDrawing'
 import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
 import type { EdgeSide, Layout, PlacedPiece } from './types'
 
-// Per-sheet detail panels, shared by the wizard's inline sheet viewer and the pre-order's expanded
+// Per-sheet detail panels, shared by the wizard's Optimización step and the pre-order's expanded
 // sheet modal. Both show the same three things next to a board: what the piece under the cursor is,
-// how the sheet performed, and which measurements it holds.
+// how the sheet performed, and which measurements it holds — plus the hover state and the arrow-key
+// paging that drive them, so the two viewers cannot drift apart.
 
 type ColorFor = (sig: string) => string
 
@@ -326,4 +327,105 @@ export const SheetStats = ({ layout }: { layout: Layout }) => {
       <Stat label="Desperdicio" value={`${(s.wasteArea / 1e6).toFixed(2)} m²`} />
     </CRow>
   )
+}
+
+// --- The inspector: the three panels together ---
+
+interface SheetInspectorProps {
+  layout: Layout
+  colorFor: ColorFor
+  hoverPiece: PlacedPiece | null
+  hoverSig: string | null
+  onHoverSig: (sig: string | null) => void
+  emptyHint?: string
+}
+
+export const SheetInspector = ({
+  layout,
+  colorFor,
+  hoverPiece,
+  hoverSig,
+  onHoverSig,
+  emptyHint,
+}: SheetInspectorProps) => (
+  <>
+    <SheetStats layout={layout} />
+    <PieceDetailCard piece={hoverPiece} colorFor={colorFor} emptyHint={emptyHint} />
+    <GroupedPiecesList
+      pieces={layout.placedPieces}
+      colorFor={colorFor}
+      hoverSig={hoverSig}
+      onHover={onHoverSig}
+    />
+  </>
+)
+
+// --- Hover state of a sheet viewer ---
+
+// The piece under the cursor (or the last one tapped) and the measurement hovered in the list.
+// Paging to another sheet must not carry the previous sheet's hover into the detail panel, so both
+// reset when `sheet` changes — adjusted during render (React's reset-on-prop-change), not in an
+// effect.
+export const useSheetHover = (sheet: unknown) => {
+  const [hoverPiece, setHoverPiece] = useState<PlacedPiece | null>(null)
+  const [hoverSig, setHoverSig] = useState<string | null>(null)
+  const [shownSheet, setShownSheet] = useState(sheet)
+  if (sheet !== shownSheet) {
+    setShownSheet(sheet)
+    setHoverPiece(null)
+    setHoverSig(null)
+  }
+
+  // Hover and tap do the same thing: a touch screen has no hover, so the tap is its only way in.
+  const inspect = useCallback((p: PlacedPiece) => {
+    setHoverPiece(p)
+    setHoverSig(null)
+  }, [])
+  const leave = useCallback(() => setHoverPiece(null), [])
+
+  return { hoverPiece, hoverSig, setHoverSig, inspect, leave }
+}
+
+// --- Arrow-key paging between sheets ---
+
+interface ArrowPagingOptions {
+  index: number | null
+  count: number
+  onChange: (index: number) => void
+  // Off while a modal is up. The Optimización step sets it: the layout editor opens over it with ←→
+  // of its own, and any other dialog owns its keys. The viewer modal leaves it off, since it IS the
+  // modal.
+  skipUnderModal?: boolean
+}
+
+// ← / → page between sheets, matching the public review modal and the workshop canvas. Only the bare
+// keys: Alt+← / Alt+→ walk the wizard's steps (and are the browser's back/forward), and a text field
+// or an open menu keeps its arrows.
+export const useArrowPaging = ({
+  index,
+  count,
+  onChange,
+  skipUnderModal = false,
+}: ArrowPagingOptions) => {
+  useEffect(() => {
+    if (index == null) return
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
+      )
+        return
+      if (skipUnderModal && document.body.classList.contains('modal-open')) return
+      if (document.querySelector('.dropdown-menu.show')) return
+      const next = index + (e.key === 'ArrowRight' ? 1 : -1)
+      if (next < 0 || next >= count) return
+      e.preventDefault()
+      onChange(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [index, count, onChange, skipUnderModal])
 }

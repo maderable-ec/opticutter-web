@@ -12,21 +12,13 @@ import {
 import { useServices } from 'src/features/services/useServices'
 import { KEY } from 'src/shared/utils/platform'
 import type { ModalContainer, OptimizeResponse } from '../types'
-import CutLayoutDiagram from '../CutLayoutDiagram'
-import OptimizingOverlay from '../OptimizingOverlay'
 import UnplacedPiecesAlert from '../UnplacedPiecesAlert'
-import LayoutIssuesAlert from '../layoutEditor/LayoutIssuesAlert'
-import type { EditorFocus } from '../layoutEditor/useLayoutEditor'
-import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from '../summaryTables'
+import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable } from '../summaryTables'
 
-// Step 2, and the step that runs the search. There used to be an `Optimización` step before this
-// one, holding four geometry KPIs and the sheets inline; it was a step you crossed on the way to
-// the prices and never came back to. The run now fires on ENTERING this step (the page's effect),
-// and the plan is one summary line with a fullscreen diagram behind it — the same `CutLayoutDiagram`
-// the pre-order detail page mounts, so both places show a cut plan the same way.
-//
-// The bar goes ABOVE the money: arriving here, the first thing to confirm is that the optimization
-// ran and how well it went; the numbers only mean something after that.
+// Step 3: what the plan costs. The plan itself is the step before (Optimización), so this one is
+// money only — it used to open with the diagram's summary bar, back when the diagram was a modal
+// behind it. Arriving here straight from Despiece (the trail allows it) still runs the search first,
+// like arriving at Optimización does: the page's effect fires on every step that reads the result.
 //
 // The price level is chosen HERE rather than next to the client: it is the one input that changes
 // these numbers, and picking it beside the tables it moves means the real cost is visible on the
@@ -34,15 +26,12 @@ import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from '../
 // the pre-order detail page, so a quote built in the wizard was born without them.
 
 interface CostsStepProps {
-  // Absent until the first run lands: this step owns the pending / error / empty states that the
-  // Optimización step used to.
+  // Absent until the first run lands.
   result?: OptimizeResponse
-  // A cut SEARCH is in flight — the sheets are about to move, so the viewport overlay is right.
-  // A re-price (level, per-board marks) is not this: it only moves the money and says so inline.
+  // A cut SEARCH is in flight (the page shows the viewport overlay). A re-price (level, per-board
+  // marks) is not this: it only moves the money and says so inline.
   isSearching: boolean
   error?: Error | null
-  // Alternative-solution seed of the result on screen; only shown when it is not the canonical one.
-  variant: number
   // The inputs changed since this result was computed; a fresh run is already on its way.
   isStale: boolean
   // Pieces with banding sides but no tapacanto product: their cost is missing from these tables,
@@ -70,10 +59,6 @@ interface CostsStepProps {
     value: ServiceLineForm[K],
   ) => void
   onRemoveService: (uid: string) => void
-  // Opens the layout editor (from the diagram viewer, on the sheet it shows); `adjustDisabledReason`
-  // says why it cannot.
-  onAdjustLayout?: (focus: EditorFocus) => void
-  adjustDisabledReason?: string
   container?: ModalContainer
 }
 
@@ -81,7 +66,6 @@ const CostsStep = ({
   result,
   isSearching,
   error,
-  variant,
   isStale,
   missingBanding,
   priceLevel,
@@ -95,8 +79,6 @@ const CostsStep = ({
   onAddService,
   onUpdateService,
   onRemoveService,
-  onAdjustLayout,
-  adjustDisabledReason,
   container,
 }: CostsStepProps) => {
   const boardsCost = result?.totalBoardsCost ?? 0
@@ -113,10 +95,6 @@ const CostsStep = ({
   // their own borders, so wrapping them in one more box only added a frame.
   return (
     <>
-      {/* The overlay covers the viewport, not this pane: pinned here it was clipped by the pane and
-          scrolled out of view on a long result, so the wait could end up off screen. */}
-      {isSearching && <OptimizingOverlay />}
-
       {error && (
         <CAlert color="danger" className="py-2 small mb-3">
           {error.message || 'Error al optimizar. Intente nuevamente.'}
@@ -167,42 +145,11 @@ const CostsStep = ({
             />
           </CRow>
 
-          {/* Above the plan: it changes what the seller does next, rather than describing what
-              was done. While it shows, the Cotización step stays locked. */}
+          {/* Here as well as in Optimización: this is the step whose "Cotización ›" it locks, and
+              the reason must sit where the button is refused. */}
           <UnplacedPiecesAlert
             unplaced={result.unplaced}
             materialsSummary={result.materialsSummary}
-          />
-          <LayoutIssuesAlert issues={result.layoutIssues} />
-
-          {/* Under the money, not over it: the tiles are what the step is for, and the plan is the
-              thing you check against them. `container` is not optional here — the workspace can be
-              in fullscreen, and a modal portaled to document.body would mount outside it and never
-              be painted. */}
-          <CutLayoutDiagram
-            layoutGroups={result.layoutGroups}
-            materialsSummary={result.materialsSummary}
-            modalContainer={container}
-            onAdjust={onAdjustLayout}
-            adjustDisabledReason={adjustDisabledReason}
-            adjustment={result.adjustmentSummary}
-            extra={
-              <>
-                {/* Same weight as the counts beside them — they are the same kind of fact, and the
-                    muted treatment they used to have read as a footnote to the bar. The leading
-                    separator continues that list rather than starting a second group. */}
-                <span className="small">
-                  · corte <strong>{meters(result.totalCutLinearM)}</strong> · tapacanto{' '}
-                  <strong>{meters(result.totalEdgeBandingLinearM)}</strong>
-                </span>
-                {/* The seed used to ride as a badge on the "Volver a optimizar" button. With the
-                    button in the menu, this is what says which alternative is on screen. Muted, and
-                    not part of the list above: it names the run, it does not measure the plan. */}
-                {variant > 0 && (
-                  <span className="small text-body-secondary">alternativa #{variant}</span>
-                )}
-              </>
-            }
           />
 
           <div className="text-body-secondary small text-uppercase fw-semibold mb-2">

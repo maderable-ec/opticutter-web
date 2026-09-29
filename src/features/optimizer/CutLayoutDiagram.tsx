@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   CBadge,
@@ -19,24 +19,138 @@ import SheetSvg from 'src/shared/components/SheetSvg'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { fmtMoney } from 'src/features/review/format'
 import type { EditorFocus } from './layoutEditor/useLayoutEditor'
-import type {
-  AdjustmentSummary,
-  LayoutGroup,
-  MaterialSummary,
-  ModalContainer,
-  PlacedPiece,
-} from './types'
+import type { AdjustmentSummary, LayoutGroup, MaterialSummary, ModalContainer } from './types'
 import { usePieceColors } from './pieceColors'
-import { GroupedPiecesList, PieceDetailCard, SheetStats } from './sheetDetail'
+import { SheetInspector, useArrowPaging, useSheetHover } from './sheetDetail'
 
-// One summary line + a fullscreen sheet viewer behind it. Mounted by the pre-order detail page
-// (through `OptimizationPreview`) and by the wizard's Costos step, which replaced its own
-// Optimización step — and the inline `SheetViewer` that lived there — with this.
+// One summary line + a fullscreen sheet viewer behind it, for the pre-order detail page (through
+// `OptimizationPreview`). The wizard shows the same viewer as a step of its own (`LayoutStep`), built
+// from the pieces exported here and in `sheetDetail.tsx`, so the two read a plan the same way.
 //
 // It used to be a grid of pattern cards, each with a thumbnail, an efficiency bar and a stats strip.
 // On a real quote that is two or three rows of cards — the single tallest thing on a page whose job
 // is to be read at a glance, and every card was a link to the same modal. So the grid collapsed to
 // the numbers it was summarising, and the modal it opened became the diagram itself.
+
+// --- Shared by the modal and the wizard's Optimización step ---
+
+// Totals of a plan. Weighted by `count`: a pattern repeated over four sheets weighs four times one
+// used once, which is what "aprovechamiento del plan" means. A plain mean would let a single offcut
+// sheet drag the whole figure down.
+export const planTotals = (layoutGroups: LayoutGroup[]) => {
+  let sheets = 0
+  let pieces = 0
+  let effSum = 0
+  for (const g of layoutGroups) {
+    sheets += g.count
+    pieces += g.layout.statistics.piecesCount * g.count
+    effSum += g.layout.statistics.efficiency * g.count
+  }
+  return { sheets, pieces, efficiency: sheets > 0 ? effSum / sheets : 0 }
+}
+
+// The board's catalog name, for the header of each sheet.
+export const materialNameFor =
+  (materialsSummary: MaterialSummary[]) =>
+  (materialKey: string): string => {
+    const m = materialsSummary.find((x) => x.materialKey === materialKey)
+    if (!m) return materialKey
+    return m.productName ?? m.productCode ?? `${m.width}×${m.height}×${m.thickness} mm`
+  }
+
+// "Patrón 3 · ×2 hojas · Melamina blanca 18": what the sheet on screen is.
+export const patternTitle = (group: LayoutGroup, materialName: string): string =>
+  `Patrón ${group.patternId}${group.count > 1 ? ` · ×${group.count} hojas` : ''}${
+    materialName ? ` · ${stripHalfSuffix(materialName)}` : ''
+  }`
+
+// Where the layout editor opens: on the sheet the viewer is showing.
+export const editorFocusOf = (group: LayoutGroup): EditorFocus => ({
+  materialKey: group.layout.material.materialKey,
+  sheetNumber: group.layout.material.sheetNumber,
+})
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
+
+interface PlanFactsProps {
+  layoutGroups: LayoutGroup[]
+  // Extra facts from whoever mounts it, placed after the counts and before the verdict.
+  extra?: ReactNode
+  // What the seller's hand adjustments changed, when the plan carries any.
+  adjustment?: AdjustmentSummary | null
+}
+
+// The plan in one line: patterns · sheets · pieces, then the efficiency and whether it was adjusted
+// by hand. The pre-order's diagram bar and the wizard's Optimización footer both say it this way.
+export const PlanFacts = ({ layoutGroups, extra, adjustment }: PlanFactsProps) => {
+  const totals = useMemo(() => planTotals(layoutGroups), [layoutGroups])
+  const adjusted = adjustment ? adjustmentLine(adjustment) : ''
+  return (
+    <>
+      <span className="small">
+        <strong>{layoutGroups.length}</strong> {plural(layoutGroups.length, 'patrón', 'patrones')} ·{' '}
+        <strong>{totals.sheets}</strong> {plural(totals.sheets, 'tablero', 'tableros')} ·{' '}
+        <strong>{totals.pieces}</strong> {plural(totals.pieces, 'pieza', 'piezas')}
+      </span>
+      {extra}
+      {/* The one number worth a colour: below 80% the plan is worth a second look. Last, after every
+          plain measurement: it is the verdict on the list, not another item in it. */}
+      <CBadge color={totals.efficiency >= 80 ? 'success' : 'warning'}>
+        {totals.efficiency.toFixed(1)}% aprovechamiento
+      </CBadge>
+      {/* A plan the seller rearranged says so, and what it changed, where the plan is summed up. */}
+      {adjustment && (
+        <CBadge color="info" title={adjusted || undefined}>
+          Ajustado a mano
+          {adjusted ? ` · ${adjusted}` : ''}
+        </CBadge>
+      )}
+    </>
+  )
+}
+
+// The viewer as analytics sees it: when it opened and which sheets were paged to. Whether the seller
+// reads the plan or glances and moves on is the question. A viewer that goes away while open (the
+// page unmounts, the wizard leaves the step) reports its close too.
+export const useDiagramViewTracking = (layoutGroups: LayoutGroup[]) => {
+  const view = useRef<{ openedAt: number; seen: Set<number> } | null>(null)
+
+  // Idempotent: the wizard's step opens it from an effect, which StrictMode runs twice.
+  const open = useCallback(() => {
+    if (view.current) return
+    view.current = { openedAt: Date.now(), seen: new Set([0]) }
+    track('cut_diagram_opened', {
+      patterns: layoutGroups.length,
+      sheets: planTotals(layoutGroups).sheets,
+    })
+  }, [layoutGroups])
+
+  const page = useCallback((i: number) => {
+    view.current?.seen.add(i)
+  }, [])
+
+  const close = useCallback(
+    (reason: 'close' | 'adjust') => {
+      if (!view.current) return
+      track('cut_diagram_closed', {
+        patterns: layoutGroups.length,
+        patterns_seen: view.current.seen.size,
+        seconds_open: Math.round((Date.now() - view.current.openedAt) / 1000),
+        reason,
+      })
+      view.current = null
+    },
+    [layoutGroups],
+  )
+
+  const closeOnUnmount = useRef(close)
+  useEffect(() => {
+    closeOnUnmount.current = close
+  }, [close])
+  useEffect(() => () => closeOnUnmount.current('close'), [])
+
+  return { open, page, close }
+}
 
 // --- Sheet detail modal ---
 
@@ -69,18 +183,8 @@ const SheetDetailModal = ({
   onAdjust,
   adjustDisabledReason,
 }: SheetDetailModalProps) => {
-  const [hoverPiece, setHoverPiece] = useState<PlacedPiece | null>(null)
-  const [hoverSig, setHoverSig] = useState<string | null>(null)
   const group = index == null ? null : (groups[index] ?? null)
-
-  // Paging to another sheet must not carry the previous sheet's hover state into the detail panel.
-  // Adjusted during render (React's reset-on-prop-change) rather than in an effect.
-  const [shownGroup, setShownGroup] = useState(group)
-  if (group !== shownGroup) {
-    setShownGroup(group)
-    setHoverPiece(null)
-    setHoverSig(null)
-  }
+  const { hoverPiece, hoverSig, setHoverSig, inspect, leave } = useSheetHover(group)
 
   const hasPrev = index != null && index > 0
   const hasNext = index != null && index < groups.length - 1
@@ -88,16 +192,7 @@ const SheetDetailModal = ({
     if (index != null) onIndexChange(index + delta)
   }
 
-  // Arrow keys page between sheets, matching the public review modal.
-  useEffect(() => {
-    if (index == null) return
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && index < groups.length - 1) onIndexChange(index + 1)
-      if (e.key === 'ArrowLeft' && index > 0) onIndexChange(index - 1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [index, groups.length, onIndexChange])
+  useArrowPaging({ index, count: groups.length, onChange: onIndexChange })
 
   const layout = group?.layout
   const materialName = group ? materialNameFor(group.materialKey) : ''
@@ -117,11 +212,7 @@ const SheetDetailModal = ({
             `.btn-close` already carries `margin-left: auto`, and a second auto margin would park
             the button in the middle of the header. */}
         <CModalTitle className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
-          <span>
-            {group ? `Patrón ${group.patternId}` : ''}
-            {group && group.count > 1 ? ` · ×${group.count} hojas` : ''}
-            {materialName ? ` · ${stripHalfSuffix(materialName)}` : ''}
-          </span>
+          <span>{group ? patternTitle(group, materialName) : ''}</span>
           {group?.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
         </CModalTitle>
         {onAdjust && group && (
@@ -132,12 +223,7 @@ const SheetDetailModal = ({
               color="primary"
               variant="outline"
               disabled={!!adjustDisabledReason}
-              onClick={() =>
-                onAdjust({
-                  materialKey: group.layout.material.materialKey,
-                  sheetNumber: group.layout.material.sheetNumber,
-                })
-              }
+              onClick={() => onAdjust(editorFocusOf(group))}
             >
               <CIcon icon={cilMove} className="me-1" />
               Ajustar distribución
@@ -163,17 +249,11 @@ const SheetDetailModal = ({
                 colorFor={colorFor}
                 highlightId={hoverPiece?.pieceId ?? null}
                 dimSig={hoverSig}
-                onPieceEnter={(p) => {
-                  setHoverPiece(p)
-                  setHoverSig(null)
-                }}
-                onPieceLeave={() => setHoverPiece(null)}
+                onPieceEnter={inspect}
+                onPieceLeave={leave}
                 // Tapping is the only way to inspect a piece on a touch screen, where there is no
-                // hover at all. It came over from the wizard's old inline viewer.
-                onPieceTap={(p) => {
-                  setHoverPiece(p)
-                  setHoverSig(null)
-                }}
+                // hover at all.
+                onPieceTap={inspect}
                 // The column is sticky, so anything taller than the modal's scrollport can never be
                 // scrolled into view: its bottom edge stays clipped right where the pager sits.
                 // Reserve is the modal chrome around the body — header, footer, padding. No upper
@@ -184,13 +264,12 @@ const SheetDetailModal = ({
               />
             </CCol>
             <CCol xs={12} lg={5} xxl={4}>
-              <SheetStats layout={layout} />
-              <PieceDetailCard piece={hoverPiece} colorFor={colorFor} />
-              <GroupedPiecesList
-                pieces={layout.placedPieces}
+              <SheetInspector
+                layout={layout}
                 colorFor={colorFor}
+                hoverPiece={hoverPiece}
                 hoverSig={hoverSig}
-                onHover={setHoverSig}
+                onHoverSig={setHoverSig}
               />
             </CCol>
           </CRow>
@@ -232,9 +311,9 @@ const SheetDetailModal = ({
 interface CutLayoutDiagramProps {
   layoutGroups: LayoutGroup[]
   materialsSummary: MaterialSummary[]
-  // Extra facts for the bar, from whoever mounts it. The wizard puts the linear metres here (they
-  // were KPI tiles in the step this bar replaced) plus the alternative seed; the pre-order page
-  // passes nothing, so its bar is unchanged.
+  // Extra facts for the bar, placed after the counts (see `PlanFacts`). The pre-order page passes
+  // nothing today; the wizard's Optimización step puts its linear metres and alternative seed in the
+  // same slot of `PlanFacts`, in its footer.
   extra?: ReactNode
   // Portal target for the expanded-sheet modal; see SheetDetailModalProps.container.
   modalContainer?: ModalContainer
@@ -280,60 +359,27 @@ const CutLayoutDiagram = ({
 }: CutLayoutDiagramProps) => {
   // The open sheet is held as an INDEX, not the group object, so the modal can page to the next one.
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
-  // The viewer as analytics sees it: when it opened and which sheets were paged to. "Ver diagrama" is
-  // one click; whether the seller then reads the plan or closes it at once is the question.
-  const view = useRef<{ openedAt: number; seen: Set<number> } | null>(null)
+  const tracking = useDiagramViewTracking(layoutGroups)
 
   const { colorFor } = usePieceColors(layoutGroups)
-
-  const materialName = (materialKey: string) => {
-    const m = materialsSummary.find((x) => x.materialKey === materialKey)
-    if (!m) return materialKey
-    return m.productName ?? m.productCode ?? `${m.width}×${m.height}×${m.thickness} mm`
-  }
-
-  // Weighted by `count`: a pattern repeated over four sheets weighs four times one used once, which
-  // is what "aprovechamiento del plan" means. A plain mean would let a single offcut sheet drag the
-  // whole figure down.
-  const totals = useMemo(() => {
-    let sheets = 0
-    let pieces = 0
-    let effSum = 0
-    for (const g of layoutGroups) {
-      sheets += g.count
-      pieces += g.layout.statistics.piecesCount * g.count
-      effSum += g.layout.statistics.efficiency * g.count
-    }
-    return { sheets, pieces, efficiency: sheets > 0 ? effSum / sheets : 0 }
-  }, [layoutGroups])
+  const materialName = useMemo(() => materialNameFor(materialsSummary), [materialsSummary])
 
   const openViewer = () => {
-    view.current = { openedAt: Date.now(), seen: new Set([0]) }
-    track('cut_diagram_opened', { patterns: layoutGroups.length, sheets: totals.sheets })
+    tracking.open()
     setDetailIndex(0)
   }
 
   const pageViewer = (i: number) => {
-    view.current?.seen.add(i)
+    tracking.page(i)
     setDetailIndex(i)
   }
 
   const closeViewer = (reason: 'close' | 'adjust') => {
-    if (view.current) {
-      track('cut_diagram_closed', {
-        patterns: layoutGroups.length,
-        patterns_seen: view.current.seen.size,
-        seconds_open: Math.round((Date.now() - view.current.openedAt) / 1000),
-        reason,
-      })
-      view.current = null
-    }
+    tracking.close(reason)
     setDetailIndex(null)
   }
 
   if (!layoutGroups.length) return null
-
-  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
 
   return (
     <div>
@@ -345,25 +391,7 @@ const CutLayoutDiagram = ({
         <span className="small text-body-secondary text-uppercase fw-semibold">
           Diagrama de cortes
         </span>
-        <span className="small">
-          <strong>{layoutGroups.length}</strong> {plural(layoutGroups.length, 'patrón', 'patrones')}{' '}
-          · <strong>{totals.sheets}</strong> {plural(totals.sheets, 'tablero', 'tableros')} ·{' '}
-          <strong>{totals.pieces}</strong> {plural(totals.pieces, 'pieza', 'piezas')}
-        </span>
-        {extra}
-        {/* The one number worth a colour: below 80% the plan is worth a second look. It was the
-            badge on every pattern card; one figure for the whole plan says the same thing. Last,
-            after every plain measurement: it is the verdict on the list, not another item in it. */}
-        <CBadge color={totals.efficiency >= 80 ? 'success' : 'warning'}>
-          {totals.efficiency.toFixed(1)}% aprovechamiento
-        </CBadge>
-        {/* A plan the seller rearranged says so, and what it changed, where the plan is summed up. */}
-        {adjustment && (
-          <CBadge color="info" title={adjustmentLine(adjustment) || undefined}>
-            Ajustado a mano
-            {adjustmentLine(adjustment) ? ` · ${adjustmentLine(adjustment)}` : ''}
-          </CBadge>
-        )}
+        <PlanFacts layoutGroups={layoutGroups} extra={extra} adjustment={adjustment} />
         <CButton
           size="sm"
           color="primary"

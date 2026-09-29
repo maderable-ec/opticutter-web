@@ -9,21 +9,20 @@ import type { LayoutAdjustment, MaterialInput, RequirementInput } from './types'
 // ErrorBoundary on `location.pathname`, so a path change would remount this page and destroy the
 // whole workspace — pieces, undo history, the optimize result (a mutation, not a cached query) and
 // fullscreen. A search param leaves `pathname` untouched, so back/forward walk the steps while the
-// component stays mounted, and `fluid` + the breadcrumb keep matching `/optimizer`.
+// component stays mounted, and the route's `fluid` flag keeps matching `/optimizer`.
 //
 // The param and its values are English like the rest of the code; only `label` is user-facing.
 
 export const STEP_PARAM = 'step'
 
-export const STEP_IDS = ['pieces', 'costs', 'quote'] as const
+export const STEP_IDS = ['pieces', 'layout', 'costs', 'quote'] as const
 export type StepId = (typeof STEP_IDS)[number]
 
-// There used to be an `Optimización` step between Despiece and Costos, showing four geometry KPIs
-// and the sheets inline. It was a step you crossed on the way to the prices and never came back to,
-// so it folded into Costos: the run now fires on ENTERING Costos, and the plan is one summary line
-// with a fullscreen diagram behind it (`CutLayoutDiagram`, the same one the pre-order page uses).
-// Old links and history entries still carry `?step=layout`; see LEGACY_STEPS below.
-const LEGACY_STEPS: Record<string, StepId> = { layout: 'costs' }
+// Optimización is the cut diagram itself: the sheet viewer that used to open as a fullscreen modal
+// from Costos, now a step of its own because nearly every seller opened it. It is not the step of the
+// same id that was folded into Costos in August (four geometry KPIs over a thumbnail rail): that one
+// was crossed and never revisited, this one is the thing people came to look at. Old links carrying
+// `?step=layout` therefore land where they always meant to.
 
 export interface StepDef {
   id: StepId
@@ -32,10 +31,11 @@ export interface StepDef {
   blockedReason: string
 }
 
+// Optimización and Costos are reached with pieces alone, not with a result: the optimize runs on
+// ENTERING either of them, so gating them on a result would mean the run could never start.
 export const STEPS: readonly StepDef[] = [
   { id: 'pieces', label: 'Despiece', blockedReason: '' },
-  // Reached with pieces alone, not with a result: the optimize runs INSIDE this step, so gating it
-  // on a result would mean the run could never start.
+  { id: 'layout', label: 'Optimización', blockedReason: 'Agrega al menos una pieza con medidas' },
   { id: 'costs', label: 'Costos', blockedReason: 'Agrega al menos una pieza con medidas' },
   {
     id: 'quote',
@@ -66,7 +66,7 @@ export const unplacedReason = (count: number): string =>
 // actually sent, it tells whether what's on screen still describes the current inputs.
 //
 // The workshop codes are left out: they move no piece and no price (the API keeps them out of its
-// hash too), so typing one must not turn the result stale and send the Costos step back through the
+// hash too), so typing one must not turn the result stale and send the next step back through the
 // search overlay. They still ride in the payload, which is what the quote and the order read.
 const withoutWorkshopCodes = (r: RequirementInput): RequirementInput => {
   const geometry = { ...r }
@@ -101,20 +101,19 @@ export const useOptimizerWizard = ({
 
   // Furthest step the current data allows. Backwards is always free; forwards is gated.
   const maxIndex = useMemo(() => {
-    if (canQuote) return 2
-    if (hasPieceData) return 1
+    if (canQuote) return 3
+    if (hasPieceData) return 2
     return 0
   }, [hasPieceData, canQuote])
 
   const raw = params.get(STEP_PARAM)
-  const asked = raw == null ? null : (LEGACY_STEPS[raw] ?? (raw as StepId))
-  const requested = asked == null ? 0 : STEP_IDS.indexOf(asked)
+  const requested = raw == null ? 0 : STEP_IDS.indexOf(raw as StepId)
   const index = Math.min(Math.max(requested, 0), maxIndex)
   const step = STEP_IDS[index] ?? 'pieces'
 
   // Clamp the URL back to what the data allows: a refresh restores pieces from the autosave but
   // never the result, so `?step=quote` in a fresh tab has to fall back. `replace` so the bogus
-  // entry doesn't end up in the history. This is also what rewrites a legacy `?step=layout`.
+  // entry doesn't end up in the history.
   useEffect(() => {
     if (raw != null && raw !== step) {
       setParams(
@@ -135,7 +134,7 @@ export const useOptimizerWizard = ({
   }, [step, index])
 
   // Why a step cannot be reached. Cotización has three different answers now that the run happens
-  // inside Costos — "no hay resultado", "piezas que no entran" and "faltan tapacantos" — and its
+  // on the way — "no hay resultado", "piezas que no entran" and "faltan tapacantos" — and its
   // static text only covers the last. Used by the trail's tooltip as well as the footer's hint, so
   // both agree.
   const blockedReasonFor = useCallback(
@@ -177,6 +176,11 @@ export const useOptimizerWizard = ({
     if (target) goTo(target)
   }, [index, goTo])
 
+  // The footer names where each button goes ("‹ Despiece", "Costos ›") instead of "Atrás" and
+  // "Siguiente": the seller sees what comes next without looking up at the trail.
+  const prevLabel = STEPS[index - 1]?.label
+  const nextLabel = STEPS[index + 1]?.label
+
   return {
     step,
     index,
@@ -188,6 +192,8 @@ export const useOptimizerWizard = ({
     blockedReasonFor,
     nextBlockedReason,
     isLast,
+    prevLabel,
+    nextLabel,
   }
 }
 

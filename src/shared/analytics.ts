@@ -3,7 +3,7 @@ import type { PostHog } from 'posthog-js'
 import { useAuthStore } from 'src/shared/store/authStore'
 
 // Product analytics (PostHog Cloud): what the sellers actually do in the optimizer, which the
-// backend cannot see — opening the cut diagram is a modal, not a request. This module is the only
+// backend cannot see — looking at the cut diagram makes no request. This module is the only
 // door to PostHog: the event list below is the whole contract, and nothing else imports the SDK.
 //
 // Three rules hold everything here:
@@ -33,7 +33,7 @@ export const MASK = { 'data-ph-mask': '' } as const
 // PostHog's block class: the element is recorded as an empty box. For values held in attributes.
 export const NO_CAPTURE = 'ph-no-capture'
 
-type Step = 'pieces' | 'costs' | 'quote'
+type Step = 'pieces' | 'layout' | 'costs' | 'quote'
 
 // Event names are English snake_case. `$pathname` rides on every event, so the diagram and editor
 // events need no "where": it tells the wizard (/optimizer) from the pre-order (/preorders/:id).
