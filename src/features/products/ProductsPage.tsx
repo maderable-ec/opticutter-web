@@ -64,13 +64,19 @@ interface ProductModalState {
 // worth a column: on the real inventory more than half the rows publish the same
 // number at every level. The reduced ones show underneath, and only when they
 // actually differ, so the table stays readable and the exceptions stand out.
-const PriceCell = ({ product }: { product: Product }) => {
-  const lower = [product.price2, product.price3].filter(
-    (p): p is number => p != null && p !== product.price,
-  )
+// `withTax` paints the gross twin the API sends; which levels show is always
+// decided on the net prices, so both columns list the same ones.
+const PriceCell = ({ product, withTax = false }: { product: Product; withTax?: boolean }) => {
+  const levels = [
+    [product.price2, product.price2WithTax],
+    [product.price3, product.price3WithTax],
+  ] as const
+  const lower = levels
+    .filter(([net]) => net != null && net !== product.price)
+    .map(([net, gross]) => (withTax ? gross : net))
   return (
     <CTableDataCell>
-      {fmtMoney(product.price)}
+      {fmtMoney(withTax ? product.priceWithTax : product.price)}
       {lower.length > 0 && (
         <div className="text-body-secondary small">{lower.map((p) => fmtMoney(p)).join(' · ')}</div>
       )}
@@ -214,6 +220,7 @@ const ProductsPage = () => {
           <CTableHeaderCell>Código</CTableHeaderCell>
           <CTableHeaderCell>Nombre</CTableHeaderCell>
           <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
           <CTableHeaderCell>Dimensiones</CTableHeaderCell>
           <CTableHeaderCell>Grosor</CTableHeaderCell>
           <CTableHeaderCell>Familia</CTableHeaderCell>
@@ -229,6 +236,7 @@ const ProductsPage = () => {
           <CTableHeaderCell>Código</CTableHeaderCell>
           <CTableHeaderCell>Nombre</CTableHeaderCell>
           <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
           <CTableHeaderCell>Grosor</CTableHeaderCell>
           <CTableHeaderCell>Ancho</CTableHeaderCell>
           <CTableHeaderCell>Tipo</CTableHeaderCell>
@@ -246,6 +254,7 @@ const ProductsPage = () => {
         <CTableHeaderCell>Código</CTableHeaderCell>
         <CTableHeaderCell>Nombre</CTableHeaderCell>
         <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
+        <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
         <CTableHeaderCell>Estado</CTableHeaderCell>
         <CTableHeaderCell />
       </>
@@ -290,6 +299,7 @@ const ProductsPage = () => {
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
           <PriceCell product={p} />
+          <PriceCell product={p} withTax />
           <CTableDataCell>
             {a.height && a.width ? `${a.height} × ${a.width} mm` : '—'}
           </CTableDataCell>
@@ -311,6 +321,7 @@ const ProductsPage = () => {
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
           <PriceCell product={p} />
+          <PriceCell product={p} withTax />
           <CTableDataCell>{a.thickness != null ? `${a.thickness} mm` : '—'}</CTableDataCell>
           <CTableDataCell>{a.width ? `${a.width} mm` : '—'}</CTableDataCell>
           <CTableDataCell>
@@ -335,13 +346,14 @@ const ProductsPage = () => {
         </CTableDataCell>
         <CTableDataCell>{p.name}</CTableDataCell>
         <PriceCell product={p} />
+        <PriceCell product={p} withTax />
         <CTableDataCell>{statusBadge}</CTableDataCell>
         {actions}
       </CTableRow>
     )
   }
 
-  const colSpan = singleType === 'board' ? 8 : singleType === 'edge_banding' ? 10 : 7
+  const colSpan = singleType === 'board' ? 9 : singleType === 'edge_banding' ? 11 : 8
 
   return (
     <>

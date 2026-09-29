@@ -42,6 +42,11 @@ interface ProductBase {
   price: number
   price2?: number | null
   price3?: number | null
+  // The same levels WITH tax, computed by the API at the configured rate (the
+  // seller cannot read `/settings/taxes`). Null where the net level is null.
+  priceWithTax: number
+  price2WithTax?: number | null
+  price3WithTax?: number | null
   isActive: boolean
   // What you WRITE is `familyId`; `family` is what you read.
   familyId?: number | null
