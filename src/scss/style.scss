@@ -129,33 +129,46 @@ input[type='number'] {
   }
 }
 
-// Wizard step trail. Each step has three states (done / current / locked), joined by a connector
-// drawn as a pseudo-element so it tracks the cells' own width instead of needing spacer elements
-// between them. Replaced below `md` by a position label plus a progress bar.
-.wizard-steps {
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 0;
+// The optimizer's step trail and its actions menu, as one compact line above the work: the trail
+// left-aligned, the menu at the far end. Inside the workspace, so it survives element fullscreen.
+.wizard-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-bottom: 0.75rem;
 }
 
-// The grid cell: an equal share of the row, which is what the connector math needs (it is written
-// against the cell's own width, so the step count can change). It is NOT the button — a cell-wide
-// hit area meant a click 200px away from a step still switched to it.
-.wizard-step {
-  position: relative;
+// Wizard step trail: compact and inline. Each step has three states (done / current / locked),
+// joined by a short connector drawn as a pseudo-element. It used to be a full-width row of 2rem
+// circles with the label underneath — a strip that read as a row of big buttons above the work. Now
+// it is one short line, and the content keeps the page.
+.wizard-steps {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
   color: var(--cui-secondary-color);
 
-  // Connector to the next step, stopping short of both markers.
+  // Connector to the next step. Fixed length: the trail is left-aligned, not spread across the row.
   &:not(:last-child)::after {
     content: '';
-    position: absolute;
-    top: 1rem;
-    left: calc(50% + 1.5rem);
-    right: calc(-50% + 1.5rem);
+    width: 1.5rem;
     height: 2px;
+    margin-inline: 0.125rem;
+    border-radius: 1px;
     background-color: var(--cui-border-color);
+
+    @media (max-width: 767.98px) {
+      width: 0.75rem;
+    }
   }
 
   // Done steps are the brand coral, not green: the trail reads as one progress bar filling up in a
@@ -170,26 +183,32 @@ input[type='number'] {
 
   &[data-state='current'] {
     color: var(--cui-body-color);
+    font-weight: 600;
   }
 }
 
 // The clickable part, shrink-wrapped around the marker and its label so the hit area matches what
 // the user is actually aiming at.
 .wizard-step-hit {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.25rem 0.75rem;
+  gap: 0.4rem;
+  padding: 0.25rem 0.375rem;
   border: 0;
   border-radius: var(--cui-border-radius);
   background: none;
   color: inherit;
+  font-size: 0.875rem;
+  font-weight: inherit;
 
-  // No hover background: the connector runs behind this box, so any fill here paints over the green
-  // segment of a completed step and reads as the line pulling back.
   &:not(:disabled) {
     cursor: pointer;
+  }
+
+  // A step you can go back (or ahead) to says so on hover; the one on screen does not react.
+  &:not(:disabled):not([aria-current]):hover .wizard-step-label {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
 
   &:disabled {
@@ -199,23 +218,23 @@ input[type='number'] {
 }
 
 .wizard-step-marker {
-  position: relative;
-  z-index: 1;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.375rem;
+  height: 1.375rem;
   border: 2px solid var(--cui-border-color);
   border-radius: 50%;
   background-color: var(--cui-body-bg);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  line-height: 1;
 
   .wizard-step[data-state='current'] & {
     border-color: var(--cui-primary);
     color: var(--cui-primary);
-    box-shadow: 0 0 0 0.2rem rgba(var(--cui-primary-rgb), 0.15);
+    box-shadow: 0 0 0 0.15rem rgba(var(--cui-primary-rgb), 0.15);
   }
 
   // The check is dark on coral for the same reason the buttons are (white would be 3.58:1).
@@ -278,7 +297,7 @@ input[type='number'] {
   }
 }
 
-// The board inside the fullscreen sheet overlay (the pre-order page and the wizard's Costos step). A 2440×1220 sheet is 2:1, so in a
+// The board inside the fullscreen sheet overlay (the pre-order page). A 2440×1220 sheet is 2:1, so in a
 // 7/12 column it is limited by WIDTH, not height — on a 16:10 screen that left the bottom half of
 // the dialog empty. Centring it in the space the dialog actually has costs nothing and stops the
 // overlay from looking broken.
@@ -300,6 +319,115 @@ input[type='number'] {
   }
 }
 
+// The chrome around the optimizer's full-height boxes — the Despiece scroll pane and the Optimización
+// canvas — so each one takes exactly the height left over and the page itself never scrolls. On the
+// page that is the sticky app header and its gap, the step row and the pinned footer; in element
+// fullscreen the header is gone and the workspace's own padding takes its place. Measured at
+// 1280×800: the footer lands on the bottom edge in both.
+.optimizer-workspace {
+  --pieces-pane-offset: 21.375rem;
+  --plan-step-offset: 13.5rem;
+}
+
+// The wizard's Optimización step: the cut plan drawn straight on the page, as large as the screen
+// allows. From `lg` the step takes exactly the height left between the step row and the pinned
+// footer, so the sheet never makes the page scroll; the alerts above the canvas take their share.
+.plan-step {
+  @media (min-width: 992px) {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--plan-step-offset));
+    min-height: 26rem;
+  }
+}
+
+// Sheet, pattern bar and inspector. No `.surface` under them: the drawing sits on the page's own
+// background, and the controls float over it as light panels. Floating in looks only — each panel
+// keeps its own grid cell, so none of them ever covers a piece.
+.plan-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @media (min-width: 992px) {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-areas:
+      'bar inspector'
+      'sheet inspector';
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+
+    // Hidden, the inspector hands its whole column to the sheet — a gain on a long 2:1 board, which
+    // runs out of width first; a near-square one is bound by the height either way.
+    &[data-inspector='closed'] {
+      grid-template-areas:
+        'bar'
+        'sheet';
+      grid-template-columns: minmax(0, 1fr);
+
+      .plan-canvas__inspector {
+        display: none;
+      }
+    }
+  }
+}
+
+.plan-float {
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg);
+  background-color: rgba(var(--cui-body-bg-rgb), 0.92);
+  box-shadow: var(--cui-box-shadow-sm);
+  backdrop-filter: blur(6px);
+}
+
+.plan-canvas__bar {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: bar;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+  padding: 0.3rem 0.4rem 0.3rem 0.75rem;
+
+  // One line from `lg`: a long board name ellipsizes rather than pushing the controls onto a second
+  // row, which would take the height straight out of the sheet.
+  @media (min-width: 992px) {
+    flex-wrap: nowrap;
+  }
+}
+
+// The stage. From `lg` it has a definite height (its grid row), so the zoom wrapper inside
+// `SheetSvg` is stretched to it and the svg's `max-height: 100%` resolves: the sheet fills the
+// stage, centred, whichever of width or height runs out first. Below `lg` none of this applies and
+// the sheet takes its natural height at full width.
+.plan-canvas__sheet {
+  grid-area: sheet;
+  min-width: 0;
+
+  @media (min-width: 992px) {
+    min-height: 0;
+
+    > div {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+  }
+}
+
+.plan-canvas__inspector {
+  grid-area: inspector;
+  padding: 0.75rem;
+
+  @media (min-width: 992px) {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
 // Fullscreen host for the optimizer: the Fullscreen API paints its own black backdrop and stretches
 // the element, so the theme background and scrolling have to be restored explicitly.
 //
@@ -307,6 +435,9 @@ input[type='number'] {
 // the same shade would dissolve it exactly where the workspace is at its largest. This is the page
 // background, so the footer — which already uses the same token — needs no override of its own.
 .optimizer-workspace:fullscreen {
+  --pieces-pane-offset: 18.25rem;
+  --plan-step-offset: 10.5rem;
+
   height: 100vh;
   overflow: auto;
   padding: 1rem;

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CButton, CProgress, CProgressBar } from '@coreui/react'
+import { CButton } from '@coreui/react'
 
 import { KEY } from 'src/shared/utils/platform'
 import { STEPS } from './useOptimizerWizard'
@@ -7,6 +7,10 @@ import type { StepId } from './useOptimizerWizard'
 
 // Step indicator. Built from plain buttons rather than CoreUI's CTabs: a tab has two states and a
 // step has three (done / current / locked), and CoreUI free ships no stepper.
+//
+// One compact line — small marker, label beside it, a short connector — rather than a row of big
+// circles spread across the page: it has to say where the seller is without competing with the work.
+// It sits at the start of the page's first row, with the actions menu at the other end.
 
 interface WizardStepsProps {
   index: number
@@ -17,8 +21,8 @@ interface WizardStepsProps {
   blockedReasonFor: (id: StepId) => string
   onSelect: (id: StepId) => void
   // The page's actions menu. It rides on this row because the row exists anyway — the alternative
-  // was a toolbar of its own above it, which is exactly what this redesign removed. It also has to
-  // stay inside the page: the app header sits outside the fullscreen element and is never painted.
+  // was a toolbar of its own, which is exactly what the redesign removed. It has to stay inside the
+  // page: the app header sits outside the fullscreen element and is never painted there.
   actions?: ReactNode
 }
 
@@ -28,57 +32,47 @@ const WizardSteps = ({
   blockedReasonFor,
   onSelect,
   actions,
-}: WizardStepsProps) => {
-  const current = STEPS[index]
-
-  return (
-    <div className="d-flex align-items-center gap-2 mb-3">
-      {/* From `md` up: the full trail. */}
-      <nav
-        className="wizard-steps d-none d-md-grid flex-grow-1 min-w-0"
-        aria-label="Pasos del optimizador"
-      >
+}: WizardStepsProps) => (
+  <div className="wizard-bar">
+    <nav aria-label="Pasos del optimizador" style={{ minWidth: 0 }}>
+      <ol className="wizard-steps">
         {STEPS.map((s, i) => {
           const state = i < index ? 'done' : i === index ? 'current' : 'todo'
           const locked = i > maxIndex
-          // The cell carries the state and the connector; the button inside it carries the click.
-          // They used to be the same element, which made a quarter of the row a hit target for a
-          // step whose marker was hundreds of pixels away.
           return (
-            <div key={s.id} className="wizard-step" data-state={state}>
+            <li key={s.id} className="wizard-step" data-state={state}>
               <button
                 type="button"
                 className="wizard-step-hit"
                 disabled={locked}
                 aria-current={i === index ? 'step' : undefined}
+                // Below `md` only the current step keeps its label, so the name has to live here
+                // too for the markers that are down to a number.
+                aria-label={s.label}
                 title={locked ? blockedReasonFor(s.id) : undefined}
                 onClick={() => onSelect(s.id)}
               >
-                <span className="wizard-step-marker">{state === 'done' ? '✓' : i + 1}</span>
-                <span className="wizard-step-label small">{s.label}</span>
+                <span className="wizard-step-marker" aria-hidden="true">
+                  {state === 'done' ? '✓' : i + 1}
+                </span>
+                {/* A phone cannot carry four labels beside the menu: there the markers show the
+                    progress and only the step on screen is named. */}
+                <span
+                  className={`wizard-step-label${i === index ? '' : ' d-none d-md-inline'}`}
+                  aria-hidden="true"
+                >
+                  {s.label}
+                </span>
               </button>
-            </div>
+            </li>
           )
         })}
-      </nav>
+      </ol>
+    </nav>
 
-      {/* Below `md` the trail doesn't fit; the position plus a bar carries the same information. */}
-      <div className="d-md-none flex-grow-1 min-w-0">
-        <div className="d-flex justify-content-between align-items-baseline mb-1">
-          <strong className="small">{current?.label}</strong>
-          <span className="text-body-secondary small">
-            Paso {index + 1} de {STEPS.length}
-          </span>
-        </div>
-        <CProgress height={4}>
-          <CProgressBar value={((index + 1) / STEPS.length) * 100} />
-        </CProgress>
-      </div>
-
-      {actions}
-    </div>
-  )
-}
+    {actions && <div className="ms-auto">{actions}</div>}
+  </div>
+)
 
 interface WizardFooterProps {
   onBack?: () => void

@@ -11,10 +11,11 @@ import PiecesNav from '../PiecesNav'
 // Step 1. The pieces editor at full page width — the whole point of the wizard: PieceRowsTable is a
 // 12-column grid and used to live in 58% of the viewport next to the diagrams.
 //
-// Height of the scroll pane: the app header, the step trail, the nav bar above it and the pinned
-// footer are what it has to leave room for. Everything on this step is then reachable without the
-// page itself scrolling at all.
-const PANE_HEIGHT = 'calc(100dvh - 21rem)'
+// Height of the scroll pane: the app header, the step row, the nav bar above it and the pinned footer
+// are what it has to leave room for. Everything on this step is then reachable without the page
+// itself scrolling at all. The offset is a CSS variable (`.optimizer-workspace` in style.scss) so
+// element fullscreen, where the app header is gone, hands that room to the pane.
+const PANE_HEIGHT = 'calc(100dvh - var(--pieces-pane-offset))'
 
 // A row number the alerts name is only useful if it goes somewhere. `#47` is a flat index across
 // every material, which is exactly the number a user cannot locate by eye.

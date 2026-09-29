@@ -39,6 +39,7 @@ import OptimizerActionsMenu from './OptimizerActionsMenu'
 import PiecesSelectionBar from './PiecesSelectionBar'
 import PiecesSummary from './PiecesSummary'
 import PiecesStep from './steps/PiecesStep'
+import LayoutStep from './steps/LayoutStep'
 import CostsStep from './steps/CostsStep'
 import QuoteStep from './steps/QuoteStep'
 import DeleteMaterialModal from './DeleteMaterialModal'
@@ -47,6 +48,9 @@ import DraftsModal from './DraftsModal'
 import SaveDraftModal from './SaveDraftModal'
 import LayoutEditorModal from './layoutEditor/LayoutEditorModal'
 import type { EditorFocus } from './layoutEditor/useLayoutEditor'
+import OptimizingOverlay from './OptimizingOverlay'
+import { PlanFacts } from './CutLayoutDiagram'
+import { meters } from './summaryTables'
 
 // One-line summary of the blocked rows, for the toast. The per-row reasons stay in the alert.
 const issuesSummary = (issues: RequirementIssue[]): string => {
@@ -237,7 +241,8 @@ const OptimizerPage = () => {
     unplacedCount,
   })
   const onPieces = wizard.step === 'pieces'
-  const onCosts = wizard.step === 'costs'
+  // The two steps that read the plan; the run and "Volver a optimizar" belong to them.
+  const onPlan = wizard.step === 'layout' || wizard.step === 'costs'
 
   // Is there work that would be lost on reset? (more than one material, any with data, or non-empty pieces)
   const hasWork =
@@ -498,13 +503,17 @@ const OptimizerPage = () => {
     wizard.goTo(id)
   }
 
-  // Entering the Costos step computes what is missing: a first run, or a re-run because the pieces
-  // changed. The Despiece step already validated, so there is nothing to report here. This is what
-  // replaced the Optimización step — the run is no longer a stop of its own, it is what arriving at
-  // the prices does. Note the wizard gates Costos on piece DATA, not on a result: gating it on a
-  // result would mean this effect could never fire.
+  // Entering any step past Despiece computes what is missing: a first run, or a re-run because the
+  // pieces changed. Every one of them reads the result — Optimización draws it, Costos prices it,
+  // Cotización sums it up — and the trail lets the seller jump straight from Despiece to any of
+  // them, so arriving is what runs it, wherever they land. Cotización included: without it, a
+  // measure changed in Despiece and a click on "Cotización" showed the previous plan's total. If the
+  // new plan leaves a piece out, the wizard's clamp sends the seller back to Costos, where it says so.
+  // The Despiece step already validated, so there is nothing to report here. Note the wizard gates
+  // these steps on piece DATA, not on a result: gating them on a result would mean this effect could
+  // never fire.
   useEffect(() => {
-    if (wizard.step !== 'costs') return
+    if (wizard.step === 'pieces') return
     if (optimize.isPending || !canOptimize) return
     // A debounced re-price is already on its way with these very inputs. Ticking a per-board mark
     // moves the signature, so without this the effect would fire the SAME payload one render later
@@ -661,7 +670,7 @@ const OptimizerPage = () => {
     onDeleteSelection: onPieces && pieces.selected.size > 0 ? pieces.removeSelected : undefined,
     onToggleCollapseAll: onPieces ? groups.toggleAll : undefined,
     onToggleFullscreen: canFullscreen ? toggle : undefined,
-    onOptimize: onCosts && canRunOptimize && !optimize.isPending ? handleRun : undefined,
+    onOptimize: onPlan && canRunOptimize && !optimize.isPending ? handleRun : undefined,
     onFind: onPieces ? nav.focusSearch : undefined,
     onImport: onPieces ? () => setShowImport(true) : undefined,
     onExport: onPieces && hasPieceData ? () => handleExport() : undefined,
@@ -693,152 +702,202 @@ const OptimizerPage = () => {
   const handleExport = () =>
     downloadCsv('piezas.csv', requirementsToCsv(pieces.requirements, materials, boards))
 
-  // No page title and no toolbar: the breadcrumb in the app header names the page, and everything the
-  // four buttons used to do is a keyboard shortcut or an entry in the actions menu. What is left above
-  // the pieces is the step trail — one row instead of three.
-  return (
-    <div ref={containerRef} className="optimizer-workspace">
-      <WizardSteps
-        index={wizard.index}
-        maxIndex={wizard.maxIndex}
-        blockedReasonFor={wizard.blockedReasonFor}
-        onSelect={handleSelectStep}
-        actions={
-          <OptimizerActionsMenu
-            onFind={onPieces ? nav.focusSearch : undefined}
-            onImport={onPieces ? () => setShowImport(true) : undefined}
-            onExport={onPieces ? handleExport : undefined}
-            exportDisabled={!hasPieceData}
-            onClear={
-              onPieces
-                ? () => {
-                    pieces.clear()
-                    setMaterials([emptyMaterial()])
-                  }
-                : undefined
-            }
-            clearsMaterials
-            onOptimize={onCosts ? handleRun : undefined}
-            hasResult={hasResult}
-            optimizeDisabled={!canRunOptimize}
-            isOptimizing={optimize.isPending}
-            variant={variant}
-            onToggleCollapseAll={onPieces ? groups.toggleAll : undefined}
-            allCollapsed={groups.allCollapsed}
-            collapseDisabled={materials.length === 0}
-            onToggleFullscreen={canFullscreen ? toggle : undefined}
-            isFullscreen={isFullscreen}
-            onNew={handleNew}
-            onOpenDrafts={() => setShowDrafts(true)}
-            onSaveDraft={handleSaveDraft}
-            isSavingDraft={saveDraft.isPending}
-            savedFlash={savedFlash}
-            container={modalContainer}
-          />
+  // The step trail with the actions menu at the end of its row: one compact line above the work, and
+  // the only thing there is — no title, no toolbar. It stays inside the workspace so it survives
+  // element fullscreen, where the app header is not painted.
+  const stepBar = (
+    <WizardSteps
+      index={wizard.index}
+      maxIndex={wizard.maxIndex}
+      blockedReasonFor={wizard.blockedReasonFor}
+      onSelect={handleSelectStep}
+      actions={
+        <OptimizerActionsMenu
+          onFind={onPieces ? nav.focusSearch : undefined}
+          onImport={onPieces ? () => setShowImport(true) : undefined}
+          onExport={onPieces ? handleExport : undefined}
+          exportDisabled={!hasPieceData}
+          onClear={
+            onPieces
+              ? () => {
+                  pieces.clear()
+                  setMaterials([emptyMaterial()])
+                }
+              : undefined
+          }
+          clearsMaterials
+          onOptimize={onPlan ? handleRun : undefined}
+          hasResult={hasResult}
+          optimizeDisabled={!canRunOptimize}
+          isOptimizing={optimize.isPending}
+          variant={variant}
+          onToggleCollapseAll={onPieces ? groups.toggleAll : undefined}
+          allCollapsed={groups.allCollapsed}
+          collapseDisabled={materials.length === 0}
+          onToggleFullscreen={canFullscreen ? toggle : undefined}
+          isFullscreen={isFullscreen}
+          onNew={handleNew}
+          onOpenDrafts={() => setShowDrafts(true)}
+          onSaveDraft={handleSaveDraft}
+          isSavingDraft={saveDraft.isPending}
+          savedFlash={savedFlash}
+          container={modalContainer}
+        />
+      }
+    />
+  )
+
+  // What the pinned footer carries on its left, per step: the running totals (or the selection's
+  // actions) under the pieces, the plan in one line under the sheets.
+  const footerLeft = onPieces ? (
+    <>
+      <PiecesSelectionBar
+        editor={pieces}
+        materials={materials}
+        boards={boards}
+        container={modalContainer}
+      />
+      {/* The totals step aside while rows are marked: the bar is one line and the actions
+          are what the user is looking at right then. */}
+      {pieces.selected.size === 0 && (
+        <PiecesSummary requirements={pieces.requirements} materials={materials} />
+      )}
+    </>
+  ) : wizard.step === 'layout' && result && result.layoutGroups.length > 0 ? (
+    // Not on a phone: there it would put the bar on two lines, and the sheet's own stats sit right
+    // under it anyway.
+    <div className="d-none d-md-flex flex-wrap align-items-center gap-2" style={{ minWidth: 0 }}>
+      <PlanFacts
+        layoutGroups={result.layoutGroups}
+        adjustment={result.adjustmentSummary}
+        extra={
+          <>
+            <span className="small">
+              · corte <strong>{meters(result.totalCutLinearM)}</strong> · tapacanto{' '}
+              <strong>{meters(result.totalEdgeBandingLinearM)}</strong>
+            </span>
+            {/* Which alternative is on screen: it names the run, it does not measure the plan. */}
+            {variant > 0 && (
+              <span className="small text-body-secondary">alternativa #{variant}</span>
+            )}
+          </>
         }
       />
+    </div>
+  ) : undefined
 
-      {/* One surface for whichever step is active. The trail above it and the footer below stay on
-          the page background — that contrast is what separates them from the work. */}
-      <div className="surface">
-        {wizard.step === 'pieces' && (
-          <PiecesStep
-            editor={pieces}
-            materials={materials}
-            boards={boards}
-            edgeBandings={edgeBandings}
-            container={modalContainer}
-            nav={nav}
-            issues={issues}
-            onDismissIssues={() => setIssues([])}
-            missingBanding={missingBanding}
-            collapsed={groups.collapsed}
-            onToggleGroup={groups.toggle}
-            onAddMaterial={addMaterial}
-            onUpdateMaterial={updateMaterial}
-            onRequestDeleteMaterial={requestDeleteMaterial}
-            onDuplicateMaterial={duplicateMaterial}
-          />
-        )}
+  return (
+    <div ref={containerRef} className="optimizer-workspace">
+      {stepBar}
 
-        {wizard.step === 'costs' && (
-          <CostsStep
-            result={result}
-            isSearching={isSearching}
-            error={optimize.error}
-            variant={variant}
-            isStale={isStale}
-            missingBanding={missingBanding}
-            priceLevel={priceLevel}
-            onPriceLevelChange={handlePriceLevelChange}
-            isPending={optimize.isPending || recalcScheduled}
-            leveledKeys={leveledKeys}
-            onToggleLevel={handleToggleLevel}
-            wholeBoardKeys={wholeBoardKeys}
-            onToggleWholeBoard={handleToggleWholeBoard}
-            services={services.lines}
-            onAddService={services.add}
-            onUpdateService={services.update}
-            onRemoveService={services.remove}
-            onAdjustLayout={(focus) => {
-              setEditorFocus(focus)
-              setEditingLayout(true)
-            }}
-            adjustDisabledReason={adjustDisabledReason}
-            container={modalContainer}
-          />
-        )}
+      {/* Over the viewport, whichever step started the search: pinned to a pane it got clipped and
+          could scroll out of view. */}
+      {isSearching && <OptimizingOverlay />}
 
-        {editingLayout && (
-          <LayoutEditorModal
-            request={editorRequest}
-            initial={layoutAdjustments}
-            focus={editorFocus}
-            onApply={handleApplyLayout}
-            onClose={() => setEditingLayout(false)}
-            container={modalContainer}
-          />
-        )}
+      {/* The plan is drawn straight on the page (see `LayoutStep`); every other step sits on one
+          surface. The footer below stays on the page background — that contrast is what separates it
+          from the work. */}
+      {wizard.step === 'layout' && (
+        <LayoutStep
+          result={result}
+          isSearching={isSearching}
+          error={optimize.error}
+          isStale={isStale}
+          onRetry={handleOptimize}
+          onAdjust={(focus) => {
+            track('layout_editor_opened')
+            setEditorFocus(focus)
+            setEditingLayout(true)
+          }}
+          adjustDisabledReason={adjustDisabledReason}
+          onToggleFullscreen={canFullscreen ? toggle : undefined}
+          isFullscreen={isFullscreen}
+        />
+      )}
 
-        {wizard.step === 'quote' && (
-          <QuoteStep
-            result={result}
-            materials={built.materials}
-            requirements={built.requirements}
-            priceLevel={priceLevel}
-            variant={variant}
-            layoutAdjustments={layoutAdjustments}
-            services={services.lines}
-            draft={quote.draft}
-            onDraftChange={quote.setField}
-            container={modalContainer}
-            onCreated={clearAutosave}
-          />
-        )}
-      </div>
+      {wizard.step !== 'layout' && (
+        <div className="surface">
+          {wizard.step === 'pieces' && (
+            <PiecesStep
+              editor={pieces}
+              materials={materials}
+              boards={boards}
+              edgeBandings={edgeBandings}
+              container={modalContainer}
+              nav={nav}
+              issues={issues}
+              onDismissIssues={() => setIssues([])}
+              missingBanding={missingBanding}
+              collapsed={groups.collapsed}
+              onToggleGroup={groups.toggle}
+              onAddMaterial={addMaterial}
+              onUpdateMaterial={updateMaterial}
+              onRequestDeleteMaterial={requestDeleteMaterial}
+              onDuplicateMaterial={duplicateMaterial}
+            />
+          )}
 
+          {wizard.step === 'costs' && (
+            <CostsStep
+              result={result}
+              isSearching={isSearching}
+              error={optimize.error}
+              isStale={isStale}
+              missingBanding={missingBanding}
+              priceLevel={priceLevel}
+              onPriceLevelChange={handlePriceLevelChange}
+              isPending={optimize.isPending || recalcScheduled}
+              leveledKeys={leveledKeys}
+              onToggleLevel={handleToggleLevel}
+              wholeBoardKeys={wholeBoardKeys}
+              onToggleWholeBoard={handleToggleWholeBoard}
+              services={services.lines}
+              onAddService={services.add}
+              onUpdateService={services.update}
+              onRemoveService={services.remove}
+              container={modalContainer}
+            />
+          )}
+
+          {wizard.step === 'quote' && (
+            <QuoteStep
+              result={result}
+              materials={built.materials}
+              requirements={built.requirements}
+              priceLevel={priceLevel}
+              variant={variant}
+              layoutAdjustments={layoutAdjustments}
+              services={services.lines}
+              draft={quote.draft}
+              onDraftChange={quote.setField}
+              container={modalContainer}
+              onCreated={clearAutosave}
+            />
+          )}
+        </div>
+      )}
+
+      {editingLayout && (
+        <LayoutEditorModal
+          request={editorRequest}
+          initial={layoutAdjustments}
+          focus={editorFocus}
+          onApply={handleApplyLayout}
+          onClose={() => setEditingLayout(false)}
+          container={modalContainer}
+        />
+      )}
+
+      {/* Each button names where it goes — "‹ Despiece", "Costos ›" — so the next stop is readable
+          without looking up at the trail. */}
       <WizardFooter
         onBack={wizard.index > 0 ? wizard.back : undefined}
+        backLabel={wizard.prevLabel}
         onNext={wizard.isLast ? undefined : handleNext}
+        nextLabel={wizard.nextLabel}
         nextDisabled={!wizard.canGoNext || optimize.isPending}
         nextHint={wizard.nextBlockedReason}
-        left={
-          onPieces ? (
-            <>
-              <PiecesSelectionBar
-                editor={pieces}
-                materials={materials}
-                boards={boards}
-                container={modalContainer}
-              />
-              {/* The totals step aside while rows are marked: the bar is one line and the actions
-                  are what the user is looking at right then. */}
-              {pieces.selected.size === 0 && (
-                <PiecesSummary requirements={pieces.requirements} materials={materials} />
-              )}
-            </>
-          ) : undefined
-        }
+        left={footerLeft}
       />
 
       <DeleteMaterialModal
