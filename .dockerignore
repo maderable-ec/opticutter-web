@@ -5,6 +5,13 @@ node_modules
 build
 coverage
 
+# Tests never run in the image. `@playwright/test` downloads no browser on `npm ci`.
+e2e
+playwright.config.ts
+test-results
+playwright-report
+blob-report
+
 .git
 .github
 .claude

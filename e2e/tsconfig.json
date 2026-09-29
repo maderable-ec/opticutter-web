@@ -1,0 +1,10 @@
+{
+  // The e2e specs, their fixtures and playwright.config.ts, under the app's own strict settings.
+  // Stub data imports the app's types (`import type` from src/), so the root `paths` apply here.
+  // Node's types stay out of the root program on purpose: they would retype `setTimeout` in src/.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [".", "../playwright.config.ts"]
+}

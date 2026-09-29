@@ -37,16 +37,23 @@ export default [
     },
   },
   // TypeScript type-checked rules (parser + recommended-type-checked), scoped to .ts/.tsx only.
+  // The e2e specs get the same rules as the app, but not the React ones: a Playwright fixture's
+  // `use()` reads as a hook to eslint-plugin-react-hooks.
   ...tseslint.configs.recommendedTypeChecked.map((config) => ({
     ...config,
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', 'playwright.config.ts'],
   })),
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', 'playwright.config.ts'],
     languageOptions: {
       parserOptions: {
-        // Type-aware linting: discover the nearest tsconfig for each file automatically.
-        projectService: true,
+        // Type-aware linting: discover the nearest tsconfig for each file automatically. The
+        // Playwright config sits at the root, whose tsconfig covers src/ alone: it is linted
+        // against e2e's, the program `tsc -p e2e` checks it in.
+        projectService: {
+          allowDefaultProject: ['playwright.config.ts'],
+          defaultProject: 'e2e/tsconfig.json',
+        },
         tsconfigRootDir: import.meta.dirname,
       },
     },

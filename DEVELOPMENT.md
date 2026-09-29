@@ -11,13 +11,37 @@
 ```bash
 npm install          # install dependencies
 npm start            # dev server → http://localhost:3000
-npm run typecheck    # tsc --noEmit (strict) — MUST pass before committing
-npm run lint         # eslint src — MUST pass before committing
+npm run validate     # typecheck (src + e2e) + eslint — MUST pass before committing
+npm test             # Vitest: unit tests of the pure logic — MUST pass before committing
+npm run test:e2e     # Playwright: flows on desktop + both workshop tablets (WebKit included)
+npm run screens      # Playwright: UX captures into e2e/.screens (never in CI)
 npm run build        # production build → build/
 npm run serve        # preview production build at http://localhost:4173
 ```
 
-**Before committing:** `npm run typecheck` + `npm run lint` + `npm run build` must all pass.
+**Before committing:** `npm run validate` + `npm test` + `npm run build` must all pass. CI also
+runs the e2e suite on Chromium.
+
+## Testing
+
+Two layers, no backend needed for either.
+
+- **Vitest** (`src/**/*.test.ts`, next to the module): pure logic only, no DOM. First in line are
+  the contracts mirrored with the backend (special edges, workshop codes, status transitions,
+  roles) and any rule with many branches. It reads `vite.config.mjs`, so `src/` imports resolve.
+- **Playwright** (`e2e/*.spec.ts`): the real SPA on the dev server with the API simulated. Import
+  `test`/`expect` from `e2e/fixtures/test.ts`, which gives every test:
+  - `api` — stubs per endpoint (`api.get`, `api.list`, `api.post`, `api.fail`…), wrapped in the
+    envelope `httpClient` unwraps. A request with no stub **fails the test** naming it, instead of
+    leaving an empty screen. `api.requests(method, path)` returns what was sent.
+  - `loginAs(roles)` — a session without credentials (`administrador`, not `admin`).
+  - Typed stub data in `e2e/fixtures/data.ts` and whole-screen stubs in `scenarios.ts`.
+- **Workshop screens** carry the `@taller` tag and also run at 960×544 (Infinix, Chromium) and
+  1080×735 (iPad, WebKit).
+- The suite reuses the dev server on :3000 when it is up; `E2E_PORT=3100 npm run test:e2e` runs
+  on a server of its own. Install the browsers once with `npx playwright install chromium webkit`.
+- `npm run screens` writes a PNG per scenario × viewport × theme plus a JSON with page overflow,
+  clipped text and axe (WCAG A/AA) violations. A new scenario goes in `e2e/screens/screens.spec.ts`.
 
 ## Adding a Feature
 
