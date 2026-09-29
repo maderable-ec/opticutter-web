@@ -49,5 +49,11 @@ export default defineConfig(() => {
         '/ingest': posthogProxy('https://us.i.posthog.com'),
       },
     },
+    // Vitest reads this same file, so the tests resolve the `src/` alias like the app does. Only
+    // pure logic is unit-tested (no DOM): the flows live in e2e/ under Playwright.
+    test: {
+      include: ['src/**/*.test.ts'],
+      environment: 'node',
+    },
   }
 })
