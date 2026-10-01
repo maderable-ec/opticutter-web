@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { CButton, CFormInput, CListGroup, CListGroupItem, CSpinner } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCheckAlt } from '@coreui/icons'
+import { CButton, CFormInput, CListGroup, CListGroupItem } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { MASK } from 'src/shared/analytics'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { clientName } from 'src/shared/utils/format'
 import { useClientsMin } from './useClients'
 import type { Client } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 // Picking one client out of the whole (server-searched) list, for a form that has to say
 // unmistakably WHICH client was picked.
@@ -60,8 +60,8 @@ const ClientPicker = ({
   if (value && !changing) {
     return (
       <div className="border rounded-3 p-2 d-flex align-items-center gap-2">
-        <CIcon icon={cilCheckAlt} className="text-primary flex-shrink-0" />
-        <div className="flex-grow-1 min-w-0" {...MASK}>
+        <Icon name="check" className="text-primary flex-shrink-0" />
+        <div className="flex-grow-1" style={{ minWidth: 0 }} {...MASK}>
           <div className="fw-semibold text-truncate">{clientName(value)}</div>
           <div className="small text-body-secondary text-truncate">
             @{value.identifier}
@@ -89,15 +89,18 @@ const ClientPicker = ({
         invalid={invalid}
         onChange={(e) => onSearchChange(e.target.value)}
       />
+      {/* A group of buttons, not a `listbox`: the rows have no selected state and no arrow-key
+          navigation, and axe flagged the listbox with no options in it. */}
       <div
         className="border rounded-3 mt-1 overflow-auto"
         style={{ maxHeight: 260 }}
-        role="listbox"
+        role="group"
         aria-label="Resultados de clientes"
+        aria-busy={isFetching || undefined}
       >
         {isFetching && clients.length === 0 ? (
           <div className="text-center py-3">
-            <CSpinner size="sm" color="primary" />
+            <Spinner size="sm" color="primary" />
           </div>
         ) : clients.length === 0 ? (
           <div className="px-3 py-3 small text-body-secondary">
@@ -107,7 +110,8 @@ const ClientPicker = ({
             </CButton>
           </div>
         ) : (
-          <CListGroup flush>
+          // A `div`, as Bootstrap has it for a list of buttons: a `ul` may only hold `li`.
+          <CListGroup as="div" flush>
             {clients.map((c) => (
               // No `active` state on the rows: Bootstrap paints it white on primary (3.58:1), the
               // contrast trap this palette keeps hitting. What says "this one" is the card above,
@@ -119,7 +123,7 @@ const ClientPicker = ({
                 className="d-flex align-items-center gap-2 text-start"
                 onClick={() => pick(c)}
               >
-                <div className="flex-grow-1 min-w-0" {...MASK}>
+                <div className="flex-grow-1" style={{ minWidth: 0 }} {...MASK}>
                   <div className="fw-semibold text-truncate">{clientName(c)}</div>
                   <div className="small text-body-secondary">@{c.identifier}</div>
                 </div>

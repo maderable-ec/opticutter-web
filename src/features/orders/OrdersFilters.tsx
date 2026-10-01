@@ -109,6 +109,7 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
           <div className="px-3 py-1">
             <CFormSelect
               size="sm"
+              aria-label="Sucursal"
               value={values.branchId}
               onChange={(e) => onChange('branchId', e.target.value)}
             >
@@ -178,6 +179,7 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
         <div className="px-3 py-1">
           <CFormSelect
             size="sm"
+            aria-label="Prioridad"
             value={values.isPriority}
             onChange={(e) => onChange('isPriority', e.target.value)}
           >
@@ -194,6 +196,7 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
         <div className="px-3 py-1 d-flex gap-2">
           <CFormSelect
             size="sm"
+            aria-label="Trabajo de taller"
             value={values.activity}
             onChange={(e) => onChange('activity', e.target.value as ActivityType | '')}
           >
@@ -205,6 +208,7 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
           </CFormSelect>
           <CFormSelect
             size="sm"
+            aria-label="Estado del trabajo"
             value={values.activityStatus}
             onChange={(e) => onChange('activityStatus', e.target.value as ActivityStatus | '')}
           >
@@ -221,6 +225,7 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
         <div className="px-3 py-1">
           <CFormSelect
             size="sm"
+            aria-label="Orden"
             value={values.sort}
             onChange={(e) => onChange('sort', e.target.value as OrderSort)}
           >
@@ -284,7 +289,7 @@ interface OrdersFiltersProps {
 // stays the shape of a page; ProductsPage is 450 lines mostly because its filter logic lives inline.
 //
 // Two panels over one set of fields, and the breakpoint picks: the dropdown from `md` up, the
-// full-screen `FilterSheet` below it (see that component for why a phone gets a different one).
+// `FilterSheet` below it (see that component for why a phone gets a different one).
 const OrdersFilters = ({
   values,
   search,

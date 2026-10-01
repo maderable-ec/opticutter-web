@@ -9,13 +9,10 @@ import {
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
   CRow,
-  CSpinner,
 } from '@coreui/react'
 
 import { track } from 'src/shared/analytics'
@@ -38,6 +35,10 @@ import PieceToolbar from './PieceToolbar'
 import { DIRECTION_LABELS } from './directions'
 import { useLayoutEditor } from './useLayoutEditor'
 import type { EditorFocus } from './useLayoutEditor'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import { useConfirm } from 'src/shared/hooks/useConfirm'
+import { fmtPercent } from 'src/shared/utils/format'
 
 // The layout editor: the seller rearranges the optimizer's plan by hand, sheet by sheet.
 //
@@ -187,11 +188,23 @@ const LayoutEditorModal = ({
     if (!inPlace) setSelected(null)
   }
 
-  const closeWithConfirm = () => {
-    if (editor.dirty && !window.confirm('¿Descartar los ajustes que no aplicaste?')) return
-    track('layout_editor_cancelled', { dirty: editor.dirty })
+  const [confirm, confirmDialog] = useConfirm()
+  const closeAfterAsking = async () => {
+    const dirty = editor.dirty
+    if (
+      dirty &&
+      !(await confirm({
+        title: 'Descartar los ajustes',
+        body: 'Los cambios que no aplicaste a la distribución se pierden.',
+        confirmLabel: 'Descartar',
+        tone: 'danger',
+      }))
+    )
+      return
+    track('layout_editor_cancelled', { dirty })
     onClose()
   }
+  const closeWithConfirm = () => void closeAfterAsking()
 
   const apply = () => {
     const adjustments = editor.result()
@@ -279,7 +292,7 @@ const LayoutEditorModal = ({
             : 'Arrastra una pieza para moverla · clic en una pieza o en un retazo para ver sus opciones · ← → cambian de hoja.'))
 
   return (
-    <CModal
+    <Modal
       visible
       fullscreen
       scrollable
@@ -289,7 +302,7 @@ const LayoutEditorModal = ({
       container={container}
     >
       <CModalHeader>
-        <CModalTitle className="d-flex align-items-center gap-2 flex-wrap">
+        <ModalTitle className="d-flex align-items-center gap-2 flex-wrap">
           <span>Ajustar distribución</span>
           {pools.length > 1 && (
             <span className="d-flex gap-1 flex-wrap">
@@ -311,13 +324,13 @@ const LayoutEditorModal = ({
           {pools.length === 1 && pool && (
             <span className="text-body-secondary fs-6">{pool.label}</span>
           )}
-        </CModalTitle>
+        </ModalTitle>
       </CModalHeader>
 
       <CModalBody style={{ scrollbarGutter: 'stable' }}>
         {!evaluation && (
           <div className="d-flex align-items-center gap-2 text-body-secondary">
-            <CSpinner size="sm" /> Cargando la distribución…
+            <Spinner size="sm" /> Cargando la distribución…
           </div>
         )}
 
@@ -354,7 +367,7 @@ const LayoutEditorModal = ({
                 <span className="text-body-secondary">· {sheetKind(bin, sheet)}</span>
                 {layout ? (
                   <span className="text-body-secondary">
-                    · {layout.statistics.efficiency.toFixed(1)}% aprovechada
+                    · {fmtPercent(layout.statistics.efficiency)} aprovechada
                   </span>
                 ) : (
                   <CBadge color="warning">Vacía: se elimina si no le pones piezas</CBadge>
@@ -494,7 +507,7 @@ const LayoutEditorModal = ({
             <CCol xs={12} lg={4} xxl={3}>
               {/* What changed against the optimizer's own plan. */}
               <div className="border rounded-3 p-2 mb-3 small">
-                <div className="text-uppercase fw-semibold text-body-secondary mb-1">Cambios</div>
+                <div className="eyebrow mb-1">Cambios</div>
                 <div className={summaryLine ? undefined : 'text-body-secondary'}>
                   {summaryLine || 'Sin cambios: es el plan del optimizador.'}
                 </div>
@@ -593,7 +606,7 @@ const LayoutEditorModal = ({
                   </div>
                   {extensions === null ? (
                     <div className="small text-body-secondary mt-2">
-                      <CSpinner size="sm" /> Buscando cómo agrandarlo…
+                      <Spinner size="sm" /> Buscando cómo agrandarlo…
                     </div>
                   ) : (
                     <>
@@ -664,9 +677,7 @@ const LayoutEditorModal = ({
 
               {/* Pieces off every sheet: where "Quitar" leaves them, where they are picked from. */}
               <div className="mb-3">
-                <div className="text-uppercase small fw-semibold text-body-secondary mb-1">
-                  Pendientes ({pending.length})
-                </div>
+                <div className="eyebrow mb-1">Pendientes ({pending.length})</div>
                 {pending.length === 0 ? (
                   <div className="small text-body-secondary">Todas las piezas están ubicadas.</div>
                 ) : (
@@ -703,9 +714,7 @@ const LayoutEditorModal = ({
               {/* Every sheet of the material; with a piece in hand, where it fits. */}
               <div>
                 <div className="d-flex align-items-center mb-1">
-                  <span className="text-uppercase small fw-semibold text-body-secondary">
-                    Hojas
-                  </span>
+                  <span className="eyebrow">Hojas</span>
                   <CDropdown className="ms-auto" variant="btn-group">
                     <CDropdownToggle
                       size="sm"
@@ -750,7 +759,7 @@ const LayoutEditorModal = ({
                         <span className="flex-grow-1">
                           {sheetKind(sheetBin, s)}
                           {s.layout
-                            ? ` · ${s.layout.statistics.efficiency.toFixed(0)}% · ${s.pieces.length} pz`
+                            ? ` · ${fmtPercent(s.layout.statistics.efficiency, 0)} · ${s.pieces.length} pz`
                             : ' · vacía'}
                         </span>
                         {s.layout?.adjusted && <span title="Modificada">•</span>}
@@ -808,7 +817,7 @@ const LayoutEditorModal = ({
               </CDropdownItem>
             </CDropdownMenu>
           </CDropdown>
-          {editor.busy && <CSpinner size="sm" />}
+          {editor.busy && <Spinner size="sm" />}
         </div>
         <div className="d-flex gap-2 align-items-center">
           {editor.blockedReason && !editor.busy && (
@@ -822,7 +831,8 @@ const LayoutEditorModal = ({
           </CButton>
         </div>
       </CModalFooter>
-    </CModal>
+      {confirmDialog}
+    </Modal>
   )
 }
 

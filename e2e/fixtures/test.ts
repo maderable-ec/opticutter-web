@@ -13,6 +13,18 @@ interface Fixtures {
 }
 
 export const test = base.extend<Fixtures>({
+  // The dev server mounts React Query's devtools button in the bottom-right corner, over the phone's
+  // «Más» and the action bar's last button. It never ships, so no test should have to click past it.
+  page: async ({ page }, use) => {
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style')
+        style.textContent = '.tsqd-parent-container { display: none !important }'
+        document.head.append(style)
+      })
+    })
+    await use(page)
+  },
   api: async ({ page }, use) => {
     const api = withAppDefaults(new MockApi())
     await api.install(page)

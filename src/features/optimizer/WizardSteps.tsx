@@ -1,7 +1,8 @@
+import { useId, useState } from 'react'
 import type { ReactNode } from 'react'
-import { CButton } from '@coreui/react'
+import { CCloseButton } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
-import { KEY } from 'src/shared/utils/platform'
 import { STEPS } from './useOptimizerWizard'
 import type { StepId } from './useOptimizerWizard'
 
@@ -11,6 +12,10 @@ import type { StepId } from './useOptimizerWizard'
 // One compact line — small marker, label beside it, a short connector — rather than a row of big
 // circles spread across the page: it has to say where the seller is without competing with the work.
 // It sits at the start of the page's first row, with the actions menu at the other end.
+//
+// A locked step still answers a tap. It used to be a disabled button with its reason in a `title`,
+// which a phone never shows: the tap did nothing and said nothing. Now it is `aria-disabled` — it
+// keeps its focus and its clicks — and a click prints the reason on a line under the trail.
 
 interface WizardStepsProps {
   index: number
@@ -32,115 +37,82 @@ const WizardSteps = ({
   blockedReasonFor,
   onSelect,
   actions,
-}: WizardStepsProps) => (
-  <div className="wizard-bar">
-    <nav aria-label="Pasos del optimizador" style={{ minWidth: 0 }}>
-      <ol className="wizard-steps">
-        {STEPS.map((s, i) => {
-          const state = i < index ? 'done' : i === index ? 'current' : 'todo'
-          const locked = i > maxIndex
-          return (
-            <li key={s.id} className="wizard-step" data-state={state}>
-              <button
-                type="button"
-                className="wizard-step-hit"
-                disabled={locked}
-                aria-current={i === index ? 'step' : undefined}
-                // Below `md` only the current step keeps its label, so the name has to live here
-                // too for the markers that are down to a number.
-                aria-label={s.label}
-                title={locked ? blockedReasonFor(s.id) : undefined}
-                onClick={() => onSelect(s.id)}
-              >
-                <span className="wizard-step-marker" aria-hidden="true">
-                  {state === 'done' ? '✓' : i + 1}
-                </span>
-                {/* A phone cannot carry four labels beside the menu: there the markers show the
-                    progress and only the step on screen is named. */}
-                <span
-                  className={`wizard-step-label${i === index ? '' : ' d-none d-md-inline'}`}
-                  aria-hidden="true"
-                >
-                  {s.label}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ol>
-    </nav>
+}: WizardStepsProps) => {
+  // The locked step last tapped, and the step the seller was on then. The line only speaks while
+  // both still hold — moving to another step, or the step opening up, retires it with no effect.
+  const [tapped, setTapped] = useState<{ id: StepId; at: number } | null>(null)
+  const noticeId = useId()
+  const tappedIndex = tapped ? STEPS.findIndex((s) => s.id === tapped.id) : -1
+  const notice =
+    tapped && tapped.at === index && tappedIndex > maxIndex ? blockedReasonFor(tapped.id) : null
 
-    {actions && <div className="ms-auto">{actions}</div>}
-  </div>
-)
+  return (
+    <>
+      <div className="wizard-bar">
+        <nav aria-label="Pasos del optimizador" style={{ minWidth: 0 }}>
+          <ol className="wizard-steps">
+            {STEPS.map((s, i) => {
+              const state = i < index ? 'done' : i === index ? 'current' : 'todo'
+              const locked = i > maxIndex
+              return (
+                <li key={s.id} className="wizard-step" data-state={state}>
+                  <button
+                    type="button"
+                    className="wizard-step-hit"
+                    aria-disabled={locked || undefined}
+                    aria-current={i === index ? 'step' : undefined}
+                    // Below `md` only the current step keeps its label, so the name has to live
+                    // here too for the markers that are down to a number.
+                    aria-label={s.label}
+                    aria-describedby={
+                      locked && notice && tapped?.id === s.id ? noticeId : undefined
+                    }
+                    title={locked ? blockedReasonFor(s.id) : undefined}
+                    onClick={() => {
+                      if (locked) {
+                        setTapped({ id: s.id, at: index })
+                        return
+                      }
+                      setTapped(null)
+                      onSelect(s.id)
+                    }}
+                  >
+                    <span className="wizard-step-marker" aria-hidden="true">
+                      {state === 'done' ? '✓' : i + 1}
+                    </span>
+                    {/* A phone cannot carry four labels beside the menu: there the markers show the
+                        progress and only the step on screen is named. */}
+                    <span
+                      className={`wizard-step-label${i === index ? '' : ' d-none d-md-inline'}`}
+                      aria-hidden="true"
+                    >
+                      {s.label}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </nav>
 
-interface WizardFooterProps {
-  onBack?: () => void
-  // Defaults to "Atrás" (a step back). The pre-order page leaves the record entirely, so it says so.
-  backLabel?: string
-  onNext?: () => void
-  nextLabel?: string
-  nextDisabled?: boolean
-  // Muted text next to a disabled "Siguiente", saying what is missing.
-  nextHint?: string
-  // Left half of the bar: the running totals, swapped for the selection actions while rows are
-  // marked. Both used to cost a row of their own above the list.
-  left?: ReactNode
-  // Extra actions for the step (e.g. the final "Crear cotización").
-  children?: ReactNode
-}
-
-// Pinned to the bottom of the viewport: the pieces list runs to dozens of rows, and a footer in
-// normal flow means scrolling the whole table to reach "Siguiente" — where it also ended up flush
-// against the app's own footer. The pre-order detail page mounts the same bar (it had a near-copy,
-// OptimizeActionBar, that sat at the sticky z-tier and painted over its own dropdowns).
-export const WizardFooter = ({
-  onBack,
-  backLabel = 'Atrás',
-  onNext,
-  nextLabel = 'Siguiente',
-  nextDisabled,
-  nextHint,
-  left,
-  children,
-}: WizardFooterProps) => (
-  <div className="wizard-footer">
-    <div className="d-flex flex-wrap align-items-center gap-2 p-2 border rounded-3 bg-body shadow-sm">
-      {onBack && (
-        // Below `sm` the label goes and only the chevron stays: on a phone "‹ Volver a órdenes"
-        // beside a status move pushed the bar onto two lines, and a two-line pinned bar is a fifth
-        // of the screen. The label survives as the accessible name.
-        <CButton
-          color="secondary"
-          variant="outline"
-          type="button"
-          title={`${KEY.alt}+←`}
-          aria-label={backLabel}
-          onClick={onBack}
-        >
-          ‹<span className="d-none d-sm-inline"> {backLabel}</span>
-        </CButton>
-      )}
-      {left}
-      <div className="ms-auto d-flex align-items-center gap-2">
-        {nextHint && nextDisabled && (
-          <span className="text-body-secondary small d-none d-sm-inline">{nextHint}</span>
-        )}
-        {children}
-        {onNext && (
-          <CButton
-            color="primary"
-            type="button"
-            disabled={nextDisabled}
-            title={nextDisabled ? nextHint : `${KEY.alt}+→`}
-            onClick={onNext}
-          >
-            {nextLabel} ›
-          </CButton>
-        )}
+        {actions && <div className="ms-auto">{actions}</div>}
       </div>
-    </div>
-  </div>
-)
+
+      {notice && tapped && (
+        <div id={noticeId} className="wizard-notice" role="status">
+          <Icon name="lock" className="flex-shrink-0" />
+          <span>
+            <strong>{STEPS[tappedIndex]?.label}:</strong> {notice}.
+          </span>
+          <CCloseButton
+            className="ms-auto flex-shrink-0"
+            aria-label="Cerrar aviso"
+            onClick={() => setTapped(null)}
+          />
+        </div>
+      )}
+    </>
+  )
+}
 
 export default WizardSteps

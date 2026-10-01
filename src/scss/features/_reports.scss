@@ -1,0 +1,338 @@
+@use '@coreui/coreui/scss/coreui' as *;
+
+// The reports (`/dashboard`, `/analytics/*`): a stack of `.surface` blocks, like Inicio. From `lg`
+// the short ones pair up on a six-column grid; the tracks are `minmax(0, 1fr)` for the reason
+// `.home` gives (an `auto` track grows to its widest unbreakable line).
+.report {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-content: start;
+
+  @include media-breakpoint-up(lg) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    > * {
+      grid-column: span 6;
+    }
+
+    > .report__half {
+      grid-column: span 3;
+    }
+
+    > .report__wide {
+      grid-column: span 4;
+    }
+
+    > .report__narrow {
+      grid-column: span 2;
+    }
+  }
+}
+
+// --- The filter row (`ReportFilters`) ---
+
+.report-filters__row {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+
+.report-filters__field {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+
+  .form-label {
+    margin: 0;
+    font-size: var(--mb-text-md);
+    font-weight: 600;
+  }
+}
+
+// What the phone's report is showing, beside the button that changes it.
+.report-filters__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.625rem;
+}
+
+.report-filters__scope {
+  min-width: 0;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+}
+
+.report-filters__stack {
+  display: grid;
+  gap: 1rem;
+}
+
+// --- A block (`ReportSection`) ---
+
+// A control that belongs to the block: full width under the title on a phone, at its right from
+// `sm`.
+.report-section__control {
+  flex: 1 1 100%;
+
+  @include media-breakpoint-up(sm) {
+    flex: 0 1 auto;
+  }
+}
+
+// Headline figures: two per row on a phone, as many as fit from there.
+.report-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(9rem, 40%), 1fr));
+  gap: 0.5rem;
+}
+
+// --- Bars in HTML (`BarList`) ---
+
+.bar-list {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bar-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.375rem;
+}
+
+.bar-list__label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.bar-list__figure {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+// The bar grows from one baseline on the left, 10px thick with a rounded data end and a square
+// start; the wash past it (a stage's p90) is the same hue, light.
+.bar-list__track {
+  --bar-color: var(--mb-tech);
+
+  position: relative;
+  height: 0.625rem;
+
+  @each $tone in neutral, info, progress, success, danger, graphite {
+    &--#{$tone} {
+      --bar-color: var(--mb-tone-#{$tone}-mark);
+    }
+  }
+}
+
+.bar-list__bar,
+.bar-list__extent {
+  position: absolute;
+  inset-block: 0;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+}
+
+.bar-list__bar {
+  left: 0;
+  width: var(--bar-size);
+  background-color: var(--bar-color);
+}
+
+.bar-list__extent {
+  left: var(--bar-start);
+  width: var(--bar-size);
+  background-color: color-mix(in srgb, var(--bar-color) 28%, transparent);
+}
+
+.bar-list__detail {
+  margin-top: 0.25rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}
+
+// The branch the page is filtered to, in a comparison of all of them.
+.bar-list__row.is-current .bar-list__label {
+  font-weight: 600;
+}
+
+// --- A chart (`LineChartFigure`) ---
+
+.report-chart {
+  margin: 0;
+}
+
+// The canvas's box, x-axis band included, so the block never grows a scroll of its own.
+.report-chart__canvas {
+  position: relative;
+  height: 14rem;
+
+  @include media-breakpoint-up(md) {
+    height: 18rem;
+  }
+}
+
+// The same numbers as a table, closed until asked for.
+.report-chart__data {
+  margin-top: 0.75rem;
+  font-size: var(--mb-text-md);
+
+  > summary {
+    width: fit-content;
+    color: var(--cui-link-color);
+    cursor: pointer;
+  }
+
+  table {
+    max-width: 28rem;
+    margin-top: 0.5rem;
+  }
+}
+
+// --- Productividad ---
+
+// A sortable column head (`SortHeader`): the header's own look, as a button a keyboard reaches.
+.sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.sort-button__icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+// A group of figures on a phone's card: «CORTE  120 piezas · 14 tableros …».
+.productivity-lines {
+  display: grid;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.productivity-line {
+  display: grid;
+  gap: 0.125rem;
+
+  > .list-card__meta {
+    margin-top: 0;
+    color: var(--cui-body-color);
+  }
+}
+
+// --- Asistencia ---
+
+.attendance-threshold .form-control {
+  width: 8.5rem;
+}
+
+.attendance-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+
+  &.is-late {
+    color: var(--mb-tone-danger-fg);
+    font-weight: 600;
+  }
+}
+
+.attendance-entry__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+// How many times the person logged in that day, as a quiet tag after the time.
+.attendance-entry__count {
+  padding: 0 0.3rem;
+  border-radius: var(--cui-border-radius-pill);
+  background-color: var(--mb-tone-neutral-bg);
+  color: var(--mb-tone-neutral-fg);
+  font-size: var(--mb-text-xs);
+  font-weight: 600;
+}
+
+.attendance-late-count {
+  color: var(--mb-tone-danger-fg);
+  font-weight: 600;
+}
+
+// A phone's list of days: date and entry, three to a row at 360.
+.attendance-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.25rem 0.75rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--mb-text-md);
+
+  > li {
+    display: flex;
+    gap: 0.375rem;
+  }
+}
+
+.attendance-days__date {
+  color: var(--cui-secondary-color);
+}
+
+.attendance-all {
+  margin-top: 0.5rem;
+  font-size: var(--mb-text-md);
+
+  > summary {
+    width: fit-content;
+    color: var(--cui-link-color);
+    cursor: pointer;
+  }
+}
+
+// The name stays in view while thirty day-columns scroll under it.
+.attendance-table__name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--cui-body-bg);
+  box-shadow: inset -1px 0 0 var(--cui-border-color);
+}
+
+.attendance-table > thead .attendance-table__name {
+  z-index: 2;
+}
+
+// The dark header is a translucent wash (`.list-table`): pinned, the day-columns would scroll
+// visibly under it. The same wash over a solid surface.
+@include color-mode(dark) {
+  .attendance-table > thead .attendance-table__name {
+    background: linear-gradient(
+        rgba(var(--cui-primary-rgb), 0.18),
+        rgba(var(--cui-primary-rgb), 0.18)
+      )
+      var(--cui-body-bg);
+  }
+}

@@ -1,6 +1,5 @@
 import { CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilX } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { NO_CAPTURE } from 'src/shared/analytics'
 
@@ -38,7 +37,7 @@ const FilterChips = ({ chips, onClearAll }: FilterChipsProps) => {
             aria-label={`Quitar filtro ${chip.label}`}
             onClick={chip.onRemove}
           >
-            <CIcon icon={cilX} size="sm" />
+            <Icon name="close" size="sm" />
           </button>
         </span>
       ))}

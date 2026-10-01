@@ -9,8 +9,8 @@ import {
 } from '@coreui/react'
 
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
-import { fmtMoney } from 'src/shared/utils/format'
-import LineItemList from './LineItemList'
+import { fmtM2, fmtMoney, fmtPercent } from 'src/shared/utils/format'
+import LineItemList from 'src/shared/components/LineItemList'
 import type { OrderLine } from './types'
 
 // The material half of the billing snapshot: one row per board, priced at what it cost the day
@@ -50,8 +50,8 @@ const OrderBoardsTable = ({ lines }: OrderBoardsTableProps) => {
           detail: `${l.quantity} × ${fmtMoney(l.unitPriceSnapshot)}`,
           meta: [
             l.productCode,
-            l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : null,
-            l.totalAreaM2 != null ? `${l.totalAreaM2.toFixed(3)} m²` : null,
+            l.avgEfficiency != null ? fmtPercent(l.avgEfficiency) : null,
+            l.totalAreaM2 != null ? fmtM2(l.totalAreaM2, 3) : null,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -71,7 +71,7 @@ const OrderBoardsTable = ({ lines }: OrderBoardsTableProps) => {
               <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
               <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
               <CTableHeaderCell className="text-end">Eficiencia avg</CTableHeaderCell>
-              <CTableHeaderCell className="text-end">Área m²</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Área</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
           <CTableBody>
@@ -81,18 +81,14 @@ const OrderBoardsTable = ({ lines }: OrderBoardsTableProps) => {
                   {stripHalfSuffix(l.productName) ?? '—'}{' '}
                   {l.halfBoard && <CBadge color="info">½ medio</CBadge>}
                 </CTableDataCell>
-                <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
+                <CTableDataCell className="text-nowrap">{l.productCode ?? '—'}</CTableDataCell>
                 <CTableDataCell className="text-end">{l.quantity}</CTableDataCell>
                 <CTableDataCell className="text-end">
                   {fmtMoney(l.unitPriceSnapshot)}
                 </CTableDataCell>
                 <CTableDataCell className="text-end">{fmtMoney(l.lineTotal)}</CTableDataCell>
-                <CTableDataCell className="text-end">
-                  {l.avgEfficiency != null ? `${l.avgEfficiency.toFixed(1)}%` : '—'}
-                </CTableDataCell>
-                <CTableDataCell className="text-end">
-                  {l.totalAreaM2 != null ? `${l.totalAreaM2.toFixed(3)} m²` : '—'}
-                </CTableDataCell>
+                <CTableDataCell className="text-end">{fmtPercent(l.avgEfficiency)}</CTableDataCell>
+                <CTableDataCell className="text-end">{fmtM2(l.totalAreaM2, 3)}</CTableDataCell>
               </CTableRow>
             ))}
           </CTableBody>

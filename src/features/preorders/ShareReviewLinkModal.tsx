@@ -4,16 +4,14 @@ import {
   CButton,
   CFormInput,
   CInputGroup,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCopy } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { fmtDate } from 'src/shared/utils/format'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 // The one and only sighting of a review URL. The server stores just the token's sha256
 // (`review_service.py`), so `GET /review-link` reports the link's dates and status and never the url
@@ -55,9 +53,9 @@ const ShareReviewLinkModal = ({ state, code, onClose }: ShareReviewLinkModalProp
   // `lg` for the same reason TokenModal takes it: a 32-byte urlsafe token makes this url ~60
   // characters, and at the default width it is cut off inside its own field.
   return (
-    <CModal visible onClose={onClose} backdrop="static" size="lg">
+    <Modal visible onClose={onClose} backdrop="static" size="lg">
       <CModalHeader>
-        <CModalTitle>Enlace de revisión de {code}</CModalTitle>
+        <ModalTitle>Enlace de revisión de {code}</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <CAlert color="warning" className="py-2 small">
@@ -67,7 +65,7 @@ const ShareReviewLinkModal = ({ state, code, onClose }: ShareReviewLinkModalProp
         <CInputGroup>
           <CFormInput value={state.url} readOnly />
           <CButton color="primary" onClick={() => void copy()}>
-            <CIcon icon={cilCopy} className="me-1" />
+            <Icon name="copy" className="me-1" />
             {copied ? '¡Copiado!' : 'Copiar'}
           </CButton>
         </CInputGroup>
@@ -78,11 +76,11 @@ const ShareReviewLinkModal = ({ state, code, onClose }: ShareReviewLinkModalProp
       </CModalBody>
       <CModalFooter>
         {/* "Listo", not "Cerrar": the dialog exists to hand something over, and this says it landed. */}
-        <CButton color="secondary" onClick={onClose}>
+        <CButton color="secondary" variant="outline" onClick={onClose}>
           Listo
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

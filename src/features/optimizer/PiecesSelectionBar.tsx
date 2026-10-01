@@ -6,8 +6,7 @@ import {
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilActionUndo, cilCopy, cilMove, cilTrash } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import type { BoardProduct } from 'src/features/products/types'
 import type { ModalContainer } from './types'
@@ -45,7 +44,7 @@ const PiecesSelectionBar = ({ editor, materials, boards, container }: PiecesSele
           title="Deshacer (Ctrl+Z)"
           onClick={undo}
         >
-          <CIcon icon={cilActionUndo} className="me-1" />
+          <Icon name="undo" className="me-1" />
           Deshacer
         </CButton>
       )}
@@ -53,7 +52,7 @@ const PiecesSelectionBar = ({ editor, materials, boards, container }: PiecesSele
         <>
           <CDropdown variant="btn-group" portal container={container}>
             <CDropdownToggle size="sm" color="secondary" variant="outline">
-              <CIcon icon={cilMove} className="me-1" />
+              <Icon name="moveTo" className="me-1" />
               Mover a… ({selected.size})
             </CDropdownToggle>
             <CDropdownMenu>
@@ -72,7 +71,7 @@ const PiecesSelectionBar = ({ editor, materials, boards, container }: PiecesSele
           </CDropdown>
           <CButtonGroup size="sm">
             <CButton color="secondary" variant="outline" type="button" onClick={duplicateSelected}>
-              <CIcon icon={cilCopy} className="me-1" />
+              <Icon name="copy" className="me-1" />
               Duplicar ({selected.size})
             </CButton>
             <CButton
@@ -82,7 +81,7 @@ const PiecesSelectionBar = ({ editor, materials, boards, container }: PiecesSele
               title="Eliminar las piezas seleccionadas (Supr)"
               onClick={removeSelected}
             >
-              <CIcon icon={cilTrash} className="me-1" />
+              <Icon name="delete" className="me-1" />
               Eliminar ({selected.size})
             </CButton>
           </CButtonGroup>

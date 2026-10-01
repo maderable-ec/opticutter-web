@@ -2,7 +2,26 @@
 // Durations arrive in hours (float). Timestamps are UTC naive (no offset,
 // e.g. "2026-06-15T08:05:00") → must be treated as UTC and displayed in local time.
 
+import { fmtNumber, fmtPercent } from 'src/shared/utils/format'
 import type { Granularity } from './types'
+
+// The reports' precisions over the app's figures (`shared/utils/format.ts`, es-EC like the money).
+// A money axis: whole dollars, the cents would only crowd the ticks.
+const moneyTickFmt = new Intl.NumberFormat('es-EC', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+})
+
+export const fmtInt = (n: number) => fmtNumber(n)
+export const fmtDecimal = (n: number) => fmtNumber(n, 1)
+export const fmtRate = (n: number) => fmtNumber(n, 2)
+export const fmtMoneyTick = (n: number) => moneyTickFmt.format(n)
+// A ratio the API sends as 0-1 (`cancellationRate`).
+export const fmtRatio = (ratio: number) => fmtPercent(ratio * 100)
+// An hours axis: «1,5 h», with no forced decimal on the whole ones.
+const hoursTickFmt = new Intl.NumberFormat('es-EC', { maximumFractionDigits: 1 })
+export const fmtHoursTick = (n: number) => `${hoursTickFmt.format(n)} h`
 
 // A time-bucket 'YYYY-MM-DD' → human label depending on the chart granularity.
 export const fmtBucketLabel = (bucket: string, granularity: Granularity): string => {
@@ -37,8 +56,16 @@ export const fmtHours = (h: number): string => {
 const asUtc = (iso: string): Date => new Date(/[zZ]$/.test(iso) ? iso : `${iso}Z`)
 
 // Local "HH:MM" time from a UTC naive timestamp (used to display check-in time).
+// 24-hour, the clock the lateness threshold is typed in: «08:22», where es-EC's default was
+// «08:22 a. m.», twice as wide in a matrix of thirty columns.
 export const fmtLocalTime = (iso?: string | null): string =>
-  iso ? asUtc(iso).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' }) : '—'
+  iso
+    ? asUtc(iso).toLocaleTimeString('es-EC', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      })
+    : '—'
 
 // Local "HH:MM" in 24h zero-padded format, used to compare against a lateness
 // threshold also expressed as "HH:MM".

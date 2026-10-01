@@ -3,23 +3,23 @@ import {
   CFormSelect,
   CListGroup,
   CListGroupItem,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
 } from '@coreui/react'
 import { useDeleteDraft, useDrafts } from './useDrafts'
 
-import CIcon from '@coreui/icons-react'
-import { cilTrash } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useState } from 'react'
 import { MASK } from 'src/shared/analytics'
 import { fmtDate } from 'src/shared/utils/format'
 import type { ModalContainer } from './types'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import { useConfirm } from 'src/shared/hooks/useConfirm'
 
 interface DraftsModalProps {
   visible: boolean
@@ -37,21 +37,32 @@ const DraftsModal = ({ visible, loadingId, onLoad, container, onClose }: DraftsM
   const deleteDraft = useDeleteDraft()
   const drafts = data?.items ?? []
 
-  const handleDelete = (id: number, name: string) => {
-    if (!window.confirm(`¿Eliminar el borrador "${name}"? Esta acción no se puede deshacer.`))
-      return
-    deleteDraft.mutate(id)
+  // Asked from inside this dialog, so the question mounts inside it (see `ConfirmDialog`).
+  const [confirm, confirmDialog] = useConfirm()
+  const handleDelete = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: 'Eliminar borrador',
+      body: (
+        <>
+          <strong {...MASK}>{name}</strong> se borra y no puede recuperarse.
+        </>
+      ),
+      confirmLabel: 'Eliminar',
+      tone: 'danger',
+    })
+    if (ok) deleteDraft.mutate(id)
   }
 
   return (
-    <CModal visible={visible} onClose={onClose} size="lg" alignment="center" container={container}>
+    <Modal visible={visible} onClose={onClose} size="lg" alignment="center" container={container}>
       <CModalHeader>
-        <CModalTitle>Borradores guardados</CModalTitle>
+        <ModalTitle>Borradores guardados</ModalTitle>
       </CModalHeader>
       <CModalBody>
         {isGlobalBranch && (
           <CFormSelect
             className="mb-3"
+            aria-label="Sucursal"
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
           >
@@ -64,9 +75,7 @@ const DraftsModal = ({ visible, loadingId, onLoad, container, onClose }: DraftsM
           </CFormSelect>
         )}
         {isLoading ? (
-          <div className="text-center py-4">
-            <CSpinner />
-          </div>
+          <LoadingBlock rows={4} />
         ) : drafts.length === 0 ? (
           <p className="text-body-secondary text-center py-4 mb-0">
             No tienes borradores guardados todavía. Usa «Guardar borrador» para conservar tu trabajo
@@ -98,16 +107,17 @@ const DraftsModal = ({ visible, loadingId, onLoad, container, onClose }: DraftsM
                       disabled={isLoadingThis}
                       onClick={() => onLoad(d.id)}
                     >
-                      {isLoadingThis ? <CSpinner size="sm" /> : 'Cargar'}
+                      {isLoadingThis ? <Spinner size="sm" /> : 'Cargar'}
                     </CButton>
                     <CButton
                       color="danger"
                       variant="ghost"
                       size="sm"
                       disabled={isDeletingThis}
-                      onClick={() => handleDelete(d.id, d.name)}
+                      aria-label="Eliminar borrador"
+                      onClick={() => void handleDelete(d.id, d.name)}
                     >
-                      {isDeletingThis ? <CSpinner size="sm" /> : <CIcon icon={cilTrash} />}
+                      {isDeletingThis ? <Spinner size="sm" /> : <Icon name="delete" />}
                     </CButton>
                   </div>
                 </CListGroupItem>
@@ -117,11 +127,12 @@ const DraftsModal = ({ visible, loadingId, onLoad, container, onClose }: DraftsM
         )}
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" onClick={onClose}>
+        <CButton color="secondary" variant="outline" onClick={onClose}>
           Cerrar
         </CButton>
       </CModalFooter>
-    </CModal>
+      {confirmDialog}
+    </Modal>
   )
 }
 

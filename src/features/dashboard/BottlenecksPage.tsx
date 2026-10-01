@@ -1,214 +1,142 @@
-import { useState } from 'react'
-import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
-import { CChartBar, CChartLine } from '@coreui/react-chartjs'
-import { getStyle } from '@coreui/utils'
-import { useActiveBranches } from 'src/features/branches/useBranches'
-import DateRangeFilter from './components/DateRangeFilter'
+import { useId, useState, type ReactNode } from 'react'
+import { CFormLabel, CFormSelect } from '@coreui/react'
+import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
+import EmptyState from 'src/shared/components/EmptyState'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
+import ReportFilters from './components/ReportFilters'
+import ReportSection from './components/ReportSection'
+import BarList from './components/BarList'
+import LineChartFigure from './components/LineChartFigure'
 import { useBottlenecks } from './useAnalytics'
-import { fmtBucketLabel, fmtHours } from './format'
-import { formatDate, subDays } from 'src/shared/utils/date'
-import type { Granularity } from './types'
+import { useReportFilters } from './useReportFilters'
+import { fmtBucketLabel, fmtHours, fmtHoursTick, fmtInt } from './format'
+import { GRANULARITIES, GRANULARITY_NOUN } from './reportFilters'
+import type { BottleneckStageKey } from './types'
 
-// Stable color palette for the 6 stages in the time chart (in process order).
-const SERIES_COLORS = [
-  () => getStyle('--cui-primary'),
-  () => getStyle('--cui-info'),
-  () => getStyle('--cui-warning'),
-  () => getStyle('--cui-success'),
-  () => getStyle('--cui-danger'),
-  () => '#8a5cf6',
-] as const
+// A verdict on a row, not a colour: the slowest stage gets a pill with an icon and the word.
+const SLOWEST: Record<string, StatusConfigEntry> = {
+  slowest: { tone: 'danger', icon: 'warning', label: 'La más lenta' },
+}
 
-const GRAY = 'rgba(108, 117, 125, 0.4)'
+const plural = (n: number, one: string, other: string) => `${fmtInt(n)} ${n === 1 ? one : other}`
 
+// How long each stage of an order takes, slowest first (the API sorts by median), and how one
+// stage moved over the period.
 const BottlenecksPage = () => {
-  const [from, setFrom] = useState(() => formatDate(subDays(new Date(), 30)))
-  const [to, setTo] = useState(() => formatDate(new Date()))
-  const [granularity, setGranularity] = useState<Granularity>('day')
-  const [branch, setBranch] = useState('')
-
-  const { data: branches = [] } = useActiveBranches()
-  const branchId = branch ? Number(branch) : undefined
-
-  const { data, isLoading, error } = useBottlenecks(from, to, branchId, granularity)
+  const filters = useReportFilters()
+  const { from, to, branchId, granularity } = filters
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useBottlenecks(
+    from,
+    to,
+    branchId,
+    granularity,
+  )
+  const stageSelectId = useId()
+  const [picked, setPicked] = useState<BottleneckStageKey | null>(null)
 
   const stages = data?.stages ?? []
-  const series = data?.series ?? []
-  const buckets = data?.buckets ?? []
-  const hasData = stages.some((s) => s.sampleCount > 0)
+  const measured = stages.filter((s) => s.sampleCount > 0)
+  // The evolution opens on the slowest stage — the one the ranking just pointed at.
+  const stageKey = picked ?? measured[0]?.key ?? data?.series[0]?.key
+  const series = data?.series.find((s) => s.key === stageKey)
+  const noun = GRANULARITY_NOUN[granularity]
+
+  const body = (content: ReactNode) =>
+    isLoading ? (
+      <LoadingBlock rows={5} label="Cargando etapas…" />
+    ) : isError ? (
+      <ErrorState onRetry={() => void refetch()} />
+    ) : measured.length === 0 ? (
+      <EmptyState
+        title="Sin datos en el período"
+        hint="Ninguna orden creada en el período cerró todavía una etapa."
+      />
+    ) : (
+      content
+    )
 
   return (
-    <>
-      <DateRangeFilter
-        from={from}
-        to={to}
-        granularity={granularity}
-        onFromChange={setFrom}
-        onToChange={setTo}
-        onGranularityChange={setGranularity}
-        branches={branches}
-        branchId={branch}
-        onBranchChange={setBranch}
-      />
+    <div className="report">
+      <ReportFilters filters={filters} granularity />
 
-      <CCard className="mb-4">
-        <CCardHeader className="d-flex justify-content-between align-items-center">
-          <strong>Cuellos de botella</strong>
-          <span className="small text-body-secondary">Mediana por etapa · banda hasta p90</span>
-        </CCardHeader>
-        <CCardBody>
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
-            </div>
-          ) : error ? (
-            <div className="text-danger small">
-              Error cargando cuellos de botella: {error.message}
-            </div>
-          ) : !hasData ? (
-            <div className="text-body-secondary text-center py-5">Sin datos en el período</div>
-          ) : (
-            <CChartBar
-              style={{ height: `${Math.max(220, stages.length * 46)}px` }}
-              data={{
-                labels: stages.map((s) =>
-                  s.sampleCount === 0 ? `${s.label} (sin datos)` : s.label,
+      {/* The stages as bars rather than a canvas: the p90 and the sample size were only in a hover
+          tooltip, which a phone never shows. The median is the bar; the light wash runs on to the
+          p90, where 9 in 10 orders had already moved on. */}
+      <ReportSection
+        title="Cuánto tarda cada etapa"
+        caption="Mediana por etapa; la franja clara llega hasta el p90 (9 de cada 10 órdenes)."
+        refreshing={isPlaceholderData}
+      >
+        {body(
+          <BarList
+            label="Duración por etapa"
+            items={stages.map((stage, i) => {
+              const empty = stage.sampleCount === 0
+              return {
+                id: stage.key,
+                label: stage.label,
+                badge:
+                  i === 0 && !empty ? <StatusBadge config={SLOWEST} value="slowest" /> : undefined,
+                value: empty ? 0 : stage.medianHours,
+                extent: empty ? undefined : stage.p90Hours,
+                figure: empty ? (
+                  <span className="text-body-secondary">Sin datos</span>
+                ) : (
+                  <strong>{fmtHours(stage.medianHours)}</strong>
                 ),
-                datasets: [
-                  {
-                    label: 'Mediana',
-                    data: stages.map((s) => s.medianHours),
-                    backgroundColor: stages.map((s, i) =>
-                      s.sampleCount === 0
-                        ? GRAY
-                        : i === 0
-                          ? `rgba(${getStyle('--cui-danger-rgb')}, 0.85)` // worst bottleneck
-                          : `rgba(${getStyle('--cui-info-rgb')}, 0.75)`,
-                    ),
-                    borderRadius: 4,
-                    barPercentage: 0.7,
-                    grouped: false,
-                  },
-                  {
-                    // p90 band: floating bar [median, p90] rendered behind the median bar.
-                    label: 'p90',
-                    data: stages.map((s): [number, number] => [s.medianHours, s.p90Hours]),
-                    backgroundColor: 'rgba(130, 130, 130, 0.25)',
-                    barPercentage: 0.7,
-                    grouped: false,
-                  },
-                ],
-              }}
-              options={{
-                indexAxis: 'y',
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: { display: true, position: 'top' },
-                  tooltip: {
-                    // Single tooltip block per stage (prevents duplication when datasets overlap).
-                    filter: (item) => item.datasetIndex === 0,
-                    callbacks: {
-                      label: (ctx) => {
-                        const s = stages[ctx.dataIndex]
-                        if (!s) return []
-                        return [
-                          `Mediana: ${fmtHours(s.medianHours)}`,
-                          `p90: ${fmtHours(s.p90Hours)}`,
-                          `Promedio: ${fmtHours(s.avgHours)}`,
-                          `n = ${s.sampleCount}`,
-                        ]
-                      },
-                    },
-                  },
-                },
-                scales: {
-                  x: {
-                    beginAtZero: true,
-                    grid: { color: getStyle('--cui-border-color-translucent') },
-                    ticks: {
-                      color: getStyle('--cui-body-color'),
-                      callback: (v) => `${v} h`,
-                    },
-                  },
-                  y: {
-                    grid: { display: false },
-                    ticks: { color: getStyle('--cui-body-color') },
-                  },
-                },
-              }}
-            />
-          )}
-        </CCardBody>
-      </CCard>
+                detail: empty
+                  ? undefined
+                  : `p90 ${fmtHours(stage.p90Hours)} · promedio ${fmtHours(stage.avgHours)} · ${plural(stage.sampleCount, 'orden', 'órdenes')}`,
+              }
+            })}
+          />,
+        )}
+      </ReportSection>
 
-      <CCard className="mb-4">
-        <CCardHeader className="small fw-semibold text-body-secondary">
-          Evolución temporal por etapa
-        </CCardHeader>
-        <CCardBody>
-          {isLoading ? (
-            <div className="text-center py-5">
-              <CSpinner color="primary" />
+      {/* One stage at a time: seven lines on one plot were a tangle past any legend, worst on a
+          phone. The scale then fits the stage being read. */}
+      <ReportSection
+        title="Evolución"
+        caption={`Promedio de la etapa por ${noun}, según el día en que cerró.`}
+        refreshing={isPlaceholderData}
+        control={
+          data && measured.length > 0 ? (
+            <div className="report-filters__field">
+              <CFormLabel htmlFor={stageSelectId} className="visually-hidden">
+                Etapa
+              </CFormLabel>
+              <CFormSelect
+                id={stageSelectId}
+                value={stageKey ?? ''}
+                onChange={(e) => setPicked(e.target.value as BottleneckStageKey)}
+              >
+                {data.series.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </CFormSelect>
             </div>
-          ) : error ? (
-            <div className="text-danger small">
-              Error cargando la serie temporal: {error.message}
-            </div>
-          ) : buckets.length === 0 ? (
-            <div className="text-body-secondary text-center py-5">Sin datos en el período</div>
-          ) : (
-            <CChartLine
-              style={{ height: '320px' }}
-              data={{
-                labels: buckets.map((b) => fmtBucketLabel(b, granularity)),
-                datasets: series.map((s, i) => {
-                  const color = (SERIES_COLORS[i] ?? SERIES_COLORS[0])()
-                  return {
-                    label: s.label,
-                    data: s.avgHours,
-                    borderColor: color,
-                    backgroundColor: 'transparent',
-                    pointHoverBackgroundColor: color,
-                    borderWidth: 2,
-                    tension: 0.4,
-                  }
-                }),
-              }}
-              options={{
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: {
-                  legend: { display: true, position: 'top' },
-                  tooltip: {
-                    callbacks: {
-                      label: (ctx) => `${ctx.dataset.label}: ${fmtHours(ctx.parsed.y ?? 0)}`,
-                    },
-                  },
-                },
-                scales: {
-                  x: {
-                    grid: {
-                      color: getStyle('--cui-border-color-translucent'),
-                      drawOnChartArea: false,
-                    },
-                    ticks: { color: getStyle('--cui-body-color') },
-                  },
-                  y: {
-                    beginAtZero: true,
-                    grid: { color: getStyle('--cui-border-color-translucent') },
-                    ticks: {
-                      color: getStyle('--cui-body-color'),
-                      callback: (v) => `${v} h`,
-                      maxTicksLimit: 6,
-                    },
-                  },
-                },
-              }}
+          ) : undefined
+        }
+      >
+        {body(
+          series && data ? (
+            <LineChartFigure
+              title={`${series.label} · horas por ${noun}`}
+              periodLabel={GRANULARITIES.find((g) => g.id === granularity)?.label ?? 'Período'}
+              labels={data.buckets.map((b) => fmtBucketLabel(b, granularity))}
+              values={series.avgHours}
+              format={fmtHours}
+              tick={fmtHoursTick}
             />
-          )}
-        </CCardBody>
-      </CCard>
-    </>
+          ) : (
+            <EmptyState title="Sin datos en el período" />
+          ),
+        )}
+      </ReportSection>
+    </div>
   )
 }
 

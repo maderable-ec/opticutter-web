@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilMove, cilReload, cilTrash, cilX } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 // What can be done with the piece that was clicked, right next to it. A selection shows the
 // actions instead of starting one: the piece stays where it is until the seller picks a verb (or
@@ -93,7 +92,7 @@ const PieceToolbar = ({
         disabled={busy}
         title="Elige dónde soltarla, en esta hoja o en otra (← →). También puedes arrastrarla."
       >
-        <CIcon icon={cilMove} className="me-1" />
+        <Icon name="move" className="me-1" />
         Mover
       </CButton>
       <span title={canRotate ? 'Girar 90° (R)' : 'Veta fija: esta pieza no se puede girar'}>
@@ -104,7 +103,7 @@ const PieceToolbar = ({
           onClick={onRotate}
           disabled={busy || !canRotate}
         >
-          <CIcon icon={cilReload} className="me-1" />
+          <Icon name="rotatePiece" className="me-1" />
           Girar
         </CButton>
       </span>
@@ -116,7 +115,7 @@ const PieceToolbar = ({
         disabled={busy}
         title="La deja en Pendientes para ubicarla después (Supr)"
       >
-        <CIcon icon={cilTrash} className="me-1" />
+        <Icon name="delete" className="me-1" />
         Quitar
       </CButton>
       <CButton
@@ -127,7 +126,7 @@ const PieceToolbar = ({
         aria-label="Cerrar"
         title="Cerrar (Esc)"
       >
-        <CIcon icon={cilX} />
+        <Icon name="close" />
       </CButton>
     </div>
   )

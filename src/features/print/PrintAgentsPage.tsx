@@ -7,11 +7,9 @@ import {
   CFormLabel,
   CFormSelect,
   CFormSwitch,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -19,8 +17,7 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCopy, cilLoopCircular, cilPlus } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import QueryState from 'src/shared/components/QueryState'
 import { relativeTime } from 'src/shared/utils/date'
@@ -32,6 +29,8 @@ import {
   useRotatePrintAgentToken,
   useSetPrintAgentActive,
 } from './usePrintAgents'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
 
 // An agent that has never polled has no presence to report yet; anything else is "how long ago".
 const presence = (agent: PrintAgent) =>
@@ -59,9 +58,9 @@ const TokenModal = ({ state, onClose }: { state: TokenModalState; onClose: () =>
   }
 
   return (
-    <CModal visible onClose={onClose} backdrop="static" size="lg">
+    <Modal visible onClose={onClose} backdrop="static" size="lg">
       <CModalHeader>
-        <CModalTitle>Token de {state.agentName}</CModalTitle>
+        <ModalTitle>Token de {state.agentName}</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <CAlert color="warning" className="py-2">
@@ -74,17 +73,17 @@ const TokenModal = ({ state, onClose }: { state: TokenModalState; onClose: () =>
         <div className="d-flex gap-2">
           <CFormInput value={state.token} readOnly className="font-monospace" />
           <CButton color="primary" variant="outline" onClick={() => void copy()}>
-            <CIcon icon={cilCopy} className="me-1" />
+            <Icon name="copy" className="me-1" />
             {copied ? 'Copiado' : 'Copiar'}
           </CButton>
         </div>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" onClick={onClose}>
+        <CButton color="secondary" variant="outline" onClick={onClose}>
           Cerrar
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 
@@ -149,7 +148,7 @@ const PrintAgentsPage = () => {
             en <strong>Sucursales</strong>.
           </p>
           <CButton color="primary" className="ms-auto" onClick={openCreate}>
-            <CIcon icon={cilPlus} className="me-1" />
+            <Icon name="add" className="me-1" />
             Nuevo agente
           </CButton>
         </div>
@@ -163,7 +162,9 @@ const PrintAgentsPage = () => {
                 <CTableHeaderCell>Nombre</CTableHeaderCell>
                 <CTableHeaderCell>Última conexión</CTableHeaderCell>
                 <CTableHeaderCell>Activo</CTableHeaderCell>
-                <CTableHeaderCell />
+                <CTableHeaderCell>
+                  <span className="visually-hidden">Acciones</span>
+                </CTableHeaderCell>
               </CTableRow>
             </CTableHead>
             <CTableBody>
@@ -200,7 +201,7 @@ const PrintAgentsPage = () => {
                         title="Emitir un token nuevo (revoca el anterior)"
                         onClick={() => setConfirmRotate(a)}
                       >
-                        <CIcon icon={cilLoopCircular} className="me-1" />
+                        <Icon name="renewToken" className="me-1" />
                         Rotar token
                       </CButton>
                     </CTableDataCell>
@@ -212,9 +213,14 @@ const PrintAgentsPage = () => {
         </QueryState>
       </div>
 
-      <CModal visible={formModal} onClose={() => setFormModal(false)} backdrop="static">
+      <Modal
+        visible={formModal}
+        onClose={() => setFormModal(false)}
+        backdrop="static"
+        fullscreen="md"
+      >
         <CModalHeader>
-          <CModalTitle>Nuevo agente</CModalTitle>
+          <ModalTitle>Nuevo agente</ModalTitle>
         </CModalHeader>
         <form onSubmit={submitCreate}>
           <CModalBody>
@@ -250,6 +256,7 @@ const PrintAgentsPage = () => {
           <CModalFooter>
             <CButton
               color="secondary"
+              variant="outline"
               onClick={() => setFormModal(false)}
               disabled={createAgent.isPending}
             >
@@ -260,25 +267,23 @@ const PrintAgentsPage = () => {
             </CButton>
           </CModalFooter>
         </form>
-      </CModal>
+      </Modal>
 
-      <CModal visible={confirmRotate !== null} onClose={() => setConfirmRotate(null)}>
-        <CModalHeader>
-          <CModalTitle>Rotar token</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          Se emitirá un token nuevo para <strong>{confirmRotate?.name}</strong> y el actual quedará
-          revocado. Ese agente dejará de imprimir hasta que actualices su <code>config.ini</code>.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setConfirmRotate(null)}>
-            Cancelar
-          </CButton>
-          <CButton color="primary" onClick={doRotate}>
-            Rotar
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <ConfirmDialog
+        visible={confirmRotate !== null}
+        title="Rotar token"
+        confirmLabel="Rotar"
+        onConfirm={doRotate}
+        onClose={() => setConfirmRotate(null)}
+        note={
+          <>
+            Ese agente deja de imprimir hasta que actualices su <code>config.ini</code>.
+          </>
+        }
+      >
+        Se emite un token nuevo para <strong>{confirmRotate?.name}</strong> y el actual queda
+        revocado.
+      </ConfirmDialog>
 
       {tokenModal && <TokenModal state={tokenModal} onClose={() => setTokenModal(null)} />}
     </>

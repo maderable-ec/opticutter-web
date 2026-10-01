@@ -7,10 +7,10 @@ import {
   CFormTextarea,
   CModalBody,
   CModalFooter,
-  CSpinner,
 } from '@coreui/react'
 import { apiErrorMessage } from 'src/shared/api/errors'
 import type { ProductFamily, ProductFamilyPayload } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 interface ProductFamilyFormProps {
   family: ProductFamily | null
@@ -75,11 +75,11 @@ const ProductFamilyForm = ({
       </CModalBody>
 
       <CModalFooter>
-        <CButton color="secondary" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+        <CButton color="secondary" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting && <CSpinner size="sm" className="me-1" />}
+          {isSubmitting && <Spinner size="sm" className="me-1" />}
           {family ? 'Guardar' : 'Crear familia'}
         </CButton>
       </CModalFooter>

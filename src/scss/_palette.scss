@@ -1,0 +1,46 @@
+// The MADERABLE palette, direction D ("tecnología + materiales", chosen 2026-09-29): warm graphite
+// neutrals that read as a board's surface, coral for the action, a technical teal for measures and
+// the optimization, and a wine red for danger. Raw values only — no CSS here. `style.scss` feeds
+// them to CoreUI and `_tokens.scss` publishes them as custom properties.
+//
+// The letterhead colours come from the backend (`opticutter-api/src/modules/optimizations/
+// documents.py`) and are duplicated on purpose: nothing serves them over the wire.
+
+// --- Brand (letterhead) ---
+$brand-coral: #e8564b; // BRAND_CORAL: the logo, the active nav mark, focus, selection
+$brand-orange: #ec7829; // BRAND_ORANGE
+$brand-black: #1d1d1b; // BRAND_BLACK
+$brand-coral-soft: #fce9e6; // LIGHT_CORAL
+$brand-grey: #424242; // TEXT_GREY
+
+// --- Coral scale ---
+// The letterhead coral under white text is 3.58:1, under AA. Filled actions use the 600 step,
+// where white measures 4.77:1, so a button no longer needs the dark ink it wore before.
+$coral-600: #cc4238;
+$coral-700: #ae4038; // links on white: 5.85:1
+$coral-800: #8f342d; // link hover, text emphasis
+$coral-300: #ef7d74; // links on the dark surfaces
+$coral-200: #f4a39c;
+
+// --- Graphite neutrals (warm, derived from the brand black) ---
+$graphite-50: #faf9f6;
+$graphite-100: #f4f3ef; // page background
+$graphite-200: #efede7; // subtle fills, hover
+$graphite-300: #e2e0d8; // borders
+$graphite-400: #c9c6bc; // strong borders
+$graphite-500: #a19f96; // secondary text on dark
+$graphite-600: #62615a; // secondary text on light: 6.2:1 on white
+$graphite-700: #4a4943;
+$graphite-800: #33322e; // dark borders
+$graphite-850: #282825; // dark subtle fills
+$graphite-900: #1e1e1c; // dark surfaces
+$graphite-950: #151513; // dark page background
+
+// --- Technical accent: measures, the optimization, information ---
+$teal-600: #0e7490; // white on it: 5.36:1
+$teal-400: #3aa3bd;
+
+// --- Semantic ---
+$success: #1e7b3a;
+$warning: #efa51a; // a fill under dark ink
+$danger: #9f1239; // wine: ΔE 24 from the coral fill, where #b42318 sat at 11 and read as the same red

@@ -1,20 +1,13 @@
 import type { ReactNode } from 'react'
-import {
-  CAlert,
-  CButton,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CSpinner,
-} from '@coreui/react'
+import { CAlert, CButton, CModalBody, CModalFooter, CModalHeader } from '@coreui/react'
 
 import { MASK } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
 import type { ApiErrorItem } from 'src/shared/api/types'
 import { useClientsSyncPreview, useSyncClients } from './useClients'
 import type { ClientSyncIssue, ClientSyncResult } from './types'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface SyncClientsModalProps {
   visible: boolean
@@ -171,14 +164,14 @@ const SyncClientsModal = ({ visible, onClose, onSynced }: SyncClientsModalProps)
   const busy = apply.isPending || (visible && preview.isFetching)
 
   return (
-    <CModal visible={visible} onClose={close} size="lg" alignment="center">
+    <Modal visible={visible} onClose={close} size="lg" alignment="center" fullscreen="md">
       <CModalHeader>
-        <CModalTitle>Sincronizar clientes</CModalTitle>
+        <ModalTitle>Sincronizar clientes</ModalTitle>
       </CModalHeader>
       <CModalBody>
         {busy && (
           <div className="py-4 text-center">
-            <CSpinner size="sm" className="me-2" />
+            <Spinner size="sm" className="me-2" />
             {apply.isPending ? 'Sincronizando…' : 'Consultando el sistema externo…'}
           </div>
         )}
@@ -240,7 +233,7 @@ const SyncClientsModal = ({ visible, onClose, onSynced }: SyncClientsModalProps)
             <CButton color="secondary" variant="outline" onClick={handleRetry}>
               Reintentar
             </CButton>
-            <CButton color="secondary" onClick={close}>
+            <CButton color="secondary" variant="outline" onClick={close}>
               Cerrar
             </CButton>
           </>
@@ -261,7 +254,7 @@ const SyncClientsModal = ({ visible, onClose, onSynced }: SyncClientsModalProps)
           </>
         )}
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

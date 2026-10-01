@@ -2,8 +2,7 @@ import type { KeyboardEvent } from 'react'
 import { useEffect, useRef } from 'react'
 import type { CSSProperties } from 'react'
 import { CBadge, CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilChevronLeft, cilChevronRight, cilWarning } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SearchInput from 'src/shared/components/SearchInput'
 import type { BoardProduct } from 'src/features/products/types'
@@ -46,12 +45,18 @@ const PiecesNav = ({ nav, materials, requirements, boards }: PiecesNavProps) => 
   const stripRef = useRef<HTMLDivElement>(null)
 
   // Keep the active chip in view while the pane scrolls, or the strip stops being a compass the
-  // moment there are more materials than fit the row. Same move as the workshop's board strip.
+  // moment there are more materials than fit the row. Scrolls the STRIP only, sideways: on a phone
+  // the page is what scrolls, the strip is above the fold, and `scrollIntoView` would have dragged
+  // the whole page back up to it on every material the reader passed.
   useEffect(() => {
-    if (!activeMaterialUid) return
-    stripRef.current
-      ?.querySelector<HTMLElement>(`[data-chip-uid="${activeMaterialUid}"]`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    const strip = stripRef.current
+    const chip = strip?.querySelector<HTMLElement>(`[data-chip-uid="${activeMaterialUid}"]`)
+    if (!strip || !chip) return
+    const offset = chip.getBoundingClientRect().left - strip.getBoundingClientRect().left
+    strip.scrollTo({
+      left: strip.scrollLeft + offset - (strip.clientWidth - chip.offsetWidth) / 2,
+      behavior: 'smooth',
+    })
   }, [activeMaterialUid])
 
   const counts = new Map<string, number>()
@@ -108,7 +113,7 @@ const PiecesNav = ({ nav, materials, requirements, boards }: PiecesNavProps) => 
               title="Coincidencia anterior (Shift+Enter)"
               onClick={() => goToMatch(-1)}
             >
-              <CIcon icon={cilChevronLeft} />
+              <Icon name="chevronLeft" />
             </CButton>
             <CButton
               size="sm"
@@ -120,7 +125,7 @@ const PiecesNav = ({ nav, materials, requirements, boards }: PiecesNavProps) => 
               title="Coincidencia siguiente (Enter)"
               onClick={() => goToMatch(1)}
             >
-              <CIcon icon={cilChevronRight} />
+              <Icon name="chevronRight" />
             </CButton>
           </div>
         )}
@@ -137,9 +142,9 @@ const PiecesNav = ({ nav, materials, requirements, boards }: PiecesNavProps) => 
             title="Ir a la siguiente pieza incompleta"
             onClick={() => goToNextIssue()}
           >
-            <CIcon icon={cilWarning} className="me-1" />
+            <Icon name="warning" className="me-1" />
             {issues.length === 1 ? '1 incompleta' : `${issues.length} incompletas`}
-            <CIcon icon={cilChevronRight} className="ms-1" />
+            <Icon name="chevronRight" className="ms-1" />
           </CButton>
         )}
       </div>

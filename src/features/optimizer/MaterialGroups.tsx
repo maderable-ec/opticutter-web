@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPlus } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { ModalContainer } from './types'
@@ -12,6 +12,7 @@ import type { PiecesNavigation } from './usePiecesNavigation'
 import { accentFor } from './groupColors'
 import MaterialGroupCard from './MaterialGroupCard'
 import MaterialModal from './MaterialModal'
+import PieceEditSheet from './PieceEditSheet'
 
 // The pieces list, and nothing else. It used to be a CCard whose header carried nine buttons and
 // whose body held bordered group cards — a box inside a box inside a box before the first table row.
@@ -29,7 +30,9 @@ interface MaterialGroupsProps {
   // Height of the ONE scroll box the whole list shares. Each group used to own a 55vh box of its
   // own, so three open materials meant four nested scroll contexts and a wheel that behaved
   // differently depending on where the cursor was. Now there is one, and both sticky headers (the
-  // material's, then the table's) stick to it. Omitted ⇒ the list grows with the page.
+  // material's, then the table's) stick to it. Omitted ⇒ the list grows with the page. Only from
+  // `md`: on a phone the page itself scrolls (`.pieces-pane`), because a box sized for a laptop
+  // left a phone two nested scrolls and a third of the screen for the list.
   paneHeight?: string
   // Search and jump. Optional: a call site with no navigation renders the plain list.
   nav?: PiecesNavigation
@@ -69,6 +72,9 @@ const MaterialGroups = ({
   // each of them would buy nothing. One modal for the whole list, by uid.
   const [configuringUid, setConfiguringUid] = useState<string | null>(null)
   const configuring = materials.find((m) => m.uid === configuringUid) ?? null
+  // The piece open in the phone's edit sheet, by flat index. One sheet for the whole list, owned
+  // here for the same reason as the material modal.
+  const [editingPiece, setEditingPiece] = useState<number | null>(null)
 
   const validUids = validMaterialUids(materials)
 
@@ -87,7 +93,10 @@ const MaterialGroups = ({
   const matches = useMemo(() => new Set(nav?.matches ?? []), [nav?.matches])
 
   return (
-    <div className="mb-3 pieces-pane" style={paneHeight ? { height: paneHeight } : undefined}>
+    <div
+      className="mb-3 pieces-pane"
+      style={paneHeight ? ({ '--pieces-pane-h': paneHeight } as CSSProperties) : undefined}
+    >
       {materials.length === 0 && (
         <div className="text-body-secondary small mb-2">
           Agrega al menos un material para empezar.
@@ -118,6 +127,7 @@ const MaterialGroups = ({
             onDuplicate={onDuplicateMaterial}
             onConfigure={() => setConfiguringUid(m.uid)}
             onToggleSkipTrim={() => onUpdateMaterial(m.uid, 'skipTrim', !m.skipTrim)}
+            onOpenPiece={setEditingPiece}
           />
         )
       })}
@@ -133,9 +143,19 @@ const MaterialGroups = ({
         className="add-slot w-100"
         onClick={() => setConfiguringUid(onAddMaterial())}
       >
-        <CIcon icon={cilPlus} className="me-1" />
+        <Icon name="add" className="me-1" />
         Agregar material
       </CButton>
+
+      <PieceEditSheet
+        index={editingPiece}
+        editor={editor}
+        materials={materials}
+        boards={boards}
+        edgeBandings={edgeBandings}
+        container={container}
+        onClose={() => setEditingPiece(null)}
+      />
 
       <MaterialModal
         material={configuring}

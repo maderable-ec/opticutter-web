@@ -1,0 +1,69 @@
+@use '@coreui/coreui/scss/coreui' as *;
+
+// A business state as a soft pill: tinted fill, an ink that clears 4.5:1 on it, an icon and the
+// word. Never colour alone — the icon is a second channel for a colour-blind eye and at arm's length
+// on the shop floor, and the word is what a screen reader reads. Built on `.badge` for its size,
+// weight and tabular digits; the solid CoreUI fills it replaces put white text on light blue,
+// yellow and green, all under AA.
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  border-radius: var(--cui-border-radius-sm);
+  background-color: var(--mb-tone-neutral-bg);
+  color: var(--mb-tone-neutral-fg);
+  white-space: nowrap;
+
+  @each $tone in neutral, info, progress, success, danger, graphite {
+    &--#{$tone} {
+      background-color: var(--mb-tone-#{$tone}-bg);
+      color: var(--mb-tone-#{$tone}-fg);
+    }
+  }
+}
+
+// Pills drawn on a tinted strip (`OrderStatusStrip`): the strip of an order in process is the same
+// amber as the cut's pill, which vanished into it. A ring in the pill's own ink draws its edge on
+// any fill, in both themes, without giving up the tone that says the activity's state.
+.order-strip .status-pill {
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+// Icons sized to the pill's text, not CoreUI's default 1rem box.
+.status-pill__icon {
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+
+// The status badge as the handle for the history modal. A bare button so the badge keeps its own
+// shape — wrapping it in a `btn-link` would have given it link colour and an underline.
+.status-trigger {
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--cui-border-radius);
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+// The solid CoreUI badges that are not states yet (counts, marks). CoreUI prints them all in white,
+// which fails on the amber fill in both themes and on every fill the dark theme lightens. Each gets
+// the ink its fill needs.
+.badge.bg-warning {
+  color: var(--brand-black);
+}
+
+@include color-mode(dark) {
+  .badge.bg-primary,
+  .badge.bg-secondary,
+  .badge.bg-success,
+  .badge.bg-info,
+  .badge.bg-danger {
+    color: #151513;
+  }
+}

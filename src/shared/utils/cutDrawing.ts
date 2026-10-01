@@ -3,6 +3,8 @@
 // the optimizer preview, the workshop board, and the client's public review — and shared/ must never
 // import from a feature.
 
+import { fmtM2 } from './format'
+
 // Geometric side of a piece as drawn (post-rotation).
 export type EdgeSide = 'top' | 'bottom' | 'left' | 'right'
 
@@ -152,7 +154,7 @@ export const remainderLabel = (r: DrawableRemainder) =>
 // Hover text. Carries the unit and the area because it has the room the rectangle may not have, and
 // it is the only way to read a small leftover without zooming in.
 export const remainderTitle = (r: DrawableRemainder) =>
-  `${r.keptWhole ? 'Retazo entero' : 'Retazo'} ${remainderLabel(r)} mm · ${((r.width * r.height) / 1_000_000).toFixed(2)} m²`
+  `${r.keptWhole ? 'Retazo entero' : 'Retazo'} ${remainderLabel(r)} mm · ${fmtM2((r.width * r.height) / 1_000_000)}`
 
 // A «retazo entero» (kept in one piece on purpose) reads apart from an ordinary leftover by its outline:
 // solid instead of dashed, in a teal no piece colour or edge band uses, over a tinted fill.

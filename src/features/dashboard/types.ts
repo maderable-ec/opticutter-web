@@ -38,12 +38,6 @@ export interface StatusBreakdownData {
   items: StatusBreakdownItem[]
 }
 
-export interface OperationsStats {
-  averageEfficiency: number
-  totalAreaCutM2: number
-  wasteEstimateM2: number
-}
-
 // --- Bottlenecks (#1) -------------------------------------------------------
 // The 7 process stages (in process order, not by duration). Four come from the status history;
 // the three work stages come from the order's activity rows, which is what made them measurable

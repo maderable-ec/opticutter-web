@@ -1,7 +1,7 @@
-import { cilCheckAlt, cilClock, cilMediaPlay } from '@coreui/icons'
-
 import { hasAnyRole } from 'src/features/auth/permissions'
+import type { StatusTone } from 'src/shared/components/StatusBadge'
 import type { ActivityStatus, ActivityType, CardAction, OrderActivity } from './types'
+import type { IconName } from 'src/shared/icons/registry'
 
 // The work UNDER `in_process`, in one place — the companion of `status.ts`. The board used to
 // derive the banding's two buttons inline inside its `map`; with three activities and two roles
@@ -42,9 +42,9 @@ const STATUS_WORD: Record<ActivityStatus, string> = {
   done: 'listo',
 }
 
-const STATUS_COLOR: Record<ActivityStatus, string> = {
-  pending: 'secondary',
-  in_progress: 'warning',
+const STATUS_TONE: Record<ActivityStatus, StatusTone> = {
+  pending: 'neutral',
+  in_progress: 'progress',
   done: 'success',
 }
 
@@ -62,18 +62,18 @@ const STATUS_COLOR: Record<ActivityStatus, string> = {
  *
  * The three are told apart by SHAPE and not by colour — the rule `elapsed.ts` already follows,
  * and the one that keeps this legible for a colour-blind eye and at arm's length. A clock, a
- * play triangle and a check are three different silhouettes; a `cilSync`-style circle was
+ * play triangle and a check are three different silhouettes; a circular-arrows icon was
  * rejected for `in_progress` because at this size it is the same blob as the clock.
  */
-const STATUS_ICON: Record<ActivityStatus, string[]> = {
-  pending: cilClock,
-  in_progress: cilMediaPlay,
-  done: cilCheckAlt,
+const STATUS_ICON: Record<ActivityStatus, IconName> = {
+  pending: 'pending',
+  in_progress: 'inProgress',
+  done: 'done',
 }
 
 export interface ActivityBadgeConfig {
-  color: string
-  icon: string[]
+  tone: StatusTone
+  icon: IconName
   /** The track's name — the only text the badge prints. */
   label: string
   /** The word the icon stands for. Not printed; read by the tooltip and by a screen reader. */
@@ -81,7 +81,7 @@ export interface ActivityBadgeConfig {
 }
 
 export const activityBadge = (activity: OrderActivity): ActivityBadgeConfig => ({
-  color: STATUS_COLOR[activity.status],
+  tone: STATUS_TONE[activity.status],
   icon: STATUS_ICON[activity.status],
   label: ACTIVITY_LABEL[activity.type],
   statusWord: STATUS_WORD[activity.status],

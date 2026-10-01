@@ -3,12 +3,9 @@ import {
   CFormInput,
   CFormLabel,
   CFormSelect,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
 } from '@coreui/react'
 import { useCurrentUser, useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 
@@ -16,6 +13,8 @@ import { ApiError } from 'src/shared/api/types'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useState } from 'react'
 import type { ModalContainer } from './types'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface SaveDraftModalProps {
   visible: boolean
@@ -81,9 +80,9 @@ const SaveDraftModal = ({
   }
 
   return (
-    <CModal visible={visible} onClose={onClose} alignment="center" container={container}>
+    <Modal visible={visible} onClose={onClose} alignment="center" container={container}>
       <CModalHeader>
-        <CModalTitle>Guardar borrador</CModalTitle>
+        <ModalTitle>Guardar borrador</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <CFormLabel>Nombre del borrador</CFormLabel>
@@ -120,14 +119,14 @@ const SaveDraftModal = ({
         </p>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" onClick={onClose}>
+        <CButton color="secondary" variant="outline" onClick={onClose}>
           Cancelar
         </CButton>
         <CButton color="primary" disabled={!canSave} onClick={handleSave}>
-          {isSaving ? <CSpinner size="sm" /> : 'Guardar'}
+          {isSaving ? <Spinner size="sm" /> : 'Guardar'}
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

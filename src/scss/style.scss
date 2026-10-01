@@ -1,1519 +1,183 @@
-// MADERABLE brand palette, the same one the backend samples off the official letterhead
-// (`opticutter-api/src/modules/optimizations/documents.py`). Screen and document have to look like
-// the same company, so the hexes are duplicated here rather than approximated — nothing serves them
-// over the wire.
+// The theme: CoreUI configured with the MADERABLE palette, direction D (`_palette.scss` holds the
+// raw values and says why each one is what it is).
 //
-// The coral against white text is 3.58:1, under the AA floor for body text. Two consequences:
-//   - Buttons need no help. Bootstrap runs `color-contrast()` against `$min-contrast-ratio` (4.5)
-//     and picks the dark foreground on its own, which lands at 4.69:1.
-//   - Links DO, because they are body text. They get the coral shaded down to 5.85:1 on white.
+// Contrast, which is easy to break:
+//   - Filled actions are coral-600 under WHITE ink (4.77:1). The letterhead coral stays the brand
+//     mark, where white would be 3.58:1. Bootstrap's `color-contrast()` picks white on its own.
+//   - Links are body text, so they get the coral shaded down (5.85:1 on white; the lighter coral-300
+//     on the dark surfaces).
+//   - CoreUI ships the `*-subtle` / `*-emphasis` companions HARD-CODED for its own purple theme
+//     (`$primary-bg-subtle: #cfc7f3`), not derived from the theme colours. Every one of them is
+//     restated here, or an alert or a subtle badge comes out lilac.
+//   - Buttons are compiled with the LIGHT theme colours; the `*-dark` values below only reach the
+//     utilities (`text-danger`, `bg-info`…) and `--cui-*` in dark mode, so they are tuned as text
+//     on the dark surface (5:1 or more).
+@use 'palette' as p;
 @use '@coreui/coreui/scss/coreui' as * with (
   $enable-deprecation-messages: false,
-  $primary: #e8564b,
-  $link-color: #ae4038,
-  $link-hover-color: #8f342d
+
+  // Neutrals: CoreUI's cool blue-grey replaced by the warm graphite scale.
+  $gray-base: p.$graphite-800,
+  $gray-100: p.$graphite-100,
+  $gray-200: p.$graphite-200,
+  $gray-300: p.$graphite-300,
+  $gray-400: p.$graphite-400,
+  $gray-500: p.$graphite-500,
+  $gray-600: #7a7870,
+  $gray-700: p.$graphite-700,
+  $gray-800: p.$graphite-800,
+  $gray-900: p.$graphite-900,
+  $black: p.$graphite-950,
+
+  // Theme colours
+  $primary: p.$coral-600,
+  $secondary: p.$graphite-600,
+  $success: p.$success,
+  $info: p.$teal-600,
+  $warning: p.$warning,
+  $danger: p.$danger,
+  $light: p.$graphite-100,
+  $dark: p.$brand-black,
+
+  $primary-text-emphasis: p.$coral-800,
+  $secondary-text-emphasis: p.$graphite-800,
+  $success-text-emphasis: #1c6b34,
+  $info-text-emphasis: #0b5e73,
+  $warning-text-emphasis: #8a4a06,
+  $danger-text-emphasis: #881337,
+  $light-text-emphasis: p.$graphite-700,
+  $dark-text-emphasis: p.$graphite-800,
+
+  $primary-bg-subtle: p.$brand-coral-soft,
+  $secondary-bg-subtle: p.$graphite-200,
+  $success-bg-subtle: #e2f2e6,
+  $info-bg-subtle: #e1f0f3,
+  $warning-bg-subtle: #fcefd8,
+  $danger-bg-subtle: #fce7ec,
+  $light-bg-subtle: p.$graphite-50,
+  $dark-bg-subtle: p.$graphite-400,
+
+  $primary-border-subtle: #f4c3bd,
+  $secondary-border-subtle: #d6d3ca,
+  $success-border-subtle: #b5dec0,
+  $info-border-subtle: #b3dae3,
+  $warning-border-subtle: #f4d39a,
+  $danger-border-subtle: #f2bacb,
+  $light-border-subtle: p.$graphite-300,
+  $dark-border-subtle: p.$graphite-500,
+
+  // Body: white surfaces on the warm page background (`tertiary`).
+  $body-color: p.$brand-black,
+  $body-bg: #fff,
+  $body-secondary-color: p.$graphite-600,
+  $body-secondary-bg: p.$graphite-200,
+  $body-tertiary-color: #8c8a82,
+  $body-tertiary-bg: p.$graphite-100,
+  $body-emphasis-color: p.$graphite-950,
+  $border-color: p.$graphite-300,
+  $link-color: p.$coral-700,
+  $link-hover-color: p.$coral-800,
+
+  // Dark theme
+  $primary-dark: p.$brand-coral,
+  $secondary-dark: p.$graphite-500,
+  $success-dark: #5dbb78,
+  $info-dark: p.$teal-400,
+  $warning-dark: p.$warning,
+  $danger-dark: #e36a8a,
+
+  $primary-text-emphasis-dark: p.$coral-200,
+  $secondary-text-emphasis-dark: #d6d4cb,
+  $success-text-emphasis-dark: #8cd39e,
+  $info-text-emphasis-dark: #9fd6e3,
+  $warning-text-emphasis-dark: #f2c27a,
+  $danger-text-emphasis-dark: #f4a3b8,
+
+  $primary-bg-subtle-dark: #3a201d,
+  $secondary-bg-subtle-dark: #2c2b27,
+  $success-bg-subtle-dark: #16301d,
+  $info-bg-subtle-dark: #15313a,
+  $warning-bg-subtle-dark: #3a2a12,
+  $danger-bg-subtle-dark: #3b1522,
+
+  $primary-border-subtle-dark: #6b2e28,
+  $secondary-border-subtle-dark: p.$graphite-700,
+  $success-border-subtle-dark: #2a5a37,
+  $info-border-subtle-dark: #23505c,
+  $warning-border-subtle-dark: #6b4e1f,
+  $danger-border-subtle-dark: #6a2a3b,
+
+  $body-color-dark: #edebe4,
+  $body-bg-dark: p.$graphite-900,
+  $body-secondary-color-dark: p.$graphite-500,
+  $body-secondary-bg-dark: p.$graphite-850,
+  $body-tertiary-color-dark: #8c8a82,
+  // Lighter than the surface: CoreUI derives a translucent fill from it and refuses a darker one.
+  // The page background is its own token (`--mb-page-bg`).
+  $body-tertiary-bg-dark: #252523,
+  $body-emphasis-color-dark: #fff,
+  $border-color-dark: p.$graphite-800,
+  $link-color-dark: p.$coral-300,
+  $link-hover-color-dark: p.$coral-200,
+
+  // Type: IBM Plex Sans, self-hosted (the files ship with the build, so the CSP stays `'self'`). The
+  // scale is in `_tokens.scss` (`--mb-text-*`) and `_type.scss`; what CoreUI owns is set here so it
+  // agrees with it.
+  $font-family-sans-serif: (
+    'IBM Plex Sans Variable',
+    'IBM Plex Sans',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif,
+  ),
+  // Plex Mono is gone: it drew a code no differently from Plex Sans (neither file has a distinct
+  // zero) and two fields used it. A token to copy and a pasted list fall back to the system's.
+  $font-family-monospace: (SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace),
+  $headings-font-weight: 600,
+  // Weights: 400 text, 500 controls, 600 titles, codes, figures and emphasis. `<strong>` was
+  // `bolder`, a 700 in running text; 700 is now only the shop floor's, read from the saw.
+  $font-weight-bolder: 600,
+  $table-th-font-weight: 600,
+  // In rem, not em: `.small` inside `.small` shrank twice, and a status pill (`.badge`, 0.75em) in a
+  // `.small` line came out at 10.5px. Now a pill is 12px wherever it sits.
+  $small-font-size: 0.875rem,
+  $badge-font-size: 0.75rem,
+  $badge-font-weight: 600,
+
+  // Shape: 8px controls, 12px surfaces, two soft elevations.
+  $border-radius: 0.5rem,
+  $border-radius-sm: 0.375rem,
+  $border-radius-lg: 0.75rem,
+  $box-shadow-sm: (0 1px 2px rgba(29, 29, 27, 0.06), 0 1px 3px rgba(29, 29, 27, 0.08)),
+  $box-shadow: 0 4px 12px rgba(29, 29, 27, 0.1),
+  $box-shadow-lg: 0 12px 32px rgba(29, 29, 27, 0.16)
 );
 @use '@coreui/chartjs/scss/coreui-chartjs';
-@use 'vendors/simplebar';
 
-// The rest of the letterhead palette, for the places that need a brand colour which is not the
-// theme's primary — the cut diagram, the footer accent, tinted fills.
-:root {
-  --brand-coral: #e8564b; // documents.py BRAND_CORAL
-  --brand-orange: #ec7829; // documents.py BRAND_ORANGE
-  --brand-black: #1d1d1b; // documents.py BRAND_BLACK
-  --brand-coral-soft: #fce9e6; // documents.py LIGHT_CORAL
-  --brand-grey: #424242; // documents.py TEXT_GREY
-}
-
-body {
-  background-color: var(--cui-tertiary-bg);
-}
-
-.wrapper {
-  width: 100%;
-  padding-inline: var(--cui-sidebar-occupy-start, 0) var(--cui-sidebar-occupy-end, 0);
-  will-change: auto;
-  @include transition(padding 0.15s);
-}
-
-.header > .container-fluid,
-.sidebar-header {
-  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
-}
-
-.sidebar-brand-full {
-  margin-left: 3px;
-}
-
-.sidebar-header {
-  .nav-underline-border {
-    --cui-nav-underline-border-link-padding-x: 1rem;
-    --cui-nav-underline-border-gap: 0;
-  }
-
-  .nav-link {
-    display: flex;
-    align-items: center;
-    min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
-  }
-}
-
-.sidebar-toggler {
-  margin-inline-start: auto;
-}
-
-.sidebar-narrow,
-.sidebar-narrow-unfoldable:not(:hover) {
-  .sidebar-toggler {
-    margin-inline-end: auto;
-  }
-}
-
-// The breadcrumb moved into the header's only row, where it also serves as the page title. It has to
-// give way rather than push the bell and the user menu off the right edge, so the trail is a single
-// non-wrapping line that ellipsizes — deep paths like "Home / Órdenes / Orden #1234" get truncated
-// from the left-hand crumbs, which are the ones the user already knows.
-.header-breadcrumb .breadcrumb {
-  flex-wrap: nowrap;
-  margin-bottom: 0;
-  white-space: nowrap;
-
-  .breadcrumb-item {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-// On a phone the row leaves the trail ~140px, where three crumbs each ellipsized into nothing
-// readable. Below `md` it keeps only its LAST crumb and reads as the page's title. The last one and
-// not `.active`: a detail route (`/orders/:id`) has no crumb of its own — the trail only matches
-// literal paths — so there the last crumb is the "Órdenes" link, which is exactly the way back.
-@media (max-width: 767.98px) {
-  .header-breadcrumb .breadcrumb {
-    .breadcrumb-item:not(:last-child) {
-      display: none;
-    }
-
-    .breadcrumb-item:last-child {
-      padding-left: 0;
-      font-weight: 600;
-
-      &::before {
-        display: none;
-      }
-    }
-
-    .breadcrumb-item.active {
-      color: var(--cui-body-color);
-    }
-  }
-}
-
-.footer {
-  min-height: calc(3rem + 1px); // stylelint-disable-line function-disallowed-list
-}
-
-// The native spinner arrows sit under the cursor on a dense grid and step the value on a stray
-// click-drag, so a cut measurement changes with no visible cause. Removed everywhere; the wheel half
-// of the same problem is handled by `useNumberInputWheelGuard`.
-input[type='number'] {
-  appearance: textfield;
-  -moz-appearance: textfield;
-
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    appearance: none;
-    -webkit-appearance: none;
-    margin: 0;
-  }
-}
-
-// The optimizer's step trail and its actions menu, as one compact line above the work: the trail
-// left-aligned, the menu at the far end. Inside the workspace, so it survives element fullscreen.
-.wizard-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  margin-bottom: 0.75rem;
-}
-
-// Wizard step trail: compact and inline. Each step has three states (done / current / locked),
-// joined by a short connector drawn as a pseudo-element. It used to be a full-width row of 2rem
-// circles with the label underneath — a strip that read as a row of big buttons above the work. Now
-// it is one short line, and the content keeps the page.
-.wizard-steps {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  white-space: nowrap;
-}
-
-.wizard-step {
-  display: flex;
-  align-items: center;
-  color: var(--cui-secondary-color);
-
-  // Connector to the next step. Fixed length: the trail is left-aligned, not spread across the row.
-  &:not(:last-child)::after {
-    content: '';
-    width: 1.5rem;
-    height: 2px;
-    margin-inline: 0.125rem;
-    border-radius: 1px;
-    background-color: var(--cui-border-color);
-
-    @media (max-width: 767.98px) {
-      width: 0.75rem;
-    }
-  }
-
-  // Done steps are the brand coral, not green: the trail reads as one progress bar filling up in a
-  // single colour, instead of a green tail handing over to a coral head at the current step.
-  &[data-state='done'] {
-    color: var(--cui-body-color);
-
-    &::after {
-      background-color: var(--cui-primary);
-    }
-  }
-
-  &[data-state='current'] {
-    color: var(--cui-body-color);
-    font-weight: 600;
-  }
-}
-
-// The clickable part, shrink-wrapped around the marker and its label so the hit area matches what
-// the user is actually aiming at.
-.wizard-step-hit {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.375rem;
-  border: 0;
-  border-radius: var(--cui-border-radius);
-  background: none;
-  color: inherit;
-  font-size: 0.875rem;
-  font-weight: inherit;
-
-  &:not(:disabled) {
-    cursor: pointer;
-  }
-
-  // A step you can go back (or ahead) to says so on hover; the one on screen does not react.
-  &:not(:disabled):not([aria-current]):hover .wizard-step-label {
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.wizard-step-marker {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  border: 2px solid var(--cui-border-color);
-  border-radius: 50%;
-  background-color: var(--cui-body-bg);
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1;
-
-  .wizard-step[data-state='current'] & {
-    border-color: var(--cui-primary);
-    color: var(--cui-primary);
-    box-shadow: 0 0 0 0.15rem rgba(var(--cui-primary-rgb), 0.15);
-  }
-
-  // The check is dark on coral for the same reason the buttons are (white would be 3.58:1).
-  .wizard-step[data-state='done'] & {
-    border-color: var(--cui-primary);
-    background-color: var(--cui-primary);
-    color: var(--brand-black);
-  }
-}
-
-// The plane a screen's working content is drawn on. Dropping the per-step CCard was right — its
-// header only repeated the step's name from the trail — but it also left every control sitting
-// straight on the page's tertiary-bg, where an outline-secondary button is grey on grey. This gives
-// the content back a surface without giving it back a card: no header, no shadow, nothing to read as
-// a section. Named `.surface`, not `.wizard-surface`: the pre-order detail page uses the same plane
-// for a document that has no steps at all.
-.surface {
-  padding: 1rem;
-  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  border-radius: var(--cui-border-radius-lg);
-  background-color: var(--cui-body-bg);
-
-  // Together with the content container's `px-2` below `md`, this is ~40px of a 390px screen handed
-  // back to the content: a gutter plus a border plus a full rem of padding per side was a fifth of it.
-  @media (max-width: 767.98px) {
-    padding: 0.75rem;
-  }
-}
-
-// Wizard footer, pinned to the bottom of the viewport so "Siguiente" is reachable without scrolling
-// past a long pieces list. The vertical padding is inside the sticky box on purpose: it keeps the
-// bar clear of the app footer once the page is scrolled to the end.
-.wizard-footer {
-  position: sticky;
-  bottom: 0;
-  // Below Bootstrap's $zindex-dropdown (1000), not above it: the bar now hosts the actions menu's
-  // sibling controls and "Mover a…" opens upward out of it. At the sticky tier (1020) the bar
-  // painted over its own menus. Everything it must cover — the table's sticky cells — sits at 3.
-  z-index: 990;
-  padding-block: 0.75rem;
-  // Clear of the home indicator on a notched phone (`viewport-fit=cover` is set in index.html, which
-  // is what makes the inset non-zero).
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-  margin-top: 0.25rem;
-  background-color: var(--cui-tertiary-bg);
-}
-
-// The status badge as the handle for the history modal. A bare button so the badge keeps its own
-// shape — wrapping it in a `btn-link` would have given it link colour and an underline.
-.status-trigger {
-  padding: 0;
-  border: 0;
-  background: none;
-  line-height: 1;
-  cursor: pointer;
-  border-radius: var(--cui-border-radius);
-
-  &:hover {
-    opacity: 0.85;
-  }
-}
-
-// The board inside the fullscreen sheet overlay (the pre-order page). A 2440×1220 sheet is 2:1, so in a
-// 7/12 column it is limited by WIDTH, not height — on a 16:10 screen that left the bottom half of
-// the dialog empty. Centring it in the space the dialog actually has costs nothing and stops the
-// overlay from looking broken.
-//
-// Only from `lg`: below that the columns stack, and a full-viewport minimum height here would mean
-// scrolling a whole screen of padding before reaching the sheet's stats.
-@media (min-width: 992px) {
-  .sheet-overlay-stage {
-    display: flex;
-    align-items: center;
-    min-height: calc(100dvh - 12rem);
-
-    // The board wrapper is a plain block with no width of its own; as a flex item it would
-    // shrink-to-fit and collapse the SVG inside it.
-    > * {
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-  }
-}
-
-// The chrome around the optimizer's full-height boxes — the Despiece scroll pane and the Optimización
-// canvas — so each one takes exactly the height left over and the page itself never scrolls. On the
-// page that is the sticky app header and its gap, the step row and the pinned footer; in element
-// fullscreen the header is gone and the workspace's own padding takes its place. Measured at
-// 1280×800: the footer lands on the bottom edge in both.
-.optimizer-workspace {
-  --pieces-pane-offset: 21.375rem;
-  --plan-step-offset: 13.5rem;
-}
-
-// The wizard's Optimización step: the cut plan drawn straight on the page, as large as the screen
-// allows. From `lg` the step takes exactly the height left between the step row and the pinned
-// footer, so the sheet never makes the page scroll; the alerts above the canvas take their share.
-.plan-step {
-  @media (min-width: 992px) {
-    display: flex;
-    flex-direction: column;
-    height: calc(100dvh - var(--plan-step-offset));
-    min-height: 26rem;
-  }
-}
-
-// Sheet, pattern bar and inspector. No `.surface` under them: the drawing sits on the page's own
-// background, and the controls float over it as light panels. Floating in looks only — each panel
-// keeps its own grid cell, so none of them ever covers a piece.
-.plan-canvas {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-
-  @media (min-width: 992px) {
-    display: grid;
-    flex: 1 1 auto;
-    grid-template-areas:
-      'bar inspector'
-      'sheet inspector';
-    grid-template-columns: minmax(0, 1fr) 20rem;
-    grid-template-rows: auto minmax(0, 1fr);
-    min-height: 0;
-
-    // Hidden, the inspector hands its whole column to the sheet — a gain on a long 2:1 board, which
-    // runs out of width first; a near-square one is bound by the height either way.
-    &[data-inspector='closed'] {
-      grid-template-areas:
-        'bar'
-        'sheet';
-      grid-template-columns: minmax(0, 1fr);
-
-      .plan-canvas__inspector {
-        display: none;
-      }
-    }
-  }
-}
-
-.plan-float {
-  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  border-radius: var(--cui-border-radius-lg);
-  background-color: rgba(var(--cui-body-bg-rgb), 0.92);
-  box-shadow: var(--cui-box-shadow-sm);
-  backdrop-filter: blur(6px);
-}
-
-.plan-canvas__bar {
-  display: flex;
-  flex-wrap: wrap;
-  grid-area: bar;
-  align-items: center;
-  gap: 0.25rem 0.5rem;
-  min-width: 0;
-  padding: 0.3rem 0.4rem 0.3rem 0.75rem;
-
-  // One line from `lg`: a long board name ellipsizes rather than pushing the controls onto a second
-  // row, which would take the height straight out of the sheet.
-  @media (min-width: 992px) {
-    flex-wrap: nowrap;
-  }
-}
-
-// The stage. From `lg` it has a definite height (its grid row), so the zoom wrapper inside
-// `SheetSvg` is stretched to it and the svg's `max-height: 100%` resolves: the sheet fills the
-// stage, centred, whichever of width or height runs out first. Below `lg` none of this applies and
-// the sheet takes its natural height at full width.
-.plan-canvas__sheet {
-  grid-area: sheet;
-  min-width: 0;
-
-  @media (min-width: 992px) {
-    min-height: 0;
-
-    > div {
-      display: flex;
-      align-items: center;
-      height: 100%;
-    }
-  }
-}
-
-.plan-canvas__inspector {
-  grid-area: inspector;
-  padding: 0.75rem;
-
-  @media (min-width: 992px) {
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-  }
-}
-
-// Fullscreen host for the optimizer: the Fullscreen API paints its own black backdrop and stretches
-// the element, so the theme background and scrolling have to be restored explicitly.
-//
-// Tertiary, not body-bg: the step content is a `--cui-body-bg` surface now, and painting the host
-// the same shade would dissolve it exactly where the workspace is at its largest. This is the page
-// background, so the footer — which already uses the same token — needs no override of its own.
-.optimizer-workspace:fullscreen {
-  --pieces-pane-offset: 18.25rem;
-  --plan-step-offset: 10.5rem;
-
-  height: 100vh;
-  overflow: auto;
-  padding: 1rem;
-  background-color: var(--cui-tertiary-bg);
-}
-
-// The one scroll box the pieces editor has. Every material used to bring its own 55vh window
-// (`PieceRowsTable`'s `maxHeight`), so three open groups meant four nested scroll contexts and a
-// wheel that did something different depending on where the cursor happened to be. Collapsing them
-// into one pane is what makes the two sticky headers below possible: both stick to THIS box, so the
-// offsets owe nothing to the app header — the same rules hold on the page, in the workspace's
-// fullscreen host, and inside the pre-order panel's modal.
-//
-// The height comes from the call site (it knows what else is on its screen); `min-height` keeps the
-// pane usable on a short viewport instead of letting `calc()` squeeze it to nothing.
-.pieces-pane {
-  // Published here, not on the header itself: `.pieces-table thead th` offsets by it and is not a
-  // descendant of that header, and custom properties only inherit downwards.
-  --pieces-group-header-h: 2.5rem;
-  overflow: auto;
-  min-height: 24rem;
-  scrollbar-gutter: stable;
-}
-
-// A material's identity line, pinned to the top of the pane while its rows scroll under it.
-//
-// The height is FIXED and published as a variable because `.pieces-table thead th` parks directly
-// beneath it: a constant offset means nothing has to be measured at runtime. That is also why the
-// material's form (Fuente / Tablero / medidas) is a separate row below rather than part of this one
-// — it can grow to three lines when it wraps, and the sticky block must not.
-.material-group__head {
-  position: sticky;
-  top: 0;
-  // Above the table's own sticky header (2) and above the fill handle inside a cell (3).
-  z-index: 4;
-  height: var(--pieces-group-header-h);
-  background-color: var(--cui-body-bg);
-}
-
-// The accent repeated as a dot. `.material-group`'s 6px spine is the parent's border and scrolls
-// away with the rows, so without this the pinned line would be the only thing on screen with no
-// colour tying it to the group underneath.
-.material-dot {
-  flex: 0 0 auto;
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-  background-color: var(--group-accent, var(--cui-border-color));
-}
-
-// The group's identity, and its one door into `MaterialModal`. The name, the board's size and the
-// retazo count are not a label beside a Configurar button — they ARE the button: the seller reaches
-// the material by touching the material, instead of hunting for a control parked at the far end of
-// the line next to the actions on the GROUP (duplicate, delete).
-//
-// Quiet at rest so the pinned line still reads as a heading, and it declares a TRANSPARENT border
-// rather than none: the header is sticky with a fixed height, so a border appearing on hover must
-// not be able to reflow it. `min-width: 0` + `overflow: hidden` are what let the name's
-// `text-truncate` actually bite — a flex child defaults to `min-width: auto` and refuses to shrink
-// below its content, which would push the piece counters off the line.
-.material-identity {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  overflow: hidden;
-  padding: 0.15rem 0.5rem;
-  border: var(--cui-border-width) var(--cui-border-style) transparent;
-  border-radius: var(--cui-border-radius);
-  background: none;
-  color: inherit;
-  text-align: start;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--group-accent, var(--cui-primary));
-    // An alpha of the brand, so one declaration serves both themes — same rule as `.piece-hit` and
-    // the `.list-table` row hover.
-    background-color: rgba(var(--cui-primary-rgb), 0.06);
-  }
-
-  &:hover .material-identity__pencil,
-  &:focus-visible .material-identity__pencil {
-    opacity: 1;
-  }
-}
-
-// Faint at rest: enough to say "this is editable" without competing with the material's name, which
-// is the thing being read.
-.material-identity__pencil {
-  flex: 0 0 auto;
-  opacity: 0.55;
-  color: var(--cui-secondary-color);
-}
-
-// The one cutting decision that lives on the pinned line instead of in the modal: whether this
-// group's sheets get squared. It reads as a quiet option next to the material's name, not as an
-// action — so no border, no fill, and the label muted until the box is ticked.
-//
-// It must NEVER grow `.material-group__head`: that height is a published constant the table's
-// sticky `thead` parks under. `line-height: 1` on the row plus the check's own `mb-0` keep it well
-// inside 2.5rem, and the label hides under `md` where the line is already tight.
-.material-skip-trim {
-  display: flex;
-  align-items: center;
-  line-height: 1;
-  color: var(--cui-secondary-color);
-
-  .form-check {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-  }
-
-  .form-check-input {
-    flex: 0 0 auto;
-    margin: 0;
-    float: none;
-  }
-
-  .form-check-input:checked + .form-check-label {
-    color: var(--cui-body-color);
-    font-weight: 500;
-  }
-
-  .form-check-label {
-    cursor: pointer;
-  }
-}
-
-// Index of materials above the pane: table of contents, compass and jump target in one row. Chips
-// rather than a rail, because a rail would take width from a table that already has 11 columns.
-.material-strip {
-  overflow-x: auto;
-  scrollbar-width: thin;
-}
-
-.material-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: 0 0 auto;
-  max-width: 15rem;
-  padding: 0.15rem 0.6rem;
-  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  border-radius: 10rem;
-  background-color: var(--cui-body-bg);
-  color: var(--cui-body-color);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  cursor: pointer;
-
-  &:hover {
-    border-color: var(--group-accent, var(--cui-primary));
-  }
-
-  // The material on screen. Tinted with its OWN accent rather than the brand coral: the point of the
-  // strip is to agree with the dot and the spine you are looking at, and a coral fill would say
-  // "selected" in a colour that belongs to a different material every time.
-  &--active {
-    border-color: var(--group-accent, var(--cui-primary));
-    box-shadow: inset 0 0 0 1px var(--group-accent, var(--cui-primary));
-    font-weight: 600;
-  }
-}
-
-// Same dot as the group header wears, so the chip and the material it points at are recognisably
-// the same thing before either name is read.
-.material-chip-dot {
-  flex: 0 0 auto;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background-color: var(--group-accent, var(--cui-border-color));
-}
-
-.material-chip-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.material-chip-count {
-  color: var(--cui-secondary-color);
-  font-variant-numeric: tabular-nums;
-}
-
-// A search hit. Search paints, it never filters — a piece has no identity beyond its position, so
-// hiding a row would silently repoint the selection, the undo history and the drag handlers that
-// read row order straight off the DOM.
-//
-// `--cui-table-bg-state` rather than `background-color`: Bootstrap paints cell backgrounds as
-// `box-shadow: inset 0 0 0 9999px` over `--cui-table-bg`, so a plain background is overpainted,
-// while a TRANSLUCENT state colour composites on top. That is what lets a row be a hit and an error
-// at once — the danger red stays visible underneath. An alpha of the brand, so one value serves
-// both themes.
-.piece-hit {
-  --cui-table-bg-state: rgba(var(--cui-primary-rgb), 0.1);
-}
-
-// The match you are actually on: a heavier tint plus a solid bar in the "#" column, which is the one
-// cell narrow enough that a marker there reads as belonging to the whole row.
-.piece-hit--active {
-  --cui-table-bg-state: rgba(var(--cui-primary-rgb), 0.22);
-
-  // Both shadows in one declaration, bar first: Bootstrap paints the cell's own fill with an inset
-  // shadow too, and a rule that only set the bar would win the cascade and drop the tint here.
-  > td:nth-child(2) {
-    box-shadow:
-      inset 3px 0 0 var(--cui-primary),
-      inset 0 0 0 9999px rgba(var(--cui-primary-rgb), 0.22);
-  }
-}
-
-// Material group. No longer a card: the full border, the rounded corners and the tinted header strip
-// stacked a box inside a box inside a box before the first table row. What is left is the accent bar
-// down the left edge — which is functional, it tracks which group a row belongs to while a long
-// pieces list scrolls — plus the rule separating one group from the next.
-//
-// That separation carries the whole job of telling two materials apart, so it is deliberately loud:
-// a 6px rounded spine, real breathing room, and a 2px rule rather than a hairline. At 4px flush with
-// a hairline the boundary read as another table border and the groups ran together.
-//
-// The accent lives here rather than as an inline `border-left` because the `.border` utility declares
-// the shorthand `!important`, which beats any inline value.
-.material-group {
-  border-left: 6px solid var(--group-accent, var(--cui-border-color));
-  border-start-start-radius: 0.3rem;
-  border-end-start-radius: 0.3rem;
-  padding: 0.35rem 0 1rem 0.9rem;
-
-  // `last-of-type`, not `last-child`: "Agregar material" is the last child of the list, so every
-  // group would still match `:not(:last-child)` and the final one would draw a trailing rule.
-  //
-  // Deliberately darker than `--cui-border-color`: at #dbdfe6 the rule was indistinguishable from
-  // the table's own cell borders, which is the whole problem it exists to solve. Translucent rather
-  // than a fixed grey so it tracks the theme.
-  &:not(:last-of-type) {
-    border-bottom: 2px solid rgba(var(--cui-body-color-rgb), 0.3);
-  }
-}
-
-// "Agregar material" / "Agregar servicio": the one control each list keeps in its own flow. Dashed
-// and full width so it reads as the next empty slot rather than as another button competing with the
-// row's own. The dash is the primary colour, not the border grey: still a slot, but a slot you can
-// see — against the step surface a grey dashed outline on a muted label was invisible.
-.add-slot {
-  border: var(--cui-border-width) dashed rgba(var(--cui-primary-rgb), 0.5);
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--cui-primary);
-  }
-}
-
-// Cost summary tables, in the brand palette instead of the generic grey they had.
-//
-// The tint is LIGHT_CORAL with a solid coral rule under it, not the solid coral band the order document
-// prints. On paper that band heads a full page of rows; here the tables run one or two rows, and a
-// saturated header outweighed its own content — two of them stacked turned the step red. The rule
-// carries the brand cue at full strength, the fill stays out of the way.
-//
-// `.list-table` is the same header on the list pages, which until now wore CoreUI's stock
-// `bg-body-tertiary` grey — the brand tint reached every detail table and none of the eight
-// listings. Note the call sites must DROP that utility class: Bootstrap's background utilities are
-// `!important` and the grey would win over this rule regardless of order.
-.summary-table > thead > tr > th,
-.list-table > thead > tr > th {
-  background-color: var(--brand-coral-soft);
-  color: var(--brand-black);
-  border-bottom: 2px solid var(--brand-coral);
-}
-
-.list-table {
-  // A listing header labels columns rather than titling a block: smaller, spaced, and never
-  // wrapping — a two-line header on a six-column table costs a row of data on every screen.
-  > thead > tr > th {
-    font-size: 0.75rem;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  // Rows open their record — on every listing: the ones with a detail page navigate to it, the
-  // CRUD ones open their edit modal. The cursor belongs here, not in an inline style repeated per
-  // page, and the hover is an alpha of the accent so one declaration serves both themes.
-  > tbody > tr {
-    cursor: pointer;
-    --cui-table-hover-bg: rgba(var(--cui-primary-rgb), 0.06);
-  }
-
-  // ...except where the row genuinely does nothing: a read-only role has no edit modal to open, and
-  // a hand cursor that promises one is a lie. Opt out rather than opt in, since clickable is now
-  // the rule on all eight listings.
-  &.rows-static > tbody > tr {
-    cursor: default;
-  }
-}
-
-// The soft coral is a light tint and would swallow the dark theme's text, so dark mode keeps the
-// same structure with the fill dropped to a translucent wash of the accent.
-@include color-mode(dark) {
-  .summary-table > thead > tr > th,
-  .list-table > thead > tr > th {
-    background-color: rgba(var(--cui-primary-rgb), 0.18);
-    color: var(--cui-body-color);
-  }
-}
-
-// Bootstrap paints the active page white on `--cui-primary`, which is the same 3.58:1 the coral
-// buttons would have had — except `color-contrast()` never runs here, since the pagination's active
-// colour is a hard-coded `#fff`. Match what the buttons resolve to on their own: the dark brand ink.
-.pagination {
-  --cui-pagination-active-color: var(--brand-black);
-  --cui-pagination-active-border-color: var(--brand-coral);
-}
-
-// Applied-filter pills under a list toolbar. Built from alphas of `--cui-primary-rgb` over whatever
-// the theme's body colour is, so it needs no `color-mode(dark)` counterpart: the same declaration
-// reads as a soft coral wash on white and as a dim coral tint on the dark ground.
-.filter-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.15rem 0.4rem 0.15rem 0.6rem;
-  border: var(--cui-border-width) var(--cui-border-style) rgba(var(--cui-primary-rgb), 0.35);
-  border-radius: 10rem;
-  background-color: rgba(var(--cui-primary-rgb), 0.1);
-  color: var(--cui-body-color);
-  font-size: 0.8125rem;
-  line-height: 1.4;
-}
-
-.filter-chip-remove {
-  display: inline-flex;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.6;
-
-  &:hover,
-  &:focus-visible {
-    opacity: 1;
-  }
-}
-
-// The same pill as a tag inside a `sm` table cell: the cantos especiales of the despiece ("L1 CS
-// CHM"). Monospaced digits keep a column of them aligned; `--warning` marks a tape that no longer
-// covers the board, or one the active catalog does not have.
-.filter-chip--sm {
-  gap: 0.2rem;
-  padding: 0 0.25rem 0 0.45rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.filter-chip--warning {
-  border-color: rgba(var(--cui-warning-rgb), 0.7);
-  background-color: rgba(var(--cui-warning-rgb), 0.18);
-}
-
-// The phone's filter panel (`FilterSheet`, a full-screen modal). Its fields are the dropdown's own
-// components, which style themselves as `.dropdown-item` rows sized for a mouse — so the sheet
-// re-sizes them for a finger through CoreUI's own dropdown variables rather than forking them.
-.filter-sheet {
-  .dropdown-menu {
-    --cui-dropdown-font-size: 1rem;
-    --cui-dropdown-item-padding-y: 0.625rem;
-    // A tap on a checkbox row would otherwise flash the whole row coral, which reads as "selected
-    // this row" rather than "ticked this box".
-    --cui-dropdown-link-active-bg: var(--cui-tertiary-bg);
-    --cui-dropdown-link-active-color: var(--cui-body-color);
-  }
-
-  // 16px and a 44px target. Below 16px iOS Safari zooms the page in when a field takes focus and
-  // leaves it zoomed after — the client search would do that on every visit.
-  .form-control,
-  .form-select {
-    min-height: 2.75rem;
-    font-size: 1rem;
-  }
-
-  .form-check-input {
-    width: 1.25em;
-    height: 1.25em;
-  }
-}
-
-// "Limpiar" and the apply button on one row, clear of the home indicator on a notched phone.
-.filter-sheet__footer {
-  flex-wrap: nowrap;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-}
-
-// The orders listing on a phone (`OrderCard`). A divided list and not boxes: it already sits on a
-// `.surface`, and a bordered card inside a bordered plane is a double frame per order. The coral rule
-// on top is the one `.list-table` draws under its header, so the phone view carries the same cue.
-// The press state is the table's hover alpha — one declaration for both themes.
-.order-cards {
-  border-top: 2px solid var(--brand-coral);
-}
-
-.order-card {
-  display: block;
-  padding: 0.75rem 0.25rem;
-  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  color: inherit;
-  text-decoration: none;
-
-  &:hover,
-  &:active {
-    color: inherit;
-    background-color: rgba(var(--cui-primary-rgb), 0.06);
-  }
-}
-
-// Elapsed · branch · date. The dots are drawn here so a missing first item (the elapsed note is
-// silent on a closed order) does not leave one dangling at the start of the line.
-.order-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  color: var(--cui-secondary-color);
-  font-size: 0.875em;
-
-  // The elapsed note brings its own `.small`, which would shrink it a second time in here.
-  > * {
-    font-size: inherit;
-  }
-
-  > * + *::before {
-    content: '·';
-    margin-inline: 0.4rem;
-    color: var(--cui-secondary-color);
-  }
-}
-
-// A header line of short facts ("Creada … · Confirmada … · En cola …"). Inline with dots from `md`;
-// below it, one fact per line and no dots — wrapped inline, a date broke inside "09:20 a. m." or a
-// dot led the next line. `nowrap` per fact is what keeps each one whole on a wide screen too.
-.fact-line {
-  > span {
-    white-space: nowrap;
-  }
-
-  > span + span::before {
-    content: '·';
-    margin-inline: 0.3em;
-  }
-
-  @media (max-width: 767.98px) {
-    display: flex;
-    flex-direction: column;
-
-    > span {
-      white-space: normal;
-    }
-
-    > span + span::before {
-      content: none;
-    }
-  }
-}
-
-// The billing lines of an order on a phone (`LineItemList`), in place of tables of four to seven
-// columns that scrolled sideways and hid the line total. Same rule on top as `.summary-table`.
-.line-items {
-  border-top: 2px solid var(--brand-coral);
-}
-
-.line-item {
-  padding: 0.5rem 0.25rem;
-  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-}
-
-// Pieces grid: 11 columns of mostly 3-4 digit numbers. Shrinking the header type and cell padding
-// buys back horizontal room so the table fits its pane without scrolling.
-.pieces-table {
-  th {
-    font-size: 0.72rem;
-    line-height: 1.2;
-    // The label and its fill-down button stay on one line, which makes the header the column's
-    // min-content width. Before this the button wrapped underneath and every header was two rows
-    // tall — the reason "(mm)" had to go from Largo/Ancho, whose tooltips still carry the unit.
-    white-space: nowrap;
-  }
-
-  > :not(caption) > * > * {
-    padding: 0.25rem 0.35rem;
-  }
-}
-
-// Public review page: from `lg` up the right rail (piece list / billing) stays put while the board
-// stack scrolls, so the client can check a piece against the diagram without losing their place.
-// Needs its own scroll area or a tall list would be pinned with its bottom unreachable. Below `lg`
-// the rail is a full-screen tab and must scroll with the page, hence the media query — Bootstrap's
-// `sticky-lg-top` handles the position but has no responsive max-height counterpart.
-@media (min-width: 992px) {
-  .review-rail {
-    position: sticky;
-    top: 1rem;
-    max-height: calc(100dvh - 6rem); // leaves room for the sticky action bar
-    overflow-y: auto;
-    scrollbar-gutter: stable;
-  }
-}
-
-// Optimizing overlay. The cut search runs for tens of seconds on a real job, so the wait covers the
-// screen with a board filling up with pieces instead of leaving a stale result and a 12px spinner.
-// Semi-transparent on purpose: the previous result stays legible underneath, so it reads as
-// "recalculating this" rather than "everything is gone".
-//
-// Fixed, not absolute: pinned to its pane it was cut off by the pane's own bounds and scrolled out
-// of view on a long result, so the wait could end up off screen. Fixed also survives fullscreen —
-// there the fullscreen element IS the viewport, so `inset: 0` still lands on the workspace.
-.optimizing-overlay {
-  position: fixed;
-  inset: 0;
-  // Above the sticky app header (1030) and the wizard footer (990); below modals (1055), which
-  // cannot be open during a run anyway.
-  z-index: 1040;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background-color: rgba(var(--cui-body-bg-rgb), 0.85);
-  backdrop-filter: blur(2px);
-}
-
-.optimizing-card {
-  max-width: 22rem;
-  text-align: center;
-}
-
-.optimizing-board {
-  display: block;
-  width: 100%;
-  max-width: 14rem;
-  height: auto;
-  margin: 0 auto 0.85rem;
-}
-
-.optimizing-sheet {
-  fill: var(--cui-body-bg);
-  stroke: var(--cui-border-color);
-  stroke-width: 1;
-}
-
-// `fill-box` so each piece scales about its own centre; without it the origin is the whole viewBox
-// and the pieces slide in from the corner.
-.optimizing-piece {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: optimizing-piece 3.6s ease-out infinite both;
-}
-
-// The saw pass, in the brand coral of the wordmark's "BLE".
-.optimizing-saw {
-  fill: var(--brand-coral);
-  animation: optimizing-saw 3.6s linear infinite;
-}
-
-.optimizing-logo {
-  display: block;
-  margin: 0 auto 0.4rem;
-  color: var(--cui-body-color);
-}
-
-.optimizing-stage {
-  font-size: 0.875rem;
-  color: var(--cui-body-color);
-}
-
-.optimizing-elapsed {
-  font-size: 0.75rem;
-  color: var(--cui-secondary-color);
-  font-variant-numeric: tabular-nums; // the counter must not jiggle every second
-}
-
-// One cycle: each piece lands (staggered by its inline animation-delay), the sheet holds full, then
-// it clears and the next pass starts.
-@keyframes optimizing-piece {
-  0%,
-  4% {
-    opacity: 0;
-    transform: scale(0.72);
-  }
-  10%,
-  88% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.72);
-  }
-}
-
-@keyframes optimizing-saw {
-  0% {
-    opacity: 0;
-    transform: translateX(-4px);
-  }
-  8%,
-  92% {
-    opacity: 0.9;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(200px);
-  }
-}
-
-// The message and the counter carry the information; the motion is decoration, so it goes.
-@media (prefers-reduced-motion: reduce) {
-  .optimizing-piece {
-    animation: none;
-  }
-
-  .optimizing-saw {
-    animation: none;
-    opacity: 0;
-  }
-}
-
-// --- Cutting canvas (/orders/:id/workshop) ----------------------------------------------------
-// The one screen that owns the whole viewport. It runs on a tablet bolted next to the saw, where
-// the only task is marking pieces cut, and the smallest panel in the shop (Infinix XPad, 960×544
-// CSS in landscape) leaves ~544px of height — less than the chrome this page used to stack above
-// the diagram. So the page is a fixed three-row grid over the app's header and sidebar, and only
-// the middle row grows. Nothing scrolls; there is nowhere to scroll to.
-//
-// This is the layout, not the Fullscreen API. The API sits on top of it, hosted on this same
-// element, and buys only the browser's own toolbar back — so the screen still fits on a panel
-// where fullscreen is refused.
-.workshop-shell {
-  position: fixed;
-  inset: 0;
-  // Above the sticky app header (1030) and the sidebar, below modals (1055) and the toaster
-  // (1090) — so the confirm dialog and any error still land on top of the canvas.
-  z-index: 1035;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  overflow: hidden;
-  // The layout's `min-vh-100` wrapper is still behind this; without it iOS rubber-bands the page
-  // under a fixed element.
-  overscroll-behavior: none;
-  background-color: var(--cui-body-bg);
-
-  // The Fullscreen API paints its own black backdrop, so the theme background is restated here.
-  &:fullscreen {
-    background-color: var(--cui-body-bg);
-  }
-}
-
-.workshop-topbar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-  padding: 0.25rem 0.5rem;
-  border-bottom: 1px solid var(--cui-border-color);
-}
-
-// Order code, status, banding and reference, with the client on a second line. The one part
-// allowed to shrink: everything to its right is a control, and a control that truncates is a
-// control you cannot hit. Two short lines fit the height of the `lg` controls, so the bar does not
-// grow; on one line, the name was the only item able to shrink and vanished on a tablet.
-.workshop-identity {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.workshop-identity__line {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.workshop-pager {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-// Fixed width so the bar does not shift as the counters change under the finger.
-.workshop-pager__label {
-  min-width: 13rem;
-  white-space: nowrap;
-}
-
-.workshop-total {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.workshop-total__bar {
-  width: 6rem;
-}
-
-// Below lg the bar has no room for everything, and three things go in the order they stop earning
-// their width: the progress BAR (the fraction beside it is the same fact, exactly), the pager's
-// fixed width (it only exists to stop the counters shifting under a finger, and a narrow panel has
-// no room to spend on that), and the banding badge — the canteado track is read-only here and
-// `canteador` cannot even open this route. Hiding them is what stops a badge being clipped
-// mid-word, which reads as a broken screen rather than a full one.
-@media (max-width: 991.98px) {
-  .workshop-total__bar,
-  .workshop-banding-badge {
-    display: none;
-  }
-
-  .workshop-pager__label {
-    min-width: 0;
-  }
-}
-
-.workshop-stage-wrap {
-  position: relative;
-  display: grid;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.workshop-stage {
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-  // The swipe that pages between boards needs the horizontal axis. Without this the browser
-  // consumes the gesture before any handler sees it; with it, vertical scrolling stays native.
-  touch-action: pan-y;
-}
-
-// The board's name over the diagram, so naming what is on screen costs no row of its own. It sits
-// on the letterbox margin most of the time, but a sheet whose ratio matches the stage leaves none —
-// hence the translucent chip, which keeps the name readable without ever hiding a piece.
-.workshop-boardname {
-  position: absolute;
-  bottom: 0.25rem;
-  left: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 60%;
-  padding: 0.1rem 0.45rem;
-  border-radius: var(--cui-border-radius);
-  background-color: rgba(var(--cui-body-bg-rgb), 0.82);
-  color: var(--cui-secondary-color);
-  font-size: 0.875rem;
-  pointer-events: none;
-}
-
-// One action at a time — the states that could fill this row turn out to be mutually exclusive.
-.workshop-actionbar {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border-top: 1px solid var(--cui-border-color);
-}
-
-.workshop-picker {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  gap: 0.5rem;
-}
-
-.workshop-picker__item {
-  min-width: 0;
-  text-align: start;
-}
-
-// --- Shop-floor queue board (/workshop-board) -------------------------------------------------
-// The landing page of `operador` and `canteador` — the only screen those roles have — read at
-// arm's length on a touch panel with no hover, so nothing here may depend on a `title=`.
-
-// The order's stage as a spine, so a whole column can be triaged before a single badge is read.
-// The accent lives in CSS rather than an inline `border-left` for the reason `.material-group`
-// documents: the `.border` utility declares the shorthand `!important` and would beat it. A
-// `data-` attribute rather than a custom property also spares the call site the `as CSSProperties`
-// assertion that `--*` vars need in React.
-.workshop-card {
-  border-left: 6px solid var(--cui-border-color);
-
-  &[data-status='queued'] {
-    border-left-color: var(--cui-secondary);
-  }
-
-  // `cutting` and `cut` were two states and are now one: the spine says the order is being
-  // worked on, and the activity badges say how far each part of the work got.
-  &[data-status='in_process'] {
-    border-left-color: var(--cui-primary);
-  }
-
-  // Priority attention deliberately does NOT touch the left spine: that channel is the STAGE, and
-  // triaging a column by stage without reading a badge is the whole reason it exists. Urgency is a
-  // second, orthogonal question, so it gets a second channel — a warning ring plus a tinted ground,
-  // both readable at arm's length on the shop-floor panel.
-  &[data-priority='true'] {
-    background-color: rgba(var(--cui-warning-rgb), 0.07);
-    box-shadow: 0 0 0 2px rgba(var(--cui-warning-rgb), 0.55);
-  }
-}
-
-// Says WHY the card is at the top of the board. Same pill shape as `.workshop-next` (they stack on
-// a prioritized head of queue), in warning so the two never read as the same kind of statement.
-.workshop-priority {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  align-self: flex-start;
-  padding: 0.1rem 0.5rem;
-  border-radius: 10rem;
-  background-color: rgba(var(--cui-warning-rgb), 0.18);
-  color: var(--cui-warning-emphasis, var(--cui-warning));
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.workshop-priority__icon {
-  width: 0.75rem;
-  height: 0.75rem;
-}
-
-// Head of the FIFO queue. Computed client-side from the oldest `queued` item rather than trusting
-// the server's order, so it stays true whatever the endpoint decides to sort by.
-.workshop-next {
-  align-self: flex-start;
-  padding: 0.1rem 0.5rem;
-  border-radius: 10rem;
-  background-color: rgba(var(--cui-primary-rgb), 0.12);
-  color: var(--cui-primary);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-// The material lists collapsed to one tappable line on the card itself. A real order carries six
-// boards and four banding lines; printing them all made the card taller than the queue it sits in,
-// and this board's whole job is to be scanned. The counts stay (they say how big the job is), the
-// names move behind `WorkshopMaterialsModal`.
-//
-// A `<button>` spanning the full row, not a link at the end of a sentence: on a touch panel the row
-// IS the control, and a chevron-sized target is not one.
-.usage-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  border-radius: var(--cui-border-radius);
-  background-color: var(--cui-tertiary-bg);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--cui-primary);
-  }
-}
-
-.usage-summary__chevron {
-  flex: 0 0 auto;
-  color: var(--cui-secondary-color);
-}
-
-// The materials dialog wears the brand the way the order document does: a solid coral band carrying the
-// order's identity. No mark on it — the isotype was decoration on a dialog nobody reaches without
-// already being inside the app, and it only ate width the client's name needed.
-//
-// The saturated band is right HERE and wrong on `.summary-table`: that rule heads one or two rows
-// inside a step, where a coral fill outweighed its own content, while this heads a full page of rows
-// — the order document's own situation. The ink is `--brand-black`, never white: coral under white is
-// 3.58:1 and fails AA, while the dark brand ink measures 4.69:1, the same resolution Bootstrap's
-// `color-contrast()` gives the coral buttons. Both colours are painted explicitly, so the band needs
-// no `color-mode(dark)` counterpart.
-.materials-header {
-  background-color: var(--brand-coral);
-  color: var(--brand-black);
-  border-bottom: 0;
-
-  // The band stays coral in both themes, so the close glyph must stay the dark one: CoreUI inverts
-  // it to white under the dark theme, where it would then sit invisible on the coral.
-  .btn-close {
-    --cui-btn-close-filter: none;
-    --cui-btn-close-opacity: 0.7;
-    --cui-btn-close-hover-opacity: 1;
-  }
-}
-
-.materials-eyebrow {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  opacity: 0.75;
-}
-
-.materials-title {
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-// The dialog header's one row: identity and the pager. `min-width: 0` on the identity block
-// is what lets a long client name ellipsise instead of pushing the pager off the band.
-.materials-headline {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: 100%;
-
-  .min-w-0 {
-    min-width: 0;
-  }
-}
-
-.materials-client {
-  overflow: hidden;
-  font-size: 0.8125rem;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  opacity: 0.8;
-}
-
-// Paging between orders, so a shift's materials can be reviewed without closing the dialog once per
-// card. Sits on the coral band, so it is drawn from the band's own ink rather than a button colour —
-// a `secondary` CButton here would have punched a grey hole in the brand.
-.materials-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.materials-nav__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  // 2.5rem square: this is a touch panel, and a chevron-sized hit area is not a target.
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--cui-border-radius);
-  background-color: rgba(255, 255, 255, 0.25);
-  color: inherit;
-  cursor: pointer;
-
-  &:hover:not(:disabled),
-  &:focus-visible:not(:disabled) {
-    background-color: rgba(255, 255, 255, 0.5);
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-}
-
-.materials-nav__count {
-  min-width: 4.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-// The swipe surface. `pan-y` is what makes the gesture possible at all: it hands vertical scrolling
-// back to the browser (so a long material list still scrolls natively) and reserves the horizontal
-// axis for `useSwipeNav`, which the browser would otherwise consume before any handler saw it.
-//
-// `min-height: 100%` so the whole body is swipeable even when two short tables would not fill it.
-// It resolves only when the dialog has a definite height — i.e. under `lg`, where it is fullscreen,
-// which is exactly where the gesture applies.
-.materials-swipe {
-  min-height: 100%;
-  touch-action: pan-y;
-}
-
-// The two status badges as a strip across the top of the dialog body. Bled out to the dialog's edges with
-// a negative margin of its own padding, so the rule under it spans the full width and the block
-// reads as an extension of the header rather than as a card floating inside the content.
-.materials-status {
-  margin: calc(var(--cui-modal-padding) * -1);
-  margin-bottom: var(--cui-modal-padding);
-  padding: 0.75rem var(--cui-modal-padding);
-  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
-  background-color: var(--cui-tertiary-bg);
-}
-
-// Boards and edge banding used by an order, inside that dialog. They began as `.badge`s, which carry
-// `white-space: nowrap` — and `flex-wrap` wraps BETWEEN items, never inside one, so a catalogue name
-// like "MDP MELAMÍNICO NOGAL TERRA 15MM 2150X2440" had a min-content width wider than its card,
-// refused to shrink, and spilled past the border (`.card` declares no `overflow` to clip it).
-//
-// `overflow-wrap: anywhere` on the name column is what actually closes that: it lets an unbroken
-// catalogue code — one with no spaces to break at — reduce the cell's min-content width. The
-// quantity column is `tabular-nums` and never wraps, so the numbers line up down the table.
-.materials-table {
-  > :not(caption) > * > td:first-child {
-    overflow-wrap: anywhere;
-  }
-
-  > :not(caption) > * > *:last-child {
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-
-  // The totals row reads as a sum, not as another product: the rule above it does the separating,
-  // so it needs no fill of its own to compete with the coral header.
-  > tfoot > tr > td {
-    border-top: 2px solid var(--brand-coral);
-  }
-}
-
-// "2 enteros · 1 medio" under a board's name: how that material's sheets split, printed only when
-// there IS a half. Secondary ink and a step down in size so it reads as a note ON the name rather
-// than as a second material — the exact confusion the merged row exists to end. It escapes the
-// `white-space: nowrap` above by living in the FIRST cell, which is the wrapping one.
-.materials-breakdown {
-  color: var(--cui-secondary-color);
-  font-size: 0.8125rem;
-  font-variant-numeric: tabular-nums;
-}
-
-// Caption over each list — the same treatment `.list-table` gives its column labels, so it reads as
-// a rubric and not as another line of content. Both lists carry one: until now only the tapacantos
-// had a label, and it was inline with the chips, where wrapping orphaned it on its own line.
-.usage-label {
-  color: var(--cui-secondary-color);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-@include color-mode(dark) {
-  body {
-    background-color: var(--cui-dark-bg-subtle);
-
-    // In dark mode CoreUI lightens the primary and points links at it, which measures 4.38:1
-    // against a card surface — just under AA for body text, and the breadcrumb in the app header is
-    // exactly that. Nudged one step lighter: 5.07:1, still unmistakably the brand coral.
-    //
-    // The `-rgb` pair is the one that actually lands: Bootstrap resolves anchors as
-    // `rgba(var(--cui-link-color-rgb), var(--cui-link-opacity, 1))`, so setting only the hex form
-    // compiles fine and changes nothing on screen.
-    --cui-link-color: #ec7268;
-    --cui-link-color-rgb: 236, 114, 104;
-    --cui-link-hover-color: #f08a80;
-    --cui-link-hover-color-rgb: 240, 138, 128;
-  }
-
-  .footer {
-    --cui-footer-bg: var(--cui-body-bg);
-  }
-}
+// Everything else lives in partials, in cascade order: tokens, base, the app shell, the shared
+// components, then each screen's own styles.
+@use 'tokens';
+@use 'type';
+@use 'base';
+@use 'shell';
+@use 'components/icon';
+@use 'components/surface';
+@use 'components/action-bar';
+@use 'components/status';
+@use 'components/feedback';
+@use 'components/tables';
+@use 'components/lists';
+@use 'components/filters';
+@use 'components/bottom-sheet';
+@use 'components/nav-sheet';
+@use 'components/segments';
+@use 'components/section-nav';
+@use 'components/pager';
+@use 'components/forms';
+@use 'features/home';
+@use 'features/optimizer';
+@use 'features/reports';
+@use 'features/review';
+@use 'features/workshop';

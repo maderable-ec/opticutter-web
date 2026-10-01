@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import {
-  CBadge,
   CButton,
   CFormCheck,
-  CModal,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -13,9 +10,9 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPencil, cilPlus, cilTrash } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
+import FamilyState from './FamilyState'
 import ProductFamilyForm from './ProductFamilyForm'
 import ProductFamilyDetailModal from './ProductFamilyDetailModal'
 import AssignProductsModal from './AssignProductsModal'
@@ -23,20 +20,18 @@ import {
   useCreateProductFamily,
   useDeleteProductFamily,
   useProductFamilies,
-  useUpdateProductFamily,
 } from './useProductFamilies'
 import { familyIssues, type ProductFamily, type ProductFamilyPayload } from './types'
 import SearchInput from 'src/shared/components/SearchInput'
+import EmptyState from 'src/shared/components/EmptyState'
+import ListToolbar from 'src/shared/components/ListToolbar'
+import ListCard from 'src/shared/components/ListCard'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
-import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
 import { useListParams } from 'src/shared/hooks/useListParams'
 import { useHasRole } from 'src/features/auth/useAuth'
-
-interface FormState {
-  visible: boolean
-  family: ProductFamily | null
-}
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 /** The design families that pair a board with its edge bandings.
  *
@@ -55,7 +50,7 @@ const ProductFamiliesPage = () => {
   // because moving a board between designs changes what gets quoted.
   const canEdit = !useHasRole('vendedor')
 
-  const [formModal, setFormModal] = useState<FormState>({ visible: false, family: null })
+  const [creating, setCreating] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [assignTo, setAssignTo] = useState<ProductFamily | null>(null)
   const [pendingDelete, setPendingDelete] = useState<ProductFamily | null>(null)
@@ -69,23 +64,39 @@ const ProductFamiliesPage = () => {
   const families = data?.items ?? []
 
   const createMutation = useCreateProductFamily()
-  const updateMutation = useUpdateProductFamily()
   const deleteMutation = useDeleteProductFamily()
 
   const closeForm = () => {
-    setFormModal({ visible: false, family: null })
+    setCreating(false)
     createMutation.reset()
-    updateMutation.reset()
   }
 
-  const handleSubmit = (payload: ProductFamilyPayload) => {
-    const { family } = formModal
-    if (family) {
-      updateMutation.mutate({ id: family.id, data: payload }, { onSuccess: closeForm })
-    } else {
-      createMutation.mutate(payload, { onSuccess: closeForm })
-    }
-  }
+  const handleCreate = (payload: ProductFamilyPayload) =>
+    createMutation.mutate(payload, { onSuccess: closeForm })
+
+  // Two different dead ends: nothing wrong is good news, an empty catalog is a fact.
+  const emptyState = issuesOnly ? (
+    <EmptyState icon="ok" title="Ninguna familia tiene problemas de coordinación." />
+  ) : (
+    <EmptyState title="Aún no hay familias." />
+  )
+
+  // A tap on the row opens the family: its products and aliases are what a family is, and its name
+  // and note are edited from there. Beside the row only delete, as in the rest of the catalog, whose
+  // rows open the record and keep delete apart. In the last column from `md`, beside the card on a
+  // phone.
+  const rowActions = (f: ProductFamily) =>
+    canEdit ? (
+      <CButton
+        color="link"
+        size="sm"
+        className="text-danger"
+        onClick={() => setPendingDelete(f)}
+        aria-label={`Eliminar ${f.name}`}
+      >
+        <Icon name="delete" />
+      </CButton>
+    ) : null
 
   const confirmDelete = () => {
     if (!pendingDelete) return
@@ -95,13 +106,11 @@ const ProductFamiliesPage = () => {
   return (
     <>
       <div className="surface">
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <ListToolbar>
           <SearchInput
             value={search}
             onChange={(value) => setParam('q', value, { replace: true })}
             placeholder="Buscar familia…"
-            className="flex-grow-1"
-            style={{ maxWidth: 360 }}
           />
           <CFormCheck
             id="issues-only"
@@ -110,101 +119,107 @@ const ProductFamiliesPage = () => {
             onChange={(e) => setParam('issuesOnly', e.target.checked ? 'true' : '')}
           />
           {canEdit && (
-            <CButton
-              color="primary"
-              className="ms-auto"
-              onClick={() => setFormModal({ visible: true, family: null })}
-            >
-              <CIcon icon={cilPlus} className="me-1" />
+            <CButton color="primary" className="ms-auto" onClick={() => setCreating(true)}>
+              <Icon name="add" className="me-1" />
               Nueva familia
             </CButton>
           )}
-        </div>
+        </ListToolbar>
 
         <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
-          <CTable align="middle" hover responsive className="list-table">
-            <CTableHead>
-              <CTableRow>
-                <CTableHeaderCell>Familia</CTableHeaderCell>
-                <CTableHeaderCell>Tableros</CTableHeaderCell>
-                <CTableHeaderCell>Tapacantos</CTableHeaderCell>
-                <CTableHeaderCell>Alias</CTableHeaderCell>
-                <CTableHeaderCell>Estado</CTableHeaderCell>
-                {canEdit && <CTableHeaderCell />}
-              </CTableRow>
-            </CTableHead>
-            <CTableBody>
-              {families.length === 0 ? (
-                <CTableRow>
-                  <CTableDataCell
-                    colSpan={canEdit ? 6 : 5}
-                    className="text-center text-body-secondary py-5"
+          {/* Both views are mounted and the breakpoint picks one. */}
+          <div className="d-md-none">
+            {families.length === 0 ? (
+              emptyState
+            ) : (
+              <div className="list-cards">
+                {families.map((f) => (
+                  <ListCard
+                    key={f.id}
+                    onClick={() => setDetailId(f.id)}
+                    title={f.name}
+                    meta={
+                      <>
+                        <span>
+                          {f.boardCount} {f.boardCount === 1 ? 'tablero' : 'tableros'}
+                        </span>
+                        <span>
+                          {f.edgeBandingCount}{' '}
+                          {f.edgeBandingCount === 1 ? 'tapacanto' : 'tapacantos'}
+                        </span>
+                        {f.aliases.length > 0 && <span>{f.aliases.join(', ')}</span>}
+                      </>
+                    }
+                    action={rowActions(f)}
                   >
-                    {issuesOnly
-                      ? 'Ninguna familia tiene problemas de coordinación.'
-                      : 'Aún no hay familias.'}
-                  </CTableDataCell>
+                    {f.description && (
+                      <div className="small text-body-secondary">{f.description}</div>
+                    )}
+                    <div className="mt-1">
+                      <FamilyState issues={familyIssues(f)} />
+                    </div>
+                  </ListCard>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="d-none d-md-block">
+            <CTable align="middle" hover responsive className="list-table">
+              <CTableHead>
+                <CTableRow>
+                  <CTableHeaderCell>Familia</CTableHeaderCell>
+                  <CTableHeaderCell>Tableros</CTableHeaderCell>
+                  <CTableHeaderCell>Tapacantos</CTableHeaderCell>
+                  <CTableHeaderCell>Alias</CTableHeaderCell>
+                  <CTableHeaderCell>Estado</CTableHeaderCell>
+                  {canEdit && (
+                    <CTableHeaderCell>
+                      <span className="visually-hidden">Acciones</span>
+                    </CTableHeaderCell>
+                  )}
                 </CTableRow>
-              ) : (
-                families.map((f) => {
-                  const issues = familyIssues(f)
-                  return (
-                    <CTableRow key={f.id} onClick={() => setDetailId(f.id)}>
-                      <CTableDataCell>
-                        <div className="fw-semibold">{f.name}</div>
-                        {f.description && (
-                          <div className="small text-body-secondary">{f.description}</div>
-                        )}
-                      </CTableDataCell>
-                      <CTableDataCell>{f.boardCount}</CTableDataCell>
-                      <CTableDataCell>{f.edgeBandingCount}</CTableDataCell>
-                      <CTableDataCell className="text-nowrap">
-                        {f.aliases.length > 0 ? f.aliases.join(', ') : '—'}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {issues.length === 0 ? (
-                          <CBadge color="success">Coordinada</CBadge>
-                        ) : (
-                          <div className="d-flex flex-wrap gap-1">
-                            {issues.map((issue) => (
-                              <CBadge key={issue} color="warning">
-                                {issue}
-                              </CBadge>
-                            ))}
-                          </div>
-                        )}
-                      </CTableDataCell>
-                      {canEdit && (
-                        <CTableDataCell
-                          className="text-end text-nowrap"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <CButton
-                            color="link"
-                            size="sm"
-                            className="p-0 me-3"
-                            onClick={() => setFormModal({ visible: true, family: f })}
-                            aria-label={`Editar ${f.name}`}
-                          >
-                            <CIcon icon={cilPencil} />
-                          </CButton>
-                          <CButton
-                            color="link"
-                            size="sm"
-                            className="p-0 text-danger"
-                            onClick={() => setPendingDelete(f)}
-                            aria-label={`Eliminar ${f.name}`}
-                          >
-                            <CIcon icon={cilTrash} />
-                          </CButton>
+              </CTableHead>
+              <CTableBody>
+                {families.length === 0 ? (
+                  <CTableRow>
+                    <CTableDataCell colSpan={canEdit ? 6 : 5} className="p-0">
+                      {emptyState}
+                    </CTableDataCell>
+                  </CTableRow>
+                ) : (
+                  families.map((f) => {
+                    return (
+                      <CTableRow key={f.id} onClick={() => setDetailId(f.id)}>
+                        <CTableDataCell>
+                          <div className="fw-semibold">{f.name}</div>
+                          {f.description && (
+                            <div className="small text-body-secondary">{f.description}</div>
+                          )}
                         </CTableDataCell>
-                      )}
-                    </CTableRow>
-                  )
-                })
-              )}
-            </CTableBody>
-          </CTable>
+                        <CTableDataCell>{f.boardCount}</CTableDataCell>
+                        <CTableDataCell>{f.edgeBandingCount}</CTableDataCell>
+                        <CTableDataCell className="text-nowrap">
+                          {f.aliases.length > 0 ? f.aliases.join(', ') : '—'}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <FamilyState issues={familyIssues(f)} />
+                        </CTableDataCell>
+                        {canEdit && (
+                          <CTableDataCell
+                            className="text-end text-nowrap"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {rowActions(f)}
+                          </CTableDataCell>
+                        )}
+                      </CTableRow>
+                    )
+                  })
+                )}
+              </CTableBody>
+            </CTable>
+          </div>
         </QueryState>
 
         <Pagination
@@ -216,19 +231,18 @@ const ProductFamiliesPage = () => {
         />
       </div>
 
-      <CModal visible={formModal.visible} onClose={closeForm} backdrop="static">
+      <Modal visible={creating} onClose={closeForm} backdrop="static" fullscreen="md">
         <CModalHeader>
-          <CModalTitle>{formModal.family ? 'Editar familia' : 'Nueva familia'}</CModalTitle>
+          <ModalTitle>Nueva familia</ModalTitle>
         </CModalHeader>
         <ProductFamilyForm
-          key={formModal.family?.id ?? 'new'}
-          family={formModal.family}
-          onSubmit={handleSubmit}
+          family={null}
+          onSubmit={handleCreate}
           onCancel={closeForm}
-          isSubmitting={createMutation.isPending || updateMutation.isPending}
-          error={createMutation.error || updateMutation.error}
+          isSubmitting={createMutation.isPending}
+          error={createMutation.error}
         />
-      </CModal>
+      </Modal>
 
       <ProductFamilyDetailModal
         // Remount per family: the alias drafts inside belong to the one open.
@@ -243,23 +257,33 @@ const ProductFamiliesPage = () => {
         canEdit={canEdit}
       />
 
+      {/* Back to the family afterwards, where the products just added are listed. */}
       {assignTo && (
-        <AssignProductsModal family={assignTo} visible onClose={() => setAssignTo(null)} />
+        <AssignProductsModal
+          family={assignTo}
+          visible
+          onClose={() => {
+            setAssignTo(null)
+            setDetailId(assignTo.id)
+          }}
+        />
       )}
 
-      <DeleteConfirmModal
+      <ConfirmDialog
         visible={pendingDelete !== null}
         title="Eliminar familia"
+        confirmLabel="Eliminar"
+        tone="danger"
         onConfirm={confirmDelete}
         onClose={() => setPendingDelete(null)}
-        isPending={deleteMutation.isPending}
+        pending={deleteMutation.isPending}
       >
         {/* Non-destructive by design: the FK is ON DELETE SET NULL, so a family
             is a grouping and deleting a grouping can never delete catalog rows. */}
         ¿Eliminar la familia «{pendingDelete?.name}»? Sus{' '}
         {(pendingDelete?.boardCount ?? 0) + (pendingDelete?.edgeBandingCount ?? 0)} productos siguen
         en el catálogo, pero quedan sin coordinar.
-      </DeleteConfirmModal>
+      </ConfirmDialog>
     </>
   )
 }

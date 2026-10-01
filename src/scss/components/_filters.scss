@@ -1,0 +1,80 @@
+// The section titles of a filter panel (`FilterSection`, a `.dropdown-header`). CoreUI paints them
+// in its mid grey, 4.2:1 on white and under AA at this size; the theme's secondary ink clears it in
+// both themes, on the dropdown and on the phone's sheet alike.
+.dropdown-menu {
+  --cui-dropdown-header-color: var(--cui-secondary-color);
+}
+
+// Applied-filter pills under a list toolbar. Built from alphas of `--cui-primary-rgb` over whatever
+// the theme's body colour is, so it needs no `color-mode(dark)` counterpart: the same declaration
+// reads as a soft coral wash on white and as a dim coral tint on the dark ground.
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.4rem 0.15rem 0.6rem;
+  border: var(--cui-border-width) var(--cui-border-style) rgba(var(--cui-primary-rgb), 0.35);
+  border-radius: 10rem;
+  background-color: rgba(var(--cui-primary-rgb), 0.1);
+  color: var(--cui-body-color);
+  font-size: var(--mb-text-sm);
+  line-height: 1.4;
+}
+
+.filter-chip-remove {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+  }
+}
+
+// The same pill as a tag inside a `sm` table cell: the cantos especiales of the despiece ("L1 CS
+// CHM"). Monospaced digits keep a column of them aligned; `--warning` marks a tape that no longer
+// covers the board, or one the active catalog does not have.
+.filter-chip--sm {
+  gap: 0.2rem;
+  padding: 0 0.25rem 0 0.45rem;
+  font-size: var(--mb-text-xs);
+  white-space: nowrap;
+}
+
+.filter-chip--warning {
+  border-color: rgba(var(--cui-warning-rgb), 0.7);
+  background-color: rgba(var(--cui-warning-rgb), 0.18);
+}
+
+// The phone's filter panel (`FilterSheet`, a `BottomSheet`). Its fields are the dropdown's own
+// components, which style themselves as `.dropdown-item` rows sized for a mouse — so the sheet
+// re-sizes them for a finger through CoreUI's own dropdown variables rather than forking them.
+.filter-sheet {
+  .dropdown-menu {
+    --cui-dropdown-font-size: 1rem;
+    --cui-dropdown-item-padding-y: 0.625rem;
+    // A tap on a checkbox row would otherwise flash the whole row coral, which reads as "selected
+    // this row" rather than "ticked this box".
+    --cui-dropdown-link-active-bg: var(--cui-tertiary-bg);
+    --cui-dropdown-link-active-color: var(--cui-body-color);
+  }
+
+  // 16px and a 44px target. Below 16px iOS Safari zooms the page in when a field takes focus and
+  // leaves it zoomed after — the client search would do that on every visit.
+  .form-control,
+  .form-select {
+    min-height: 2.75rem;
+    font-size: 1rem;
+  }
+
+  .form-check-input {
+    width: 1.25em;
+    height: 1.25em;
+  }
+}

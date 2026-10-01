@@ -1,0 +1,865 @@
+// The optimizer's step trail and its actions menu, as one compact line above the work: the trail
+// left-aligned, the menu at the far end. Inside the workspace, so it survives element fullscreen.
+.wizard-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-bottom: 0.75rem;
+}
+
+// Wizard step trail: compact and inline. Each step has three states (done / current / locked),
+// joined by a short connector drawn as a pseudo-element. It used to be a full-width row of 2rem
+// circles with the label underneath — a strip that read as a row of big buttons above the work. Now
+// it is one short line, and the content keeps the page.
+.wizard-steps {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  color: var(--cui-secondary-color);
+
+  // Connector to the next step. Fixed length: the trail is left-aligned, not spread across the row.
+  &:not(:last-child)::after {
+    content: '';
+    width: 1.5rem;
+    height: 2px;
+    margin-inline: 0.125rem;
+    border-radius: 1px;
+    background-color: var(--cui-border-color);
+
+    @media (max-width: 767.98px) {
+      width: 0.75rem;
+    }
+  }
+
+  // Done steps are the brand coral, not green: the trail reads as one progress bar filling up in a
+  // single colour, instead of a green tail handing over to a coral head at the current step.
+  &[data-state='done'] {
+    color: var(--cui-body-color);
+
+    &::after {
+      background-color: var(--cui-primary);
+    }
+  }
+
+  &[data-state='current'] {
+    color: var(--cui-body-color);
+    font-weight: 600;
+  }
+}
+
+// The clickable part, shrink-wrapped around the marker and its label so the hit area matches what
+// the user is actually aiming at.
+.wizard-step-hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.375rem;
+  border: 0;
+  border-radius: var(--cui-border-radius);
+  background: none;
+  color: inherit;
+  font-size: var(--mb-text-md);
+  font-weight: inherit;
+
+  cursor: pointer;
+
+  // A step you can go back (or ahead) to says so on hover; the one on screen does not react.
+  &:not([aria-disabled='true']):not([aria-current]):hover .wizard-step-label {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  // Locked, but not disabled: it keeps its clicks, which print the reason under the trail.
+  &[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: help;
+  }
+}
+
+// Why a locked step is locked, printed when the seller taps it (`WizardSteps`). The progress tone —
+// something is missing and it is theirs to fix — on a line of its own under the trail.
+.wizard-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -0.25rem 0 0.75rem;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  border-radius: var(--cui-border-radius);
+  background-color: var(--mb-tone-progress-bg);
+  color: var(--mb-tone-progress-fg);
+  font-size: var(--mb-text-md);
+}
+
+.wizard-step-marker {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 2px solid var(--cui-border-color);
+  border-radius: 50%;
+  background-color: var(--cui-body-bg);
+  font-size: var(--mb-text-xs);
+  font-weight: 600;
+  line-height: 1;
+
+  .wizard-step[data-state='current'] & {
+    border-color: var(--cui-primary);
+    color: var(--cui-primary);
+    box-shadow: 0 0 0 0.15rem rgba(var(--cui-primary-rgb), 0.15);
+  }
+
+  // White on the coral fill, like the buttons (4.77:1 on coral-600).
+  .wizard-step[data-state='done'] & {
+    border-color: var(--cui-primary);
+    background-color: var(--cui-primary);
+    color: #fff;
+  }
+}
+
+// The board inside the fullscreen sheet overlay (the pre-order page). A 2440×1220 sheet is 2:1, so in a
+// 7/12 column it is limited by WIDTH, not height — on a 16:10 screen that left the bottom half of
+// the dialog empty. Centring it in the space the dialog actually has costs nothing and stops the
+// overlay from looking broken.
+//
+// Only from `lg`: below that the columns stack, and a full-viewport minimum height here would mean
+// scrolling a whole screen of padding before reaching the sheet's stats.
+@media (min-width: 992px) {
+  .sheet-overlay-stage {
+    display: flex;
+    align-items: center;
+    min-height: calc(100dvh - 12rem);
+
+    // The board wrapper is a plain block with no width of its own; as a flex item it would
+    // shrink-to-fit and collapse the SVG inside it.
+    > * {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
+}
+
+// The chrome around the optimizer's full-height boxes — the Despiece scroll pane and the Optimización
+// canvas — so each one takes exactly the height left over and the page itself never scrolls. On the
+// page that is the sticky app header and its gap, the step row and the pinned footer; in element
+// fullscreen the header is gone and the workspace's own padding takes its place. Measured at
+// 1280×800: the footer lands on the bottom edge in both.
+.optimizer-workspace {
+  --pieces-pane-offset: 21.375rem;
+  --plan-step-offset: 13.5rem;
+}
+
+// The wizard's Optimización step: the cut plan drawn straight on the page, as large as the screen
+// allows. From `lg` the step takes exactly the height left between the step row and the pinned
+// footer, so the sheet never makes the page scroll; the alerts above the canvas take their share.
+.plan-step {
+  @media (min-width: 992px) {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - var(--plan-step-offset));
+    min-height: 26rem;
+  }
+}
+
+// Sheet, pattern bar and inspector. No `.surface` under them: the drawing sits on the page's own
+// background, and the controls float over it as light panels. Floating in looks only — each panel
+// keeps its own grid cell, so none of them ever covers a piece.
+.plan-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @media (min-width: 992px) {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-areas:
+      'bar inspector'
+      'sheet inspector';
+    grid-template-columns: minmax(0, 1fr) 20rem;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+
+    // Hidden, the inspector hands its whole column to the sheet — a gain on a long 2:1 board, which
+    // runs out of width first; a near-square one is bound by the height either way.
+    &[data-inspector='closed'] {
+      grid-template-areas:
+        'bar'
+        'sheet';
+      grid-template-columns: minmax(0, 1fr);
+
+      .plan-canvas__inspector {
+        display: none;
+      }
+    }
+  }
+}
+
+.plan-float {
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg);
+  background-color: rgba(var(--cui-body-bg-rgb), 0.92);
+  box-shadow: var(--cui-box-shadow-sm);
+  backdrop-filter: blur(6px);
+}
+
+// The plan's facts over the sheet on a phone (`LayoutStep`); from `md` they ride in the footer.
+.plan-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.plan-canvas__title {
+  // A basis rather than its full width: the bar wraps, and at its natural width a long name sent
+  // the buttons down a line instead of wrapping itself beside them.
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+
+  @media (min-width: 992px) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.plan-canvas__bar {
+  display: flex;
+  flex-wrap: wrap;
+  grid-area: bar;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+  padding: 0.3rem 0.4rem 0.3rem 0.75rem;
+
+  // One line from `lg`: a long board name ellipsizes rather than pushing the controls onto a second
+  // row, which would take the height straight out of the sheet.
+  @media (min-width: 992px) {
+    flex-wrap: nowrap;
+  }
+}
+
+// The stage. From `lg` it has a definite height (its grid row), so the zoom wrapper inside
+// `SheetSvg` is stretched to it and the svg's `max-height: 100%` resolves: the sheet fills the
+// stage, centred, whichever of width or height runs out first. Below `lg` none of this applies and
+// the sheet takes its natural height at full width.
+.plan-canvas__sheet {
+  grid-area: sheet;
+  min-width: 0;
+
+  @media (min-width: 992px) {
+    min-height: 0;
+
+    > div {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+  }
+}
+
+.plan-canvas__inspector {
+  grid-area: inspector;
+  padding: 0.75rem;
+
+  @media (min-width: 992px) {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+  }
+}
+
+// Fullscreen host for the optimizer: the Fullscreen API paints its own black backdrop and stretches
+// the element, so the theme background and scrolling have to be restored explicitly.
+//
+// The page background, not body-bg: the step content is a `--cui-body-bg` surface now, and painting
+// the host the same shade would dissolve it exactly where the workspace is at its largest. The
+// footer already uses the same token, so it needs no override of its own.
+.optimizer-workspace:fullscreen {
+  --pieces-pane-offset: 18.25rem;
+  --plan-step-offset: 10.5rem;
+
+  height: 100vh;
+  overflow: auto;
+  padding: 1rem;
+  background-color: var(--mb-page-bg);
+}
+
+// The one scroll box the pieces editor has. Every material used to bring its own 55vh window
+// (`PieceRowsTable`'s `maxHeight`), so three open groups meant four nested scroll contexts and a
+// wheel that did something different depending on where the cursor happened to be. Collapsing them
+// into one pane is what makes the two sticky headers below possible: both stick to THIS box, so the
+// offsets owe nothing to the app header — the same rules hold on the page, in the workspace's
+// fullscreen host, and inside the pre-order panel's modal.
+//
+// The height comes from the call site (it knows what else is on its screen); `min-height` keeps the
+// pane usable on a short viewport instead of letting `calc()` squeeze it to nothing.
+.pieces-pane {
+  // Published here, not on the header itself: `.pieces-table thead th` offsets by it and is not a
+  // descendant of that header, and custom properties only inherit downwards.
+  --pieces-group-header-h: 2.5rem;
+  height: var(--pieces-pane-h, auto);
+  overflow: auto;
+  min-height: 24rem;
+  scrollbar-gutter: stable;
+
+  // On a phone the PAGE scrolls. The pane's height was worked out for 1280×800, and below `md` it
+  // left a box inside the page's own scroll — two scrolls, one of them a third of the screen tall.
+  // There is no grid here to pin headers over, so nothing is lost by letting the list grow.
+  @media (max-width: 767.98px) {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+}
+
+// A material's identity line, pinned to the top of the pane while its rows scroll under it.
+//
+// The height is FIXED and published as a variable because `.pieces-table thead th` parks directly
+// beneath it: a constant offset means nothing has to be measured at runtime. That is also why the
+// material's form (Fuente / Tablero / medidas) is a separate row below rather than part of this one
+// — it can grow to three lines when it wraps, and the sticky block must not.
+.material-group__head {
+  position: sticky;
+  top: 0;
+  // Above the table's own sticky header (2) and above the fill handle inside a cell (3).
+  z-index: 4;
+  height: var(--pieces-group-header-h);
+  background-color: var(--cui-body-bg);
+
+  // On a phone there is no table header to park under it, and the pane no longer scrolls — pinned,
+  // it would slide under the app header. So it lies flat and may take two lines: the name on the
+  // first (whole, not «ME…»), «Sin refilar» and the group's actions on the second.
+  @media (max-width: 767.98px) {
+    position: static;
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+    height: auto;
+    padding-block: 0.125rem;
+
+    .material-identity {
+      flex: 1 1 calc(100% - 3rem);
+      align-items: flex-start;
+    }
+
+    .material-dot,
+    .material-identity__pencil {
+      margin-top: 0.45em;
+    }
+
+    // Under the name, past the fold chevron.
+    .material-skip-trim {
+      margin-left: 3rem;
+    }
+  }
+}
+
+// The material's name in its pinned line: one line with an ellipsis from `md`, where the line's
+// height is a published constant. On a phone it wraps instead (see above).
+.material-identity__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+
+  @media (min-width: 768px) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// The accent repeated as a dot. `.material-group`'s 6px spine is the parent's border and scrolls
+// away with the rows, so without this the pinned line would be the only thing on screen with no
+// colour tying it to the group underneath.
+.material-dot {
+  flex: 0 0 auto;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background-color: var(--group-accent, var(--cui-border-color));
+}
+
+// The group's identity, and its one door into `MaterialModal`. The name, the board's size and the
+// retazo count are not a label beside a Configurar button — they ARE the button: the seller reaches
+// the material by touching the material, instead of hunting for a control parked at the far end of
+// the line next to the actions on the GROUP (duplicate, delete).
+//
+// Quiet at rest so the pinned line still reads as a heading, and it declares a TRANSPARENT border
+// rather than none: the header is sticky with a fixed height, so a border appearing on hover must
+// not be able to reflow it. `min-width: 0` + `overflow: hidden` are what let the name's
+// `text-truncate` actually bite — a flex child defaults to `min-width: auto` and refuses to shrink
+// below its content, which would push the piece counters off the line.
+.material-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.15rem 0.5rem;
+  border: var(--cui-border-width) var(--cui-border-style) transparent;
+  border-radius: var(--cui-border-radius);
+  background: none;
+  color: inherit;
+  text-align: start;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--group-accent, var(--cui-primary));
+    // An alpha of the brand, so one declaration serves both themes — same rule as `.piece-hit` and
+    // the `.list-table` row hover.
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  &:hover .material-identity__pencil,
+  &:focus-visible .material-identity__pencil {
+    opacity: 1;
+  }
+}
+
+// Faint at rest: enough to say "this is editable" without competing with the material's name, which
+// is the thing being read.
+.material-identity__pencil {
+  flex: 0 0 auto;
+  opacity: 0.55;
+  color: var(--cui-secondary-color);
+}
+
+// The one cutting decision that lives on the pinned line instead of in the modal: whether this
+// group's sheets get squared. It reads as a quiet option next to the material's name, not as an
+// action — so no border, no fill, and the label muted until the box is ticked.
+//
+// It must NEVER grow `.material-group__head`: that height is a published constant the table's
+// sticky `thead` parks under. `line-height: 1` on the row plus the check's own `mb-0` keep it well
+// inside 2.5rem, and the label hides under `md` where the line is already tight.
+.material-skip-trim {
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  color: var(--cui-secondary-color);
+
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .form-check-input {
+    flex: 0 0 auto;
+    margin: 0;
+    float: none;
+  }
+
+  .form-check-input:checked + .form-check-label {
+    color: var(--cui-body-color);
+    font-weight: 500;
+  }
+
+  .form-check-label {
+    cursor: pointer;
+  }
+}
+
+// Index of materials above the pane: table of contents, compass and jump target in one row. Chips
+// rather than a rail, because a rail would take width from a table that already has 11 columns.
+.material-strip {
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.material-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  max-width: 15rem;
+  padding: 0.15rem 0.6rem;
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: 10rem;
+  background-color: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  font-size: var(--mb-text-sm);
+  line-height: 1.4;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--group-accent, var(--cui-primary));
+  }
+
+  // The material on screen. Tinted with its OWN accent rather than the brand coral: the point of the
+  // strip is to agree with the dot and the spine you are looking at, and a coral fill would say
+  // "selected" in a colour that belongs to a different material every time.
+  &--active {
+    border-color: var(--group-accent, var(--cui-primary));
+    box-shadow: inset 0 0 0 1px var(--group-accent, var(--cui-primary));
+    font-weight: 600;
+  }
+}
+
+// Same dot as the group header wears, so the chip and the material it points at are recognisably
+// the same thing before either name is read.
+.material-chip-dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--group-accent, var(--cui-border-color));
+}
+
+.material-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.material-chip-count {
+  color: var(--cui-secondary-color);
+}
+
+// A search hit. Search paints, it never filters — a piece has no identity beyond its position, so
+// hiding a row would silently repoint the selection, the undo history and the drag handlers that
+// read row order straight off the DOM.
+//
+// `--cui-table-bg-state` rather than `background-color`: Bootstrap paints cell backgrounds as
+// `box-shadow: inset 0 0 0 9999px` over `--cui-table-bg`, so a plain background is overpainted,
+// while a TRANSLUCENT state colour composites on top. That is what lets a row be a hit and an error
+// at once — the danger red stays visible underneath. An alpha of the brand, so one value serves
+// both themes.
+.piece-hit {
+  --cui-table-bg-state: rgba(var(--cui-primary-rgb), 0.1);
+}
+
+// The match you are actually on: a heavier tint plus a solid bar in the "#" column, which is the one
+// cell narrow enough that a marker there reads as belonging to the whole row.
+.piece-hit--active {
+  --cui-table-bg-state: rgba(var(--cui-primary-rgb), 0.22);
+
+  // Both shadows in one declaration, bar first: Bootstrap paints the cell's own fill with an inset
+  // shadow too, and a rule that only set the bar would win the cascade and drop the tint here.
+  > td:nth-child(2) {
+    box-shadow:
+      inset 3px 0 0 var(--cui-primary),
+      inset 0 0 0 9999px rgba(var(--cui-primary-rgb), 0.22);
+  }
+}
+
+// Material group. No longer a card: the full border, the rounded corners and the tinted header strip
+// stacked a box inside a box inside a box before the first table row. What is left is the accent bar
+// down the left edge — which is functional, it tracks which group a row belongs to while a long
+// pieces list scrolls — plus the rule separating one group from the next.
+//
+// That separation carries the whole job of telling two materials apart, so it is deliberately loud:
+// a 6px rounded spine, real breathing room, and a 2px rule rather than a hairline. At 4px flush with
+// a hairline the boundary read as another table border and the groups ran together.
+//
+// The accent lives here rather than as an inline `border-left` because the `.border` utility declares
+// the shorthand `!important`, which beats any inline value.
+.material-group {
+  // A jump to a material on a phone scrolls the PAGE, whose top is under the sticky app header.
+  scroll-margin-top: 4.5rem;
+  border-left: 6px solid var(--group-accent, var(--cui-border-color));
+  border-start-start-radius: 0.3rem;
+  border-end-start-radius: 0.3rem;
+  padding: 0.35rem 0 1rem 0.9rem;
+
+  // `last-of-type`, not `last-child`: "Agregar material" is the last child of the list, so every
+  // group would still match `:not(:last-child)` and the final one would draw a trailing rule.
+  //
+  // Deliberately darker than `--cui-border-color`: at #dbdfe6 the rule was indistinguishable from
+  // the table's own cell borders, which is the whole problem it exists to solve. Translucent rather
+  // than a fixed grey so it tracks the theme.
+  &:not(:last-of-type) {
+    border-bottom: 2px solid rgba(var(--cui-body-color-rgb), 0.3);
+  }
+}
+
+// "Agregar material" / "Agregar servicio": the one control each list keeps in its own flow. Dashed
+// and full width so it reads as the next empty slot rather than as another button competing with the
+// row's own. The dash is the primary colour, not the border grey: still a slot, but a slot you can
+// see — against the step surface a grey dashed outline on a muted label was invisible.
+.add-slot {
+  border: var(--cui-border-width) dashed rgba(var(--cui-primary-rgb), 0.5);
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--cui-primary);
+  }
+}
+
+// The quick-entry line under a group's pieces, with its explicit «Agregar»: the line is the main
+// way in, and a line whose only way in is a key nobody sees reads as an input that does nothing.
+.quick-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.quick-entry__line {
+  flex: 1 1 14rem;
+  width: auto;
+  max-width: 30rem;
+
+  // The whole width on a phone, first; «Nueva pieza» goes under it.
+  @media (max-width: 767.98px) {
+    flex-basis: 100%;
+    order: -1;
+    max-width: none;
+  }
+}
+
+// The pieces of a material on a phone (`PiecesMobileList`): a list to read, one tap target per
+// piece. Divided rather than boxed, like `.list-card` — it already sits on a surface.
+.piece-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+}
+
+.piece-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.625rem 0.25rem;
+  border: 0;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  background: none;
+  color: inherit;
+  text-align: start;
+  // A jump to a piece scrolls the page, whose top is under the sticky app header.
+  scroll-margin-block: 5rem;
+
+  &:active {
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: -2px;
+  }
+
+  // Search paints, never filters — the same tints as `.piece-hit` in the grid, and the same bar for
+  // the match you are on.
+  &.is-hit {
+    background-color: rgba(var(--cui-primary-rgb), 0.1);
+  }
+
+  &.is-active-hit {
+    background-color: rgba(var(--cui-primary-rgb), 0.22);
+    box-shadow: inset 3px 0 0 var(--cui-primary);
+  }
+
+  // What the grid paints red, a red bar here; the pill in the row says which problem it is.
+  &.is-error:not(.is-active-hit) {
+    box-shadow: inset 3px 0 0 var(--cui-danger);
+  }
+}
+
+.piece-row__num {
+  flex: 0 0 2.25rem;
+  align-self: flex-start;
+  padding-top: 0.0625rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+}
+
+.piece-row__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.piece-row__title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.piece-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  margin-top: 0.125rem;
+
+  // The canto thumbnail, shrunk to the pill's text like its icons.
+  .status-pill > svg:not(.status-pill__icon) {
+    width: 1.4em;
+    height: 0.9em;
+  }
+}
+
+.piece-row__codes {
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}
+
+.piece-row__chevron {
+  flex: 0 0 auto;
+  color: var(--cui-secondary-color);
+}
+
+// The phone's piece sheet: Largo and Ancho share the row with a narrower Cant.
+.piece-sheet__measures {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 5.5rem);
+  gap: 0.5rem;
+}
+
+.piece-sheet__readonly {
+  padding-top: 0.75rem;
+  border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+}
+
+// Pieces grid: 11 columns of mostly 3-4 digit numbers. Shrinking the header type and cell padding
+// buys back horizontal room so the table fits its pane without scrolling.
+.pieces-table {
+  th {
+    font-size: var(--mb-text-xs);
+    line-height: 1.2;
+    // The label and its fill-down button stay on one line, which makes the header the column's
+    // min-content width. Before this the button wrapped underneath and every header was two rows
+    // tall — the reason "(mm)" had to go from Largo/Ancho, whose tooltips still carry the unit.
+    white-space: nowrap;
+  }
+
+  > :not(caption) > * > * {
+    padding: 0.25rem 0.35rem;
+  }
+}
+
+// Optimizing overlay. The cut search runs for tens of seconds on a real job, so the wait covers the
+// screen with a board filling up with pieces instead of leaving a stale result and a 12px spinner.
+// Semi-transparent on purpose: the previous result stays legible underneath, so it reads as
+// "recalculating this" rather than "everything is gone".
+//
+// Fixed, not absolute: pinned to its pane it was cut off by the pane's own bounds and scrolled out
+// of view on a long result, so the wait could end up off screen. Fixed also survives fullscreen —
+// there the fullscreen element IS the viewport, so `inset: 0` still lands on the workspace.
+.optimizing-overlay {
+  position: fixed;
+  inset: 0;
+  // Above the sticky app header (1030) and the wizard footer (990); below modals (1055), which
+  // cannot be open during a run anyway.
+  z-index: 1040;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgba(var(--cui-body-bg-rgb), 0.85);
+  backdrop-filter: blur(2px);
+}
+
+.optimizing-card {
+  max-width: 22rem;
+  text-align: center;
+}
+
+.optimizing-board {
+  display: block;
+  width: 100%;
+  max-width: 14rem;
+  height: auto;
+  margin: 0 auto 0.85rem;
+}
+
+.optimizing-sheet {
+  fill: var(--cui-body-bg);
+  stroke: var(--cui-border-color);
+  stroke-width: 1;
+}
+
+// `fill-box` so each piece scales about its own centre; without it the origin is the whole viewBox
+// and the pieces slide in from the corner.
+.optimizing-piece {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: optimizing-piece 3.6s ease-out infinite both;
+}
+
+// The saw pass, in the brand coral of the wordmark's "BLE".
+.optimizing-saw {
+  fill: var(--brand-coral);
+  animation: optimizing-saw 3.6s linear infinite;
+}
+
+.optimizing-logo {
+  display: block;
+  margin: 0 auto 0.4rem;
+  color: var(--cui-body-color);
+}
+
+.optimizing-stage {
+  font-size: var(--mb-text-md);
+  color: var(--cui-body-color);
+}
+
+.optimizing-elapsed {
+  font-size: var(--mb-text-xs);
+  color: var(--cui-secondary-color);
+}
+
+// One cycle: each piece lands (staggered by its inline animation-delay), the sheet holds full, then
+// it clears and the next pass starts.
+@keyframes optimizing-piece {
+  0%,
+  4% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  10%,
+  88% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+}
+
+@keyframes optimizing-saw {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  8%,
+  92% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(200px);
+  }
+}
+
+// The message and the counter carry the information; the motion is decoration, so it goes.
+@media (prefers-reduced-motion: reduce) {
+  .optimizing-piece {
+    animation: none;
+  }
+
+  .optimizing-saw {
+    animation: none;
+    opacity: 0;
+  }
+}

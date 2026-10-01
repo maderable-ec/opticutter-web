@@ -12,6 +12,7 @@ const hooks = createCrudHooks<Branch, BranchListParams, BranchPayload, BranchUpd
 export const useBranches = hooks.useList
 export const useCreateBranch = hooks.useCreate
 export const useUpdateBranch = hooks.useUpdate
+export const useBranchesTotal = hooks.useTotal
 
 // Lightweight hook reused by branch selectors across the app: fetches up to 100 branches
 // and returns only the active ones. `data` is already typed as `Branch[]`.

@@ -6,24 +6,15 @@
 //
 // It is the landing page of `operador` and `canteador` (permissions.ts) — the only screen those two
 // roles have — and it runs on a shop-floor touch panel: controls are `lg`, and nothing may depend on
-// a hover (a `title=` says nothing there). It carries no page chrome of its own, like every other
-// screen since the optimizer: the breadcrumb and the sidebar already name it, and a card wrapping a
-// grid of cards only draws a second border.
+// a hover (a `title=` says nothing there). On screen it is «Taller», the workspace it opens
+// (`AppRoute.workspace`): the layout gives it a header of its own and no menu. It carries no page
+// chrome of its own, like every other screen since the optimizer: that header already names it, and
+// a card wrapping a grid of cards only draws a second border.
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  CAlert,
-  CButton,
-  CCol,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
+import { CCol, CRow } from '@coreui/react'
 import { useCurrentUser } from 'src/features/auth/useAuth'
+import OrderStatusBadge from './OrderStatusBadge'
 import WorkshopQueueCard from './WorkshopQueueCard'
 import WorkshopMaterialsModal from './WorkshopMaterialsModal'
 import { useUpdateActivity, useWorkshopQueue } from './useOrders'
@@ -35,6 +26,13 @@ import {
   orderedActivities,
 } from './activities'
 import type { ActivityType, BoardAction, CardAction, WorkshopQueueItem } from './types'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
+import EmptyState from 'src/shared/components/EmptyState'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
+import { MASK } from 'src/shared/analytics'
+import { clientName } from 'src/shared/utils/format'
+import { useFromHere } from 'src/shared/hooks/useShellNav'
 
 interface ConfirmState {
   action: CardAction
@@ -49,16 +47,16 @@ const ACTION_COPY: Record<
   { verb: string; label: string; color: 'primary' | 'success' }
 > = {
   take: { verb: 'Tomar', label: 'Tomar', color: 'primary' },
-  open: { verb: 'Abrir', label: 'Abrir taller', color: 'primary' },
+  open: { verb: 'Abrir', label: 'Abrir corte', color: 'primary' },
   start: { verb: 'Iniciar', label: 'Iniciar', color: 'primary' },
   finish: { verb: 'Terminar', label: 'Terminar', color: 'success' },
 }
 
-// The sentence in the confirm dialog: "¿Terminar el canteado de la orden ORD-...?"
-const confirmSentence = (action: BoardAction, activity?: ActivityType): string => {
+// The confirm dialog's title, verb and object: «Terminar canteado de ORD-000043», «Tomar ORD-…».
+const confirmTitle = (action: BoardAction, code: string, activity?: ActivityType): string => {
   const verb = ACTION_COPY[action].verb
-  if (!activity) return `${verb} la orden`
-  return `${verb} el ${ACTIVITY_LABEL[activity].toLowerCase()} de la orden`
+  if (!activity || action === 'take') return `${verb} ${code}`
+  return `${verb} ${ACTIVITY_LABEL[activity].toLowerCase()} de ${code}`
 }
 
 // Head of the queue: the next order to be taken. Derived here rather than trusting the endpoint's
@@ -87,9 +85,33 @@ const nextOrderId = (items: WorkshopQueueItem[]): number | null => {
   return head?.orderId ?? null
 }
 
+// The board in one line, over the cards: how much is waiting to be taken and how much is already on
+// the floor. Each count sits beside the same badge its cards wear, so the line also says which
+// spine is which without a legend. Both always show, a zero included: «En proceso 0» on a full
+// queue is the thing to notice.
+const COUNTED: WorkshopQueueItem['status'][] = ['queued', 'in_process']
+
+const QueueCounts = ({ items }: { items: WorkshopQueueItem[] }) => (
+  <div className="workshop-counts">
+    {COUNTED.map((status) => (
+      <span key={status} className="workshop-counts__item">
+        <OrderStatusBadge status={status} />
+        <span className="workshop-counts__n">
+          {items.filter((item) => item.status === status).length}
+        </span>
+      </span>
+    ))}
+  </div>
+)
+
 const WorkshopBoardPage = () => {
   const navigate = useNavigate()
-  const { data: items = [], isLoading, error } = useWorkshopQueue()
+  // The canvas opens with the board as its origin, so its «Volver» comes back here — not to the
+  // order's detail above it in the URL, where the admin never was.
+  const fromHere = useFromHere()
+  const openCanvas = (orderId: number) =>
+    void navigate(`/orders/${orderId}/workshop`, { state: fromHere })
+  const { data: items = [], isLoading, error, refetch } = useWorkshopQueue()
   const updateActivity = useUpdateActivity()
   // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).
   const allowed = activitiesForRoles(useCurrentUser()?.roles)
@@ -106,7 +128,7 @@ const WorkshopBoardPage = () => {
   const runAction = (action: CardAction, item: WorkshopQueueItem) => {
     const id = String(item.orderId)
     // Taking an order and opening it are one act, not two: `Tomar` is tapped because the cut is
-    // about to start, and going back to the queue to find the same card and tap `Abrir taller` was
+    // about to start, and going back to the queue to find the same card and tap `Abrir corte` was
     // a second gesture with a glove on. Starting the cut is ALSO what takes the order out of the
     // queue -- the order's status is derived from the activity -- so this is one request, not two.
     // Navigate only on success: a rejected start (someone else took the order first) has to leave
@@ -114,7 +136,7 @@ const WorkshopBoardPage = () => {
     if (action.kind === 'take') {
       updateActivity.mutate(
         { id, activity: 'cutting', data: { status: 'in_progress' } },
-        { onSuccess: () => void navigate(`/orders/${item.orderId}/workshop`) },
+        { onSuccess: () => openCanvas(item.orderId) },
       )
       return
     }
@@ -132,80 +154,82 @@ const WorkshopBoardPage = () => {
     setConfirm(null)
   }
 
-  if (isLoading) {
-    return (
-      <div className="text-center py-5">
-        <CSpinner color="primary" />
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingBlock variant="cards" rows={4} label="Cargando el taller…" />
 
   return (
     <>
       {error ? (
-        <CAlert color="danger">{error.message || 'No se pudo cargar el tablero de taller.'}</CAlert>
+        <ErrorState title="No se pudo cargar la cola del taller." onRetry={() => void refetch()} />
       ) : items.length === 0 ? (
-        <div className="text-center text-body-secondary py-5">No hay órdenes en el tablero.</div>
+        <EmptyState
+          title="No hay órdenes en el taller."
+          hint="Una orden aparece aquí cuando se registra su pago y pasa a la cola."
+        />
       ) : (
-        <CRow className="g-3">
-          {items.map((item) => {
-            const idStr = String(item.orderId)
-            // One button per activity this viewer may register, derived in `activities.ts`
-            // from the activity's own status and piece progress -- including its blocked
-            // reason, so the card can grey out and SAY why instead of bouncing the tap.
-            const actions: CardAction[] = orderedActivities(item.activities)
-              .filter((activity) => allowed.includes(activity.type))
-              .map((activity) => activityAction(activity))
-              .filter((action): action is CardAction => action !== null)
-              // Starting the cut of a QUEUED order is `take`: it also takes the order out of
-              // the queue and opens the canvas, which is one gesture on a touch panel.
-              .map((action) =>
-                action.kind === 'start' && action.activity === 'cutting' && item.status === 'queued'
-                  ? { ...action, kind: 'take', label: 'Tomar' }
-                  : action,
+        <>
+          <QueueCounts items={items} />
+          <CRow className="g-3">
+            {items.map((item) => {
+              const idStr = String(item.orderId)
+              // One button per activity this viewer may register, derived in `activities.ts`
+              // from the activity's own status and piece progress -- including its blocked
+              // reason, so the card can grey out and SAY why instead of bouncing the tap.
+              const actions: CardAction[] = orderedActivities(item.activities)
+                .filter((activity) => allowed.includes(activity.type))
+                .map((activity) => activityAction(activity))
+                .filter((action): action is CardAction => action !== null)
+                // Starting the cut of a QUEUED order is `take`: it also takes the order out of
+                // the queue and opens the canvas, which is one gesture on a touch panel.
+                .map((action) =>
+                  action.kind === 'start' &&
+                  action.activity === 'cutting' &&
+                  item.status === 'queued'
+                    ? { ...action, kind: 'take', label: 'Tomar' }
+                    : action,
+                )
+
+              // Once the cut is running, the operator's way back into the canvas.
+              if (
+                item.status === 'in_process' &&
+                allowed.includes('cutting') &&
+                findActivity(item.activities, 'cutting')?.status === 'in_progress'
+              ) {
+                actions.unshift({
+                  kind: 'open',
+                  label: 'Abrir corte',
+                  color: 'primary',
+                  nav: true,
+                })
+              }
+
+              // The pending and error states are scoped to the card that acted: the mutation is
+              // shared by the whole page, so an unscoped `isPending` froze the buttons of every
+              // other order on the board while one request was in flight.
+              const acting = updateActivity.variables?.id === idStr
+              const error =
+                updateActivity.isError && acting
+                  ? updateActivity.error?.message || 'No se pudo registrar el trabajo.'
+                  : null
+
+              return (
+                <CCol key={item.orderId} xs={12} md={6} xxl={4}>
+                  <WorkshopQueueCard
+                    item={item}
+                    isNext={item.orderId === nextId}
+                    actions={actions}
+                    pending={updateActivity.isPending && acting}
+                    error={error}
+                    onAction={(action) => {
+                      if (action.nav) openCanvas(item.orderId)
+                      else setConfirm({ action, item })
+                    }}
+                    onShowMaterials={() => setMaterialsId(item.orderId)}
+                  />
+                </CCol>
               )
-
-            // Once the cut is running, the operator's way back into the canvas.
-            if (
-              item.status === 'in_process' &&
-              allowed.includes('cutting') &&
-              findActivity(item.activities, 'cutting')?.status === 'in_progress'
-            ) {
-              actions.unshift({
-                kind: 'open',
-                label: 'Abrir taller',
-                color: 'primary',
-                nav: true,
-              })
-            }
-
-            // The pending and error states are scoped to the card that acted: the mutation is
-            // shared by the whole page, so an unscoped `isPending` froze the buttons of every
-            // other order on the board while one request was in flight.
-            const acting = updateActivity.variables?.id === idStr
-            const error =
-              updateActivity.isError && acting
-                ? updateActivity.error?.message || 'No se pudo registrar el trabajo.'
-                : null
-
-            return (
-              <CCol key={item.orderId} xs={12} md={6} xxl={4}>
-                <WorkshopQueueCard
-                  item={item}
-                  isNext={item.orderId === nextId}
-                  actions={actions}
-                  pending={updateActivity.isPending && acting}
-                  error={error}
-                  onAction={(action) => {
-                    if (action.nav) void navigate(`/orders/${item.orderId}/workshop`)
-                    else setConfirm({ action, item })
-                  }}
-                  onShowMaterials={() => setMaterialsId(item.orderId)}
-                />
-              </CCol>
-            )
-          })}
-        </CRow>
+            })}
+          </CRow>
+        </>
       )}
 
       <WorkshopMaterialsModal
@@ -215,31 +239,32 @@ const WorkshopBoardPage = () => {
         onClose={() => setMaterialsId(null)}
       />
 
-      <CModal visible={!!confirm} onClose={() => setConfirm(null)}>
-        <CModalHeader>
-          <CModalTitle>Confirmar acción</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <p className="mb-0 fs-5">
-            ¿{confirm && confirmSentence(confirm.action.kind, confirm.action.activity)}{' '}
-            <strong>{confirm?.item.orderCode}</strong>?
-          </p>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" size="lg" onClick={() => setConfirm(null)}>
-            Cancelar
-          </CButton>
-          {/* The verb, not a generic "Confirmar": on a touch panel the button you are about to press
-              should say what it does. */}
-          <CButton
-            color={confirm ? ACTION_COPY[confirm.action.kind].color : 'primary'}
-            size="lg"
-            onClick={confirmAction}
-          >
-            {confirm ? ACTION_COPY[confirm.action.kind].label : 'Confirmar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      {/* The verb on the button, not a generic «Confirmar»: on a touch panel the button you are
+          about to press should say what it does. The body names whose order it is, which the code
+          alone does not tell anyone on the floor. */}
+      <ConfirmDialog
+        visible={!!confirm}
+        touch
+        title={
+          confirm
+            ? confirmTitle(
+                confirm.action.kind,
+                confirm.item.orderCode ?? `la orden ${confirm.item.orderId}`,
+                confirm.action.activity,
+              )
+            : ''
+        }
+        confirmLabel={confirm ? ACTION_COPY[confirm.action.kind].label : ''}
+        tone={confirm ? ACTION_COPY[confirm.action.kind].color : 'primary'}
+        onConfirm={confirmAction}
+        onClose={() => setConfirm(null)}
+      >
+        {confirm && (
+          <>
+            Orden de <strong {...MASK}>{clientName(confirm.item.client)}</strong>.
+          </>
+        )}
+      </ConfirmDialog>
     </>
   )
 }

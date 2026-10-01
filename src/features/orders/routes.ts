@@ -9,9 +9,10 @@ const WorkshopBoardPage = lazy(() => import('./WorkshopBoardPage'))
 export const ordersRoutes: AppRoute[] = [
   {
     path: '/workshop-board',
-    name: 'Tablero de taller',
+    name: 'Taller',
     element: WorkshopBoardPage,
     roles: ['administrador', 'operador', 'canteador'],
+    workspace: 'taller',
   },
   {
     path: '/orders',
@@ -24,11 +25,15 @@ export const ordersRoutes: AppRoute[] = [
     name: 'Detalle de orden',
     element: OrderDetailPage,
     roles: ['administrador', 'vendedor'],
+    actionBar: true,
   },
   {
+    // «Corte», not «Taller»: that is the place, and this is one order being cut in it.
     path: '/orders/:id/workshop',
-    name: 'Taller',
+    name: 'Corte',
     element: WorkshopPage,
     roles: ['administrador', 'vendedor', 'operador'],
+    workspace: 'taller',
+    immersive: true,
   },
 ]

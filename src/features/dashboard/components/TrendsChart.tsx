@@ -1,180 +1,89 @@
-import { useEffect, useRef, type ComponentRef } from 'react'
-import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
-import { CChartLine } from '@coreui/react-chartjs'
-import { getStyle } from '@coreui/utils'
+import { useState } from 'react'
+import { fmtMoney } from 'src/shared/utils/format'
+import EmptyState from 'src/shared/components/EmptyState'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
 import { useTimeseries } from '../useAnalytics'
-import { fmtBucketLabel } from '../format'
-import type { Granularity } from '../types'
+import { fmtBucketLabel, fmtInt, fmtMoneyTick } from '../format'
+import { GRANULARITIES, GRANULARITY_NOUN } from '../reportFilters'
+import type { Granularity, Timeseries } from '../types'
+import LineChartFigure from './LineChartFigure'
+import ReportSection from './ReportSection'
+import Segmented from './Segmented'
 
-// Minimal shape we mutate on theme change; the full Chart.js scale type is a
-// DeepPartial that fights direct assignment, so we narrow to what we touch.
-type MutableScale = {
-  grid: { color: string | undefined }
-  ticks: { color: string | undefined }
+type Metric = keyof Timeseries['series']
+
+interface MetricSpec {
+  id: Metric
+  label: string
+  title: string
+  format: (n: number) => string
+  tick?: (n: number) => string
 }
+
+const REVENUE: MetricSpec = {
+  id: 'revenue',
+  label: 'Ingresos',
+  title: 'Ingresos',
+  format: fmtMoney,
+  tick: fmtMoneyTick,
+}
+
+const METRICS: MetricSpec[] = [
+  REVENUE,
+  { id: 'orderCount', label: 'Órdenes', title: 'Órdenes', format: fmtInt },
+  { id: 'boardsConsumed', label: 'Tableros', title: 'Tableros', format: fmtInt },
+  { id: 'newClients', label: 'Clientes nuevos', title: 'Clientes nuevos', format: fmtInt },
+]
 
 interface TrendsChartProps {
   from: string
   to: string
   granularity: Granularity
   branchId?: number
+  className?: string
 }
 
-const TrendsChart = ({ from, to, granularity, branchId }: TrendsChartProps) => {
-  const chartRef = useRef<ComponentRef<typeof CChartLine>>(null)
-  const { data, isLoading, error } = useTimeseries(from, to, granularity, branchId)
-
-  useEffect(() => {
-    const handleColorSchemeChange = () => {
-      const chart = chartRef.current
-      if (chart) {
-        setTimeout(() => {
-          const scales = chart.options.scales as unknown as {
-            x: MutableScale
-            y: MutableScale
-            y1: MutableScale
-          }
-          scales.x.grid.color = getStyle('--cui-border-color-translucent')
-          scales.x.ticks.color = getStyle('--cui-body-color')
-          scales.y.grid.color = getStyle('--cui-border-color-translucent')
-          scales.y.ticks.color = getStyle('--cui-body-color')
-          scales.y1.ticks.color = getStyle('--cui-body-color')
-          chart.update()
-        })
-      }
-    }
-    document.documentElement.addEventListener('ColorSchemeChange', handleColorSchemeChange)
-    return () =>
-      document.documentElement.removeEventListener('ColorSchemeChange', handleColorSchemeChange)
-  }, [chartRef])
-
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="text-center py-5">
-          <CSpinner color="primary" />
-        </div>
-      )
-    }
-
-    if (error) {
-      return (
-        <div className="text-danger small py-3">Error cargando tendencias: {error.message}</div>
-      )
-    }
-
-    if (!data || data.buckets.length === 0) {
-      return (
-        <div className="text-body-secondary text-center py-5 small">
-          Sin datos en el período seleccionado
-        </div>
-      )
-    }
-
-    const labels = data.buckets.map((b) => fmtBucketLabel(b, granularity))
-    const { revenue, orderCount, boardsConsumed, newClients } = data.series
-
-    return (
-      <CChartLine
-        ref={chartRef}
-        style={{ height: '300px', marginTop: '16px' }}
-        data={{
-          labels,
-          datasets: [
-            {
-              label: 'Ingresos (USD)',
-              yAxisID: 'y',
-              backgroundColor: `rgba(${getStyle('--cui-success-rgb')}, .1)`,
-              borderColor: getStyle('--cui-success'),
-              pointHoverBackgroundColor: getStyle('--cui-success'),
-              borderWidth: 2,
-              data: revenue,
-              fill: true,
-              tension: 0.4,
-            },
-            {
-              label: 'Órdenes',
-              yAxisID: 'y1',
-              backgroundColor: 'transparent',
-              borderColor: getStyle('--cui-info'),
-              pointHoverBackgroundColor: getStyle('--cui-info'),
-              borderWidth: 2,
-              data: orderCount,
-              tension: 0.4,
-            },
-            {
-              label: 'Tableros',
-              yAxisID: 'y1',
-              backgroundColor: 'transparent',
-              borderColor: getStyle('--cui-warning'),
-              pointHoverBackgroundColor: getStyle('--cui-warning'),
-              borderWidth: 2,
-              data: boardsConsumed,
-              tension: 0.4,
-            },
-            {
-              label: 'Nuevos clientes',
-              yAxisID: 'y1',
-              backgroundColor: 'transparent',
-              borderColor: getStyle('--cui-primary'),
-              pointHoverBackgroundColor: getStyle('--cui-primary'),
-              borderWidth: 2,
-              data: newClients,
-              tension: 0.4,
-            },
-          ],
-        }}
-        options={{
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'top' },
-          },
-          scales: {
-            x: {
-              grid: {
-                color: getStyle('--cui-border-color-translucent'),
-                drawOnChartArea: false,
-              },
-              ticks: { color: getStyle('--cui-body-color') },
-            },
-            y: {
-              type: 'linear',
-              display: true,
-              position: 'left',
-              beginAtZero: true,
-              border: { color: getStyle('--cui-border-color-translucent') },
-              grid: { color: getStyle('--cui-border-color-translucent') },
-              ticks: {
-                color: getStyle('--cui-body-color'),
-                maxTicksLimit: 5,
-                callback: (v) => `$${v.toLocaleString()}`,
-              },
-            },
-            y1: {
-              type: 'linear',
-              display: true,
-              position: 'right',
-              beginAtZero: true,
-              grid: { drawOnChartArea: false },
-              ticks: {
-                color: getStyle('--cui-body-color'),
-                maxTicksLimit: 5,
-              },
-            },
-          },
-          elements: {
-            point: { radius: 0, hitRadius: 10, hoverRadius: 4, hoverBorderWidth: 3 },
-          },
-        }}
-      />
-    )
-  }
+// How the period went, one measure at a time: the four of them on two y-scales told nothing that
+// one axis per measure does not tell better.
+const TrendsChart = ({ from, to, granularity, branchId, className }: TrendsChartProps) => {
+  const [metricId, setMetricId] = useState<Metric>('revenue')
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useTimeseries(
+    from,
+    to,
+    granularity,
+    branchId,
+  )
+  const metric = METRICS.find((m) => m.id === metricId) ?? REVENUE
+  const noun = GRANULARITY_NOUN[granularity]
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="small fw-semibold text-body-secondary">Tendencias</CCardHeader>
-      <CCardBody>{renderContent()}</CCardBody>
-    </CCard>
+    <ReportSection
+      title="Tendencia"
+      className={className}
+      refreshing={isPlaceholderData}
+      control={
+        <Segmented label="Medida" items={METRICS} value={metricId} onChange={setMetricId} wrap />
+      }
+    >
+      {isLoading ? (
+        <LoadingBlock rows={4} label="Cargando tendencia…" />
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
+      ) : !data || data.buckets.length === 0 ? (
+        <EmptyState title="Sin datos en el período" />
+      ) : (
+        <LineChartFigure
+          title={`${metric.title} por ${noun}`}
+          periodLabel={GRANULARITIES.find((g) => g.id === granularity)?.label ?? 'Período'}
+          labels={data.buckets.map((b) => fmtBucketLabel(b, granularity))}
+          values={data.series[metric.id]}
+          format={metric.format}
+          tick={metric.tick}
+          integer={metric.id !== 'revenue'}
+        />
+      )}
+    </ReportSection>
   )
 }
 

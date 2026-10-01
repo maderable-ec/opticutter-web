@@ -1,27 +1,13 @@
 import { useState } from 'react'
 import type { ChangeEvent } from 'react'
-import {
-  CAlert,
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CFormInput,
-  CFormLabel,
-  CInputGroup,
-  CInputGroupText,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCheckAlt, cilSave } from '@coreui/icons'
+import { CCol, CFormInput, CFormLabel, CInputGroup, CInputGroupText, CRow } from '@coreui/react'
 
 import FieldError from 'src/shared/components/FieldError'
 import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useTaxSettings, useUpdateTaxSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { TaxSettings } from './types'
+import SettingsSection from './SettingsSection'
 
 // Stored as a fraction (0.15), edited as a percentage (15). Rounding the trip
 // back keeps 0.15 from becoming 0.15000000000000002.
@@ -72,96 +58,50 @@ const TaxSettingsCard = () => {
   const genericError = hasGenericError(update.error, serverErrors)
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <strong>Impuestos</strong>
-        <div className="d-flex gap-2">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleDiscard}
-          >
-            Descartar
-          </CButton>
-          <CButton
-            color="primary"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleSave}
-          >
-            {update.isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={savedFlash ? cilCheckAlt : cilSave} className="me-1" />
-            )}
-            {savedFlash ? 'Guardado' : 'Guardar'}
-          </CButton>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {isLoading || input === null ? (
-          <div className="text-center py-5">
-            {isError ? (
-              <div className="text-body-secondary">
-                No se pudo cargar la configuración de impuestos.{' '}
-                <CButton size="sm" color="link" onClick={() => void refetch()}>
-                  Reintentar
-                </CButton>
-              </div>
-            ) : (
-              <CSpinner color="primary" />
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-body-secondary small mb-3">
-              Los precios del catálogo se guardan <strong>sin IVA</strong>, así que esta tasa es la
-              que produce todos los totales: cotizaciones y órdenes de pedido muestran Subtotal, IVA
-              y Total. Cambiarla solo afecta lo que se calcule de aquí en adelante —{' '}
-              <strong>cada orden congela la tasa con la que se facturó</strong>.
-            </p>
-
-            {savedFlash && (
-              <CAlert color="success" className="py-2">
-                Configuración de impuestos guardada correctamente.
-              </CAlert>
-            )}
-            {genericError && (
-              <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
-              </CAlert>
-            )}
-
-            <CRow className="g-3">
-              <CCol xs={12} md={4}>
-                <CFormLabel htmlFor="tax-rate">IVA</CFormLabel>
-                <CInputGroup>
-                  <CFormInput
-                    id="tax-rate"
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="any"
-                    value={input}
-                    onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                      setInput(e.target.value)
-                      setClientError(null)
-                    }}
-                    invalid={!!fieldErrors.taxRate}
-                  />
-                  <CInputGroupText>%</CInputGroupText>
-                </CInputGroup>
-                <FieldError name="taxRate" errors={fieldErrors} />
-              </CCol>
-            </CRow>
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+    <SettingsSection
+      title="Impuestos"
+      description={
+        <>
+          Los precios del catálogo se guardan <strong>sin IVA</strong>, así que esta tasa es la que
+          produce todos los totales: cotizaciones y órdenes muestran Subtotal, IVA y Total.
+          Cambiarla solo afecta lo que se calcule de aquí en adelante:{' '}
+          <strong>cada orden congela la tasa con la que se facturó</strong>.
+        </>
+      }
+      ready={!isLoading && input !== null}
+      isError={isError}
+      onRetry={() => void refetch()}
+      dirty={isDirty}
+      saving={update.isPending}
+      saved={savedFlash}
+      savedMessage="Configuración de impuestos guardada correctamente."
+      error={genericError ? update.error?.message || 'Error al guardar. Intenta nuevamente.' : null}
+      onSave={handleSave}
+      onDiscard={handleDiscard}
+    >
+      <CRow className="g-3">
+        <CCol xs={12} md={4}>
+          <CFormLabel htmlFor="tax-rate">IVA</CFormLabel>
+          <CInputGroup>
+            <CFormInput
+              id="tax-rate"
+              type="number"
+              min={0}
+              max={100}
+              step="any"
+              value={input ?? ''}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                setInput(e.target.value)
+                setClientError(null)
+              }}
+              invalid={!!fieldErrors.taxRate}
+            />
+            <CInputGroupText>%</CInputGroupText>
+          </CInputGroup>
+          <FieldError name="taxRate" errors={fieldErrors} />
+        </CCol>
+      </CRow>
+    </SettingsSection>
   )
 }
 

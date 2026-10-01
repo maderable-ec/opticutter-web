@@ -116,12 +116,18 @@ export const usePiecesNavigation = ({
       if (uid && collapsedRef.current.has(uid)) expand(uid)
       setActiveMatch(flat)
       requestAnimationFrame(() => {
-        const row = document.querySelector<HTMLElement>(`[data-piece-flat="${flat}"]`)
+        // Two elements carry the index — the grid's row and the phone list's — and the breakpoint
+        // hides one of them. The one with a box is the one on screen.
+        const row = [...document.querySelectorAll<HTMLElement>(`[data-piece-flat="${flat}"]`)].find(
+          (el) => el.getClientRects().length > 0,
+        )
         if (!row) return
         row.scrollIntoView({ block: 'center', behavior: 'smooth' })
         // The label is the human-readable column and the one a user is most likely to have been
-        // looking for, so the caret lands there rather than on the first dimension.
-        row.querySelector<HTMLElement>('[data-col="3"]')?.focus({ preventScroll: true })
+        // looking for, so the caret lands there rather than on the first dimension. The phone's row
+        // is a button of its own and takes the focus itself.
+        const target = row.querySelector<HTMLElement>('[data-col="3"]') ?? row
+        target.focus({ preventScroll: true })
       })
     },
     [expand],
@@ -205,7 +211,12 @@ export const usePiecesNavigation = ({
     const els = [...elementsRef.current.entries()].filter(([, el]) => el.isConnected)
     if (els.length === 0) return
     const pane = els[0]?.[1].closest('.pieces-pane')
-    const paneTop = pane ? pane.getBoundingClientRect().top : 0
+    // On a phone the pane does not scroll — the page does (or the quote's panel) — so the edge the
+    // groups cross is the bottom of the sticky app header rather than the pane's own top.
+    const paneScrolls = !!pane && getComputedStyle(pane).overflowY !== 'visible'
+    const paneTop = paneScrolls
+      ? pane.getBoundingClientRect().top
+      : (document.querySelector('.header')?.getBoundingClientRect().bottom ?? 0)
     let current: string | null = null
     for (const [uid, el] of els) {
       // 1px of slack: at rest the first group sits exactly on the pane's edge, and sub-pixel
@@ -226,11 +237,14 @@ export const usePiecesNavigation = ({
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(recompute)
     }
-    pane.addEventListener('scroll', onScroll, { passive: true })
+    // Captured on the document: whichever box scrolls — the pane on a laptop, the page or the
+    // quote's panel on a phone — its scroll passes through here (scroll events do not bubble, but
+    // they are captured).
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
     raf = requestAnimationFrame(recompute)
     return () => {
       cancelAnimationFrame(raf)
-      pane.removeEventListener('scroll', onScroll)
+      document.removeEventListener('scroll', onScroll, { capture: true })
     }
   }, [recompute, materials])
 

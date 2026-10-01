@@ -1,38 +1,28 @@
-import {
-  CButton,
-  CCol,
-  CContainer,
-  CFormInput,
-  CInputGroup,
-  CInputGroupText,
-  CRow,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilMagnifyingGlass } from '@coreui/icons'
+import { Link } from 'react-router-dom'
+import Icon from 'src/shared/icons/Icon'
 
+import { useDocumentTitle } from 'src/shared/hooks/useDocumentTitle'
+
+// A link that leads nowhere: say so, and give the one way out that always works.
 const Page404 = () => {
+  useDocumentTitle('Página no encontrada · Maderable')
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={6}>
-            <div className="clearfix">
-              <h1 className="float-start display-3 me-4">404</h1>
-              <h4 className="pt-3">Oops! You{"'"}re lost.</h4>
-              <p className="text-body-secondary float-start">
-                The page you are looking for was not found.
-              </p>
-            </div>
-            <CInputGroup className="input-prepend">
-              <CInputGroupText>
-                <CIcon icon={cilMagnifyingGlass} />
-              </CInputGroupText>
-              <CFormInput type="text" placeholder="What are you looking for?" />
-              <CButton color="info">Search</CButton>
-            </CInputGroup>
-          </CCol>
-        </CRow>
-      </CContainer>
+    <div className="error-page">
+      <div className="empty-state">
+        <span className="empty-state__icon" aria-hidden="true">
+          <Icon name="notFound" />
+        </span>
+        <h1 className="error-page__code">404</h1>
+        <p className="empty-state__title">No encontramos esta página.</p>
+        <p className="empty-state__hint">
+          Puede que el enlace esté mal escrito o que ya no exista.
+        </p>
+        <div className="empty-state__action">
+          <Link to="/" className="btn btn-primary">
+            Ir al inicio
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

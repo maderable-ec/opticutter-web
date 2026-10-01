@@ -29,12 +29,11 @@ export const toggleRole = (current: readonly Role[], role: Role, checked: boolea
   return ROLE_ORDER.filter((r) => r === role || kept.includes(r))
 }
 
-// Landing path for a set of roles. The dashboard is admin-only, so each user lands on a route they
-// can access; this prevents the redirect loop (/ → /dashboard → / …) for non-admins. `/profile` is
-// the one route every authenticated user reaches.
+// Landing path for a set of roles: each user lands on a route they can open, which is also what
+// keeps `/` from bouncing between guards. The office starts on Inicio (what needs doing today); the
+// shop floor on its board. `/profile` is the one route every authenticated user reaches.
 export const homePathForRoles = (roles: readonly Role[] | undefined): string => {
-  if (hasAnyRole(roles, ['administrador'])) return '/dashboard'
-  if (hasAnyRole(roles, ['vendedor'])) return '/optimizer'
+  if (hasAnyRole(roles, ['administrador', 'vendedor'])) return '/inicio'
   // The shop floor's only shared view, for the operator and the bander alike.
   if (hasAnyRole(roles, WORKSHOP_ROLES)) return '/workshop-board'
   return '/profile'

@@ -1,25 +1,64 @@
-import FilterMenu from 'src/shared/components/FilterMenu'
+import ListFilters from 'src/shared/components/ListFilters'
 import FilterActiveSection from 'src/shared/components/FilterActiveSection'
 import FilterSortSection, { type ListSort } from 'src/shared/components/FilterSortSection'
 import type { FilterChip } from 'src/shared/components/FilterChips'
+import { useFilterSheet } from 'src/shared/hooks/useFilterSheet'
+import { useServicesTotal } from './useServices'
+import type { AdditionalServiceListParams } from './types'
 
 export interface ServicesFilterValues {
   isActive: string
   sort: ListSort
 }
 
+type OnFilterChange = <K extends keyof ServicesFilterValues>(
+  key: K,
+  value: ServicesFilterValues[K],
+) => void
+
+// What the listing asks the API for a set of values, less the page and its order. Shared by the
+// page's query and the sheet's count, so «Ver 5 servicios» is the list it opens.
+export const serviceFilterParams = (
+  values: ServicesFilterValues,
+  search: string,
+): AdditionalServiceListParams => ({
+  search: search || undefined,
+  isActive: values.isActive ? values.isActive === 'true' : undefined,
+})
+
 interface ServicesFiltersProps {
   values: ServicesFilterValues
-  onChange: <K extends keyof ServicesFilterValues>(key: K, value: ServicesFilterValues[K]) => void
+  search: string
+  onChange: OnFilterChange
+  onApply: (values: ServicesFilterValues) => void
   onClear: () => void
 }
 
-const ServicesFilters = ({ values, onChange, onClear }: ServicesFiltersProps) => (
-  <FilterMenu activeCount={activeCount(values)} onClear={onClear}>
-    <FilterActiveSection value={values.isActive} onChange={(next) => onChange('isActive', next)} />
-    <FilterSortSection value={values.sort} onChange={(next) => onChange('sort', next)} />
-  </FilterMenu>
-)
+const ServicesFilters = ({ values, search, onChange, onApply, onClear }: ServicesFiltersProps) => {
+  const sheet = useFilterSheet(values)
+  const total = useServicesTotal(serviceFilterParams(sheet.draft, search), sheet.visible)
+
+  return (
+    <ListFilters
+      values={values}
+      onChange={onChange}
+      onClear={onClear}
+      sheet={sheet}
+      onApply={onApply}
+      cleared={(draft) => ({ isActive: '', sort: draft.sort })}
+      activeCount={activeCount}
+      resultCount={total.data}
+      isCounting={total.isFetching}
+      noun={{ one: 'servicio', other: 'servicios' }}
+      renderFields={(v, change) => (
+        <>
+          <FilterActiveSection value={v.isActive} onChange={(next) => change('isActive', next)} />
+          <FilterSortSection value={v.sort} onChange={(next) => change('sort', next)} />
+        </>
+      )}
+    />
+  )
+}
 
 export default ServicesFilters
 

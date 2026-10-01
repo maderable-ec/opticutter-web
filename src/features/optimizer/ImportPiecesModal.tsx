@@ -9,11 +9,9 @@ import {
   CFormLabel,
   CFormSelect,
   CFormTextarea,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -36,6 +34,7 @@ import {
 } from './piecesImport'
 import type { ImportTarget, MaterialMapping } from './piecesImport'
 import type { ModalContainer } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 // Cap on the mapping rows we render: a CSV using the Material column as free text can produce
 // hundreds of distinct values, and each row carries a select with the whole board catalog.
@@ -141,7 +140,7 @@ const ImportPiecesModal = ({
   }
 
   return (
-    <CModal
+    <Modal
       visible={visible}
       onClose={close}
       size="lg"
@@ -150,7 +149,7 @@ const ImportPiecesModal = ({
       container={container}
     >
       <CModalHeader>
-        <CModalTitle>Importar piezas</CModalTitle>
+        <ModalTitle>Importar piezas</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <p className="text-body-secondary small mb-2">
@@ -381,7 +380,7 @@ const ImportPiecesModal = ({
           </CButton>
         </div>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

@@ -9,18 +9,22 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilBolt, cilPlus } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { MASK } from 'src/shared/analytics'
 import NoBranchNotice, { isNoBranchError } from 'src/shared/components/NoBranchNotice'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import SearchInput from 'src/shared/components/SearchInput'
+import EmptyState from 'src/shared/components/EmptyState'
+import ListToolbar from 'src/shared/components/ListToolbar'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
 import RememberedList from 'src/shared/components/RememberedList'
+import RecordLink from 'src/shared/components/RecordLink'
 import { useListParams } from 'src/shared/hooks/useListParams'
+import { useFromHere } from 'src/shared/hooks/useShellNav'
+import { useStartQuote } from 'src/features/optimizer/useStartQuote'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
@@ -55,6 +59,9 @@ const FILTER_KEYS = [
 
 const OrdersList = () => {
   const navigate = useNavigate()
+  const { startQuote, dialog: startQuoteDialog } = useStartQuote()
+  // The rows open their record with this list as its origin, as the code's `RecordLink` does.
+  const fromHere = useFromHere()
   // Operador can view orders but cannot create quotes (that belongs to the optimizer).
   const canCreate = useHasRole('administrador', 'vendedor')
   const isGlobalBranch = useIsGlobalBranchRole()
@@ -124,26 +131,27 @@ const OrdersList = () => {
   // Two different dead ends: an empty catalog is a fact, an over-narrow filter is a place the user
   // needs a way out of. Shared by the table and the phone's card list.
   const emptyState = isFiltered ? (
-    <>
-      <div>Ninguna orden coincide con los filtros.</div>
-      <CButton color="link" size="sm" onClick={handleClear}>
-        Limpiar filtros
-      </CButton>
-    </>
+    <EmptyState
+      icon="clearFilters"
+      title="Ninguna orden coincide con los filtros."
+      action={
+        <CButton color="secondary" variant="outline" onClick={handleClear}>
+          Limpiar filtros
+        </CButton>
+      }
+    />
   ) : (
-    'Aún no hay órdenes.'
+    <EmptyState title="Aún no hay órdenes." />
   )
 
   return (
     <div className="surface">
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <ListToolbar>
         <SearchInput
           value={search}
           // `replace`: one history entry per settled keystroke would bury the page behind the list.
           onChange={(value) => setParam('q', value, { replace: true })}
           placeholder="Buscar por código, N° o cliente…"
-          className="flex-grow-1"
-          style={{ maxWidth: 360 }}
         />
         <OrdersFilters
           values={values}
@@ -153,13 +161,19 @@ const OrdersList = () => {
           onClear={handleClear}
           showBranch={isGlobalBranch}
         />
+        {/* From `md` up: on a phone the bottom nav's «Cotizar» is the same button, one thumb away. */}
         {canCreate && (
-          <CButton color="primary" className="ms-auto" onClick={() => void navigate('/optimizer')}>
-            <CIcon icon={cilPlus} className="me-1" />
+          <CButton
+            color="primary"
+            className="ms-auto d-none d-md-inline-block"
+            onClick={startQuote}
+          >
+            <Icon name="add" className="me-1" />
             Nueva cotización
           </CButton>
         )}
-      </div>
+      </ListToolbar>
+      {startQuoteDialog}
 
       <FilterChips chips={chips} onClearAll={handleClear} />
 
@@ -172,9 +186,9 @@ const OrdersList = () => {
               activities, which are what somebody following up from a phone came for. */}
           <div className="d-md-none">
             {orders.length === 0 ? (
-              <div className="text-center text-body-secondary py-5">{emptyState}</div>
+              emptyState
             ) : (
-              <div className="order-cards">
+              <div className="list-cards">
                 {orders.map((o) => (
                   <OrderCard key={o.id} order={o} />
                 ))}
@@ -188,17 +202,18 @@ const OrdersList = () => {
                 <CTableRow>
                   <CTableHeaderCell>Código</CTableHeaderCell>
                   <CTableHeaderCell>Cliente</CTableHeaderCell>
-                  <CTableHeaderCell>Sucursal</CTableHeaderCell>
+                  {/* The branch and the date from `lg`: on a portrait tablet the table scrolled sideways. */}
+                  <CTableHeaderCell className="d-none d-lg-table-cell">Sucursal</CTableHeaderCell>
                   <CTableHeaderCell>Estado</CTableHeaderCell>
                   <CTableHeaderCell>Actividades</CTableHeaderCell>
                   <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
-                  <CTableHeaderCell>Creado</CTableHeaderCell>
+                  <CTableHeaderCell className="d-none d-lg-table-cell">Creado</CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
                 {orders.length === 0 ? (
                   <CTableRow>
-                    <CTableDataCell colSpan={7} className="text-center text-body-secondary py-5">
+                    <CTableDataCell colSpan={7} className="p-0">
                       {emptyState}
                     </CTableDataCell>
                   </CTableRow>
@@ -206,14 +221,17 @@ const OrdersList = () => {
                   orders.map((o) => {
                     const activities = orderedActivities(o.activities)
                     return (
-                      <CTableRow key={o.id} onClick={() => void navigate(`/orders/${o.id}`)}>
+                      <CTableRow
+                        key={o.id}
+                        onClick={() => void navigate(`/orders/${o.id}`, { state: fromHere })}
+                      >
                         <CTableDataCell>
                           <div className="d-flex align-items-center gap-2">
-                            <strong>{o.code ?? '—'}</strong>
+                            <RecordLink to={`/orders/${o.id}`}>{o.code ?? '—'}</RecordLink>
                             {/* Orthogonal to the status column: the order jumps the workshop's FIFO. */}
                             {o.isPriority && (
                               <CBadge color="warning" title="Atención prioritaria">
-                                <CIcon icon={cilBolt} size="sm" />
+                                <Icon name="priority" size="sm" />
                               </CBadge>
                             )}
                           </div>
@@ -229,7 +247,9 @@ const OrdersList = () => {
                           <ReferenceNote notes={o.notes} />
                         </CTableDataCell>
                         {/* Name only: the code said the same thing twice on every row. */}
-                        <CTableDataCell>{o.branch.name}</CTableDataCell>
+                        <CTableDataCell className="d-none d-lg-table-cell">
+                          {o.branch.name}
+                        </CTableDataCell>
                         <CTableDataCell>
                           <OrderStatusBadge status={o.status} />
                           {/* How long it has been here — the whole point of the column for
@@ -264,7 +284,7 @@ const OrdersList = () => {
                         <CTableDataCell className="text-end text-nowrap">
                           {fmtMoney(o.total)}
                         </CTableDataCell>
-                        <CTableDataCell className="text-nowrap">
+                        <CTableDataCell className="d-none d-lg-table-cell text-nowrap">
                           {fmtDate(o.createdAt)}
                         </CTableDataCell>
                       </CTableRow>

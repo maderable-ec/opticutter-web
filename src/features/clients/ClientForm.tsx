@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useId, useState, type ChangeEvent, type FormEvent } from 'react'
 import {
   CButton,
   CCol,
@@ -8,11 +8,11 @@ import {
   CModalBody,
   CModalFooter,
   CRow,
-  CSpinner,
 } from '@coreui/react'
 import { apiErrorMessage } from 'src/shared/api/errors'
 import { identifierError } from './taxId'
 import type { Client, ClientPayload } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 const DEFAULT_SOURCE = 'dashboard'
 
@@ -47,6 +47,9 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
       : EMPTY,
   )
 
+  // Each label names its field, for a screen reader and for the tap on the label itself.
+  const id = useId()
+
   const set = (field: keyof FormState) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }))
 
@@ -76,10 +79,11 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
       <CModalBody>
         <CRow className="g-3">
           <CCol xs={12}>
-            <CFormLabel>
+            <CFormLabel htmlFor={`${id}-identifier`}>
               Identificador <span className="text-danger">*</span>
             </CFormLabel>
             <CFormInput
+              id={`${id}-identifier`}
               value={form.identifier}
               onChange={set('identifier')}
               required
@@ -96,20 +100,43 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
             )}
           </CCol>
           <CCol xs={6}>
-            <CFormLabel>Nombre</CFormLabel>
-            <CFormInput value={form.firstName} onChange={set('firstName')} maxLength={64} />
+            <CFormLabel htmlFor={`${id}-first`}>Nombre</CFormLabel>
+            <CFormInput
+              id={`${id}-first`}
+              value={form.firstName}
+              onChange={set('firstName')}
+              maxLength={64}
+            />
           </CCol>
           <CCol xs={6}>
-            <CFormLabel>Apellido</CFormLabel>
-            <CFormInput value={form.lastName} onChange={set('lastName')} maxLength={64} />
+            <CFormLabel htmlFor={`${id}-last`}>Apellido</CFormLabel>
+            <CFormInput
+              id={`${id}-last`}
+              value={form.lastName}
+              onChange={set('lastName')}
+              maxLength={64}
+            />
           </CCol>
           <CCol xs={12}>
-            <CFormLabel>Teléfono</CFormLabel>
-            <CFormInput value={form.phone} onChange={set('phone')} maxLength={32} />
+            <CFormLabel htmlFor={`${id}-phone`}>Teléfono</CFormLabel>
+            {/* `tel`: the phone keypad, not the full keyboard. */}
+            <CFormInput
+              id={`${id}-phone`}
+              type="tel"
+              value={form.phone}
+              onChange={set('phone')}
+              maxLength={32}
+            />
           </CCol>
           <CCol xs={12}>
-            <CFormLabel>Email</CFormLabel>
-            <CFormInput type="email" value={form.email} onChange={set('email')} maxLength={128} />
+            <CFormLabel htmlFor={`${id}-email`}>Email</CFormLabel>
+            <CFormInput
+              id={`${id}-email`}
+              type="email"
+              value={form.email}
+              onChange={set('email')}
+              maxLength={128}
+            />
           </CCol>
           {errorMsg && (
             <CCol xs={12}>
@@ -119,11 +146,11 @@ const ClientForm = ({ client, onSubmit, onCancel, isSubmitting, error }: ClientF
         </CRow>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" type="button" onClick={onCancel}>
+        <CButton color="secondary" variant="outline" type="button" onClick={onCancel}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting || !!identifierMsg}>
-          {isSubmitting ? <CSpinner size="sm" /> : 'Guardar'}
+          {isSubmitting ? <Spinner size="sm" /> : 'Guardar'}
         </CButton>
       </CModalFooter>
     </CForm>

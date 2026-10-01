@@ -1,14 +1,17 @@
 import { useMemo } from 'react'
 
-import FilterMenu, { FilterSection } from 'src/shared/components/FilterMenu'
+import { FilterSection } from 'src/shared/components/FilterMenu'
+import ListFilters from 'src/shared/components/ListFilters'
 import FilterCheckboxList, { type FilterOption } from 'src/shared/components/FilterCheckboxList'
 import FilterActiveSection from 'src/shared/components/FilterActiveSection'
 import FilterSortSection, { type ListSort } from 'src/shared/components/FilterSortSection'
 import type { FilterChip } from 'src/shared/components/FilterChips'
+import { useFilterSheet } from 'src/shared/hooks/useFilterSheet'
 import { CFormSelect } from '@coreui/react'
 import { useAllProductFamilies } from 'src/features/productFamilies/useProductFamilies'
 import { prunedSubtypes, subtypeLabel, subtypeOptionsFor } from './productSubtypes'
-import type { ProductType } from './types'
+import { useProductsTotal } from './useProducts'
+import type { ProductListParams, ProductType } from './types'
 
 const TYPE_LABELS: Record<ProductType, string> = {
   board: 'Tablero',
@@ -30,18 +33,23 @@ export interface ProductsFilterValues {
   sort: ListSort
 }
 
-interface ProductsFiltersProps {
+type OnFilterChange = <K extends keyof ProductsFilterValues>(
+  key: K,
+  value: ProductsFilterValues[K],
+) => void
+
+interface ProductsFilterFieldsProps {
   values: ProductsFilterValues
-  onChange: <K extends keyof ProductsFilterValues>(key: K, value: ProductsFilterValues[K]) => void
-  onClear: () => void
+  onChange: OnFilterChange
 }
 
-const ProductsFilters = ({ values, onChange, onClear }: ProductsFiltersProps) => {
+// The fields alone, bound to the URL by the dropdown and to a draft by the phone's sheet.
+const ProductsFilterFields = ({ values, onChange }: ProductsFilterFieldsProps) => {
   const subtypeOptions = useMemo(() => subtypeOptionsFor(values.type), [values.type])
   const { data: families = [] } = useAllProductFamilies()
 
   return (
-    <FilterMenu activeCount={activeCount(values)} onClear={onClear}>
+    <>
       <FilterSection label="Tipo">
         <FilterCheckboxList
           values={values.type}
@@ -59,19 +67,22 @@ const ProductsFilters = ({ values, onChange, onClear }: ProductsFiltersProps) =>
       </FilterSection>
 
       <FilterSection label="Familia">
-        <CFormSelect
-          size="sm"
-          value={values.family}
-          onChange={(e) => onChange('family', e.target.value)}
-        >
-          <option value="">Todas</option>
-          <option value="none">Sin familia</option>
-          {families.map((f) => (
-            <option key={f.id} value={String(f.id)}>
-              {f.name}
-            </option>
-          ))}
-        </CFormSelect>
+        <div className="px-3 py-1">
+          <CFormSelect
+            size="sm"
+            aria-label="Familia"
+            value={values.family}
+            onChange={(e) => onChange('family', e.target.value)}
+          >
+            <option value="">Todas</option>
+            <option value="none">Sin familia</option>
+            {families.map((f) => (
+              <option key={f.id} value={String(f.id)}>
+                {f.name}
+              </option>
+            ))}
+          </CFormSelect>
+        </div>
       </FilterSection>
 
       <FilterActiveSection
@@ -79,7 +90,73 @@ const ProductsFilters = ({ values, onChange, onClear }: ProductsFiltersProps) =>
         onChange={(next) => onChange('isActive', next)}
       />
       <FilterSortSection value={values.sort} onChange={(next) => onChange('sort', next)} />
-    </FilterMenu>
+    </>
+  )
+}
+
+// Sin filtros, keeping the order: «Limpiar» never touched it on the dropdown either.
+const cleared = (values: ProductsFilterValues): ProductsFilterValues => ({
+  type: [],
+  subtype: [],
+  isActive: '',
+  family: '',
+  sort: values.sort,
+})
+
+// What the listing asks the API for a set of values, less the page and its order. Shared by the
+// page's query and the sheet's count, so «Ver 12 productos» is the list it opens.
+export const productFilterParams = (
+  values: ProductsFilterValues,
+  search: string,
+): ProductListParams => ({
+  search: search || undefined,
+  type: values.type.length ? values.type : undefined,
+  subtype: values.subtype.length ? values.subtype : undefined,
+  isActive: values.isActive ? values.isActive === 'true' : undefined,
+  // 'none' is the assignment queue. Two API parameters rather than one nullable filter, because a
+  // query string cannot carry a null.
+  familyId: values.family && values.family !== 'none' ? Number(values.family) : undefined,
+  unassigned: values.family === 'none' ? true : undefined,
+})
+
+interface ProductsFiltersProps {
+  values: ProductsFilterValues
+  // The search box's term: not a field of the panel, but part of what the sheet's count asks.
+  search: string
+  onChange: OnFilterChange
+  onApply: (values: ProductsFilterValues) => void
+  onClear: () => void
+}
+
+const ProductsFilters = ({ values, search, onChange, onApply, onClear }: ProductsFiltersProps) => {
+  const sheet = useFilterSheet(values)
+  const total = useProductsTotal(productFilterParams(sheet.draft, search), sheet.visible)
+
+  // Narrowing the types strands the subtypes that no longer belong to them. In the draft both move
+  // at once, as the page's own handler does for the URL.
+  const updateDraft: OnFilterChange = (key, value) => {
+    if (key === 'type') {
+      const type = value as ProductType[]
+      sheet.replace({ ...sheet.draft, type, subtype: prunedSubtypes(type, sheet.draft.subtype) })
+      return
+    }
+    sheet.update(key, value)
+  }
+
+  return (
+    <ListFilters
+      values={values}
+      onChange={onChange}
+      onClear={onClear}
+      sheet={{ ...sheet, update: updateDraft }}
+      onApply={onApply}
+      cleared={cleared}
+      activeCount={activeCount}
+      resultCount={total.data}
+      isCounting={total.isFetching}
+      noun={{ one: 'producto', other: 'productos' }}
+      renderFields={(v, change) => <ProductsFilterFields values={v} onChange={change} />}
+    />
   )
 }
 

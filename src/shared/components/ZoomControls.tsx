@@ -1,6 +1,5 @@
 import { CButton, CButtonGroup } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCenterFocus, cilZoomIn, cilZoomOut } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 interface ZoomControlsProps {
   onZoomIn: () => void
@@ -34,10 +33,10 @@ const ZoomControls = ({
     }}
   >
     <CButton color="light" size="lg" title="Acercar" aria-label="Acercar" onClick={onZoomIn}>
-      <CIcon icon={cilZoomIn} />
+      <Icon name="zoomIn" />
     </CButton>
     <CButton color="light" size="lg" title="Alejar" aria-label="Alejar" onClick={onZoomOut}>
-      <CIcon icon={cilZoomOut} />
+      <Icon name="zoomOut" />
     </CButton>
     <CButton
       color="light"
@@ -47,9 +46,9 @@ const ZoomControls = ({
       disabled={!isZoomed}
       onClick={onReset}
     >
-      {/* Not cilFullscreen: the optimizer's own fullscreen toggle already uses that icon on the
+      {/* Not 'fullscreen': the optimizer's own fullscreen toggle already uses that icon on the
           same screen, so the two actions read as the same one. */}
-      <CIcon icon={cilCenterFocus} />
+      <Icon name="fit" />
     </CButton>
   </CButtonGroup>
 )

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   CAlert,
+  CButton,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -12,18 +13,24 @@ import {
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { prunedSubtypes, subtypeLabel } from 'src/features/products/productSubtypes'
 import SearchInput from 'src/shared/components/SearchInput'
+import EmptyState from 'src/shared/components/EmptyState'
+import ListToolbar from 'src/shared/components/ListToolbar'
+import ListCard from 'src/shared/components/ListCard'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
 import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import { useListParams } from 'src/shared/hooks/useListParams'
+import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useLowStock } from './useAnalytics'
 import LowStockFilters, {
   activeCount,
   lowStockFilterChips,
   type LowStockFilterValues,
 } from './LowStockFilters'
+import { filterLowStock } from './lowStock'
 import type { LowStockItem } from './types'
+import { fmtMeters, fmtNumber } from 'src/shared/utils/format'
 
 // Boards and edge bandings under the threshold configured for their type. The one
 // analytics screen with no date range: stock is a state right now, and "low stock
@@ -37,8 +44,8 @@ import type { LowStockItem } from './types'
 // refetches while somebody ticks boxes. The server params stay for other API consumers.
 
 const TYPE_CONFIG: Record<LowStockItem['type'], StatusConfigEntry> = {
-  board: { color: 'info', label: 'Tablero' },
-  edge_banding: { color: 'warning', label: 'Tapacanto' },
+  board: { tone: 'info', label: 'Tablero' },
+  edge_banding: { tone: 'neutral', label: 'Tapacanto' },
 }
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
@@ -48,8 +55,8 @@ const FILTER_KEYS = ['q', 'branch', 'type', 'subtype']
 // wrong as "3.0 láminas".
 const amount = (value: number, unit: LowStockItem['unit']) =>
   unit === 'sheets'
-    ? `${Number.isInteger(value) ? value : value.toFixed(1)} ${value === 1 ? 'lámina' : 'láminas'}`
-    : `${value.toFixed(1)} m`
+    ? `${fmtNumber(value, 1, 0)} ${value === 1 ? 'lámina' : 'láminas'}`
+    : fmtMeters(value, 1)
 
 const LowStockPage = () => {
   const {
@@ -67,7 +74,7 @@ const LowStockPage = () => {
   const { data: branches = [] } = useActiveBranches()
   const { data, isLoading, isError, refetch } = useLowStock()
 
-  const search = getParam('q').trim().toLowerCase()
+  const search = getParam('q')
   const values: LowStockFilterValues = {
     branch: getParams('branch'),
     type: getParams('type') as LowStockItem['type'][],
@@ -89,52 +96,69 @@ const LowStockPage = () => {
     }
     setParam(key, value)
   }
+  // The phone's sheet applies its draft in one url write, which also closes it.
+  const handleApply = (next: LowStockFilterValues) =>
+    setParams(
+      {
+        ...next,
+        subtype: prunedSubtypes(next.type, next.subtype),
+        [FILTER_SHEET_PARAM]: undefined,
+      },
+      { replace: true },
+    )
   const handleClear = () => clearParams(FILTER_KEYS)
 
   const chips = lowStockFilterChips(values, branches, handleChange)
-  const isFiltered = activeCount(values) > 0 || search !== ''
+  const isFiltered = activeCount(values) > 0 || search.trim() !== ''
 
   const all = data?.items ?? []
-  // Code and name, the two things printed on a row — the same pair the catalog's
-  // search box matches on, so the habit carries over from one screen to the other.
-  const items = all.filter(
-    (item) =>
-      (values.branch.length === 0 || values.branch.includes(String(item.branch.id))) &&
-      (values.type.length === 0 || values.type.includes(item.type)) &&
-      (values.subtype.length === 0 ||
-        (item.subtype !== null && values.subtype.includes(item.subtype))) &&
-      (search === '' ||
-        item.code.toLowerCase().includes(search) ||
-        item.name.toLowerCase().includes(search)),
-  )
+  const items = filterLowStock(all, values, search)
   const page = items.slice(offset, offset + limit)
+
+  // Two different dead ends: nothing under the minimum is good news, an over-narrow filter is a
+  // place to get out of. Shared by the table and the phone's card list.
+  const emptyState = isFiltered ? (
+    <EmptyState
+      icon="clearFilters"
+      title="Ningún producto coincide con los filtros."
+      action={
+        <CButton color="secondary" variant="outline" onClick={handleClear}>
+          Limpiar filtros
+        </CButton>
+      }
+    />
+  ) : (
+    <EmptyState title="Ningún producto está por debajo de su mínimo." />
+  )
 
   return (
     <div className="surface">
-      <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+      <ListToolbar>
         <SearchInput
-          value={getParam('q')}
+          value={search}
           // `replace`: one history entry per settled keystroke would bury the page
           // the user came from behind the list.
           onChange={(value) => setParam('q', value, { replace: true })}
           placeholder="Buscar por código o nombre…"
-          className="flex-grow-1"
-          style={{ maxWidth: 360 }}
         />
         <LowStockFilters
           values={values}
+          search={search}
+          items={all}
           branches={branches}
           onChange={handleChange}
+          onApply={handleApply}
           onClear={handleClear}
         />
         {data && (
           <div className="ms-auto small text-body-secondary text-end">
-            Mínimos: {data.thresholds.board} láminas · {data.thresholds.edgeBanding} m
+            Mínimos: {fmtNumber(data.thresholds.board, 1, 0)} láminas ·{' '}
+            {fmtMeters(data.thresholds.edgeBanding, 1, 0)}
             <br />
             <Link to="/settings">Configurar</Link>
           </div>
         )}
-      </div>
+      </ListToolbar>
 
       <FilterChips chips={chips} onClearAll={handleClear} />
 
@@ -149,75 +173,101 @@ const LowStockPage = () => {
       ) : (
         <>
           <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
-            <CTable align="middle" hover responsive className="list-table rows-static">
-              <CTableHead>
-                <CTableRow>
-                  <CTableHeaderCell>Código</CTableHeaderCell>
-                  <CTableHeaderCell>Producto</CTableHeaderCell>
-                  <CTableHeaderCell>Tipo</CTableHeaderCell>
-                  <CTableHeaderCell>Sucursal</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Disponible</CTableHeaderCell>
-                  <CTableHeaderCell className="text-end">Mínimo</CTableHeaderCell>
-                </CTableRow>
-              </CTableHead>
-              <CTableBody>
-                {page.length === 0 ? (
-                  <CTableRow>
-                    {/* Two different dead ends: nothing under the minimum is good
-                        news, an over-narrow filter is a place to get out of. */}
-                    <CTableDataCell colSpan={6} className="text-center text-body-secondary py-5">
-                      {isFiltered ? (
-                        <>
-                          <div>Ningún producto coincide con los filtros.</div>
-                          <button
-                            type="button"
-                            className="btn btn-link btn-sm"
-                            onClick={handleClear}
-                          >
-                            Limpiar filtros
-                          </button>
-                        </>
-                      ) : (
-                        'Ningún producto está por debajo de su mínimo.'
-                      )}
-                    </CTableDataCell>
-                  </CTableRow>
-                ) : (
-                  page.map((item) => (
-                    <CTableRow key={`${item.branch.id}-${item.productId}`}>
-                      <CTableDataCell className="text-nowrap">
-                        <strong>{item.code}</strong>
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        {item.name}
-                        {item.subtype && (
-                          <div className="text-body-secondary small">
-                            {subtypeLabel(item.subtype)}
-                          </div>
-                        )}
-                      </CTableDataCell>
-                      <CTableDataCell>
-                        <StatusBadge value={item.type} config={TYPE_CONFIG} />
-                      </CTableDataCell>
-                      <CTableDataCell className="text-nowrap">{item.branch.name}</CTableDataCell>
-                      <CTableDataCell className="text-end text-nowrap">
-                        {/* Zero is the urgent row, not a missing one. */}
-                        <span
-                          className={
-                            item.available === 0 ? 'text-danger fw-semibold' : 'fw-semibold'
-                          }
-                        >
+            {/* Both views are mounted and the breakpoint picks one. On a phone the table scrolled
+                sideways past what is left and the minimum, the two figures the row is about. */}
+            <div className="d-md-none">
+              {page.length === 0 ? (
+                emptyState
+              ) : (
+                <div className="list-cards">
+                  {page.map((item) => (
+                    <ListCard
+                      key={`${item.branch.id}-${item.productId}`}
+                      title={item.code}
+                      badges={<StatusBadge value={item.type} config={TYPE_CONFIG} />}
+                      amount={
+                        <span className={item.available === 0 ? 'text-danger' : undefined}>
                           {amount(item.available, item.unit)}
                         </span>
-                      </CTableDataCell>
-                      <CTableDataCell className="text-end text-nowrap text-body-secondary">
-                        {amount(item.threshold, item.unit)}
+                      }
+                      meta={
+                        <>
+                          <span>{item.branch.name}</span>
+                          <span>Mínimo {amount(item.threshold, item.unit)}</span>
+                        </>
+                      }
+                    >
+                      <div className="mt-1">
+                        {item.name}
+                        {item.subtype && (
+                          <span className="text-body-secondary">
+                            {' '}
+                            · {subtypeLabel(item.subtype)}
+                          </span>
+                        )}
+                      </div>
+                    </ListCard>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="d-none d-md-block">
+              <CTable align="middle" hover responsive className="list-table rows-static">
+                <CTableHead>
+                  <CTableRow>
+                    <CTableHeaderCell>Código</CTableHeaderCell>
+                    <CTableHeaderCell>Producto</CTableHeaderCell>
+                    <CTableHeaderCell>Tipo</CTableHeaderCell>
+                    <CTableHeaderCell>Sucursal</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Disponible</CTableHeaderCell>
+                    <CTableHeaderCell className="text-end">Mínimo</CTableHeaderCell>
+                  </CTableRow>
+                </CTableHead>
+                <CTableBody>
+                  {page.length === 0 ? (
+                    <CTableRow>
+                      <CTableDataCell colSpan={6} className="p-0">
+                        {emptyState}
                       </CTableDataCell>
                     </CTableRow>
-                  ))
-                )}
-              </CTableBody>
-            </CTable>
+                  ) : (
+                    page.map((item) => (
+                      <CTableRow key={`${item.branch.id}-${item.productId}`}>
+                        <CTableDataCell className="text-nowrap">
+                          <strong>{item.code}</strong>
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          {item.name}
+                          {item.subtype && (
+                            <div className="text-body-secondary small">
+                              {subtypeLabel(item.subtype)}
+                            </div>
+                          )}
+                        </CTableDataCell>
+                        <CTableDataCell>
+                          <StatusBadge value={item.type} config={TYPE_CONFIG} />
+                        </CTableDataCell>
+                        <CTableDataCell className="text-nowrap">{item.branch.name}</CTableDataCell>
+                        <CTableDataCell className="text-end text-nowrap">
+                          {/* Zero is the urgent row, not a missing one. */}
+                          <span
+                            className={
+                              item.available === 0 ? 'text-danger fw-semibold' : 'fw-semibold'
+                            }
+                          >
+                            {amount(item.available, item.unit)}
+                          </span>
+                        </CTableDataCell>
+                        <CTableDataCell className="text-end text-nowrap text-body-secondary">
+                          {amount(item.threshold, item.unit)}
+                        </CTableDataCell>
+                      </CTableRow>
+                    ))
+                  )}
+                </CTableBody>
+              </CTable>
+            </div>
           </QueryState>
 
           <Pagination

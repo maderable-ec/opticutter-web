@@ -1,15 +1,5 @@
-import { useEffect, useState } from 'react'
-import {
-  CBadge,
-  CButton,
-  CCol,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CRow,
-} from '@coreui/react'
+import { useState } from 'react'
+import { CBadge, CCol, CModalBody, CModalHeader, CRow } from '@coreui/react'
 
 import SheetSvg from 'src/shared/components/SheetSvg'
 import CantoPreview from 'src/shared/components/CantoPreview'
@@ -18,6 +8,9 @@ import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import { pieceLabel } from 'src/shared/utils/cutDrawing'
 import { cantoNotation, cantoSides, edgesLabel, pieceTitle } from './format'
 import type { ReviewLayoutGroup, ReviewPlacedPiece } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import Pager from 'src/shared/components/Pager'
+import { usePaging } from 'src/shared/hooks/usePaging'
 
 const Detail = ({ label, value }: { label: string; value: string }) => (
   <div className="d-flex justify-content-between gap-3 py-2 border-bottom">
@@ -112,25 +105,12 @@ const ReviewSheetModal = ({
     setSelected(null)
   }
 
-  const hasPrev = index != null && index > 0
-  const hasNext = index != null && index < groups.length - 1
-  const go = (delta: number) => {
-    if (index != null) onIndexChange(index + delta)
-  }
-
-  // Arrow keys move between sheets on desktop, where a keyboard is the natural way to page through.
-  useEffect(() => {
-    if (index == null) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && index < groups.length - 1) onIndexChange(index + 1)
-      if (e.key === 'ArrowLeft' && index > 0) onIndexChange(index - 1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [index, groups.length, onIndexChange])
+  // Paging between boards without closing: on a phone, going back out to the list and finding the
+  // next card is the slowest part of reviewing a multi-board job.
+  usePaging({ index, count: groups.length, onChange: onIndexChange })
 
   return (
-    <CModal
+    <Modal
       visible={index != null}
       onClose={onClose}
       size="xl"
@@ -138,11 +118,22 @@ const ReviewSheetModal = ({
       scrollable
       alignment="center"
     >
-      <CModalHeader>
-        <CModalTitle className="fs-6 d-flex align-items-center gap-2 flex-wrap">
+      <CModalHeader className="viewer-header">
+        <ModalTitle className="fs-6 d-flex align-items-center gap-2 flex-wrap">
           <span>{index == null ? '' : sheetTitleFor(index)}</span>
           {group?.sheet.halfBoard && <CBadge color="info">Medio tablero</CBadge>}
-        </CModalTitle>
+        </ModalTitle>
+        {groups.length > 1 && index != null && (
+          <div className="viewer-header__tools">
+            <Pager
+              index={index}
+              count={groups.length}
+              onChange={onIndexChange}
+              noun="Tablero"
+              className="ms-auto"
+            />
+          </div>
+        )}
       </CModalHeader>
       <CModalBody>
         {group && (
@@ -162,9 +153,10 @@ const ReviewSheetModal = ({
                 onPieceTap={(p) => setSelected((cur) => (cur?.pieceId === p.pieceId ? null : p))}
                 labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalHeight}×${p.originalWidth}`}
                 titleFor={pieceTitle}
-                // Kept inside the modal's scrollport so the board is never cut off by the pager
-                // below. Reserve covers the modal chrome plus the caption under the diagram.
-                maxHeight="min(640px, calc(100dvh - 19rem))"
+                // Kept inside the modal's scrollport so the board is never cut off. Reserve covers
+                // the modal chrome (the header takes two rows on a phone, with the pager) plus the
+                // caption under the diagram.
+                maxHeight="min(640px, calc(100dvh - 16rem))"
                 showDimensions
                 enableZoom
               />
@@ -180,34 +172,7 @@ const ReviewSheetModal = ({
           </CRow>
         )}
       </CModalBody>
-      {groups.length > 1 && (
-        // Paging between boards without closing: on a phone, going back out to the list and
-        // finding the next card is the slowest part of reviewing a multi-board job.
-        <CModalFooter className="justify-content-between">
-          <CButton
-            color="secondary"
-            variant="outline"
-            disabled={!hasPrev}
-            onClick={() => go(-1)}
-            aria-label="Tablero anterior"
-          >
-            ‹ Anterior
-          </CButton>
-          <span className="text-body-secondary small text-nowrap">
-            {(index ?? 0) + 1} / {groups.length}
-          </span>
-          <CButton
-            color="secondary"
-            variant="outline"
-            disabled={!hasNext}
-            onClick={() => go(1)}
-            aria-label="Tablero siguiente"
-          >
-            Siguiente ›
-          </CButton>
-        </CModalFooter>
-      )}
-    </CModal>
+    </Modal>
   )
 }
 

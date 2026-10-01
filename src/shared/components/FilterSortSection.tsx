@@ -21,7 +21,12 @@ const FilterSortSection = ({
 }: FilterSortSectionProps) => (
   <FilterSection label="Orden">
     <div className="px-3 py-1">
-      <CFormSelect size="sm" value={value} onChange={(e) => onChange(e.target.value as ListSort)}>
+      <CFormSelect
+        size="sm"
+        aria-label="Orden"
+        value={value}
+        onChange={(e) => onChange(e.target.value as ListSort)}
+      >
         <option value="name">{nameLabel}</option>
         <option value="recent">Más recientes primero</option>
         <option value="oldest">Más antiguos primero</option>

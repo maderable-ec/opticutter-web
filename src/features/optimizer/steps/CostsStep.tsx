@@ -1,4 +1,4 @@
-import { CAlert, CRow, CSpinner } from '@coreui/react'
+import { CAlert, CRow } from '@coreui/react'
 
 import { fmtMoney } from 'src/features/review/format'
 import PricingBlock from 'src/shared/components/PricingBlock'
@@ -14,6 +14,7 @@ import { KEY } from 'src/shared/utils/platform'
 import type { ModalContainer, OptimizeResponse } from '../types'
 import UnplacedPiecesAlert from '../UnplacedPiecesAlert'
 import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable } from '../summaryTables'
+import Spinner from 'src/shared/components/Spinner'
 
 // Step 3: what the plan costs. The plan itself is the step before (Optimización), so this one is
 // money only — it used to open with the diagram's summary bar, back when the diagram was a modal
@@ -141,6 +142,7 @@ const CostsStep = ({
             />
             <Kpi
               label="Total"
+              emphasis
               value={pricing ? fmtMoney(pricing.total) : fmtMoney(boardsCost + bandingCost)}
             />
           </CRow>
@@ -152,9 +154,7 @@ const CostsStep = ({
             materialsSummary={result.materialsSummary}
           />
 
-          <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-            Materiales
-          </div>
+          <div className="eyebrow mb-2">Materiales</div>
           <MaterialsSummaryTable
             rows={result.materialsSummary ?? []}
             leveledKeys={leveledKeys}
@@ -165,16 +165,12 @@ const CostsStep = ({
 
           {result.edgeBandingsSummary?.length > 0 && (
             <>
-              <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-                Tapacantos
-              </div>
+              <div className="eyebrow mb-2">Tapacantos</div>
               <EdgeBandingSummaryTable rows={result.edgeBandingsSummary} />
             </>
           )}
 
-          <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-            Servicios adicionales
-          </div>
+          <div className="eyebrow mb-2">Servicios adicionales</div>
           <ServiceLines
             services={services}
             catalog={catalog}
@@ -191,17 +187,16 @@ const CostsStep = ({
               alternatives stay visible. */}
           <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 border-top pt-3">
             <div className="d-flex flex-wrap align-items-center gap-2">
-              <span className="text-body-secondary small text-uppercase fw-semibold">
-                Nivel de precio
-              </span>
+              <span className="eyebrow">Nivel de precio</span>
               <PriceLevelToggle
                 value={priceLevel}
                 onChange={onPriceLevelChange}
                 disabled={isPending}
               />
               {isPending && (
-                <span className="text-body-secondary small d-flex align-items-center gap-1">
-                  <CSpinner size="sm" />
+                // The technical tone: the plan is being worked on, nothing is wrong.
+                <span className="text-tech small d-flex align-items-center gap-1">
+                  <Spinner size="sm" />
                   Recalculando…
                 </span>
               )}

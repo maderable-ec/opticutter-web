@@ -6,12 +6,9 @@ import {
   CButtonGroup,
   CFormCheck,
   CFormSelect,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
 } from '@coreui/react'
 import { apiErrorMessage } from 'src/shared/api/errors'
 import SearchInput from 'src/shared/components/SearchInput'
@@ -21,6 +18,8 @@ import { subtypeLabel, subtypeOptionsFor } from 'src/features/products/productSu
 import type { Product, ProductType } from 'src/features/products/types'
 import { useAssignFamily } from './useProductFamilies'
 import type { ProductFamily } from './types'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface AssignProductsModalProps {
   family: ProductFamily
@@ -126,9 +125,9 @@ const AssignProductsModal = ({ family, visible, onClose }: AssignProductsModalPr
   ).length
 
   return (
-    <CModal visible={visible} onClose={close} size="lg" backdrop="static" scrollable>
+    <Modal visible={visible} onClose={close} size="lg" backdrop="static" scrollable fullscreen="md">
       <CModalHeader>
-        <CModalTitle>Asignar productos a «{family.name}»</CModalTitle>
+        <ModalTitle>Asignar productos a «{family.name}»</ModalTitle>
       </CModalHeader>
       <CModalBody>
         {assign.error && <CAlert color="danger">{apiErrorMessage(assign.error)}</CAlert>}
@@ -269,12 +268,12 @@ const AssignProductsModal = ({ family, visible, onClose }: AssignProductsModalPr
             onClick={handleAssign}
             disabled={selected.size === 0 || assign.isPending}
           >
-            {assign.isPending && <CSpinner size="sm" className="me-1" />}
+            {assign.isPending && <Spinner size="sm" className="me-1" />}
             Asignar {selected.size > 0 ? selected.size : ''}
           </CButton>
         </span>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

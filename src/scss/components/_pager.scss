@@ -1,0 +1,71 @@
+@use '@coreui/coreui/scss/coreui' as *;
+
+// «‹ 2 de 3 ›» (`Pager`). The buttons are squares sized for a finger: 2.5rem by default, the
+// shop's `lg` as CoreUI draws it, and `sm` 2rem from `md` only (under it, `_base` lifts every
+// `.btn-sm` back to 2.5rem).
+.pager {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pager__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  padding: 0;
+}
+
+.pager--sm .pager__btn {
+  min-width: 2rem;
+  min-height: 2rem;
+}
+
+// The height of the other `lg` controls in the canvas's bar.
+.pager--lg .pager__btn {
+  min-width: 3rem;
+  min-height: 3rem;
+}
+
+// Fixed width, so the buttons do not move under the finger as «9 de 10» becomes «10 de 10».
+.pager__count {
+  min-width: 4.5rem;
+  font-size: var(--mb-text-sm);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+
+// The header of a dialog that pages (the plan's sheet, the review's board, the queue's materials):
+// the title, the tools (the `Pager` and what acts on the record on screen) and the ✕. On a phone the
+// tools take a second row, where the title keeps the first with the ✕: on one row a long material
+// name was the only thing able to shrink.
+.viewer-header {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  > :first-child {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  // Bootstrap pushes the ✕ right with an auto margin; the title's `flex: 1` already does.
+  > .btn-close {
+    margin-left: 0;
+  }
+}
+
+.viewer-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  @include media-breakpoint-down(md) {
+    flex-basis: 100%;
+    order: 1;
+    justify-content: space-between;
+  }
+}

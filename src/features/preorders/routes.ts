@@ -19,5 +19,6 @@ export const preordersRoutes: AppRoute[] = [
     // Same editor as /optimizer, so it needs the same width: the pieces table has twelve columns
     // and the centered container squeezed every one of them.
     fluid: true,
+    actionBar: true,
   },
 ]

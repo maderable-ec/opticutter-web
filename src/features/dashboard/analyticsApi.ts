@@ -6,7 +6,6 @@ import type {
   AttendanceData,
   BottlenecksData,
   Granularity,
-  OperationsStats,
   StatusBreakdownData,
   Timeseries,
   UsersProductivityData,
@@ -34,14 +33,10 @@ export const analyticsApi = {
     httpClient.get<StatusBreakdownData>(
       `/api/v1/analytics/breakdown/status${buildQs({ from, to, branchId })}`,
     ),
-  operations: (from?: string, to?: string, branchId?: number) =>
-    httpClient.get<OperationsStats>(
-      `/api/v1/analytics/operations${buildQs({ from, to, branchId })}`,
-    ),
-  // Per-branch comparison (same shape as the status breakdown).
-  branchBreakdown: (from?: string, to?: string, branchId?: number) =>
+  // Per-branch comparison (same shape as the status breakdown), always over every branch.
+  branchBreakdown: (from?: string, to?: string) =>
     httpClient.get<StatusBreakdownData>(
-      `/api/v1/analytics/breakdown/branch${buildQs({ from, to, branchId })}`,
+      `/api/v1/analytics/breakdown/branch${buildQs({ from, to })}`,
     ),
   // Bottlenecks (#1): stages (median/p90) + per-stage timeseries.
   bottlenecks: (from?: string, to?: string, branchId?: number, granularity: Granularity = 'day') =>

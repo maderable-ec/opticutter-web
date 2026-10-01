@@ -1,26 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CAlert, CBadge, CButton } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import {
-  cilChevronLeft,
-  cilChevronRight,
-  cilFullscreen,
-  cilFullscreenExit,
-  cilMove,
-  cilSidebar,
-} from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { KEY } from 'src/shared/utils/platform'
 import type { OptimizeResponse } from '../types'
 import {
+  PlanFacts,
   editorFocusOf,
   materialNameFor,
   patternTitle,
   useDiagramViewTracking,
 } from '../CutLayoutDiagram'
 import { usePieceColors } from '../pieceColors'
-import { SheetInspector, useArrowPaging, useSheetHover } from '../sheetDetail'
+import { SheetInspector, useSheetHover } from '../sheetDetail'
+import Pager from 'src/shared/components/Pager'
+import { usePaging } from 'src/shared/hooks/usePaging'
 import UnplacedPiecesAlert from '../UnplacedPiecesAlert'
 import LayoutIssuesAlert from '../layoutEditor/LayoutIssuesAlert'
 import type { EditorFocus } from '../layoutEditor/useLayoutEditor'
@@ -101,15 +96,12 @@ const LayoutStep = ({
     },
     [pageView],
   )
-  useArrowPaging({
+  usePaging({
     index: hasPlan ? index : null,
     count: groups.length,
     onChange: goTo,
     skipUnderModal: true,
   })
-
-  const hasPrev = index > 0
-  const hasNext = index < groups.length - 1
 
   return (
     <div className="plan-step">
@@ -146,44 +138,35 @@ const LayoutStep = ({
         </>
       )}
 
+      {/* The plan in one line, over the sheet. From `md` it rides in the pinned footer; on a phone
+          the footer has no room beside its two buttons, and without it the step said nothing about
+          how many boards the job takes or how well they are used. */}
+      {result && groups.length > 0 && (
+        <div className="plan-facts d-md-none">
+          <PlanFacts layoutGroups={groups} adjustment={result.adjustmentSummary} />
+        </div>
+      )}
+
       {group && (
         <div className="plan-canvas" data-inspector={showInspector ? 'open' : 'closed'}>
           {/* What the modal's header and pager said, on one floating line over the sheet. */}
           <div className="plan-canvas__bar plan-float">
-            <span className="fw-semibold small text-truncate" style={{ minWidth: 0 }}>
+            {/* Whole on a phone, where the bar may take two lines: cut to «Patrón 1 · MELAMINA…» it no
+                longer said which material. From `lg` the bar is one line and the name ellipsizes. */}
+            <span className="plan-canvas__title fw-semibold small">
               {patternTitle(group, materialName(group.materialKey))}
             </span>
             {group.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
 
             <div className="ms-auto d-flex align-items-center gap-1">
               {groups.length > 1 && (
-                <>
-                  <CButton
-                    size="sm"
-                    color="secondary"
-                    variant="ghost"
-                    disabled={!hasPrev}
-                    onClick={() => goTo(index - 1)}
-                    aria-label="Patrón anterior"
-                    title="Patrón anterior (←)"
-                  >
-                    <CIcon icon={cilChevronLeft} />
-                  </CButton>
-                  <span className="small text-body-secondary text-nowrap">
-                    {index + 1} / {groups.length}
-                  </span>
-                  <CButton
-                    size="sm"
-                    color="secondary"
-                    variant="ghost"
-                    disabled={!hasNext}
-                    onClick={() => goTo(index + 1)}
-                    aria-label="Patrón siguiente"
-                    title="Patrón siguiente (→)"
-                  >
-                    <CIcon icon={cilChevronRight} />
-                  </CButton>
-                </>
+                <Pager
+                  index={index}
+                  count={groups.length}
+                  onChange={goTo}
+                  noun="Patrón"
+                  size="sm"
+                />
               )}
 
               {onAdjust && (
@@ -195,9 +178,10 @@ const LayoutStep = ({
                     variant="outline"
                     className="text-nowrap"
                     disabled={!!adjustDisabledReason}
+                    aria-label="Ajustar distribución"
                     onClick={() => onAdjust(editorFocusOf(group))}
                   >
-                    <CIcon icon={cilMove} className="me-sm-1" />
+                    <Icon name="adjustLayout" className="me-sm-1" />
                     <span className="d-none d-sm-inline">Ajustar distribución</span>
                   </CButton>
                 </span>
@@ -213,7 +197,7 @@ const LayoutStep = ({
                 aria-label={showInspector ? 'Ocultar el detalle' : 'Mostrar el detalle'}
                 title={showInspector ? 'Ocultar el detalle' : 'Mostrar el detalle'}
               >
-                <CIcon icon={cilSidebar} />
+                <Icon name="inspector" />
               </CButton>
 
               {onToggleFullscreen && (
@@ -225,7 +209,7 @@ const LayoutStep = ({
                   aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
                   title={`${isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'} (${KEY.mod}+${KEY.shift}+F)`}
                 >
-                  <CIcon icon={isFullscreen ? cilFullscreenExit : cilFullscreen} />
+                  <Icon name={isFullscreen ? 'exitFullscreen' : 'fullscreen'} />
                 </CButton>
               )}
             </div>

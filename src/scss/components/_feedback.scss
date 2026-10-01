@@ -1,0 +1,149 @@
+@use '../type';
+
+// Empty, error and loading states (`EmptyState`, `ErrorState`, `LoadingBlock`): one shape for "there
+// is nothing here", "that failed" and "it is coming" on every screen.
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+
+  @media (max-width: 767.98px) {
+    padding-block: 2rem;
+  }
+}
+
+.empty-state__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 0.4rem;
+  border-radius: 50%;
+  background-color: var(--mb-tone-neutral-bg);
+  color: var(--mb-tone-neutral-fg);
+
+  .mb-icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  &--danger {
+    background-color: var(--mb-tone-danger-bg);
+    color: var(--mb-tone-danger-fg);
+  }
+}
+
+.empty-state__title {
+  margin: 0;
+  color: var(--cui-body-color);
+  font-weight: 600;
+}
+
+.empty-state__hint {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+  text-wrap: balance;
+}
+
+.empty-state__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+// The skeleton: bars in the text's own colour at low opacity (CoreUI's placeholder), laid out like
+// what will replace them.
+.loading-block {
+  padding-block: 0.5rem;
+}
+
+.loading-block__head {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.loading-block__items {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.loading-block__item {
+  display: grid;
+  gap: 0.4rem;
+
+  .loading-block--list & {
+    padding-bottom: 0.9rem;
+    border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  }
+
+  .loading-block--cards & {
+    padding: 1rem;
+    border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+    border-radius: var(--cui-border-radius-lg);
+    background-color: var(--cui-body-bg);
+  }
+}
+
+.loading-block--cards .loading-block__items {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+// A headline figure (`StatTile`).
+.stat-tile {
+  display: grid;
+  gap: 0.2rem;
+  height: 100%;
+  padding: 0.6rem 0.75rem;
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-body-bg);
+}
+
+.stat-tile__label {
+  // Two lines rather than an ellipsis: at a phone's two tiles per row «TABLEROS CONSUMIDOS» is
+  // wider than its tile, and a KPI whose name is cut is a number nobody can read.
+  text-wrap: balance;
+}
+
+.stat-tile__value {
+  font-size: var(--mb-text-lg);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.stat-tile__hint {
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}
+
+.stat-tile--emphasis {
+  border-color: var(--cui-primary-border-subtle);
+  background-color: var(--cui-primary-bg-subtle);
+
+  .stat-tile__value {
+    color: var(--cui-emphasis-color);
+  }
+}
+
+// The 404 and 500 pages: the empty-state shape, centred on the page.
+.error-page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 1rem;
+}
+
+.error-page__code {
+  @include type.small-caps;
+  margin: 0;
+  color: var(--cui-secondary-color);
+}

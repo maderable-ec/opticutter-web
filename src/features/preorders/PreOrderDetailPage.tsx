@@ -3,12 +3,9 @@ import {
   CBadge,
   CButton,
   CFormTextarea,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
 } from '@coreui/react'
 import type {
   MaterialForm,
@@ -34,7 +31,6 @@ import {
   piecesMissingBandingProduct,
   piecesSummary,
 } from 'src/features/optimizer/optimizerForm'
-import { cilLoopCircular, cilPencil } from '@coreui/icons'
 import { downloadCsv, requirementsToCsv } from 'src/features/optimizer/piecesCsv'
 import { useBoards, useEdgeBandings } from 'src/features/optimizer/useOptimizer'
 import {
@@ -46,12 +42,12 @@ import {
   useUpdatePreOrder,
 } from './usePreOrders'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { MASK } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
-import { clientName, fmtDate, fmtDateTime } from 'src/shared/utils/format'
-import CIcon from '@coreui/icons-react'
+import { clientName, fmtDate, fmtDateTime, fmtM2 } from 'src/shared/utils/format'
+import Icon from 'src/shared/icons/Icon'
 import DeleteMaterialModal from 'src/features/optimizer/DeleteMaterialModal'
 import ImportPiecesModal from 'src/features/optimizer/ImportPiecesModal'
 import MaterialGroups from 'src/features/optimizer/MaterialGroups'
@@ -69,7 +65,11 @@ import { unplacedReason } from 'src/features/optimizer/useOptimizerWizard'
 import type { EditorFocus } from 'src/features/optimizer/layoutEditor/useLayoutEditor'
 import StockAlert from 'src/features/inventory/StockAlert'
 import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
-import { WizardFooter } from 'src/features/optimizer/WizardSteps'
+import ActionBar from 'src/shared/components/ActionBar'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
+import { useConfirm } from 'src/shared/hooks/useConfirm'
+import { DISCARD_ADJUSTMENTS } from 'src/features/optimizer/confirmations'
+import { useBack, useFromHere, useRecordLabel } from 'src/shared/hooks/useShellNav'
 import PreOrderStatusBadge from './PreOrderStatusBadge'
 import PreOrderStatusStrip from './PreOrderStatusStrip'
 import ShareReviewLinkModal, { type ShareLinkState } from './ShareReviewLinkModal'
@@ -86,6 +86,24 @@ import { useEditorShortcuts } from 'src/features/optimizer/useEditorShortcuts'
 import OptimizerActionsMenu from 'src/features/optimizer/OptimizerActionsMenu'
 import PiecesSelectionBar from 'src/features/optimizer/PiecesSelectionBar'
 import PiecesSummary from 'src/features/optimizer/PiecesSummary'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
+import CutListCards from 'src/shared/components/CutListCards'
+import Segments, { segmentClass, useSegmentParam } from 'src/shared/components/Segments'
+import { requirementCutList } from 'src/features/optimizer/cutList'
+import { bandingLookup } from 'src/features/optimizer/pieceFields'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+
+// The quote on a phone, in three parts, the way the client's own review splits it: the money
+// (Resumen), what is being cut (Piezas) and the plan (Plano). The status strip and its share action
+// stay above them — where the quote stands is never a part.
+const PARTS = ['resumen', 'piezas', 'plano'] as const
+type Part = (typeof PARTS)[number]
+const PART_ITEMS: { id: Part; label: string }[] = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'piezas', label: 'Piezas' },
+  { id: 'plano', label: 'Plano' },
+]
 
 // Convert stored API format back to editable form state
 // One stored inline material as a retazo row. The same shape whether it was the
@@ -209,8 +227,6 @@ function formFromPreOrderData(
   return { materials: matForms, requirements: reqForms }
 }
 
-const areaFmt = new Intl.NumberFormat('es-EC', { maximumFractionDigits: 2 })
-
 // Stable signature of everything `handleSave` persists. Used to keep "Actualizar" disabled until the
 // user actually changes something. Built from the normalized payload (via buildPayload/buildServiceLines)
 // so cosmetic edits (an empty row, internal reclustering) don't register as real changes.
@@ -236,6 +252,13 @@ function editSignature(
 // Inner component: receives an already-loaded pre-order
 const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const navigate = useNavigate()
+  // Back to wherever the quote was opened from (Inicio, a filtered list, its order), or to
+  // Cotizaciones when it was reached by its URL. The order it became opens with this quote as origin.
+  const back = useBack()
+  const fromHere = useFromHere()
+  // The quote's own origin, which a copy inherits: duplicating replaces the page you are on, so its
+  // «Volver» goes where this one's did, not to the quote it was copied from.
+  const arrivedWith = useLocation().state as unknown
   const isGlobalBranch = useIsGlobalBranchRole()
   const canEdit = isOpen(preOrder.status)
   // A confirmed quote shows what its order froze instead of re-optimizing (see `optimizationSource`).
@@ -294,6 +317,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // undo history, the selection and the loaded optimization. A search param leaves `pathname` alone,
   // which also makes the browser's Back button close the panel.
   const [searchParams, setSearchParams] = useSearchParams()
+  const [part, setPart] = useSegmentParam(PARTS)
   const piecesOpen = canEdit && searchParams.get('panel') === 'piezas'
   const openPieces = () =>
     setSearchParams((p) => {
@@ -318,6 +342,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const { data: boards = [] } = useBoards()
   const { data: edgeBandings = [] } = useEdgeBandings()
+  // Every tapacanto the pieces may name, for the phone's read of the despiece (the whole catalogue
+  // holds every coordinated list).
+  const bandingById = useMemo(() => bandingLookup([], edgeBandings), [edgeBandings])
 
   const editor = usePiecesEditor(materials, initialFormData?.requirements)
   const groups = useCollapsedGroups(materials)
@@ -369,6 +396,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const deletePreOrder = useDeletePreOrder()
   const createReviewLink = useCreatePreOrderReviewLink()
   const duplicatePreOrder = useDuplicatePreOrder()
+  const [confirm, confirmDialog] = useConfirm()
   const reviewLinkInfo = usePreOrderReviewLinkInfo(preOrder.id, preOrder.status)
 
   // The way out of a quote that can no longer be edited, re-sent or confirmed: a new one with the
@@ -377,7 +405,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // closed quote, where the editor is read-only.
   const handleDuplicate = () =>
     duplicatePreOrder.mutate(preOrder.id, {
-      onSuccess: (copy) => void navigate(`/preorders/${copy.id}`),
+      onSuccess: (copy) => void navigate(`/preorders/${copy.id}`, { state: arrivedWith }),
       // Closed either way: on success we leave the page anyway, and on failure the reason (the
       // open-quotes cap, an inactive branch) is an alert on the page — behind an open modal the
       // seller would only see the button stop spinning.
@@ -427,18 +455,15 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   // "Otra alternativa": bump the seed and save+recompute immediately — the
   // pre-order persists the seed so the alternative survives every recompute.
-  const handleAlternative = () => {
+  const alternative = async () => {
     // Another alternative is another plan: hand adjustments made on this one would pin its sheets
     // over the new search and hide it, so they go — after asking.
-    if (
-      layoutAdjustments &&
-      !window.confirm('Otra alternativa descarta los ajustes manuales de la distribución. ¿Seguir?')
-    )
-      return
+    if (layoutAdjustments && !(await confirm(DISCARD_ADJUSTMENTS))) return
     const next = variant + 1
     setVariant(next)
     doSave(next, layoutAdjustments ? { layoutAdjustments: null } : {})
   }
+  const handleAlternative = () => void alternative()
 
   // The editor works on the SAVED plan (the one on screen), so unsaved edits come first.
   const adjustDisabledReason = updatePreOrder.isPending
@@ -589,7 +614,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 
   const handleDelete = () => {
     deletePreOrder.mutate(preOrder.id, {
-      onSuccess: () => void navigate('/preorders'),
+      onSuccess: back.go,
     })
   }
 
@@ -625,7 +650,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // it — dropping it there would leave a ⋮ that opens nothing.
   const viewOrder =
     preOrder.status === 'confirmed' && preOrder.orderId
-      ? () => void navigate(`/orders/${preOrder.orderId}`)
+      ? () => void navigate(`/orders/${preOrder.orderId}`, { state: fromHere })
       : undefined
 
   const isMissingPhone =
@@ -654,9 +679,9 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           actions is used often enough to hold a permanent row, and none of them belongs one click
           away from the save button. */}
       <div className="d-flex align-items-start gap-2 mb-3">
-        <div className="min-w-0">
+        <div style={{ minWidth: 0 }}>
           <div className="d-flex align-items-center gap-2">
-            <h5 className="mb-0">{preOrder.code}</h5>
+            <h2 className="h5 mb-0">{preOrder.code}</h2>
             {/* The badge opens the history. It is the natural handle for it: the history is the list
                 of how this quote reached the status the badge is showing. */}
             {hasHistory ? (
@@ -672,33 +697,40 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               <PreOrderStatusBadge status={preOrder.status} />
             )}
           </div>
-          <div className="text-body-secondary small">
+          {/* One span per fact, and `.fact-line` draws the «·» between them — the order's header
+              does the same. On a phone each fact takes its own line: wrapped inline, a date broke
+              inside «10:17 p. m.» and the due date's ⚠ fell alone onto the next line. */}
+          <div className="text-body-secondary small fact-line">
             <span {...MASK}>
               {clientLabel}
-              {preOrder.client.identifier && <span> @{preOrder.client.identifier}</span>}
+              {preOrder.client.identifier && ` @${preOrder.client.identifier}`}
             </span>
             {isGlobalBranch && (
               <span>
-                {' · '}
                 {preOrder.branch.name}
                 {preOrder.branch.code && ` (${preOrder.branch.code})`}
               </span>
             )}
-            {preOrder.source && <span>{` · ${preOrder.source}`}</span>}
+            {preOrder.source && <span className="d-none d-md-inline">{preOrder.source}</span>}
           </div>
-          {/* The four stacked date lines of the old header, on one. */}
-          <div className="text-body-secondary small">
-            Creada {fmtDateTime(preOrder.createdAt)}
-            {preOrder.sentAt && ` · Enviada ${fmtDateTime(preOrder.sentAt)}`}
-            {preOrder.confirmedAt && ` · Confirmada ${fmtDateTime(preOrder.confirmedAt)}`}
+          {/* The four stacked date lines of the old header, on one from `md`. On a phone only the
+              due date stays — it is the one with a consequence; the others are the history's, one
+              tap away on the badge — so the parts below start on the first screen. */}
+          <div className="text-body-secondary small fact-line">
+            <span className="d-none d-md-inline">Creada {fmtDateTime(preOrder.createdAt)}</span>
+            {preOrder.sentAt && (
+              <span className="d-none d-md-inline">Enviada {fmtDateTime(preOrder.sentAt)}</span>
+            )}
+            {preOrder.confirmedAt && (
+              <span className="d-none d-md-inline">
+                Confirmada {fmtDateTime(preOrder.confirmedAt)}
+              </span>
+            )}
             {preOrder.expiresAt && (
-              <>
-                {' · '}
-                <span className={expiringSoon ? 'text-danger fw-semibold' : undefined}>
-                  Vence {fmtDate(preOrder.expiresAt)}
-                  {expiringSoon && ' ⚠'}
-                </span>
-              </>
+              <span className={expiringSoon ? 'text-danger fw-semibold' : undefined}>
+                Vence {fmtDate(preOrder.expiresAt)}
+                {expiringSoon && ' ⚠'}
+              </span>
             )}
           </div>
           {/* Always here, open or closed. The reference is a name for the job, not working content:
@@ -735,6 +767,11 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             // more document chore, level with "Eliminar…".
             onViewOrder={viewOrder}
             onDelete={canEdit ? () => setShowDeleteModal(true) : undefined}
+            // The footer's «Otra alternativa», in here on a phone only (the menu hides it from
+            // `md`): at 360px the bar's two buttons each broke onto two lines.
+            onAlternative={canEdit && optimization ? handleAlternative : undefined}
+            alternativeDisabled={!canSave || missingBanding.length > 0 || updatePreOrder.isPending}
+            variant={variant}
           />
         </div>
       </div>
@@ -787,21 +824,32 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         isDuplicatePending={duplicatePreOrder.isPending}
       />
 
+      <Segments
+        items={PART_ITEMS}
+        value={part}
+        onChange={setPart}
+        label="Partes de la cotización"
+      />
+
       {/* One surface for the whole document. Each section carries a plain muted label instead of a
           card header: seven stacked cards said their own names seven times and framed content that
           already draws its own borders. */}
-      <div className="surface">
+      {/* `.quote-surface`: on a phone the services and the stock notice move below the totals
+          (see `_lists.scss`). */}
+      <div className="surface quote-surface">
         {/* The cut list as one line, the same shape as the diagram's. It renders for a closed quote
             too — the editor never did, so what was cut simply could not be seen once the quote was
             confirmed. The two counts that can block the update are badges rather than prose: from
             here you have to be able to tell the quote is stuck without opening anything. */}
-        <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
-          <span className="small text-body-secondary text-uppercase fw-semibold">Despiece</span>
+        <div
+          className={`${segmentClass(part, 'piezas')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
+        >
+          <span className="eyebrow">Despiece</span>
           <span className="small">
             <strong>{materials.length}</strong> {materials.length === 1 ? 'material' : 'materiales'}{' '}
             · <strong>{summary.pieces}</strong> {summary.pieces === 1 ? 'pieza' : 'piezas'} ·{' '}
             <strong>{summary.units}</strong> {summary.units === 1 ? 'unidad' : 'unidades'} ·{' '}
-            <strong>{areaFmt.format(summary.areaM2)} m²</strong>
+            <strong>{fmtM2(summary.areaM2, 2, 0)}</strong>
           </span>
           {summary.invalid > 0 && <CBadge color="danger">{summary.invalid} incompletas</CBadge>}
           {missingBanding.length > 0 && (
@@ -815,19 +863,25 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               className="ms-auto"
               onClick={openPieces}
             >
-              <CIcon icon={cilPencil} className="me-1" />
+              <Icon name="edit" className="me-1" />
               Editar despiece
             </CButton>
           )}
         </div>
+        {/* On a phone the pieces themselves, to read, under the row that opens the editor: the
+            grid does not fit there, and a closed quote — which has no editor at all — could not
+            show what it cuts. The same words the order will print (`CutListCards`). */}
+        <div className={`${segmentClass(part, 'piezas')} d-md-none`}>
+          <CutListCards
+            groups={requirementCutList(editor.requirements, materials, boards, bandingById)}
+          />
+        </div>
         {canEdit && (
-          <>
+          <div className={`${segmentClass(part, 'resumen')} quote-surface__services`}>
             {/* Additional services (perforación, armado, …): billed on top of the cut, default price
                 from the catalog but editable per line. They stay on the summary rather than moving
                 into the despiece panel: they are one or two rows and they belong with the costs. */}
-            <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-              Servicios adicionales
-            </div>
+            <div className="eyebrow mb-2">Servicios adicionales</div>
             <ServiceLines
               services={services}
               catalog={serviceCatalog}
@@ -835,8 +889,8 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               onUpdate={serviceLines.update}
               onRemove={serviceLines.remove}
             />
-            <hr className="my-4" />
-          </>
+            <hr className="my-4 d-none d-md-block" />
+          </div>
         )}
 
         {/* A saved quote re-optimizes on every read, so the plan is current — and
@@ -845,7 +899,11 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             since run out. Informational, exactly as in the wizard. Not on a
             confirmed quote: its plan is the order's, frozen, and the order's own
             page is where its stock is watched until it is cut. */}
-        {!planFrozen && <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />}
+        {!planFrozen && (
+          <div className={`${segmentClass(part, 'resumen')} quote-surface__stock`}>
+            <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />
+          </div>
+        )}
 
         {/* The result, with the price level down on its totals row. The footer's primary button is
             what recomputes it: this page's "optimize" is Save+Recalculate, server-side. */}
@@ -868,12 +926,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               : undefined
           }
           adjustDisabledReason={adjustDisabledReason}
+          partClass={(p) =>
+            p === 'plan'
+              ? segmentClass(part, 'plano')
+              : p === 'alerts'
+                ? segmentClass(part, 'resumen', 'plano')
+                : segmentClass(part, 'resumen')
+          }
           priceLevel={
             canEdit ? (
               <div className="d-flex flex-wrap align-items-center gap-2">
-                <span className="text-body-secondary small text-uppercase fw-semibold">
-                  Nivel de precio
-                </span>
+                <span className="eyebrow">Nivel de precio</span>
                 <PriceLevelToggle
                   value={priceLevel}
                   onChange={setPriceLevel}
@@ -898,10 +961,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
       {/* Pinned footer: leaving, the running totals, the bulk actions, and the one primary action.
           It replaces OptimizeActionBar, a near-copy that sat at the sticky z-tier (1020) and so
           painted over the very dropdowns — "Mover a…" — that open upward out of it. */}
-      {canEdit && (
-        <WizardFooter
-          onBack={() => void navigate('/preorders')}
-          backLabel="Volver a cotizaciones"
+      {/* A closed quote keeps the bar for its «Volver» alone, from `md`: below it that way back is the
+          header's «‹», and a bar with nothing else in it would be an empty strip. */}
+      {canEdit ? (
+        <ActionBar
+          onBack={back.go}
+          backLabel={back.name}
+          backInHeader
           onNext={handleSave}
           nextLabel="Actualizar cotización"
           nextDisabled={
@@ -916,16 +982,20 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               color="secondary"
               variant="outline"
               type="button"
+              // From `md`; on a phone it is in the ⋮ (see the menu above).
+              className="d-none d-md-inline-flex align-items-center"
               disabled={!canSave || missingBanding.length > 0 || updatePreOrder.isPending}
               onClick={handleAlternative}
               title="Genera una distribución alternativa con las mismas piezas"
             >
-              <CIcon icon={cilLoopCircular} className="me-1" />
+              <Icon name="alternative" className="me-1" />
               Otra alternativa
               {variant > 0 && <span className="ms-1 badge text-bg-secondary">#{variant}</span>}
             </CButton>
           )}
-        </WizardFooter>
+        </ActionBar>
+      ) : (
+        <ActionBar className="d-none d-md-block" onBack={back.go} backLabel={back.name} />
       )}
 
       {/* The despiece, full screen. Everything it needs travels with it — its own actions menu, its
@@ -933,12 +1003,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           `piecesContainer` is not optional: `SearchableSelect` always portals, and a dropdown left
           on document.body sits at z-index 1000, under this dialog's 1055. Every board picker and
           every tapacanto select would open behind the panel. */}
-      <CModal visible={piecesOpen} onClose={closePieces} fullscreen scrollable>
+      <Modal visible={piecesOpen} onClose={closePieces} fullscreen scrollable>
         {/* The title grows to fill the bar rather than the ⋮ carrying `ms-auto`: Bootstrap's
             `.btn-close` inside a `.modal-header` already has `margin-left: auto`, so a second auto
             margin split the free space evenly and parked the menu in the middle of the header. */}
         <CModalHeader className="d-flex align-items-center gap-2">
-          <CModalTitle className="flex-grow-1">Despiece · {preOrder.code}</CModalTitle>
+          <ModalTitle className="flex-grow-1">Despiece · {preOrder.code}</ModalTitle>
           <OptimizerActionsMenu
             onImport={() => setShowImport(true)}
             onExport={exportPiecesCsv}
@@ -1006,13 +1076,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             </CButton>
           </div>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* Status history, opened from the badge. It was a section at the foot of the surface, but a
           history is something you go and check, not something you read on the way to the totals. */}
-      <CModal visible={showHistory} onClose={() => setShowHistory(false)} size="lg" scrollable>
+      <Modal visible={showHistory} onClose={() => setShowHistory(false)} size="lg" scrollable>
         <CModalHeader>
-          <CModalTitle>Historial de {preOrder.code}</CModalTitle>
+          <ModalTitle>Historial de {preOrder.code}</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <StatusHistoryTable
@@ -1020,12 +1090,12 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             renderStatus={(s) => <PreOrderStatusBadge status={s as PreOrderStatus} />}
           />
         </CModalBody>
-      </CModal>
+      </Modal>
 
       {/* Reference */}
-      <CModal visible={showReference} onClose={() => setShowReference(false)}>
+      <Modal visible={showReference} onClose={() => setShowReference(false)} fullscreen="md">
         <CModalHeader>
-          <CModalTitle>Referencia</CModalTitle>
+          <ModalTitle>Referencia</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <CFormTextarea
@@ -1041,14 +1111,14 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           </div>
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={() => setShowReference(false)}>
+          <CButton color="secondary" variant="outline" onClick={() => setShowReference(false)}>
             Cancelar
           </CButton>
           <CButton color="primary" onClick={applyReference}>
             Listo
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* Delete material modal: move its pieces to another material or delete them together */}
       <DeleteMaterialModal
@@ -1085,74 +1155,47 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         />
       )}
 
-      {/* Regenerate confirmation modal */}
-      <CModal visible={showRegenModal} onClose={() => setShowRegenModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Regenerar enlace</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          El enlace anterior dejará de funcionar de inmediato. ¿Generar uno nuevo?
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setShowRegenModal(false)}>
-            Cancelar
-          </CButton>
-          <CButton
-            color="primary"
-            onClick={handleGenerateLink}
-            disabled={createReviewLink.isPending}
-          >
-            {createReviewLink.isPending ? <CSpinner size="sm" /> : 'Regenerar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <ConfirmDialog
+        visible={showRegenModal}
+        title="Regenerar enlace de revisión"
+        confirmLabel="Regenerar"
+        pending={createReviewLink.isPending}
+        onConfirm={handleGenerateLink}
+        onClose={() => setShowRegenModal(false)}
+      >
+        El enlace anterior deja de funcionar de inmediato.
+      </ConfirmDialog>
 
       {/* Duplicate confirmation modal. Not a destructive action, so it is not a warning: the
           question is worth asking because the button sits one click away in a strip the seller
           reads on every closed quote, and an accidental copy costs a row plus a slot in the
           client's open-quotes cap. The body says what the copy will and won't be, which is the
           part nobody can guess from the label. */}
-      <CModal visible={showDuplicateModal} onClose={() => setShowDuplicateModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Duplicar cotización</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <p className="mb-2">
-            Se creará una cotización nueva a partir de <strong>{preOrder.code}</strong>, con los
-            mismos materiales, piezas y servicios, y con una vigencia que arranca hoy.
-          </p>
-          <p className="mb-0 text-body-secondary small">
-            Los precios se recalculan con el catálogo actual, así que el total puede cambiar.{' '}
-            {preOrder.code} no se modifica.
-          </p>
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setShowDuplicateModal(false)}>
-            Cancelar
-          </CButton>
-          <CButton color="primary" onClick={handleDuplicate} disabled={duplicatePreOrder.isPending}>
-            {duplicatePreOrder.isPending ? <CSpinner size="sm" /> : 'Duplicar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <ConfirmDialog
+        visible={showDuplicateModal}
+        title={`Duplicar ${preOrder.code}`}
+        confirmLabel="Duplicar"
+        pending={duplicatePreOrder.isPending}
+        onConfirm={handleDuplicate}
+        onClose={() => setShowDuplicateModal(false)}
+        note={`Los precios se recalculan con el catálogo actual, así que el total puede cambiar. ${preOrder.code} no se modifica.`}
+      >
+        Se creará una cotización nueva con los mismos materiales, piezas y servicios, y con una
+        vigencia que arranca hoy.
+      </ConfirmDialog>
 
-      {/* Delete confirmation modal */}
-      <CModal visible={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-        <CModalHeader>
-          <CModalTitle>Eliminar cotización</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Eliminar <strong>{preOrder.code}</strong>? Esta acción no puede deshacerse.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={() => setShowDeleteModal(false)}>
-            Cancelar
-          </CButton>
-          <CButton color="danger" onClick={handleDelete} disabled={deletePreOrder.isPending}>
-            {deletePreOrder.isPending ? <CSpinner size="sm" /> : 'Eliminar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <ConfirmDialog
+        visible={showDeleteModal}
+        title={`Eliminar ${preOrder.code}`}
+        confirmLabel="Eliminar"
+        tone="danger"
+        pending={deletePreOrder.isPending}
+        onConfirm={handleDelete}
+        onClose={() => setShowDeleteModal(false)}
+      >
+        La cotización se borra y esta acción no puede deshacerse.
+      </ConfirmDialog>
+      {confirmDialog}
     </>
   )
 }
@@ -1161,18 +1204,25 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
 const PreOrderDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const numId = id ? Number(id) : undefined
-  const { data: preOrder, isLoading, error } = usePreOrder(numId)
+  const { data: preOrder, isLoading, refetch } = usePreOrder(numId)
+  const back = useBack()
+  // The trail and the tab say «PRE-000123», and so does the «Volver» of what is opened from here.
+  useRecordLabel(preOrder?.code)
 
-  if (isLoading) {
+  if (isLoading) return <LoadingBlock variant="detail" label="Cargando la cotización…" />
+
+  if (!preOrder) {
     return (
-      <div className="text-center py-5">
-        <CSpinner color="primary" />
-      </div>
+      <ErrorState
+        title="No se pudo cargar la cotización."
+        onRetry={() => void refetch()}
+        action={
+          <CButton color="secondary" variant="ghost" onClick={back.go}>
+            Volver a {back.name}
+          </CButton>
+        }
+      />
     )
-  }
-
-  if (error || !preOrder) {
-    return <CAlert color="danger">No se pudo cargar la cotización.</CAlert>
   }
 
   return <PreOrderView preOrder={preOrder} />

@@ -1,7 +1,6 @@
 import { CFormSelect, CPagination } from '@coreui/react'
-import { cilChevronLeft, cilChevronRight } from '@coreui/icons'
 
-import CIcon from '@coreui/icons-react'
+import Icon from 'src/shared/icons/Icon'
 import { PAGE_SIZE_OPTIONS } from 'src/shared/constants'
 import type { ReactNode } from 'react'
 
@@ -117,7 +116,7 @@ const Pagination = ({ offset, limit, total, onChange, onLimitChange }: Paginatio
             disabled={current === 1}
             onClick={() => goTo(current - 1)}
           >
-            <CIcon icon={cilChevronLeft} size="sm" />
+            <Icon name="chevronLeft" size="sm" />
           </PageButton>
 
           {pageItems(current, pageCount).map((page, i) =>
@@ -143,7 +142,7 @@ const Pagination = ({ offset, limit, total, onChange, onLimitChange }: Paginatio
             disabled={current === pageCount}
             onClick={() => goTo(current + 1)}
           >
-            <CIcon icon={cilChevronRight} size="sm" />
+            <Icon name="chevronRight" size="sm" />
           </PageButton>
         </CPagination>
       )}

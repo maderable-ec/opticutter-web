@@ -1,5 +1,4 @@
-import { CBadge } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
+import Icon from 'src/shared/icons/Icon'
 
 import { activityBadge } from './activities'
 import type { OrderActivity } from './types'
@@ -11,9 +10,9 @@ import type { OrderActivity } from './types'
 // It prints the TRACK and draws the state — "Corte ✓" rather than "Corte listo"; `STATUS_ICON`
 // carries why. Two consequences to keep whenever this is touched:
 //
-//  - It no longer goes through the shared `StatusBadge`. That component is a label-by-value lookup
-//    for eight features and this one had been feeding it a single-entry `config` to compute its
-//    label — a rodeo before, and an icon it has no field for now.
+//  - It does not go through the shared `StatusBadge`, only its `.status-pill` look. That component is
+//    a label-by-value lookup, and this badge's label is the TRACK while its icon is the STATE — two
+//    lookups a single config entry cannot express.
 //  - The word survives in the DOM. `title` puts it in the tooltip (the listing has a mouse; the
 //    shop floor does not), and `.visually-hidden` is what a screen reader reads — with the state
 //    carried only by an `aria-hidden` glyph, the badge would announce "Corte" and drop the half
@@ -23,18 +22,14 @@ interface ActivityBadgeProps {
 }
 
 const ActivityBadge = ({ activity }: ActivityBadgeProps) => {
-  const { color, icon, label, statusWord } = activityBadge(activity)
+  const { tone, icon, label, statusWord } = activityBadge(activity)
   const full = `${label} ${statusWord}`
   return (
-    <CBadge
-      color={color}
-      title={full}
-      className="d-inline-flex align-items-center gap-1 text-nowrap"
-    >
-      <CIcon icon={icon} size="sm" aria-hidden="true" />
+    <span title={full} className={`badge status-pill status-pill--${tone}`}>
+      <Icon name={icon} className="status-pill__icon" />
       {label}
       <span className="visually-hidden">{statusWord}</span>
-    </CBadge>
+    </span>
   )
 }
 

@@ -18,3 +18,4 @@ export const useServices = hooks.useList
 export const useCreateService = hooks.useCreate
 export const useUpdateService = hooks.useUpdate
 export const useDeleteService = hooks.useDelete
+export const useServicesTotal = hooks.useTotal

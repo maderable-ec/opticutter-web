@@ -7,10 +7,10 @@ import {
   CFormLabel,
   CModalBody,
   CModalFooter,
-  CSpinner,
 } from '@coreui/react'
 import { apiErrorMessage } from 'src/shared/api/errors'
 import type { Branch, BranchPayload, BranchUpdatePayload } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 interface BranchFormProps {
   branch: Branch | null
@@ -176,11 +176,11 @@ const BranchForm = ({ branch, onSubmit, onCancel, isSubmitting, error }: BranchF
       </CModalBody>
 
       <CModalFooter>
-        <CButton color="secondary" onClick={onCancel} disabled={isSubmitting}>
+        <CButton color="secondary" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <CSpinner size="sm" /> : isEdit ? 'Guardar' : 'Crear'}
+          {isSubmitting ? <Spinner size="sm" /> : isEdit ? 'Guardar' : 'Crear'}
         </CButton>
       </CModalFooter>
     </form>

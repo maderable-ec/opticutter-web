@@ -1,0 +1,76 @@
+@use '@coreui/coreui/scss/coreui' as *;
+
+// A hub's tabs (`SectionNav`): the segmented track of a record's parts, with links on it. From `md`
+// it sits as wide as its words at the head of the page, under the breadcrumb that names the hub.
+// Below `md` it sticks under the header like a record's parts, on a strip of the page colour, and
+// its track spans the width and scrolls sideways when the words do not fit.
+.section-nav {
+  margin-bottom: 1rem;
+
+  @include media-breakpoint-down(md) {
+    position: sticky;
+    top: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+    // Over the page's content, under the header (1030) and every overlay.
+    z-index: 1010;
+    margin-bottom: 0.75rem;
+    padding-block: 0.375rem;
+    background-color: var(--mb-page-bg);
+  }
+}
+
+.section-nav__track {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  // The track scrolls by touch; a scrollbar under four words would only take room.
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // Where the track goes on past an edge, it fades out there (`SectionNav` marks which).
+  --section-nav-fade: 2rem;
+
+  &[data-more-end] {
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--section-nav-fade)), transparent);
+  }
+
+  &[data-more-start] {
+    mask-image: linear-gradient(to left, #000 calc(100% - var(--section-nav-fade)), transparent);
+  }
+
+  &[data-more-start][data-more-end] {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 var(--section-nav-fade),
+      #000 calc(100% - var(--section-nav-fade)),
+      transparent
+    );
+  }
+
+  // Each tab as wide as its word, never squeezed: when they do not fit the track scrolls instead.
+  // Where they do, they share the spare width like a record's parts. Narrower on a phone, where
+  // the catalog's four and the administration's four fit from 360 and 390px.
+  .segments__item {
+    display: inline-flex;
+    flex: 1 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 0.875rem;
+    text-decoration: none;
+
+    &:hover:not([aria-current='page']) {
+      color: var(--cui-body-color);
+    }
+
+    @include media-breakpoint-down(md) {
+      padding-inline: 0.5rem;
+    }
+  }
+
+  @include media-breakpoint-down(md) {
+    width: auto;
+  }
+}

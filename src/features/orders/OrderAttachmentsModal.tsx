@@ -3,12 +3,9 @@ import {
   CBadge,
   CButton,
   CFormInput,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -16,13 +13,15 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilExternalLink } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { MASK } from 'src/shared/analytics'
-import { fmtDateTime } from 'src/shared/utils/format'
+import { fmtDateTime, fmtFileSize } from 'src/shared/utils/format'
 import { ordersApi } from './ordersApi'
 import { useAttachments, useDeleteAttachment, useUploadAttachment } from './useOrders'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import { useConfirm } from 'src/shared/hooks/useConfirm'
 
 // Anexos in a dialog rather than in a card at the foot of the page. The card's first element was a
 // permanent file input — a control the size of a form field, on the surface a user reads top to
@@ -31,13 +30,6 @@ import { useAttachments, useDeleteAttachment, useUploadAttachment } from './useO
 
 const ATTACH_MAX_MB = 10
 const ATTACH_TYPES = ['application/pdf', 'image/png', 'image/jpeg']
-
-export const humanSize = (b: number) =>
-  b < 1024
-    ? `${b} B`
-    : b < 1_048_576
-      ? `${(b / 1024).toFixed(0)} KB`
-      : `${(b / 1_048_576).toFixed(1)} MB`
 
 interface OrderAttachmentsModalProps {
   orderId: string
@@ -73,16 +65,28 @@ const OrderAttachmentsModal = ({
     uploadAtt.mutate(file)
   }
 
-  const onDeleteAttachment = (attachmentId: number, filename: string) => {
-    if (!window.confirm(`¿Eliminar el anexo "${filename}"?`)) return
+  // Asked from inside this dialog, so the question mounts inside it (see `ConfirmDialog`).
+  const [confirm, confirmDialog] = useConfirm()
+  const onDeleteAttachment = async (attachmentId: number, filename: string) => {
+    const ok = await confirm({
+      title: 'Eliminar anexo',
+      body: (
+        <>
+          <strong {...MASK}>{filename}</strong> se quita de la orden.
+        </>
+      ),
+      confirmLabel: 'Eliminar',
+      tone: 'danger',
+    })
+    if (!ok) return
     deleteAtt.reset()
     deleteAtt.mutate(attachmentId)
   }
 
   return (
-    <CModal visible={visible} onClose={onClose} size="lg" scrollable>
+    <Modal visible={visible} onClose={onClose} size="lg" scrollable>
       <CModalHeader>
-        <CModalTitle>Anexos</CModalTitle>
+        <ModalTitle>Anexos</ModalTitle>
       </CModalHeader>
       <CModalBody>
         {editable && (
@@ -98,7 +102,7 @@ const OrderAttachmentsModal = ({
             />
             <div className="text-body-secondary small mt-1">
               PDF, PNG o JPEG · máx {ATTACH_MAX_MB} MB.
-              {uploadAtt.isPending && <CSpinner size="sm" className="ms-2" />}
+              {uploadAtt.isPending && <Spinner size="sm" className="ms-2" />}
             </div>
             {(attachError || uploadAtt.error) && (
               <div className="text-danger small mt-1">
@@ -113,7 +117,7 @@ const OrderAttachmentsModal = ({
           </div>
         )}
         {attachments.isLoading ? (
-          <CSpinner size="sm" />
+          <Spinner size="sm" />
         ) : attachments.data && attachments.data.length > 0 ? (
           <CTable small responsive hover className="summary-table mb-0 align-middle">
             <CTableHead>
@@ -137,7 +141,7 @@ const OrderAttachmentsModal = ({
                     {/* Uploaded under whatever name it had, often the client's: masked in replay. */}
                     <span {...MASK}>{att.filename}</span>
                   </CTableDataCell>
-                  <CTableDataCell>{humanSize(att.sizeBytes)}</CTableDataCell>
+                  <CTableDataCell>{fmtFileSize(att.sizeBytes)}</CTableDataCell>
                   <CTableDataCell>{fmtDateTime(att.createdAt)}</CTableDataCell>
                   <CTableDataCell className="text-end">
                     <CButton
@@ -147,7 +151,7 @@ const OrderAttachmentsModal = ({
                       className="me-2"
                       onClick={() => void ordersApi.downloadAttachment(orderId, att.id)}
                     >
-                      <CIcon icon={cilExternalLink} className="me-1" />
+                      <Icon name="external" className="me-1" />
                       Ver
                     </CButton>
                     {editable && (
@@ -156,7 +160,7 @@ const OrderAttachmentsModal = ({
                         variant="outline"
                         size="sm"
                         disabled={deleteAtt.isPending}
-                        onClick={() => onDeleteAttachment(att.id, att.filename)}
+                        onClick={() => void onDeleteAttachment(att.id, att.filename)}
                       >
                         Borrar
                       </CButton>
@@ -176,7 +180,8 @@ const OrderAttachmentsModal = ({
           Listo
         </CButton>
       </CModalFooter>
-    </CModal>
+      {confirmDialog}
+    </Modal>
   )
 }
 

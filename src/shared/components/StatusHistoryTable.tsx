@@ -17,9 +17,9 @@ import StatusBadge, { type StatusConfigEntry } from './StatusBadge'
 export type ActorType = 'staff' | 'client' | 'system'
 
 const ACTOR_CONFIG: Record<ActorType, StatusConfigEntry> = {
-  staff: { color: 'primary', label: 'Equipo' },
-  client: { color: 'info', label: 'Cliente' },
-  system: { color: 'secondary', label: 'Sistema' },
+  staff: { tone: 'neutral', label: 'Equipo' },
+  client: { tone: 'info', label: 'Cliente' },
+  system: { tone: 'graphite', label: 'Sistema' },
 }
 
 // Generic status history entry; used for both orders and pre-orders.
@@ -51,32 +51,64 @@ const StatusHistoryTable = ({ entries, renderStatus }: StatusHistoryTableProps) 
   // carry no `bg-body-tertiary`: Bootstrap's background utilities are `!important`, so the grey
   // would win over the class no matter the order.
   return (
-    <CTable small responsive className="summary-table mb-0">
-      <CTableHead>
-        <CTableRow>
-          <CTableHeaderCell>Desde</CTableHeaderCell>
-          <CTableHeaderCell>Hacia</CTableHeaderCell>
-          <CTableHeaderCell>Actor</CTableHeaderCell>
-          <CTableHeaderCell>Nota</CTableHeaderCell>
-          <CTableHeaderCell>Fecha</CTableHeaderCell>
-        </CTableRow>
-      </CTableHead>
-      <CTableBody>
+    <>
+      {/* Phone: five columns scrolled sideways and cut the note — the client's own words — off
+          the screen. One entry per move instead; the table is the `md`+ view. */}
+      <ul className="history-list d-md-none">
         {entries.map((h) => (
-          <CTableRow key={h.id}>
-            <CTableDataCell>{h.fromStatus ? renderStatus(h.fromStatus) : '—'}</CTableDataCell>
-            <CTableDataCell>{renderStatus(h.toStatus)}</CTableDataCell>
-            <CTableDataCell className="text-nowrap">
-              <span className="me-2">{h.actorLabel ?? '—'}</span>
+          <li key={h.id} className="history-entry">
+            <div className="history-entry__move">
+              {h.fromStatus && (
+                <>
+                  {renderStatus(h.fromStatus)}
+                  <span className="text-body-secondary" aria-hidden="true">
+                    →
+                  </span>
+                  <span className="visually-hidden">a</span>
+                </>
+              )}
+              {renderStatus(h.toStatus)}
+            </div>
+            <div className="history-entry__meta">
+              {fmtDateTime(h.createdAt)}
+              {h.actorLabel && <> · {h.actorLabel}</>}{' '}
               {h.actor && <StatusBadge config={ACTOR_CONFIG} value={h.actor} />}
-            </CTableDataCell>
-            {/* The client's own words when they reject a quote or ask for changes. */}
-            <CTableDataCell {...MASK}>{h.note ?? '—'}</CTableDataCell>
-            <CTableDataCell className="text-nowrap">{fmtDateTime(h.createdAt)}</CTableDataCell>
-          </CTableRow>
+            </div>
+            {h.note && (
+              <div className="history-entry__note" {...MASK}>
+                {h.note}
+              </div>
+            )}
+          </li>
         ))}
-      </CTableBody>
-    </CTable>
+      </ul>
+      <CTable small responsive className="summary-table mb-0 d-none d-md-table">
+        <CTableHead>
+          <CTableRow>
+            <CTableHeaderCell>Desde</CTableHeaderCell>
+            <CTableHeaderCell>Hacia</CTableHeaderCell>
+            <CTableHeaderCell>Actor</CTableHeaderCell>
+            <CTableHeaderCell>Nota</CTableHeaderCell>
+            <CTableHeaderCell>Fecha</CTableHeaderCell>
+          </CTableRow>
+        </CTableHead>
+        <CTableBody>
+          {entries.map((h) => (
+            <CTableRow key={h.id}>
+              <CTableDataCell>{h.fromStatus ? renderStatus(h.fromStatus) : '—'}</CTableDataCell>
+              <CTableDataCell>{renderStatus(h.toStatus)}</CTableDataCell>
+              <CTableDataCell className="text-nowrap">
+                <span className="me-2">{h.actorLabel ?? '—'}</span>
+                {h.actor && <StatusBadge config={ACTOR_CONFIG} value={h.actor} />}
+              </CTableDataCell>
+              {/* The client's own words when they reject a quote or ask for changes. */}
+              <CTableDataCell {...MASK}>{h.note ?? '—'}</CTableDataCell>
+              <CTableDataCell className="text-nowrap">{fmtDateTime(h.createdAt)}</CTableDataCell>
+            </CTableRow>
+          ))}
+        </CTableBody>
+      </CTable>
+    </>
   )
 }
 

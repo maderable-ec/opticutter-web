@@ -1,16 +1,8 @@
 import type { ReactNode } from 'react'
-import {
-  CBadge,
-  CButton,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilFilter } from '@coreui/icons'
+import { CBadge, CButton } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
+import BottomSheet from './BottomSheet'
+import Spinner from './Spinner'
 
 interface FilterSheetProps {
   // Filters APPLIED right now, for the trigger's badge — same count `FilterMenu` shows.
@@ -32,21 +24,27 @@ interface FilterSheetProps {
 }
 
 /**
- * The filter panel on a phone: a trigger that looks like `FilterMenu`'s, and a full-screen sheet
- * behind it. `FilterMenu` stays the panel from `md` up; the listing mounts both and the breakpoint
- * picks.
+ * The filter panel on a phone: a trigger that looks like `FilterMenu`'s, and a `BottomSheet` behind
+ * it. `FilterMenu` stays the panel from `md` up; the listing mounts both and the breakpoint picks.
  *
  * Why not the dropdown on a phone: it opened as a popover over the list with its own 70vh scroll
  * inside the page's, every tap refetched a list hidden behind it, and the only way out was a tap
  * "somewhere outside" — there was no button that said "done". The sheet has one scroll, a clear
- * way out on each end (✕ discards, the primary applies) and a primary that says what applying will
- * give: "Ver 37 órdenes". That count is what stops a filter combination from being discovered
- * empty only after the panel is gone.
+ * way out on each end (✕ or the strip of list above it discards, the primary applies) and a primary
+ * that says what applying will give: "Ver 37 órdenes". That count is what stops a filter combination
+ * from being discovered empty only after the panel is gone.
+ *
+ * The same sheet as the reports' filters and the phone's menu. It was a full-screen modal with its
+ * ✕ at the top: the reports' sheet, which rises under the thumb, made the two filter panels look
+ * like two different things. The behaviour still differs on purpose: a listing is hidden behind its
+ * fields, so they are a draft applied in one write (`useFilterSheet`); a report stays in sight above
+ * its sheet, so it applies as it goes.
  *
  * The fields are the SAME components the dropdown renders, bound to a draft (`useFilterSheet`).
  * They style themselves as `.dropdown-item`/`.dropdown-header`, whose variables CoreUI only defines
  * on `.dropdown-menu` — hence the static `.dropdown-menu` wrapper, which `.filter-sheet` in
- * style.scss then enlarges for a finger (and to 16px text, below which iOS zooms in on focus).
+ * `_filters.scss` then enlarges for a finger (and to 16px text, below which iOS zooms in on focus).
+ * Those rows bring their own padding, so the sheet's body has none.
  */
 const FilterSheet = ({
   activeCount,
@@ -74,7 +72,7 @@ const FilterSheet = ({
         className="d-flex align-items-center gap-2"
         onClick={onOpen}
       >
-        <CIcon icon={cilFilter} />
+        <Icon name="filter" />
         Filtros
         {activeCount > 0 && (
           <CBadge color="primary" shape="rounded-pill">
@@ -83,25 +81,28 @@ const FilterSheet = ({
         )}
       </CButton>
 
-      <CModal visible={visible} onClose={onClose} fullscreen className="filter-sheet">
-        <CModalHeader>
-          <CModalTitle>Filtros</CModalTitle>
-        </CModalHeader>
-        <CModalBody className="p-0">
-          <div className="dropdown-menu show position-static w-100 border-0 rounded-0 shadow-none py-2">
-            {children}
-          </div>
-        </CModalBody>
-        <CModalFooter className="filter-sheet__footer">
-          <CButton color="link" onClick={onClear} disabled={draftCount === 0}>
-            Limpiar
-          </CButton>
-          <CButton color="primary" className="flex-grow-1" onClick={onApply}>
-            {isCounting && <CSpinner size="sm" className="me-2" aria-hidden="true" />}
-            {applyLabel}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      <BottomSheet
+        visible={visible}
+        onClose={onClose}
+        title="Filtros"
+        className="filter-sheet"
+        bodyClassName="p-0"
+        footer={
+          <>
+            <CButton color="link" onClick={onClear} disabled={draftCount === 0}>
+              Limpiar
+            </CButton>
+            <CButton color="primary" className="flex-grow-1" onClick={onApply}>
+              {isCounting && <Spinner size="sm" className="me-2" aria-hidden="true" />}
+              {applyLabel}
+            </CButton>
+          </>
+        }
+      >
+        <div className="dropdown-menu show position-static w-100 border-0 rounded-0 shadow-none py-2">
+          {children}
+        </div>
+      </BottomSheet>
     </>
   )
 }

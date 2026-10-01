@@ -1,0 +1,55 @@
+// The plane a screen's working content is drawn on. Dropping the per-step CCard was right — its
+// header only repeated the step's name from the trail — but it also left every control sitting
+// straight on the page background, where an outline-secondary button is grey on grey. This gives
+// the content back a surface without giving it back a card: no header, no shadow, nothing to read as
+// a section. Named `.surface`, not `.wizard-surface`: the pre-order detail page uses the same plane
+// for a document that has no steps at all.
+.surface {
+  padding: 1rem;
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius-lg);
+  background-color: var(--cui-body-bg);
+
+  // Together with the content container's `px-2` below `md`, this is ~40px of a 390px screen handed
+  // back to the content: a gutter plus a border plus a full rem of padding per side was a fifth of it.
+  @media (max-width: 767.98px) {
+    padding: 0.75rem;
+  }
+}
+
+// A titled block (`Section`): Inicio, the reports and Configuración. The head wraps: the action
+// (a «Ver todas ›», a metric selector) sits at the right of the title while it fits and drops under
+// it when it does not. Baseline-aligned, so a link's text sits on the eyebrow's line.
+.section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.section__titles {
+  min-width: 0;
+}
+
+.section__caption {
+  margin: 0.125rem 0 0;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}
+
+.section__error {
+  margin: 0.5rem 0 0;
+  color: var(--cui-danger-text-emphasis);
+  font-size: var(--mb-text-md);
+}
+
+// The previous result, dimmed while the new one loads.
+.section {
+  transition: opacity 0.15s ease-in-out;
+
+  &.is-refreshing {
+    opacity: 0.6;
+  }
+}

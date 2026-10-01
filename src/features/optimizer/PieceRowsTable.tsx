@@ -13,32 +13,28 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import {
-  cilArrowBottom,
-  cilArrowThickBottom,
-  cilArrowThickTop,
-  cilCopy,
-  cilMove,
-  cilTrash,
-} from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
-import type { SelectOption } from 'src/shared/components/SearchableSelect'
 import CantoPreview from 'src/shared/components/CantoPreview'
 import type { EdgeBandingProduct } from 'src/features/products/types'
-import type { BandType, RequirementForm } from './optimizerForm'
+import type { RequirementForm } from './optimizerForm'
 import {
   BAND_TYPES,
   CANTO_NOTATIONS,
   displayedBandType,
-  inferBandingProductId,
   isRequirementEmpty,
   needsBandingProduct,
   notationFromSides,
   selectedSides,
-  sidesFromNotation,
 } from './optimizerForm'
+import {
+  bandingLookup,
+  tapacantoOptions,
+  withBandTypeToggle,
+  withBandingProduct,
+  withCantoNotation,
+} from './pieceFields'
 import type { ModalContainer } from './types'
 import EdgeBandingPickerModal from './EdgeBandingPickerModal'
 import SpecialEdgesCell from './SpecialEdgesCell'
@@ -51,7 +47,6 @@ import type {
   SortField,
 } from './usePiecesEditor'
 import { WORKSHOP_CODES, WORKSHOP_CODE_MAX_LENGTH } from 'src/shared/utils/workshopCodes'
-import { stripBandingPrefix } from 'src/shared/utils/text'
 import { parsePieces } from './piecesCsv'
 import { rowsToRequirements } from './piecesImport'
 
@@ -227,11 +222,10 @@ const PieceRowsTable = ({
 
   // Lookup for every edge banding we might reference (coordinated + global fallback): used to
   // derive a piece's displayed band type from its assigned tapacanto product.
-  const byId = useMemo(() => {
-    const map = new Map<string, EdgeBandingProduct>()
-    for (const p of [...boardEdgeBandings, ...edgeBandings]) map.set(String(p.id), p)
-    return map
-  }, [boardEdgeBandings, edgeBandings])
+  const byId = useMemo(
+    () => bandingLookup(boardEdgeBandings, edgeBandings),
+    [boardEdgeBandings, edgeBandings],
+  )
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Cell showing the fill handle (follows focus, like Excel's "active cell"). Local row index.
@@ -248,13 +242,8 @@ const PieceRowsTable = ({
 
   // Applies a tapacanto choice to a piece, keeping the band type in sync with the chosen
   // product so the "Tipo" column never contradicts it. Shared by the dropdown and the picker.
-  const setBandingProduct = (flat: number, req: RequirementForm, productId: string) => {
-    const bandType =
-      (byId.get(productId)?.attributes.bandType as BandType | undefined) ??
-      req.edgeBanding.bandType ??
-      ''
-    update(flat, 'edgeBanding', { ...req.edgeBanding, productId, bandType })
-  }
+  const setBandingProduct = (flat: number, req: RequirementForm, productId: string) =>
+    update(flat, 'edgeBanding', withBandingProduct(req.edgeBanding, productId, byId))
 
   const pickerReq = pickerRow == null ? undefined : rows[pickerRow]
 
@@ -474,7 +463,7 @@ const PieceRowsTable = ({
       }}
       onPointerCancel={() => setRowDrag(null)}
     >
-      <CIcon icon={cilMove} size="sm" />
+      <Icon name="dragHandle" size="sm" />
     </span>
   )
 
@@ -489,18 +478,14 @@ const PieceRowsTable = ({
       title={`${title} (aplicar a ${fillScope === 'selected' ? 'seleccionadas' : 'todas'})`}
       onClick={() => fillDownGroup(materialUid, field, fillScope)}
     >
-      <CIcon icon={cilArrowBottom} size="sm" />
+      <Icon name="fillDown" size="sm" />
     </CButton>
   )
 
   // Sortable header label: click toggles asc/desc for this group.
   const sortIcon = (field: SortField) =>
     sort?.field === field ? (
-      <CIcon
-        icon={sort.dir === 'asc' ? cilArrowThickTop : cilArrowThickBottom}
-        size="sm"
-        className="ms-1"
-      />
+      <Icon name={sort.dir === 'asc' ? 'sortAsc' : 'sortDesc'} size="sm" className="ms-1" />
     ) : null
 
   // `hint` carries what the label no longer says out loud — the unit on the measurement columns,
@@ -530,6 +515,7 @@ const PieceRowsTable = ({
                 checked={allSelected}
                 onChange={(e) => selectMany(groupIndices, e.target.checked)}
                 title="Seleccionar todo el grupo"
+                aria-label="Seleccionar todo el grupo"
               />
             </CTableHeaderCell>
             <CTableHeaderCell className="text-center" style={{ ...thStyle, width: 48 }}>
@@ -587,7 +573,9 @@ const PieceRowsTable = ({
                 {abbr}.{renderFill(field, `Igualar ${label.toLowerCase()}`)}
               </CTableHeaderCell>
             ))}
-            <CTableHeaderCell style={thStyle} />
+            <CTableHeaderCell style={thStyle}>
+              <span className="visually-hidden">Acciones</span>
+            </CTableHeaderCell>
           </CTableRow>
         </CTableHead>
         <CTableBody>
@@ -599,35 +587,16 @@ const PieceRowsTable = ({
             const isError = bandingMissing || (!rowValid && !isRequirementEmpty(req))
             const cantoNotation = notationFromSides(req.edgeBanding.sides)
             const cantoBandType = displayedBandType(req.edgeBanding, byId)
-            // Tapacanto options: coordinated with the board, narrowed to the displayed band type;
-            // if the board has no coordinated match, fall back to the global catalog.
-            const scoped = boardEdgeBandings.filter(
-              (p) => !cantoBandType || p.attributes.bandType === cantoBandType,
+            // Coordinated with the board and narrowed to the displayed type (see `tapacantoOptions`).
+            const options = tapacantoOptions(
+              req.edgeBanding,
+              cantoBandType,
+              boardEdgeBandings,
+              edgeBandings,
+              byId,
             )
-            const tapacantoOptions = scoped.length ? scoped : edgeBandings
-            // A tapacanto picked from the full catalog (deliberate contrast) is not in the
-            // coordinated list, and an option the select can't find renders as the placeholder —
-            // so the assigned product is always appended when missing.
-            const options: SelectOption[] = [
-              { value: '', label: '— Sin tapacanto —' },
-              // The label drops the catalogue's "TAPACANTO" prefix — the column already says it — and
-              // only the label: the value, the code (searchable as the sublabel) and the cell's
-              // title keep the product as it is.
-              ...tapacantoOptions.map((p) => ({
-                value: String(p.id),
-                label: stripBandingPrefix(p.name),
-                sublabel: p.code,
-              })),
-            ]
             const assignedId = String(req.edgeBanding.productId)
             const assigned = assignedId ? byId.get(assignedId) : undefined
-            if (assigned && !options.some((o) => o.value === assignedId)) {
-              options.push({
-                value: assignedId,
-                label: stripBandingPrefix(assigned.name),
-                sublabel: assigned.code,
-              })
-            }
             const isDropTarget =
               !!rowDrag && rowDrag.srcRow !== rowDrag.targetRow && rowDrag.targetRow === local
             // Search paints, it never filters: a hit keeps its place in the list so every
@@ -646,7 +615,13 @@ const PieceRowsTable = ({
                 onKeyDown={(e) => handleRowKeyDown(e, local)}
               >
                 <CTableDataCell className="text-center">
-                  <CFormCheck checked={selected.has(i)} onChange={() => toggleSelect(i)} />
+                  {/* Every control of the row is named after the column and the piece's number: the
+                      header says which column, but a screen reader lands on the cell, not on it. */}
+                  <CFormCheck
+                    checked={selected.has(i)}
+                    onChange={() => toggleSelect(i)}
+                    aria-label={`Seleccionar pieza ${i + 1}`}
+                  />
                 </CTableDataCell>
                 <CTableDataCell
                   className="text-center text-body-secondary"
@@ -669,6 +644,7 @@ const PieceRowsTable = ({
                     data-row={local}
                     data-col={0}
                     data-field="height"
+                    aria-label={`Largo de la pieza ${i + 1}`}
                     value={req.height}
                     onFocus={() => setActiveCell({ row: local, col: 0 })}
                     onChange={(e) => update(i, 'height', e.target.value)}
@@ -684,6 +660,7 @@ const PieceRowsTable = ({
                     data-row={local}
                     data-col={1}
                     data-field="width"
+                    aria-label={`Ancho de la pieza ${i + 1}`}
                     value={req.width}
                     onFocus={() => setActiveCell({ row: local, col: 1 })}
                     onChange={(e) => update(i, 'width', e.target.value)}
@@ -700,6 +677,7 @@ const PieceRowsTable = ({
                     data-row={local}
                     data-col={2}
                     data-field="quantity"
+                    aria-label={`Cantidad de la pieza ${i + 1}`}
                     value={req.quantity}
                     onFocus={() => setActiveCell({ row: local, col: 2 })}
                     onChange={(e) => update(i, 'quantity', e.target.value)}
@@ -713,6 +691,7 @@ const PieceRowsTable = ({
                     data-row={local}
                     data-col={3}
                     data-field="label"
+                    aria-label={`Etiqueta de la pieza ${i + 1}`}
                     value={req.label}
                     onFocus={() => setActiveCell({ row: local, col: 3 })}
                     onChange={(e) => update(i, 'label', e.target.value)}
@@ -725,6 +704,7 @@ const PieceRowsTable = ({
                   <CFormCheck
                     checked={req.canRotate}
                     onChange={(e) => update(i, 'canRotate', e.target.checked)}
+                    aria-label={`Rotar la pieza ${i + 1}`}
                   />
                 </CTableDataCell>
                 {/* The select takes whatever the preview leaves (`flex-grow-1` + `min-width: 0`):
@@ -741,18 +721,17 @@ const PieceRowsTable = ({
                       className="flex-grow-1"
                       style={{ minWidth: 0 }}
                       value={cantoNotation}
+                      aria-label={`Canto de la pieza ${i + 1}`}
                       data-row={local}
                       data-col={4}
                       onFocus={() => setActiveCell({ row: local, col: 4 })}
-                      onChange={(e) => {
-                        const sides = sidesFromNotation(e.target.value)
-                        const next = { ...req.edgeBanding, sides }
-                        // First time a canto is set: infer the coordinated tapacanto for the current type.
-                        if (Object.values(sides).some(Boolean) && !next.productId) {
-                          next.productId = inferBandingProductId(boardEdgeBandings, next.bandType)
-                        }
-                        update(i, 'edgeBanding', next)
-                      }}
+                      onChange={(e) =>
+                        update(
+                          i,
+                          'edgeBanding',
+                          withCantoNotation(req.edgeBanding, e.target.value, boardEdgeBandings),
+                        )
+                      }
                       onKeyDown={(e) => handleKeyDown(e, local, 4)}
                     >
                       {CANTO_NOTATIONS.map((n) => (
@@ -796,13 +775,18 @@ const PieceRowsTable = ({
                           data-row={local}
                           data-col={5}
                           onFocus={() => setActiveCell({ row: local, col: 5 })}
-                          onClick={() => {
-                            const bandType: '' | BandType = active ? '' : bt.value
-                            const productId =
-                              inferBandingProductId(boardEdgeBandings, bandType) ||
-                              req.edgeBanding.productId
-                            update(i, 'edgeBanding', { ...req.edgeBanding, bandType, productId })
-                          }}
+                          onClick={() =>
+                            update(
+                              i,
+                              'edgeBanding',
+                              withBandTypeToggle(
+                                req.edgeBanding,
+                                bt.value,
+                                cantoBandType,
+                                boardEdgeBandings,
+                              ),
+                            )
+                          }
                           onKeyDown={(e) => handleKeyDown(e, local, 5)}
                         >
                           {bt.abbr}
@@ -899,7 +883,7 @@ const PieceRowsTable = ({
                     title="Duplicar pieza"
                     onClick={() => duplicate(i)}
                   >
-                    <CIcon icon={cilCopy} />
+                    <Icon name="copy" />
                   </CButton>
                   <CButton
                     size="sm"
@@ -909,7 +893,7 @@ const PieceRowsTable = ({
                     title="Eliminar pieza (Supr)"
                     onClick={() => remove(i)}
                   >
-                    <CIcon icon={cilTrash} />
+                    <Icon name="delete" />
                   </CButton>
                 </CTableDataCell>
               </CTableRow>

@@ -10,10 +10,10 @@ import { useAuthStore } from 'src/shared/store/authStore'
 // filter again. This wrapper remembers the list's last search and puts it back when the list is
 // entered bare.
 //
-// sessionStorage, not memory: the breadcrumb is a plain `href`, a full page load that would wipe
-// anything held in a store. Per tab, so two tabs keep two lists, and gone with the tab, so a date
-// range from last week does not come back uninvited. Keyed by user, because a shared shop computer
-// logs a different person into the same tab.
+// sessionStorage, not memory: the list has to survive a reload, which wipes anything held in a
+// store. Per tab, so two tabs keep two lists, and gone with the tab, so a date range from last week
+// does not come back uninvited. Keyed by user, because a shared shop computer logs a different
+// person into the same tab.
 const storageKey = (list: string, userId: number | undefined) =>
   `cutter:list:${userId ?? 'anon'}:${list}`
 

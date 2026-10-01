@@ -5,14 +5,11 @@ import {
   CFormInput,
   CFormLabel,
   CFormSelect,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPlus, cilTrash } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
 import type { BoardProduct } from 'src/features/products/types'
@@ -20,6 +17,7 @@ import { subtypeLabel } from 'src/features/products/productSubtypes'
 import type { MaterialForm, OffcutForm, OffcutSource } from './optimizerForm'
 import { emptyOffcut } from './optimizerForm'
 import type { ModalContainer, PoolFillOrder } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 // Everything about WHERE a group's material comes from, in one place: the catalog
 // board (optional), the retazos, and the order they are filled in.
@@ -230,7 +228,7 @@ const MaterialModal = ({ material, boards, onUpdate, container, onClose }: Mater
   }
 
   return (
-    <CModal
+    <Modal
       visible={!!material}
       onClose={onClose}
       alignment="center"
@@ -241,7 +239,7 @@ const MaterialModal = ({ material, boards, onUpdate, container, onClose }: Mater
       container={container}
     >
       <CModalHeader>
-        <CModalTitle>Material del grupo</CModalTitle>
+        <ModalTitle>Material del grupo</ModalTitle>
       </CModalHeader>
       <CModalBody>
         {material && (
@@ -457,7 +455,7 @@ const MaterialModal = ({ material, boards, onUpdate, container, onClose }: Mater
                     title="Quitar retazo"
                     onClick={() => setOffcuts(offcuts.filter((x) => x.uid !== o.uid))}
                   >
-                    <CIcon icon={cilTrash} />
+                    <Icon name="delete" />
                   </CButton>
                 </div>
               ))}
@@ -471,7 +469,7 @@ const MaterialModal = ({ material, boards, onUpdate, container, onClose }: Mater
                 type="button"
                 onClick={addOffcut}
               >
-                <CIcon icon={cilPlus} className="me-1" />
+                <Icon name="add" className="me-1" />
                 Agregar retazo
               </CButton>
               {offcuts.length > 0 && (
@@ -490,7 +488,7 @@ const MaterialModal = ({ material, boards, onUpdate, container, onClose }: Mater
           Listo
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

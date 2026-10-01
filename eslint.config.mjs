@@ -65,5 +65,65 @@ export default [
       '@typescript-eslint/no-non-null-assertion': 'warn',
     },
   },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    // The two wrappers themselves, which exist to add what CoreUI leaves out (see each one), and
+    // the icon module, the one place an icon library is imported.
+    ignores: [
+      'src/shared/components/Spinner.tsx',
+      'src/shared/components/Modal.tsx',
+      'src/shared/icons/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@coreui/react',
+              importNames: ['CSpinner'],
+              message:
+                'Use Spinner from src/shared/components/Spinner: CSpinner says «Loading...».',
+            },
+            {
+              name: '@coreui/react',
+              importNames: ['CModal', 'CModalTitle'],
+              message:
+                'Use Modal/ModalTitle from src/shared/components/Modal: CModal has no accessible name.',
+            },
+            {
+              name: 'lucide-react',
+              message:
+                'Use <Icon name> from src/shared/icons/Icon: icons are named by meaning in registry.ts.',
+            },
+            {
+              name: '@coreui/icons',
+              message: 'Use <Icon name> from src/shared/icons/Icon: the app draws Lucide icons.',
+            },
+            {
+              name: '@coreui/icons-react',
+              message: 'Use <Icon name> or <BrandMark> from src/shared/icons/.',
+            },
+          ],
+        },
+      ],
+      // The browser's own dialog: unstyled, tiny on the shop's panels, and it freezes the tab.
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'window',
+          property: 'confirm',
+          message: 'Use useConfirm (src/shared/hooks/useConfirm) or ConfirmDialog.',
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        {
+          name: 'confirm',
+          message: 'Use useConfirm (src/shared/hooks/useConfirm) or ConfirmDialog.',
+        },
+      ],
+    },
+  },
   eslintPluginPrettierRecommended,
 ]

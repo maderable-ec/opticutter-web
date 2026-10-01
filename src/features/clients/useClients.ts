@@ -12,6 +12,7 @@ export const useClients = hooks.useList
 export const useCreateClient = hooks.useCreate
 export const useUpdateClient = hooks.useUpdate
 export const useDeleteClient = hooks.useDelete
+export const useClientsTotal = hooks.useTotal
 
 // One client by id. `createCrudHooks` only builds the list + mutations, but a list page landed on
 // with `?clientId=7` has the id and needs the name to label the filter it is showing.

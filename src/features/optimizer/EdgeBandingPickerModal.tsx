@@ -4,11 +4,9 @@ import {
   CFormCheck,
   CFormInput,
   CFormSelect,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -23,6 +21,7 @@ import { normalizeText } from 'src/shared/utils/text'
 import type { ModalContainer } from './types'
 import type { BandType } from './optimizerForm'
 import { BANDTYPE_LABEL, BAND_TYPES, edgeWidthFitsBoard } from './optimizerForm'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface EdgeBandingPickerModalProps {
   visible: boolean
@@ -86,9 +85,9 @@ const EdgeBandingPickerModal = ({
   }, [products, query, bandType, widthFilterActive, boardThickness])
 
   return (
-    <CModal visible={visible} onClose={onClose} size="lg" alignment="center" container={container}>
+    <Modal visible={visible} onClose={onClose} size="lg" alignment="center" container={container}>
       <CModalHeader>
-        <CModalTitle>Seleccionar tapacanto{pieceLabel ? ` · ${pieceLabel}` : ''}</CModalTitle>
+        <ModalTitle>Seleccionar tapacanto{pieceLabel ? ` · ${pieceLabel}` : ''}</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <div className="d-flex flex-wrap gap-2 align-items-center mb-2">
@@ -184,11 +183,11 @@ const EdgeBandingPickerModal = ({
         <CButton color="secondary" variant="outline" onClick={onClear}>
           Quitar tapacanto
         </CButton>
-        <CButton color="secondary" onClick={onClose}>
+        <CButton color="secondary" variant="outline" onClick={onClose}>
           Cancelar
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

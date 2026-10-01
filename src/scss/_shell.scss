@@ -1,0 +1,488 @@
+@use '@coreui/coreui/scss/coreui' as *;
+@use 'palette' as p;
+@use 'type';
+
+.wrapper {
+  width: 100%;
+}
+
+.header > .container-fluid {
+  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+}
+
+// The menu (`AppSidebar`), from `md` up: the same markup at every width, and the stylesheet decides
+// how much of it shows, the way Grazia's does. Up to `xl` a rail where every icon carries its name
+// underneath; from `xl` the full sidebar, icon and name on one line under the section titles, unless
+// the arrow at its foot narrowed it back to the rail (`.side-nav--narrow`). It is fixed to the left
+// edge and the page keeps its width free (`.wrapper.has-side-nav`).
+//
+// The colours and the weight of the names are the ones the menu always had: CoreUI's dark menu
+// palette (`.sidebar-dark` on the nav) over the brand black, regular names, and the coral mark down
+// the left edge of the screen you are on.
+//
+// The rail is 84px, as Grazia's: its longest name, «Cotizaciones», measures 68.4px in Plex at 12px
+// (in the app), and the rail leaves it 71 (4px of padding a side, 2px inside the entry, the border).
+
+// Every rule of the full menu goes through here: from `xl`, and only while it is not narrowed. The
+// narrowed menu is then the rail as it is below `xl`, with nothing to keep in step by hand.
+@mixin full-menu {
+  @include media-breakpoint-up(xl) {
+    .side-nav:not(.side-nav--narrow) & {
+      @content;
+    }
+  }
+}
+
+.side-nav {
+  --side-nav-pad: 0.25rem;
+
+  display: none;
+  // The marks draw in `currentcolor`, light on the brand black like the names.
+  color: var(--cui-body-color);
+
+  @include media-breakpoint-up(md) {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: $zindex-fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: var(--mb-rail-w);
+    padding-bottom: 1rem;
+    overflow-y: auto;
+    // On a short screen (the admin on the 960×544 tablet) the rail scrolls, and a classic scrollbar
+    // would take 15px off names already measured to the pixel. It still scrolls by wheel, touch
+    // and Tab.
+    scrollbar-width: none;
+    background-color: var(--mb-sidebar-bg);
+    border-inline-end: 1px solid var(--cui-border-color);
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  // The arrow's strip closes the menu from here on, in both forms.
+  @include media-breakpoint-up(xl) {
+    padding-bottom: 0;
+  }
+}
+
+@include media-breakpoint-up(xl) {
+  .side-nav:not(.side-nav--narrow) {
+    --side-nav-pad: 0.5rem;
+
+    width: var(--mb-sidebar-w);
+    scrollbar-width: thin;
+  }
+}
+
+// The brand block lines up with the header: the same height, its bottom border on the same line.
+.side-nav__brand {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(4rem + 1px); // stylelint-disable-line function-disallowed-list
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+// «Cotizar», the menu's action: the full width of the menu, its icon alone in the rail. On the
+// optimizer it carries Bootstrap's pressed tone (`.active`, from the `NavLink`).
+.side-nav__create {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  margin-inline: var(--side-nav-pad);
+  padding-inline: 0;
+
+  @include full-menu {
+    padding-inline: 1rem;
+  }
+}
+
+.side-nav__section {
+  padding-inline: var(--side-nav-pad);
+}
+
+// The rail has no room for a section's title: a hairline says where selling ends and managing
+// begins. The full sidebar says it with the title.
+.side-nav__section + .side-nav__section {
+  padding-top: 0.25rem;
+  margin-top: -0.5rem;
+  border-top: 1px solid rgba($white, 0.12);
+
+  @include full-menu {
+    padding-top: 0;
+    margin-top: -0.75rem;
+    border-top: 0;
+  }
+}
+
+.side-nav__title {
+  display: none;
+
+  @include full-menu {
+    display: block;
+    padding: 1rem 1rem 0.5rem;
+    color: var(--cui-tertiary-color);
+    @include type.small-caps;
+  }
+}
+
+.side-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.side-nav__link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+  padding: 0.5rem 0.125rem;
+  font-size: var(--mb-text-xs);
+  line-height: 1.2;
+  color: var(--cui-body-color);
+  text-align: center;
+  text-decoration: none;
+  border-radius: var(--cui-border-radius);
+  @include transition(background-color 0.15s ease, color 0.15s ease);
+
+  .mb-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--cui-tertiary-color);
+  }
+
+  // A tap leaves `:hover` on the entry under the finger: the tint only where there is a pointer.
+  @media (hover: hover) {
+    &:hover {
+      color: var(--cui-emphasis-color);
+      background-color: var(--cui-tertiary-bg-translucent);
+
+      .mb-icon {
+        color: var(--cui-body-color);
+      }
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand-coral);
+    outline-offset: -2px;
+  }
+
+  &.active {
+    color: var(--cui-emphasis-color);
+    background-color: var(--cui-tertiary-bg-translucent);
+    box-shadow: inset 3px 0 0 var(--brand-coral);
+
+    .mb-icon {
+      color: var(--cui-emphasis-color);
+    }
+  }
+
+  // 36px rows, as the full menu had: the admin's entries and three titles fit 800px tall.
+  @include full-menu {
+    flex-direction: row;
+    gap: 0.75rem;
+    padding: 0.375rem 1rem;
+    font-size: var(--mb-text-base);
+    line-height: 1.5;
+    text-align: start;
+  }
+}
+
+// One line, whatever the width: a name that wrapped would make one entry taller than the rest.
+.side-nav__label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// What only the full sidebar has room for (the logo, the button's word), and the rail's isotype.
+// Scoped to `.side-nav`, to win over the marks' own `display` (`.brand-mark`, a later partial).
+.side-nav .side-nav__wide {
+  display: none;
+}
+
+@include media-breakpoint-up(xl) {
+  .side-nav:not(.side-nav--narrow) .side-nav__wide {
+    display: initial;
+  }
+
+  .side-nav:not(.side-nav--narrow) .side-nav__narrow {
+    display: none;
+  }
+}
+
+// The arrow at the foot, CoreUI's own (`CSidebarToggler`), as the old menu had it: from `xl` it
+// narrows the full menu to the rail and widens it back, pointing the way it will go. Up to `xl` the
+// rail is all there is, and the strip is not drawn.
+.side-nav__footer {
+  display: none;
+
+  @include media-breakpoint-up(xl) {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 1rem;
+    margin-top: auto;
+    border-top: 1px solid var(--cui-border-color);
+  }
+
+  .side-nav--narrow & {
+    justify-content: center;
+  }
+}
+
+.side-nav--narrow .sidebar-toggler::before {
+  transform: rotate(-180deg);
+}
+
+@include media-breakpoint-up(md) {
+  .wrapper.has-side-nav {
+    padding-inline-start: var(--mb-rail-w);
+  }
+}
+
+@include media-breakpoint-up(xl) {
+  .wrapper.has-side-nav:not(.has-narrow-nav) {
+    padding-inline-start: var(--mb-sidebar-w);
+  }
+}
+
+// The breadcrumb moved into the header's only row, where it also serves as the page title. It has to
+// give way rather than push the bell and the user menu off the right edge, so the trail is a single
+// non-wrapping line that ellipsizes — deep paths like "Home / Órdenes / Orden #1234" get truncated
+// from the left-hand crumbs, which are the ones the user already knows.
+.header-breadcrumb .breadcrumb {
+  flex-wrap: nowrap;
+  margin-bottom: 0;
+  white-space: nowrap;
+
+  .breadcrumb-item {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// On a phone the row leaves the trail ~140px, where three crumbs each ellipsized into nothing
+// readable. Below `md` it keeps only its last crumb, the screen itself, and reads as the page's
+// title. Inside a record the header swaps the trail for «‹ Órdenes» (`.header-back`).
+@include media-breakpoint-down(md) {
+  .header-breadcrumb .breadcrumb {
+    .breadcrumb-item:not(:last-child) {
+      display: none;
+    }
+
+    .breadcrumb-item:last-child {
+      padding-left: 0;
+      font-weight: 600;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    .breadcrumb-item.active {
+      color: var(--cui-body-color);
+    }
+  }
+}
+
+// The phone header's way out of a record: a 44px target in the link colour, where the trail's
+// title would be.
+.header-back {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  margin-inline-start: -0.5rem;
+  font-weight: 600;
+  color: var(--cui-link-color);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.header-back-mark {
+  font-size: var(--mb-text-xl);
+  font-weight: 400;
+  line-height: 1;
+}
+
+// The phone's bottom nav (`BottomNav`). Fixed under everything that scrolls, and under the sheets
+// and their backdrop too, the menu «Más» opens over it included (`NavSheet`). The page keeps a strip
+// of its height free at the end, so the last row of a list is never under the bar.
+.bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: $zindex-fixed;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  // Clear of the home indicator on a notched phone (`viewport-fit=cover` is set in index.html).
+  padding-bottom: env(safe-area-inset-bottom);
+  background-color: var(--cui-body-bg);
+  border-top: 1px solid var(--cui-border-color);
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  padding: 0.375rem 0.25rem;
+  font-size: var(--mb-text-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--cui-secondary-color);
+  text-decoration: none;
+  background: none;
+  border: 0;
+
+  &.active {
+    font-weight: 600;
+    color: var(--cui-link-color);
+  }
+}
+
+// The icon sits in a pill, soft coral under the screen you are on.
+.bottom-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 1.75rem;
+  border-radius: 1rem;
+
+  .mb-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .active > & {
+    background-color: var(--cui-primary-bg-subtle);
+  }
+}
+
+// «Cotizar», the one entry that starts something rather than going somewhere: a coral disc raised
+// over the bar's top edge, in the middle, under the thumb. The ring in the bar's colour cuts it out
+// of the border, and the shadow lifts it off the page scrolling behind. Its name is its
+// `aria-label`; the ring of focus goes round the disc, not round the column.
+.bottom-nav-plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.5rem;
+  text-decoration: none;
+  outline: none;
+}
+
+.bottom-nav-plus__disc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  margin-top: -1.25rem;
+  color: $white;
+  background-color: var(--cui-primary);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4px var(--cui-body-bg),
+    0 8px 20px rgba(p.$brand-black, 0.28);
+  @include transition(transform 0.15s ease);
+
+  .mb-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .bottom-nav-plus:active > & {
+    transform: scale(0.94);
+  }
+
+  .bottom-nav-plus:focus-visible > & {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: 5px;
+  }
+}
+
+@include color-mode(dark) {
+  // The dark theme's primary is the letterhead coral, which takes dark ink like its buttons do.
+  .bottom-nav-plus__disc {
+    color: var(--brand-black);
+  }
+}
+
+// The page keeps the bar's height free at its end, and the disc's rise over it: the last row of a
+// list is never under either.
+@include media-breakpoint-down(md) {
+  .wrapper.has-bottom-nav {
+    padding-bottom: calc(3.5rem + 1px + 1.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+// The user's initials in the header. The neutral tone rather than `color="secondary"` + white: the
+// secondary grey is lightened for text in the dark theme, and white on it fell to 2.6:1.
+.avatar-initials {
+  background-color: var(--mb-tone-neutral-bg);
+  color: var(--mb-tone-neutral-fg);
+  font-weight: 600;
+}
+
+// «Saltar al contenido»: out of sight until the keyboard reaches it, then over the header's left
+// end, above the menu, so showing it moves nothing.
+.skip-link:focus {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 1100;
+  padding: 0.5rem 1rem;
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-body-bg);
+  color: var(--cui-body-color);
+  box-shadow: var(--cui-box-shadow);
+}
+
+// The content takes focus from the skip link to move the Tab key's starting point, not to be
+// pointed at: a ring around the whole screen would say nothing.
+main:focus {
+  outline: none;
+}
+
+// A workspace's header (`WorkspaceHeader`): its way out at the left end, then the place's name
+// under the isotype, where the office shows its breadcrumb.
+.workspace-exit {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.375rem;
+  align-items: center;
+  margin-inline-end: 0.75rem;
+  white-space: nowrap;
+}
+
+.workspace-name {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}

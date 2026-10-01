@@ -9,18 +9,17 @@ import {
   CDropdownToggle,
   CFormLabel,
   CFormTextarea,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
-  CSpinner,
 } from '@coreui/react'
 
 import { useConfirmReview, useRejectReview, useRequestChangesReview } from './useReview'
 import ReviewConfirmModal from './ReviewConfirmModal'
 import { fmtMoney, reviewErrorMessage } from './format'
 import type { ReviewPreOrder } from './types'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface ReviewActionsProps {
   token: string
@@ -114,7 +113,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
               onClick={() => setConfirmModal(true)}
             >
               {confirm.isPending ? (
-                <CSpinner size="sm" />
+                <Spinner size="sm" />
               ) : (
                 <>
                   Confirmar<span className="d-none d-sm-inline"> pedido</span>
@@ -138,9 +137,9 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
       />
 
       {/* Request changes modal */}
-      <CModal visible={changesModal} onClose={closeChanges} alignment="center">
+      <Modal visible={changesModal} onClose={closeChanges} alignment="center">
         <CModalHeader>
-          <CModalTitle>Solicitar cambios</CModalTitle>
+          <ModalTitle>Solicitar cambios</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>Indica qué ajustes necesitas en la cotización. El taller recibirá tu nota.</p>
@@ -159,7 +158,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
           )}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closeChanges}>
+          <CButton color="secondary" variant="outline" onClick={closeChanges}>
             Cancelar
           </CButton>
           <CButton
@@ -169,15 +168,15 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
               requestChanges.mutate(changesNote || undefined, { onSuccess: closeChanges })
             }
           >
-            {requestChanges.isPending ? <CSpinner size="sm" /> : 'Enviar solicitud'}
+            {requestChanges.isPending ? <Spinner size="sm" /> : 'Enviar solicitud'}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* Reject modal */}
-      <CModal visible={rejectModal} onClose={closeReject} alignment="center">
+      <Modal visible={rejectModal} onClose={closeReject} alignment="center">
         <CModalHeader>
-          <CModalTitle>Rechazar cotización</CModalTitle>
+          <ModalTitle>Rechazar cotización</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>¿Estás seguro de que deseas rechazar esta cotización?</p>
@@ -196,7 +195,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
           )}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closeReject}>
+          <CButton color="secondary" variant="outline" onClick={closeReject}>
             Cancelar
           </CButton>
           <CButton
@@ -204,10 +203,10 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
             disabled={reject.isPending}
             onClick={() => reject.mutate(rejectNote || undefined, { onSuccess: closeReject })}
           >
-            {reject.isPending ? <CSpinner size="sm" /> : 'Rechazar'}
+            {reject.isPending ? <Spinner size="sm" /> : 'Rechazar'}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
     </>
   )
 }

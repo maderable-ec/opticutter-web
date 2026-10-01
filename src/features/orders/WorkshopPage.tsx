@@ -1,32 +1,16 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import {
-  CAlert,
-  CBadge,
-  CButton,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CProgress,
-  CProgressBar,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import {
-  cilArrowLeft,
-  cilArrowRight,
-  cilCheckAlt,
-  cilFullscreen,
-  cilFullscreenExit,
-} from '@coreui/icons'
+import { useParams } from 'react-router-dom'
+import { CBadge, CButton, CProgress, CProgressBar } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { useHasRole } from 'src/features/auth/useAuth'
 import { usePrintLabel } from 'src/features/print/usePrint'
 import { PALETTE, pieceSig } from 'src/shared/utils/cutDrawing'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
+import { usePaging } from 'src/shared/hooks/usePaging'
+import Pager from 'src/shared/components/Pager'
+import { useBack } from 'src/shared/hooks/useShellNav'
 import { useToastStore } from 'src/shared/store/toastStore'
 import { MASK } from 'src/shared/analytics'
 import AppToaster from 'src/shared/components/AppToaster'
@@ -37,28 +21,29 @@ import ActivityBadge from './ActivityBadge'
 import { findActivity, orderedActivities } from './activities'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import WorkshopBoardPicker from './WorkshopBoardPicker'
+import { cutBarColor, cutPct } from './progress'
 import { useCuttingPlan, useMarkPiece, useUpdateActivity } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
-
-const pct = ({ cutPieces, totalPieces }: CutProgress) =>
-  totalPieces > 0 ? Math.round((cutPieces / totalPieces) * 100) : 0
+import { ErrorState } from 'src/shared/components/QueryState'
+import EmptyState from 'src/shared/components/EmptyState'
+import Spinner from 'src/shared/components/Spinner'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
 
 const hasPending = ({ cutPieces, totalPieces }: CutProgress) => cutPieces < totalPieces
 
-const isDone = ({ cutPieces, totalPieces }: CutProgress) =>
-  totalPieces > 0 && cutPieces >= totalPieces
-
-// The cutting canvas is the one screen in the app that owns the whole viewport: it runs on a tablet
-// bolted next to the saw, where the only task is marking pieces cut and a scroll costs a gloved
-// hand a second attempt. So it is a fixed three-row shell — top bar, diagram, one action — over the
-// app's header and sidebar, sized to fit the smallest panel in the shop (960×544 CSS on the Infinix
-// XPad, ~1080×735 on the iPad). The Fullscreen API sits ON TOP of that, hosted on the whole shell
-// rather than on the diagram, and its only extra job is reclaiming the browser's own toolbar.
+// The cutting canvas («Corte», in the Taller workspace) is the one screen in the app that owns the
+// whole viewport: it runs on a tablet bolted next to the saw, where the only task is marking pieces
+// cut and a scroll costs a gloved hand a second attempt. So it is a fixed three-row shell — top bar,
+// diagram, one action — and the layout puts no header under it (`AppRoute.immersive`). It is sized
+// to fit the smallest panel in the shop (960×544 CSS on the Infinix XPad, ~1080×735 on the iPad).
+// The Fullscreen API sits ON TOP of that, hosted on the whole shell rather than on the diagram, and
+// its only extra job is reclaiming the browser's own toolbar.
 const WorkshopPage = () => {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  // Operador has no order detail view: back button goes to the list instead of /orders/:id.
-  const isOperator = useHasRole('operador')
+  // Back to where the canvas was opened from — the Taller's queue, or the order's detail — by the
+  // shell's own rule (`returnFor`). Reached by its URL, the nearest page this viewer can open: the
+  // order for the office, the queue for the operador, who cannot open `/orders`.
+  const back = useBack()
   const isAdminOrOperator = useHasRole('administrador', 'operador')
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
@@ -94,25 +79,17 @@ const WorkshopPage = () => {
   }, [])
 
   // ← / → page between boards, the same as the `‹ ›` in the top bar and the swipe on the diagram,
-  // for whoever reads the canvas on a desktop (the admin auditing a dispatched order). Nothing here
-  // takes typed input, so the arrows cost no field its own. Modifiers are left alone because
-  // Alt+← is the browser's own "back". An open modal (the board picker, the cut confirmation) owns
-  // the keyboard while it is up.
-  useEffect(() => {
-    const boards = plan?.boards ?? []
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
-      if (document.body.classList.contains('modal-open')) return
-      const index = boards.findIndex((b) => b.id === selectedBoardId)
-      const next = boards[index + (e.key === 'ArrowRight' ? 1 : -1)]
-      if (index < 0 || !next) return
-      e.preventDefault()
-      setSelectedBoardId(next.id)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [plan, selectedBoardId])
+  // for whoever reads the canvas on a desktop (the admin auditing a dispatched order). An open modal
+  // (the board picker, the cut confirmation) owns the keyboard while it is up. The swipe is
+  // `WorkshopBoardSvg`'s own, since only the drawing knows whether it is zoomed.
+  const pagedBoards = plan?.boards ?? []
+  const pagedIndex = pagedBoards.findIndex((b) => b.id === selectedBoardId)
+  usePaging({
+    index: pagedIndex < 0 ? null : pagedIndex,
+    count: pagedBoards.length,
+    onChange: (i) => setSelectedBoardId(pagedBoards[i]?.id ?? null),
+    skipUnderModal: true,
+  })
 
   // Stable color keyed by dimension signature across all boards, so identical pieces share
   // the same color across sheets (same logic as the optimizer).
@@ -175,11 +152,11 @@ const WorkshopPage = () => {
     )
   }
 
-  const backToOrder = () => void navigate(isOperator ? '/orders' : `/orders/${id}`)
-  const backLabel = isOperator ? 'Volver a órdenes' : 'Volver a la orden'
+  const goBack = back.go
+  const backLabel = `Volver a ${back.name}`
 
-  // Every state paints inside the shell, so the app chrome stays hidden even while loading or after
-  // a failure — a screen that grows a sidebar for one second and loses it again reads as a glitch.
+  // Every state paints inside the shell, so the bar and the way back are there even while loading
+  // or after a failure.
   const shell = (children: ReactNode) => (
     <div ref={containerRef} className="workshop-shell">
       {children}
@@ -191,7 +168,7 @@ const WorkshopPage = () => {
   if (isLoading) {
     return shell(
       <div className="d-flex align-items-center justify-content-center h-100">
-        <CSpinner color="primary" />
+        <Spinner color="secondary" visuallyHiddenLabel="Cargando el plan de corte…" />
       </div>,
     )
   }
@@ -199,11 +176,11 @@ const WorkshopPage = () => {
   if (isError || !plan) {
     return shell(
       <div className="p-3">
-        <CButton variant="ghost" color="secondary" size="lg" className="mb-3" onClick={backToOrder}>
-          <CIcon icon={cilArrowLeft} className="me-1" />
+        <CButton variant="ghost" color="secondary" size="lg" className="mb-3" onClick={goBack}>
+          <Icon name="back" className="me-1" />
           {backLabel}
         </CButton>
-        <CAlert color="danger">{error?.message || 'No se pudo cargar el plan de corte.'}</CAlert>
+        <ErrorState title="No se pudo cargar el plan de corte." hint={error?.message} />
       </div>,
     )
   }
@@ -241,11 +218,12 @@ const WorkshopPage = () => {
         color="secondary"
         variant="ghost"
         size="lg"
+        className="workshop-back"
         title={backLabel}
         aria-label={backLabel}
-        onClick={backToOrder}
+        onClick={goBack}
       >
-        <CIcon icon={cilArrowLeft} size="lg" />
+        <Icon name="arrowLeft" size="lg" />
       </CButton>
 
       <div className="workshop-identity">
@@ -276,50 +254,35 @@ const WorkshopPage = () => {
       </div>
 
       {current && (
-        <div className="workshop-pager">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="lg"
-            disabled={safeIndex === 0}
-            title="Tablero anterior"
-            aria-label="Tablero anterior"
-            onClick={() => goTo(safeIndex - 1)}
-          >
-            <CIcon icon={cilArrowLeft} />
-          </CButton>
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="lg"
-            className="workshop-pager__label"
-            title="Ver todos los tableros"
-            onClick={() => setPickerOpen(true)}
-          >
-            <span className="fw-semibold">Tablero {current.sheetNumber}</span>
-            <span className="text-body-secondary">
-              {/* Which of how many boards: the first thing to go on a narrow panel, since `‹ ›`
-                  and the picker already say there are others. The cut count stays — it is the
-                  reason to look at the label at all. */}
-              <span className="d-none d-md-inline">
-                {' '}
-                · {safeIndex + 1}/{boards.length}
-              </span>{' '}
-              · {current.progress.cutPieces}/{current.progress.totalPieces}
-            </span>
-          </CButton>
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="lg"
-            disabled={safeIndex === boards.length - 1}
-            title="Tablero siguiente"
-            aria-label="Tablero siguiente"
-            onClick={() => goTo(safeIndex + 1)}
-          >
-            <CIcon icon={cilArrowRight} />
-          </CButton>
-        </div>
+        <Pager
+          index={safeIndex}
+          count={boards.length}
+          onChange={goTo}
+          noun="Tablero"
+          size="lg"
+          className="workshop-pager"
+          label={
+            <CButton
+              color="secondary"
+              variant="outline"
+              size="lg"
+              className="workshop-pager__label"
+              title="Ver todos los tableros"
+              onClick={() => setPickerOpen(true)}
+            >
+              <span className="fw-semibold">Tablero {current.sheetNumber}</span>
+              <span className="text-body-secondary">
+                {/* Of how many boards: the first thing to go on a narrow panel, since `‹ ›` and the
+                    picker already say there are others. In words, not as a second fraction — «2/3 ·
+                    3/9» side by side read as two counts of the same thing. `sheetNumber` runs 1..N
+                    across the order, so it is the position too. The cut count stays: it is the
+                    reason to look at the label at all. */}
+                <span className="d-none d-md-inline"> de {boards.length}</span> ·{' '}
+                {current.progress.cutPieces}/{current.progress.totalPieces}
+              </span>
+            </CButton>
+          }
+        />
       )}
 
       <div className="workshop-total">
@@ -327,10 +290,7 @@ const WorkshopPage = () => {
           {plan.progress.cutPieces}/{plan.progress.totalPieces}
         </span>
         <CProgress height={8} className="workshop-total__bar">
-          <CProgressBar
-            value={pct(plan.progress)}
-            color={isDone(plan.progress) ? 'success' : 'primary'}
-          />
+          <CProgressBar value={cutPct(plan.progress)} color={cutBarColor(plan.progress)} />
         </CProgress>
       </div>
 
@@ -339,11 +299,12 @@ const WorkshopPage = () => {
           color="secondary"
           variant="outline"
           size="lg"
+          className="workshop-fullscreen"
           title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
           aria-label={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
           onClick={toggleFullscreen}
         >
-          <CIcon icon={isFullscreen ? cilFullscreenExit : cilFullscreen} />
+          <Icon name={isFullscreen ? 'exitFullscreen' : 'fullscreen'} />
         </CButton>
       )}
     </div>
@@ -353,11 +314,7 @@ const WorkshopPage = () => {
     return shell(
       <>
         {topBar}
-        <div className="p-3">
-          <CAlert color="info" className="mb-0">
-            Esta orden no tiene tableros en su plan de corte.
-          </CAlert>
-        </div>
+        <EmptyState title="Esta orden no tiene tableros en su plan de corte." />
       </>,
     )
   }
@@ -377,7 +334,7 @@ const WorkshopPage = () => {
         disabled={updateActivity.isPending}
         onClick={() => changeCut('in_progress')}
       >
-        {updateActivity.isPending ? <CSpinner size="sm" /> : 'Tomar esta orden'}
+        {updateActivity.isPending ? <Spinner size="sm" /> : 'Tomar esta orden'}
       </CButton>
     ) : (
       <span className="text-body-secondary">
@@ -397,7 +354,9 @@ const WorkshopPage = () => {
     ) : (
       <>
         {pendingCount > 0 && (
-          <span className="text-warning-emphasis">Faltan {pendingCount} pieza(s) por cortar</span>
+          <span className="text-warning-emphasis">
+            {pendingCount === 1 ? 'Falta 1 pieza' : `Faltan ${pendingCount} piezas`} por cortar
+          </span>
         )}
         {/* The API is the authoritative guard (422 if pieces are missing); disabling is UX only. */}
         <CButton
@@ -407,7 +366,7 @@ const WorkshopPage = () => {
           disabled={pendingCount > 0 || updateActivity.isPending}
           onClick={() => setCutModal(true)}
         >
-          <CIcon icon={cilCheckAlt} className="me-1" />
+          <Icon name="check" className="me-1" />
           Marcar orden como cortada
         </CButton>
       </>
@@ -453,33 +412,18 @@ const WorkshopPage = () => {
       />
 
       {/* Confirm cut close (order → cortada) */}
-      <CModal
+      <ConfirmDialog
         visible={cutModal}
-        onClose={() => setCutModal(false)}
+        touch
         container={modalContainer}
-        alignment="center"
+        title={`Marcar ${plan.orderCode} como cortada`}
+        confirmLabel="Marcar como cortada"
+        pending={updateActivity.isPending}
+        onConfirm={() => changeCut('done', () => setCutModal(false))}
+        onClose={() => setCutModal(false)}
       >
-        <CModalHeader>
-          <CModalTitle>Marcar como cortada</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          ¿Marcar la orden <strong>{plan.orderCode}</strong> como <strong>cortada</strong>? Esto
-          cierra el corte y la vista pasará a solo lectura.
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" size="lg" onClick={() => setCutModal(false)}>
-            Cancelar
-          </CButton>
-          <CButton
-            color="primary"
-            size="lg"
-            onClick={() => changeCut('done', () => setCutModal(false))}
-            disabled={updateActivity.isPending}
-          >
-            {updateActivity.isPending ? <CSpinner size="sm" /> : 'Marcar como cortada'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+        Esto cierra el corte y la vista pasa a solo lectura.
+      </ConfirmDialog>
     </>,
   )
 }

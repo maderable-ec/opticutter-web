@@ -8,7 +8,6 @@ import {
   CFormSelect,
   CModalBody,
   CModalFooter,
-  CSpinner,
 } from '@coreui/react'
 import type { Role, User } from 'src/features/auth/types'
 import { ROLE_ORDER, toggleRole } from 'src/features/auth/permissions'
@@ -18,6 +17,7 @@ import { ApiError } from 'src/shared/api/types'
 import { apiErrorMessage } from 'src/shared/api/errors'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import PasswordInput from 'src/shared/components/PasswordInput'
+import Spinner from 'src/shared/components/Spinner'
 
 interface UserFormProps {
   user: User | null
@@ -174,11 +174,11 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
       </CModalBody>
 
       <CModalFooter>
-        <CButton color="secondary" onClick={onCancel} disabled={isSubmitting}>
+        <CButton color="secondary" variant="outline" onClick={onCancel} disabled={isSubmitting}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting || roles.length === 0}>
-          {isSubmitting ? <CSpinner size="sm" /> : isEdit ? 'Guardar' : 'Crear'}
+          {isSubmitting ? <Spinner size="sm" /> : isEdit ? 'Guardar' : 'Crear'}
         </CButton>
       </CModalFooter>
     </form>

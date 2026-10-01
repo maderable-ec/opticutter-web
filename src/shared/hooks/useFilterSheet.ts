@@ -14,8 +14,8 @@ interface SheetState {
  * Open/close state and the draft for `FilterSheet`, the phone's filter panel.
  *
  * Open lives in the URL, not in component state, for the phone's own reason: the back gesture. With
- * a full-screen sheet over the list, back is how an Android user dismisses it — in state, that
- * gesture left the listing altogether. Same idiom as the order detail's `?panel=piezas`.
+ * a sheet over the list, back is how an Android user dismisses it — in state, that gesture left the
+ * listing altogether. Same idiom as the order detail's `?panel=piezas`.
  *
  * The filters themselves are a DRAFT until "Ver resultados": the list is hidden behind the sheet,
  * so applying each tap only refetched something nobody could see, and pushed one history entry per
@@ -45,8 +45,9 @@ export const useFilterSheet = <V extends object>(values: V) => {
     )
   }
 
-  // Idempotent on purpose: `CModal` calls its `onClose` on EVERY exit transition, including the
-  // ones this hook caused itself (apply, back). Without the guard, applying would also pop an entry.
+  // Idempotent on purpose: the sheet (`COffcanvas`, as `CModal` before it) calls its `onClose` on
+  // EVERY exit transition, including the ones this hook caused itself (apply, back). Without the
+  // guard, applying would also pop an entry.
   const close = () => {
     if (!visible) return
     if ((location.state as SheetState | null)?.filterSheet) {

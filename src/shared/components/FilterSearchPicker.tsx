@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { CButton, CFormInput, CSpinner } from '@coreui/react'
+import { CButton, CFormInput } from '@coreui/react'
 import { MASK } from 'src/shared/analytics'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { SEARCH_DEBOUNCE_MS } from 'src/shared/constants'
+import Spinner from './Spinner'
 
 export interface PickerOption {
   value: string
@@ -83,7 +84,7 @@ const FilterSearchPicker = ({
       <div style={{ maxHeight: 180, overflowY: 'auto' }} {...MASK}>
         {isLoading ? (
           <div className="text-center py-2">
-            <CSpinner size="sm" color="primary" />
+            <Spinner size="sm" color="primary" />
           </div>
         ) : options.length === 0 ? (
           <div className="px-3 py-2 text-body-secondary small">{emptyText}</div>

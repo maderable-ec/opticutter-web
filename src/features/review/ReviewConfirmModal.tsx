@@ -1,17 +1,9 @@
 import { useState } from 'react'
-import {
-  CAlert,
-  CButton,
-  CFormCheck,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CSpinner,
-} from '@coreui/react'
+import { CAlert, CButton, CFormCheck, CModalBody, CModalFooter, CModalHeader } from '@coreui/react'
 
 import { fmtMoney } from './format'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface ReviewConfirmModalProps {
   visible: boolean
@@ -50,9 +42,9 @@ const ReviewConfirmModal = ({
   }
 
   return (
-    <CModal visible={visible} onClose={onClose} alignment="center">
+    <Modal visible={visible} onClose={onClose} alignment="center">
       <CModalHeader>
-        <CModalTitle>Confirmar pedido</CModalTitle>
+        <ModalTitle>Confirmar pedido</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <div className="d-flex justify-content-between align-items-baseline">
@@ -92,10 +84,10 @@ const ReviewConfirmModal = ({
           Cancelar
         </CButton>
         <CButton color="primary" disabled={!accepted || isPending} onClick={onConfirm}>
-          {isPending ? <CSpinner size="sm" /> : 'Confirmar pedido'}
+          {isPending ? <Spinner size="sm" /> : 'Confirmar pedido'}
         </CButton>
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

@@ -69,6 +69,7 @@ const PreOrdersFilterFields = ({ values, onChange, showBranch }: PreOrdersFilter
           <div className="px-3 py-1">
             <CFormSelect
               size="sm"
+              aria-label="Sucursal"
               value={values.branchId}
               onChange={(e) => onChange('branchId', e.target.value)}
             >
@@ -138,6 +139,7 @@ const PreOrdersFilterFields = ({ values, onChange, showBranch }: PreOrdersFilter
         <div className="px-3 py-1">
           <CFormSelect
             size="sm"
+            aria-label="Orden"
             value={values.sort}
             onChange={(e) => onChange('sort', e.target.value as PreOrderSort)}
           >

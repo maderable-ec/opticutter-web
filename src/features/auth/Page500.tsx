@@ -1,38 +1,30 @@
-import {
-  CButton,
-  CCol,
-  CContainer,
-  CFormInput,
-  CInputGroup,
-  CInputGroupText,
-  CRow,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilMagnifyingGlass } from '@coreui/icons'
+import { Link } from 'react-router-dom'
+import Icon from 'src/shared/icons/Icon'
+import { CButton } from '@coreui/react'
 
+import { useDocumentTitle } from 'src/shared/hooks/useDocumentTitle'
+
+// Something failed on our side. Retrying is the first thing to try, the start page the second.
 const Page500 = () => {
+  useDocumentTitle('Error · Maderable')
   return (
-    <div className="bg-body-tertiary min-vh-100 d-flex flex-row align-items-center">
-      <CContainer>
-        <CRow className="justify-content-center">
-          <CCol md={6}>
-            <span className="clearfix">
-              <h1 className="float-start display-3 me-4">500</h1>
-              <h4 className="pt-3">Houston, we have a problem!</h4>
-              <p className="text-body-secondary float-start">
-                The page you are looking for is temporarily unavailable.
-              </p>
-            </span>
-            <CInputGroup className="input-prepend">
-              <CInputGroupText>
-                <CIcon icon={cilMagnifyingGlass} />
-              </CInputGroupText>
-              <CFormInput type="text" placeholder="What are you looking for?" />
-              <CButton color="info">Search</CButton>
-            </CInputGroup>
-          </CCol>
-        </CRow>
-      </CContainer>
+    <div className="error-page">
+      <div className="empty-state">
+        <span className="empty-state__icon empty-state__icon--danger" aria-hidden="true">
+          <Icon name="error" />
+        </span>
+        <h1 className="error-page__code">500</h1>
+        <p className="empty-state__title">Algo falló de nuestro lado.</p>
+        <p className="empty-state__hint">Vuelve a intentarlo en un momento.</p>
+        <div className="empty-state__action">
+          <CButton color="primary" onClick={() => window.location.reload()}>
+            Reintentar
+          </CButton>
+          <Link to="/" className="btn btn-outline-secondary">
+            Ir al inicio
+          </Link>
+        </div>
+      </div>
     </div>
   )
 }

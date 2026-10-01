@@ -9,18 +9,8 @@ import {
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
-  CSpinner,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import {
-  cilArrowCircleLeft,
-  cilArrowCircleRight,
-  cilBan,
-  cilBell,
-  cilCheckCircle,
-  cilLayers,
-  cilTask,
-} from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
@@ -29,9 +19,14 @@ import {
 } from './useNotifications'
 import type { Notification, NotificationType } from './types'
 import { relativeTime } from 'src/shared/utils/date'
+import Spinner from 'src/shared/components/Spinner'
+import { useFromHere } from 'src/shared/hooks/useShellNav'
+import { orderPathFor } from 'src/shared/navigation'
+import { useAuthStore } from 'src/shared/store/authStore'
+import type { IconName } from 'src/shared/icons/registry'
 
 interface NotificationVisual {
-  icon: string[]
+  icon: IconName
   className: string
 }
 
@@ -39,23 +34,25 @@ interface NotificationVisual {
  *  text otherwise, and the icon is what lets the operator tell an order landing
  *  in their queue from one leaving it without reading either line. */
 const VISUALS: Record<NotificationType, NotificationVisual> = {
-  'order.confirmed': { icon: cilCheckCircle, className: 'text-success' },
-  'order.queued': { icon: cilLayers, className: 'text-primary' },
-  'order.completed': { icon: cilTask, className: 'text-success' },
-  'order.branch_arrived': { icon: cilArrowCircleRight, className: 'text-info' },
-  'order.branch_left': { icon: cilArrowCircleLeft, className: 'text-body-secondary' },
-  'order.cancelled': { icon: cilBan, className: 'text-danger' },
+  'order.confirmed': { icon: 'confirmed', className: 'text-success' },
+  'order.queued': { icon: 'queued', className: 'text-primary' },
+  'order.completed': { icon: 'finished', className: 'text-success' },
+  'order.branch_arrived': { icon: 'branchArrived', className: 'text-info' },
+  'order.branch_left': { icon: 'branchLeft', className: 'text-body-secondary' },
+  'order.cancelled': { icon: 'cancelled', className: 'text-danger' },
 }
 
 /** A type this build doesn't know about still renders, with the bell. The map is
  *  exhaustive over the union, so a new event fails typecheck here first. */
 const visualFor = (type: string): NotificationVisual =>
-  VISUALS[type as NotificationType] ?? { icon: cilBell, className: 'text-body-secondary' }
+  VISUALS[type as NotificationType] ?? { icon: 'notifications', className: 'text-body-secondary' }
 
 const NotificationBell = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
+  const roles = useAuthStore((s) => s.user?.roles)
+  const fromHere = useFromHere()
 
   const unreadCount = useUnreadNotificationCount()
   const list = useNotifications({ limit: 10 })
@@ -70,13 +67,20 @@ const NotificationBell = () => {
 
   const handleItemClick = (notification: Notification) => {
     if (notification.readAt === null) markRead.mutate(notification.id)
-    if (notification.orderId != null) void navigate(`/orders/${notification.orderId}`)
+    // The screen the order opens on for this role (the operador's is the canvas), with the screen
+    // the bell was opened over as its origin.
+    if (notification.orderId != null)
+      void navigate(orderPathFor(notification.orderId, roles), { state: fromHere })
   }
 
   return (
     <CDropdown variant="nav-item" placement="bottom-end" onShow={() => void list.refetch()}>
-      <CDropdownToggle caret={false} className="position-relative">
-        <CIcon icon={cilBell} size="lg" />
+      <CDropdownToggle
+        caret={false}
+        className="position-relative"
+        aria-label={count > 0 ? `Notificaciones: ${count} sin leer` : 'Notificaciones'}
+      >
+        <Icon name="notifications" size="lg" />
         {count > 0 && (
           <CBadge color="danger" position="top-end" shape="rounded-pill">
             {count > 99 ? '99+' : count}
@@ -106,7 +110,7 @@ const NotificationBell = () => {
         <div style={{ maxHeight: 360, overflowY: 'auto' }}>
           {list.isLoading ? (
             <div className="d-flex justify-content-center p-3">
-              <CSpinner size="sm" />
+              <Spinner size="sm" />
             </div>
           ) : list.data && list.data.items.length > 0 ? (
             list.data.items.map((notification) => {
@@ -121,7 +125,7 @@ const NotificationBell = () => {
                   }`}
                   onClick={() => handleItemClick(notification)}
                 >
-                  <CIcon icon={visual.icon} className={`mt-1 flex-shrink-0 ${visual.className}`} />
+                  <Icon name={visual.icon} className={`mt-1 flex-shrink-0 ${visual.className}`} />
                   <div className="flex-grow-1">
                     <div>{notification.title}</div>
                     <div className="small text-body-secondary fw-normal">{notification.body}</div>

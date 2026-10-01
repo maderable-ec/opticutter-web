@@ -54,7 +54,7 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test --project=desktop --project=taller-infinix
+      - run: npx playwright test --project=desktop --project=phone --project=taller-infinix
 
       - uses: actions/upload-artifact@v4
         if: failure()

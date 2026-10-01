@@ -8,18 +8,21 @@ import type { OrderStatus } from './types'
 // options) and the state graph lived inline at the top of the detail page, which is not where
 // the list page or a future caller would look for it.
 
+// Tone by what the state asks of us, icon by shape. «Confirmada» used to be the coral of the action
+// buttons and «Cancelada» a red one step away from it: two opposite ends of an order told apart by a
+// shade. Now one is an info check and the other a danger ban sign.
 export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfigEntry> = {
-  confirmed: { color: 'primary', label: 'Confirmada' },
-  queued: { color: 'info', label: 'En cola' },
-  in_process: { color: 'warning', label: 'En proceso' },
-  finished: { color: 'success', label: 'Terminada' },
-  dispatched: { color: 'dark', label: 'Despachada' },
-  cancelled: { color: 'danger', label: 'Cancelada' },
+  confirmed: { tone: 'info', icon: 'confirmed', label: 'Confirmada' },
+  queued: { tone: 'neutral', icon: 'queued', label: 'En cola' },
+  in_process: { tone: 'progress', icon: 'inProgress', label: 'En proceso' },
+  finished: { tone: 'success', icon: 'finished', label: 'Terminada' },
+  dispatched: { tone: 'graphite', icon: 'dispatched', label: 'Despachada' },
+  cancelled: { tone: 'danger', icon: 'cancelled', label: 'Cancelada' },
   // Legacy: only ever read off the `history` of an order cut before the activities existed.
   // They are in the config because the label lookup is by key and would otherwise crash on a
   // real order — and out of ORDER_STATUS_VALUES because nothing can be filtered by them.
-  cutting: { color: 'warning', label: 'En corte' },
-  cut: { color: 'info', label: 'Cortada' },
+  cutting: { tone: 'progress', icon: 'inProgress', label: 'En corte' },
+  cut: { tone: 'info', icon: 'done', label: 'Cortada' },
 }
 
 // The statuses an order can actually be in, in process order: the listing's filter options.
