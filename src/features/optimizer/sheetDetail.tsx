@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { CCol, CRow } from '@coreui/react'
 
 import {
@@ -14,11 +14,12 @@ import {
 import type { SideLine } from 'src/shared/utils/cutDrawing'
 import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
 import type { EdgeSide, Layout, PlacedPiece } from './types'
+import { fmtM2, fmtMeters, fmtPercent } from 'src/shared/utils/format'
 
 // Per-sheet detail panels, shared by the wizard's Optimización step and the pre-order's expanded
 // sheet modal. Both show the same three things next to a board: what the piece under the cursor is,
-// how the sheet performed, and which measurements it holds — plus the hover state and the arrow-key
-// paging that drive them, so the two viewers cannot drift apart.
+// how the sheet performed, and which measurements it holds — plus the hover state that drives them,
+// so the two viewers cannot drift apart. Their paging is the shared `usePaging` and `Pager`.
 
 type ColorFor = (sig: string) => string
 
@@ -179,9 +180,7 @@ export const PieceDetailCard = ({
   const sides = piece ? bandedSides(piece) : []
   return (
     <div className="border rounded p-2 mb-3">
-      <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-        Detalle de pieza
-      </div>
+      <div className="eyebrow mb-2">Detalle de pieza</div>
       {piece ? (
         <>
           <PiecePreview piece={piece} colorFor={colorFor} />
@@ -271,9 +270,7 @@ export const GroupedPiecesList = ({
 
   return (
     <div>
-      <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-        Piezas por medida
-      </div>
+      <div className="eyebrow mb-2">Piezas por medida</div>
       <div className="d-flex flex-wrap gap-1" style={{ maxHeight: 200, overflowY: 'auto' }}>
         {groups.map(({ sig, count }) => (
           <span
@@ -319,12 +316,12 @@ export const SheetStats = ({ layout }: { layout: Layout }) => {
   const s = layout.statistics
   return (
     <CRow className="g-2 mb-3">
-      <Stat label="Eficiencia" value={`${s.efficiency.toFixed(1)}%`} />
+      <Stat label="Eficiencia" value={fmtPercent(s.efficiency)} />
       <Stat label="Piezas" value={s.piecesCount} />
       <Stat label="Medida hoja" value={`${layout.material.width}×${layout.material.height}`} />
-      <Stat label="Corte lineal" value={`${s.cutLinearM.toFixed(2)} m`} />
-      <Stat label="Tapacanto" value={`${s.edgeBandingLinearM.toFixed(2)} m`} />
-      <Stat label="Desperdicio" value={`${(s.wasteArea / 1e6).toFixed(2)} m²`} />
+      <Stat label="Corte lineal" value={fmtMeters(s.cutLinearM)} />
+      <Stat label="Tapacanto" value={fmtMeters(s.edgeBandingLinearM)} />
+      <Stat label="Desperdicio" value={fmtM2(s.wasteArea / 1e6)} />
     </CRow>
   )
 }
@@ -384,48 +381,4 @@ export const useSheetHover = (sheet: unknown) => {
   const leave = useCallback(() => setHoverPiece(null), [])
 
   return { hoverPiece, hoverSig, setHoverSig, inspect, leave }
-}
-
-// --- Arrow-key paging between sheets ---
-
-interface ArrowPagingOptions {
-  index: number | null
-  count: number
-  onChange: (index: number) => void
-  // Off while a modal is up. The Optimización step sets it: the layout editor opens over it with ←→
-  // of its own, and any other dialog owns its keys. The viewer modal leaves it off, since it IS the
-  // modal.
-  skipUnderModal?: boolean
-}
-
-// ← / → page between sheets, matching the public review modal and the workshop canvas. Only the bare
-// keys: Alt+← / Alt+→ walk the wizard's steps (and are the browser's back/forward), and a text field
-// or an open menu keeps its arrows.
-export const useArrowPaging = ({
-  index,
-  count,
-  onChange,
-  skipUnderModal = false,
-}: ArrowPagingOptions) => {
-  useEffect(() => {
-    if (index == null) return
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
-      const target = e.target as HTMLElement | null
-      if (
-        target &&
-        (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)
-      )
-        return
-      if (skipUnderModal && document.body.classList.contains('modal-open')) return
-      if (document.querySelector('.dropdown-menu.show')) return
-      const next = index + (e.key === 'ArrowRight' ? 1 : -1)
-      if (next < 0 || next >= count) return
-      e.preventDefault()
-      onChange(next)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [index, count, onChange, skipUnderModal])
 }

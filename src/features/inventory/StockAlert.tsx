@@ -2,6 +2,7 @@ import { CAlert } from '@coreui/react'
 
 import { useStockCheck } from './useStockCheck'
 import type { StockAlertItem, StockCheckItem, StockUnit } from './types'
+import { fmtMeters, fmtNumber } from 'src/shared/utils/format'
 
 // Material that is running out in the branch the job belongs to. Informational
 // on purpose: it never disables a button and never blocks a save. The seller
@@ -21,8 +22,8 @@ interface Props {
 // the warehouse says 12.5 both read as wrong.
 const amount = (value: number, unit: StockUnit) =>
   unit === 'sheets'
-    ? `${Number.isInteger(value) ? value : value.toFixed(1)} ${value === 1 ? 'lámina' : 'láminas'}`
-    : `${value.toFixed(1)} m`
+    ? `${fmtNumber(value, 1, 0)} ${value === 1 ? 'lámina' : 'láminas'}`
+    : fmtMeters(value, 1)
 
 const label = (alert: StockAlertItem) =>
   alert.productName ?? alert.productCode ?? `Producto ${alert.productId}`

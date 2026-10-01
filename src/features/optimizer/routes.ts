@@ -6,10 +6,11 @@ const OptimizerPage = lazy(() => import('./OptimizerPage'))
 export const optimizerRoutes: AppRoute[] = [
   {
     path: '/optimizer',
-    name: 'Optimizador',
+    name: 'Cotizar',
     element: OptimizerPage,
     roles: ['administrador', 'vendedor'],
     // Side-by-side pieces grid and cut diagrams need every pixel of width available.
     fluid: true,
+    actionBar: true,
   },
 ]

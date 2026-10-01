@@ -12,3 +12,4 @@ export const useUsers = hooks.useList
 export const useCreateUser = hooks.useCreate
 export const useUpdateUser = hooks.useUpdate
 export const useDeleteUser = hooks.useDelete
+export const useUsersTotal = hooks.useTotal

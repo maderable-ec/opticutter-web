@@ -1,33 +1,31 @@
-import { useState } from 'react'
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useId, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  CAlert,
   CBadge,
   CButton,
   CFormInput,
   CFormLabel,
   CFormSelect,
   CFormTextarea,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
   CProgress,
   CProgressBar,
-  CSpinner,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilBolt } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
-import { WizardFooter } from 'src/features/optimizer/WizardSteps'
+import ActionBar from 'src/shared/components/ActionBar'
+import { useBack, useFromHere, useRecordLabel } from 'src/shared/hooks/useShellNav'
 import { MASK } from 'src/shared/analytics'
 import StatusHistoryTable from 'src/shared/components/StatusHistoryTable'
+import CutListCards from 'src/shared/components/CutListCards'
+import Segments, { segmentClass, useSegmentParam } from 'src/shared/components/Segments'
 import PricingBlock from 'src/shared/components/PricingBlock'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
-import { clientName, fmtDateTime, fmtMoney } from 'src/shared/utils/format'
+import { clientName, fmtDateTime, fmtFileSize, fmtMoney } from 'src/shared/utils/format'
 import type { PricingData } from 'src/features/optimizer/types'
 import OrderStatusBadge from './OrderStatusBadge'
 import OrderStatusStrip from './OrderStatusStrip'
@@ -39,7 +37,9 @@ import OrderBoardsTable from './OrderBoardsTable'
 import OrderBandingTable from './OrderBandingTable'
 import OrderServicesTable from './OrderServicesTable'
 import OrderPiecesTable from './OrderPiecesTable'
-import OrderAttachmentsModal, { humanSize } from './OrderAttachmentsModal'
+import { orderCutList } from './cutList'
+import { cutBarColor, cutPct } from './progress'
+import OrderAttachmentsModal from './OrderAttachmentsModal'
 import { attachmentsLocked, isTerminal, transitionsFor } from './status'
 import { ACTIVITY_LABEL, orderedActivities } from './activities'
 import type { StatusTransition } from './status'
@@ -54,6 +54,12 @@ import {
 } from './useOrders'
 import { ordersApi } from './ordersApi'
 import type { OrderStatus } from './types'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
+import Spinner from 'src/shared/components/Spinner'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
+import type { ConfirmTone } from 'src/shared/components/ConfirmDialog'
 
 // The order as one document on one surface, in the language the quote detail got in #83: an
 // identity block that is not a card, a one-line status strip, a single `.surface`, and a pinned
@@ -65,20 +71,50 @@ import type { OrderStatus } from './types'
 // transitions, "Cambiar sucursal" and two warning lines in a frame at the top of a page you had to
 // scroll past the whole cut list to leave.
 
+// The order on a phone, in four parts. What the office reads an order for splits cleanly: how it
+// stands (Resumen), what the shop has to cut (Trabajo), what was billed and paid (Cobro) and how it
+// got here (Historial) — the commercial half apart from the productive one.
+const PARTS = ['resumen', 'trabajo', 'cobro', 'historial'] as const
+type Part = (typeof PARTS)[number]
+const PART_ITEMS: { id: Part; label: string }[] = [
+  { id: 'resumen', label: 'Resumen' },
+  { id: 'trabajo', label: 'Trabajo' },
+  { id: 'cobro', label: 'Cobro' },
+  { id: 'historial', label: 'Historial' },
+]
+
 interface TransitionModalState {
   visible: boolean
   transition: StatusTransition | null
 }
 
+// The transition dialog's title, verb and object: «Cancelar ORD-000043».
+const TRANSITION_TITLE: Partial<Record<OrderStatus, (code: string) => string>> = {
+  cancelled: (code) => `Cancelar ${code}`,
+  queued: (code) => `Regresar ${code} a la cola`,
+  dispatched: (code) => `Despachar ${code}`,
+}
+const transitionTitle = (t: StatusTransition, code: string) =>
+  TRANSITION_TITLE[t.to]?.(code) ?? `${t.label} · ${code}`
+
+// A transition's colour, as the dialog's tone: a grey «Regresar a cola» is still the dialog's
+// one action.
+const toneOf = (color?: string): ConfirmTone =>
+  color === 'danger' || color === 'success' ? color : 'primary'
+
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  // Operador can view the order, document, and cutting plan, but cannot change status or invoice.
+  // Back to wherever the order was opened from (the workshop board, Inicio, a notification's screen,
+  // the quote), or to Órdenes when it was reached by its URL. The links out of it leave it as theirs.
+  const back = useBack()
+  const backLabel = `Volver a ${back.name}`
+  const fromHere = useFromHere()
   const canManage = useHasRole('administrador', 'vendedor')
-  // Operador doesn't use the detail view: their flow is the workshop. Redirect there (including direct URL).
-  const isOperator = useHasRole('operador')
   const currentUser = useCurrentUser()
-  const { data: order, isLoading } = useOrder(id)
+  const { data: order, isLoading, isError, refetch } = useOrder(id)
+  // The trail and the tab say «ORD-2026-0041», and so does the «Volver» of what is opened from here.
+  useRecordLabel(order?.code)
   // Every order has its cutting plan, frozen when it was confirmed, so it is shown in every status:
   // a `confirmed` order is about to be cut, and a `dispatched` or `cancelled` one is how somebody
   // checks what the shop actually cut when a client disputes it.
@@ -111,6 +147,7 @@ const OrderDetailPage = () => {
       { replace: true },
     )
 
+  const [part, setPart] = useSegmentParam(PARTS)
   const [showHistory, setShowHistory] = useState(false)
   const [showAttachments, setShowAttachments] = useState(false)
   const [transitionModal, setTransitionModal] = useState<TransitionModalState>({
@@ -118,6 +155,7 @@ const OrderDetailPage = () => {
     transition: null,
   })
   const [transitionNote, setTransitionNote] = useState('')
+  const noteId = useId()
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
   const [branchModal, setBranchModal] = useState(false)
@@ -276,20 +314,27 @@ const OrderDetailPage = () => {
     )
   }
 
-  if (isOperator) {
-    return <Navigate to={`/orders/${id}/workshop`} replace />
-  }
-
-  if (isLoading) {
-    return (
-      <div className="text-center py-5">
-        <CSpinner color="primary" />
-      </div>
-    )
-  }
+  if (isLoading) return <LoadingBlock variant="detail" label="Cargando la orden…" />
 
   if (!order) {
-    return <CAlert color="danger">Orden no encontrada.</CAlert>
+    const backButton = (
+      <CButton color="secondary" variant="ghost" onClick={back.go}>
+        {backLabel}
+      </CButton>
+    )
+    return isError ? (
+      <ErrorState
+        title="No se pudo cargar la orden."
+        onRetry={() => void refetch()}
+        action={backButton}
+      />
+    ) : (
+      <ErrorState
+        title="No encontramos esta orden."
+        hint="Revisa el código o el enlace."
+        action={backButton}
+      />
+    )
   }
 
   const orderId = order.id
@@ -308,12 +353,6 @@ const OrderDetailPage = () => {
   const locked = attachmentsLocked(order.status)
 
   const plan = cuttingPlan.data
-  const planPct =
-    plan && plan.progress.totalPieces > 0
-      ? Math.round((plan.progress.cutPieces / plan.progress.totalPieces) * 100)
-      : 0
-  const planDone =
-    !!plan && plan.progress.totalPieces > 0 && plan.progress.cutPieces >= plan.progress.totalPieces
 
   // The order finishes itself when the shop closes its last activity, so this page no longer
   // offers a "completar" button to gate. What is left to say is who is still working: the
@@ -373,7 +412,7 @@ const OrderDetailPage = () => {
             column as wide as its whole text — 665px on a phone, which zoomed the page out. */}
         <div style={{ minWidth: 0 }}>
           <div className="d-flex flex-wrap align-items-center gap-2">
-            <h5 className="mb-0">{order.code ?? 'Sin código'}</h5>
+            <h2 className="h5 mb-0">{order.code ?? 'Sin código'}</h2>
             {/* The badge is the handle for the history: the history is the list of how the order
                 reached the status the badge is showing. */}
             {hasHistory ? (
@@ -391,7 +430,7 @@ const OrderDetailPage = () => {
             {/* Orthogonal to the status: says the order jumps the workshop's FIFO, nothing more. */}
             {isPriority && (
               <CBadge color="warning" className="d-inline-flex align-items-center gap-1">
-                <CIcon icon={cilBolt} size="sm" />
+                <Icon name="priority" size="sm" />
                 Prioritaria
               </CBadge>
             )}
@@ -416,13 +455,15 @@ const OrderDetailPage = () => {
                 would 403 on arrival. */}
             {canManage && order.preorderId && (
               <span>
-                <Link to={`/preorders/${order.preorderId}`}>
+                <Link to={`/preorders/${order.preorderId}`} state={fromHere}>
                   Cotización {order.preorderCode ?? `#${order.preorderId}`}
                 </Link>
               </span>
             )}
           </div>
-          <div className="text-body-secondary small fact-line">
+          {/* From `md` only: on a phone these three lines pushed the parts below the fold, and the
+              «Historial» part lists the same moves with their dates. */}
+          <div className="text-body-secondary small fact-line d-none d-md-block">
             <span>Creada {fmtDateTime(order.createdAt)}</span>
             {order.confirmedAt && <span>Confirmada {fmtDateTime(order.confirmedAt)}</span>}
             {/* When it reached the shop (i.e. when it was paid) — the date the workshop board
@@ -476,17 +517,24 @@ const OrderDetailPage = () => {
           waiting to be cut can be sitting on material that has since run out.
           The quantities are the ones frozen on the billing lines; the stock
           beside them is read live. Hidden once nothing more will be cut. */}
+      <Segments items={PART_ITEMS} value={part} onChange={setPart} label="Partes de la orden" />
+
       {!isTerminal(order.status) && (
-        <StockAlert branchId={order.branch?.id ?? null} items={stockItems} />
+        <div className={segmentClass(part, 'resumen', 'trabajo')}>
+          <StockAlert branchId={order.branch?.id ?? null} items={stockItems} />
+        </div>
       )}
 
       {/* One surface for the whole document. Each section carries a plain muted label or a summary
-          row instead of a card header. */}
+          row instead of a card header. On a phone each belongs to one or two of the parts above
+          (`segmentClass`); from `md` they all show, in this order. */}
       <div className="surface">
-        <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
-          <span className="small text-body-secondary text-uppercase fw-semibold">Producción</span>
+        <div
+          className={`${segmentClass(part, 'resumen', 'trabajo')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
+        >
+          <span className="eyebrow">Producción</span>
           {cuttingPlan.isLoading ? (
-            <CSpinner size="sm" />
+            <Spinner size="sm" />
           ) : plan ? (
             <>
               <span className="small">
@@ -503,7 +551,7 @@ const OrderDetailPage = () => {
                   phone it wrapped into a sliver, and the counts say the same fact exactly. */}
               <div className="flex-grow-1 d-none d-md-block" style={{ maxWidth: 200 }}>
                 <CProgress height={6}>
-                  <CProgressBar value={planPct} color={planDone ? 'success' : 'primary'} />
+                  <CProgressBar value={cutPct(plan.progress)} color={cutBarColor(plan.progress)} />
                 </CProgress>
               </div>
               <CButton
@@ -511,12 +559,12 @@ const OrderDetailPage = () => {
                 color="primary"
                 variant="outline"
                 className="ms-auto"
-                onClick={() => void navigate(`/orders/${orderId}/workshop`)}
+                onClick={() => void navigate(`/orders/${orderId}/workshop`, { state: fromHere })}
               >
                 {/* The workshop is live for these two; in any other status the canvas is a read-only
                     record of the plan. */}
                 {order.status === 'queued' || order.status === 'in_process'
-                  ? 'Abrir taller'
+                  ? 'Abrir corte'
                   : 'Ver corte'}
               </CButton>
             </>
@@ -529,11 +577,17 @@ const OrderDetailPage = () => {
 
         {/* The cut list as one line and a full-screen panel behind it. Rendering it inline meant a
             two-hundred-piece order put two hundred rows between the header and the totals. */}
+        {/* On a phone the list is inline in «Trabajo», as cards: there is room for nothing else
+            in that part, and a panel of a table was two taps to a list that scrolled sideways. */}
         {pieces.length > 0 && (
-          <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
-            <span className="small text-body-secondary text-uppercase fw-semibold">
-              Lista de corte
-            </span>
+          <div className={`${segmentClass(part, 'trabajo')} d-md-none mb-3`}>
+            <div className="eyebrow mb-2">Lista de corte</div>
+            <CutListCards groups={orderCutList(pieces, bandingNames)} />
+          </div>
+        )}
+        {pieces.length > 0 && (
+          <div className="d-none d-md-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
+            <span className="eyebrow">Lista de corte</span>
             <span className="small">
               <strong>{pieces.length}</strong> {pieces.length === 1 ? 'pieza' : 'piezas'} ·{' '}
               <strong>{pieceUnits}</strong> {pieceUnits === 1 ? 'unidad' : 'unidades'}
@@ -553,44 +607,42 @@ const OrderDetailPage = () => {
         {/* What is billed, one table per unit of sale. They were a single "Líneas de cobro"
             table under the boards' vocabulary, where a tapacanto line read "Cant. 31.5" (metres)
             with an empty "Eficiencia" column beside it. */}
-        {boardLines.length > 0 && (
-          <>
-            <div className="text-body-secondary small text-uppercase fw-semibold mb-2">
-              Materiales
-            </div>
-            <OrderBoardsTable lines={boardLines} />
-          </>
-        )}
+        <div className={segmentClass(part, 'cobro')}>
+          {boardLines.length > 0 && (
+            <>
+              <div className="eyebrow mb-2">Materiales</div>
+              <OrderBoardsTable lines={boardLines} />
+            </>
+          )}
 
-        {bandingLines.length > 0 && (
-          <>
-            <div className="text-body-secondary small text-uppercase fw-semibold mb-2 mt-3">
-              Tapacantos
-            </div>
-            <OrderBandingTable lines={bandingLines} />
-          </>
-        )}
+          {bandingLines.length > 0 && (
+            <>
+              <div className="eyebrow mb-2 mt-3">Tapacantos</div>
+              <OrderBandingTable lines={bandingLines} />
+            </>
+          )}
 
-        {/* The work billed besides the material — perforación, armado, bisagras. The lines have
-            always been on the wire; the page used to print only their total. */}
-        {services.length > 0 && (
-          <>
-            <div className="text-body-secondary small text-uppercase fw-semibold mb-2 mt-3">
-              Servicios adicionales
-            </div>
-            <OrderServicesTable services={services} />
-          </>
-        )}
+          {/* The work billed besides the material — perforación, armado, bisagras. The lines have
+              always been on the wire; the page used to print only their total. */}
+          {services.length > 0 && (
+            <>
+              <div className="eyebrow mb-2 mt-3">Servicios adicionales</div>
+              <OrderServicesTable services={services} />
+            </>
+          )}
+        </div>
 
-        <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mt-3">
-          <span className="small text-body-secondary text-uppercase fw-semibold">Anexos</span>
+        <div
+          className={`${segmentClass(part, 'trabajo')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mt-3`}
+        >
+          <span className="eyebrow">Anexos</span>
           <span className="small">
             {files.length === 0 ? (
               <span className="text-body-secondary fst-italic">Sin anexos</span>
             ) : (
               <>
                 <strong>{files.length}</strong> {files.length === 1 ? 'archivo' : 'archivos'} ·{' '}
-                <strong>{humanSize(filesBytes)}</strong>
+                <strong>{fmtFileSize(filesBytes)}</strong>
               </>
             )}
           </span>
@@ -605,66 +657,80 @@ const OrderDetailPage = () => {
           </CButton>
         </div>
 
-        <hr className="my-4" />
-
         {/* The totals, with how they were paid beside them — the same pairing the wizard uses for
             the price level. Payment is not a status, it is the money: reading "Total $840" and
-            "Efectivo $840" in two blocks a screen apart was the old layout's doing. */}
-        <div className="d-flex flex-wrap align-items-start gap-3">
-          {hasPayment && (
-            <div className="small">
-              <div className="text-body-secondary text-uppercase fw-semibold mb-1">
-                Forma de pago
+            "Efectivo $840" in two blocks a screen apart was the old layout's doing. Part of both
+            «Resumen» and «Cobro» on a phone: the total is what the summary is for. */}
+        <div className={segmentClass(part, 'resumen', 'cobro')}>
+          <hr className="my-4" />
+          <div className="d-flex flex-wrap align-items-start gap-3">
+            {hasPayment && (
+              <div className="small">
+                <div className="eyebrow mb-1">Forma de pago</div>
+                {cash > 0 && (
+                  <div>
+                    <span className="text-body-secondary me-2">Efectivo:</span>
+                    <strong>{fmtMoney(cash)}</strong>
+                  </div>
+                )}
+                {transfer > 0 && (
+                  <div>
+                    <span className="text-body-secondary me-2">Transferencia:</span>
+                    <strong>{fmtMoney(transfer)}</strong>
+                  </div>
+                )}
+                {credit > 0 && (
+                  <div>
+                    <span className="text-body-secondary me-2">A crédito:</span>
+                    <strong>{fmtMoney(credit)}</strong>
+                  </div>
+                )}
               </div>
-              {cash > 0 && (
-                <div>
-                  <span className="text-body-secondary me-2">Efectivo:</span>
-                  <strong>{fmtMoney(cash)}</strong>
-                </div>
-              )}
-              {transfer > 0 && (
-                <div>
-                  <span className="text-body-secondary me-2">Transferencia:</span>
-                  <strong>{fmtMoney(transfer)}</strong>
-                </div>
-              )}
-              {credit > 0 && (
-                <div>
-                  <span className="text-body-secondary me-2">A crédito:</span>
-                  <strong>{fmtMoney(credit)}</strong>
-                </div>
+            )}
+            {/* `ms-auto` on the block itself: with payment absent it is the only child of the row and
+              would otherwise sit on the left. */}
+            <div className="ms-auto">
+              {order.subtotal != null ? (
+                <PricingBlock
+                  pricing={
+                    {
+                      priceLevel: order.priceLevel ?? 1,
+                      priceLevelName: order.priceLevelName ?? `Precio ${order.priceLevel ?? 1}`,
+                      subtotal: order.subtotal,
+                      servicesTotal: order.additionalServicesTotal,
+                      taxRate: order.taxRate ?? 0,
+                      taxAmount: order.taxAmount ?? 0,
+                      total: order.total,
+                    } satisfies PricingData
+                  }
+                />
+              ) : (
+                <div className="fs-5 fw-semibold">Total: {fmtMoney(order.total)}</div>
               )}
             </div>
-          )}
-          {/* `ms-auto` on the block itself: with payment absent it is the only child of the row and
-              would otherwise sit on the left. */}
-          <div className="ms-auto">
-            {order.subtotal != null ? (
-              <PricingBlock
-                pricing={
-                  {
-                    priceLevel: order.priceLevel ?? 1,
-                    priceLevelName: order.priceLevelName ?? `Precio ${order.priceLevel ?? 1}`,
-                    subtotal: order.subtotal,
-                    servicesTotal: order.additionalServicesTotal,
-                    taxRate: order.taxRate ?? 0,
-                    taxAmount: order.taxAmount ?? 0,
-                    total: order.total,
-                  } satisfies PricingData
-                }
-              />
-            ) : (
-              <div className="fs-5 fw-semibold">Total: {fmtMoney(order.total)}</div>
-            )}
           </div>
+        </div>
+
+        {/* The history inline, as its own part — on a laptop it stays behind the status badge.
+            `StatusHistoryTable` is a list below `md`. */}
+        <div className={`${segmentClass(part, 'historial')} d-md-none`}>
+          {hasHistory ? (
+            <StatusHistoryTable
+              entries={order.history ?? []}
+              renderStatus={(s) => <OrderStatusBadge status={s as OrderStatus} />}
+            />
+          ) : (
+            <div className="text-body-secondary small">Sin cambios de estado todavía.</div>
+          )}
         </div>
       </div>
 
       {/* Pinned footer: leaving, and the status transitions that were a card at the top of the
-          page. It stays on a terminal order so "Volver a órdenes" is always in the same place. */}
-      <WizardFooter
-        onBack={() => void navigate('/orders')}
-        backLabel="Volver a órdenes"
+          page. It stays on a terminal order so «Volver» is always in the same place. */}
+      <ActionBar
+        onBack={back.go}
+        backLabel={back.name}
+        backInHeader
         onNext={
           primary
             ? () =>
@@ -687,13 +753,13 @@ const OrderDetailPage = () => {
             {t.label}
           </CButton>
         ))}
-      </WizardFooter>
+      </ActionBar>
 
       {/* The cut list, full screen. Read-only, so it needs no portal container: nothing inside it
           opens a dropdown that would land under the dialog. */}
-      <CModal visible={piecesOpen} onClose={closePieces} fullscreen scrollable>
+      <Modal visible={piecesOpen} onClose={closePieces} fullscreen scrollable>
         <CModalHeader>
-          <CModalTitle>Lista de corte · {order.code}</CModalTitle>
+          <ModalTitle>Lista de corte · {order.code}</ModalTitle>
         </CModalHeader>
         <CModalBody>
           {/* Capped and centred. The columns stretched across a full-screen dialog put "Etiqueta"
@@ -712,13 +778,13 @@ const OrderDetailPage = () => {
             Listo
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* History, behind the status badge — something you go and check, not something you read on
           the way to the totals. */}
-      <CModal visible={showHistory} onClose={() => setShowHistory(false)} size="lg" scrollable>
+      <Modal visible={showHistory} onClose={() => setShowHistory(false)} size="lg" scrollable>
         <CModalHeader>
-          <CModalTitle>Historial · {order.code}</CModalTitle>
+          <ModalTitle>Historial · {order.code}</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <StatusHistoryTable
@@ -726,7 +792,7 @@ const OrderDetailPage = () => {
             renderStatus={(s) => <OrderStatusBadge status={s as OrderStatus} />}
           />
         </CModalBody>
-      </CModal>
+      </Modal>
 
       <OrderAttachmentsModal
         orderId={orderId}
@@ -737,9 +803,11 @@ const OrderDetailPage = () => {
       />
 
       {/* Payment modal — confirmed → queued */}
-      <CModal visible={paymentModal} onClose={closePayment}>
+      {/* Full screen on a phone, where a centred dialog of four fields and a keyboard left the
+          confirm button under the keyboard. */}
+      <Modal visible={paymentModal} onClose={closePayment} fullscreen="md">
         <CModalHeader>
-          <CModalTitle>Forma de pago</CModalTitle>
+          <ModalTitle>Forma de pago</ModalTitle>
         </CModalHeader>
         <CModalBody>
           {(() => {
@@ -769,8 +837,10 @@ const OrderDetailPage = () => {
                   </CButton>
                 </div>
                 <div className="mb-3">
-                  <CFormLabel>Efectivo (USD)</CFormLabel>
+                  <CFormLabel htmlFor="payment-cash">Efectivo (USD)</CFormLabel>
                   <CFormInput
+                    id="payment-cash"
+                    inputMode="decimal"
                     type="number"
                     min="0"
                     step="0.01"
@@ -780,8 +850,10 @@ const OrderDetailPage = () => {
                   />
                 </div>
                 <div className="mb-3">
-                  <CFormLabel>Transferencia (USD)</CFormLabel>
+                  <CFormLabel htmlFor="payment-transfer">Transferencia (USD)</CFormLabel>
                   <CFormInput
+                    id="payment-transfer"
+                    inputMode="decimal"
                     type="number"
                     min="0"
                     step="0.01"
@@ -791,8 +863,10 @@ const OrderDetailPage = () => {
                   />
                 </div>
                 <div className="mb-3">
-                  <CFormLabel>A crédito (USD)</CFormLabel>
+                  <CFormLabel htmlFor="payment-credit">A crédito (USD)</CFormLabel>
                   <CFormInput
+                    id="payment-credit"
+                    inputMode="decimal"
                     type="number"
                     min="0"
                     step="0.01"
@@ -815,7 +889,7 @@ const OrderDetailPage = () => {
                     : `Falta por asignar: ${fmtMoney(Math.max(pending, 0))}`}
                 </div>
                 {empty && (
-                  <div className="text-warning small mb-2">
+                  <div className="text-warning-emphasis small mb-2">
                     Ingresa al menos un monto mayor a 0.
                   </div>
                 )}
@@ -826,10 +900,11 @@ const OrderDetailPage = () => {
                   </div>
                 )}
                 <div className="mb-3">
-                  <CFormLabel>
+                  <CFormLabel htmlFor="payment-invoice">
                     N.º de factura <span className="text-danger">*</span>
                   </CFormLabel>
                   <CFormInput
+                    id="payment-invoice"
                     type="text"
                     maxLength={64}
                     value={invoiceInput}
@@ -866,7 +941,7 @@ const OrderDetailPage = () => {
           })()}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closePayment}>
+          <CButton color="secondary" variant="outline" onClick={closePayment}>
             Cancelar
           </CButton>
           <CButton
@@ -882,65 +957,60 @@ const OrderDetailPage = () => {
               )
             })()}
           >
-            {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
+            {updateStatus.isPending ? <Spinner size="sm" /> : 'Confirmar'}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
-      {/* Transition confirmation modal */}
-      <CModal visible={transitionModal.visible} onClose={closeTransition}>
-        <CModalHeader>
-          <CModalTitle>Confirmar acción</CModalTitle>
-        </CModalHeader>
-        <CModalBody>
-          <p>
-            ¿Confirmar: <strong>{transitionModal.transition?.label}</strong>?
-          </p>
-          <CFormLabel>
-            {transitionModal.transition?.requiresNote ? 'Motivo' : 'Nota (opcional)'}
-          </CFormLabel>
-          <CFormTextarea
-            rows={2}
-            maxLength={512}
-            value={transitionNote}
-            onChange={(e) => setTransitionNote(e.target.value)}
-            placeholder={
-              transitionModal.transition?.requiresNote
-                ? 'Por qué se cancela…'
-                : 'Motivo o comentario…'
-            }
-          />
-          {/* Said out loud rather than left to a disabled button: cancelling is the only move on
-              this page whose reason is the entire record it leaves behind. */}
-          {transitionModal.transition?.requiresNote && (
-            <div className="text-body-secondary small mt-1">
-              Queda en el historial de la orden y es el único registro de por qué se canceló.
-            </div>
-          )}
-          {updateStatus.error && (
-            <div className="text-danger small mt-2">
-              {updateStatus.error.message || 'Error al cambiar estado.'}
-            </div>
-          )}
-        </CModalBody>
-        <CModalFooter>
-          <CButton color="secondary" onClick={closeTransition}>
-            Cancelar
-          </CButton>
-          <CButton
-            color={transitionModal.transition?.color ?? 'primary'}
-            onClick={confirmTransition}
-            disabled={updateStatus.isPending || noteMissing}
-          >
-            {updateStatus.isPending ? <CSpinner size="sm" /> : 'Confirmar'}
-          </CButton>
-        </CModalFooter>
-      </CModal>
+      {/* Transition confirmation */}
+      <ConfirmDialog
+        visible={transitionModal.visible}
+        fullscreen="md"
+        title={
+          transitionModal.transition ? transitionTitle(transitionModal.transition, order.code) : ''
+        }
+        confirmLabel={
+          transitionModal.transition?.to === 'cancelled'
+            ? 'Cancelar orden'
+            : (transitionModal.transition?.label ?? '')
+        }
+        // «Cancelar» beside «Cancelar orden» would be two buttons with the same verb.
+        cancelLabel={transitionModal.transition?.to === 'cancelled' ? 'No cancelar' : undefined}
+        tone={toneOf(transitionModal.transition?.color)}
+        pending={updateStatus.isPending}
+        disabled={noteMissing}
+        error={updateStatus.error && (updateStatus.error.message || 'Error al cambiar estado.')}
+        onConfirm={confirmTransition}
+        onClose={closeTransition}
+      >
+        <CFormLabel htmlFor={noteId}>
+          {transitionModal.transition?.requiresNote ? 'Motivo' : 'Nota (opcional)'}
+        </CFormLabel>
+        <CFormTextarea
+          id={noteId}
+          rows={2}
+          maxLength={512}
+          value={transitionNote}
+          onChange={(e) => setTransitionNote(e.target.value)}
+          placeholder={
+            transitionModal.transition?.requiresNote
+              ? 'Por qué se cancela…'
+              : 'Motivo o comentario…'
+          }
+        />
+        {/* Said out loud rather than left to a disabled button: cancelling is the only move on
+            this page whose reason is the entire record it leaves behind. */}
+        {transitionModal.transition?.requiresNote && (
+          <div className="text-body-secondary small mt-1">
+            Queda en el historial de la orden y es el único registro de por qué se canceló.
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Invoice modal */}
-      <CModal visible={invoiceModal} onClose={closeInvoice}>
+      <Modal visible={invoiceModal} onClose={closeInvoice} fullscreen="md">
         <CModalHeader>
-          <CModalTitle>Asociar factura externa</CModalTitle>
+          <ModalTitle>Asociar factura externa</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <CFormLabel>ID de factura</CFormLabel>
@@ -957,7 +1027,7 @@ const OrderDetailPage = () => {
           )}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closeInvoice}>
+          <CButton color="secondary" variant="outline" onClick={closeInvoice}>
             Cancelar
           </CButton>
           <CButton
@@ -965,15 +1035,15 @@ const OrderDetailPage = () => {
             onClick={confirmInvoice}
             disabled={associateInvoice.isPending || !invoiceId.trim()}
           >
-            {associateInvoice.isPending ? <CSpinner size="sm" /> : 'Asociar'}
+            {associateInvoice.isPending ? <Spinner size="sm" /> : 'Asociar'}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* Change branch modal — rebalancing before the workshop starts cutting */}
-      <CModal visible={branchModal} onClose={closeBranchModal}>
+      <Modal visible={branchModal} onClose={closeBranchModal} fullscreen="md">
         <CModalHeader>
-          <CModalTitle>Cambiar sucursal</CModalTitle>
+          <ModalTitle>Cambiar sucursal</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <CFormLabel>Sucursal destino</CFormLabel>
@@ -1000,7 +1070,7 @@ const OrderDetailPage = () => {
           )}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closeBranchModal}>
+          <CButton color="secondary" variant="outline" onClick={closeBranchModal}>
             Cancelar
           </CButton>
           <CButton
@@ -1008,21 +1078,21 @@ const OrderDetailPage = () => {
             onClick={confirmBranchChange}
             disabled={!targetBranchId || changeBranch.isPending}
           >
-            {changeBranch.isPending ? <CSpinner size="sm" /> : 'Mover'}
+            {changeBranch.isPending ? <Spinner size="sm" /> : 'Mover'}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
 
       {/* Priority attention — sales' exception to the workshop's FIFO */}
-      <CModal visible={priorityModal} onClose={closePriorityModal}>
+      <Modal visible={priorityModal} onClose={closePriorityModal} fullscreen="md">
         <CModalHeader>
-          <CModalTitle>{isPriority ? 'Quitar prioridad' : 'Marcar como prioritaria'}</CModalTitle>
+          <ModalTitle>{isPriority ? 'Quitar prioridad' : 'Marcar como prioritaria'}</ModalTitle>
         </CModalHeader>
         <CModalBody>
           <p>
             {isPriority
               ? 'La orden vuelve a su lugar en la cola del taller, por orden de llegada.'
-              : 'La orden pasa al primer lugar del tablero de taller y se muestra resaltada. No cambia su estado ni sus precios.'}
+              : 'La orden pasa al primer lugar de la cola del taller y se muestra resaltada. No cambia su estado ni sus precios.'}
           </p>
           <CFormLabel>Motivo/nota (opcional)</CFormLabel>
           <CFormTextarea
@@ -1039,7 +1109,7 @@ const OrderDetailPage = () => {
           )}
         </CModalBody>
         <CModalFooter>
-          <CButton color="secondary" onClick={closePriorityModal}>
+          <CButton color="secondary" variant="outline" onClick={closePriorityModal}>
             Cancelar
           </CButton>
           <CButton
@@ -1048,7 +1118,7 @@ const OrderDetailPage = () => {
             disabled={setPriority.isPending}
           >
             {setPriority.isPending ? (
-              <CSpinner size="sm" />
+              <Spinner size="sm" />
             ) : isPriority ? (
               'Quitar prioridad'
             ) : (
@@ -1056,7 +1126,7 @@ const OrderDetailPage = () => {
             )}
           </CButton>
         </CModalFooter>
-      </CModal>
+      </Modal>
     </>
   )
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   CAlert,
@@ -8,45 +7,34 @@ import {
   CFormLabel,
   CFormSelect,
   CFormTextarea,
-  CModal,
   CModalHeader,
-  CModalTitle,
   CRow,
-  CSpinner,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCart, cilUserPlus } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import ClientForm from 'src/features/clients/ClientForm'
 import ClientPicker from 'src/features/clients/ClientPicker'
 import { useCreateClient, useUpdateClient } from 'src/features/clients/useClients'
 import type { Client, ClientPayload } from 'src/features/clients/types'
-import { useCreatePreOrder } from 'src/features/preorders/usePreOrders'
-import {
-  buildServiceLines,
-  pricingWithServices,
-  type ServiceLineForm,
-} from 'src/features/preorders/useServiceLines'
+import { pricingWithServices, type ServiceLineForm } from 'src/features/preorders/useServiceLines'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import StockAlert from 'src/features/inventory/StockAlert'
 import { stockItemsFromPlan } from 'src/features/inventory/stockItems'
-import { MASK, trackPreorderCreated } from 'src/shared/analytics'
+import { MASK } from 'src/shared/analytics'
 import { ApiError } from 'src/shared/api/types'
 import { fmtMoney } from 'src/features/review/format'
 import type { QuoteDraft } from '../useQuoteDraft'
-import { unplacedReason } from '../useOptimizerWizard'
-import type {
-  LayoutAdjustment,
-  MaterialInput,
-  ModalContainer,
-  OptimizeResponse,
-  RequirementInput,
-} from '../types'
+import type { ModalContainer, OptimizeResponse, RequirementInput } from '../types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 // Step 4. What used to be CreateQuoteModal, in a full-width step: the same four inputs the optimizer
 // cannot infer (client, branch, price level, reference) plus the confirmation summary that never fit
 // inside the modal. Creates a PRE-ORDER; the backend recomputes the plan from these same inputs.
+//
+// «Crear cotización» itself is not here: it is the page's, in the pinned action bar where every step
+// keeps its next move (`useCreateQuote`). This step is the form it reads and the receipt of what it
+// is about to create.
 
 const fullClientLabel = (c: Client) => {
   const name = [c.firstName, c.lastName].filter(Boolean).join(' ')
@@ -55,42 +43,31 @@ const fullClientLabel = (c: Client) => {
 
 interface QuoteStepProps {
   result?: OptimizeResponse
-  materials: MaterialInput[]
   requirements: RequirementInput[]
-  // Chosen back in the Costos step, where its effect on the numbers is visible; carried here only
-  // to be sent with the pre-order and shown in the summary.
+  // Chosen back in the Costos step, where its effect on the numbers is visible; shown here in the
+  // summary.
   priceLevel: number
-  // Alternative-solution seed of the layout on screen; persisted with the pre-order so every
-  // recompute reproduces the chosen alternative.
-  variant: number
-  // The seller's hand adjustments to that layout; they ride with the pre-order the same way.
-  layoutAdjustments: LayoutAdjustment[] | null
-  // Billed services entered in the Costos step. They ride along with the pre-order so a quote built
-  // in the wizard is complete on arrival instead of needing a second pass on the detail page.
+  // Billed services entered in the Costos step, summed into the total.
   services: ServiceLineForm[]
   // Client, branch and reference. Owned by `OptimizerPage` (see `useQuoteDraft`) so stepping back to
   // fix a measure and returning does not empty this form.
   draft: QuoteDraft
   onDraftChange: <K extends keyof QuoteDraft>(key: K, value: QuoteDraft[K]) => void
+  // The last refusal of «Crear cotización», which lives in the action bar; the form shows it.
+  createError?: Error | null
   container?: ModalContainer
-  // Called after the pre-order is created (the page clears its autosave).
-  onCreated?: () => void
 }
 
 const QuoteStep = ({
   result,
-  materials,
   requirements,
   priceLevel,
-  variant,
-  layoutAdjustments,
   services,
   draft,
   onDraftChange,
+  createError,
   container,
-  onCreated,
 }: QuoteStepProps) => {
-  const navigate = useNavigate()
   const qc = useQueryClient()
 
   // null = closed. `{ client: null }` is the new-client form, `{ client }` the edit form.
@@ -140,58 +117,11 @@ const QuoteStep = ({
     else createClient.mutate(data, { onSuccess })
   }
 
-  const createPreOrder = useCreatePreOrder()
-  const isPending = createPreOrder.isPending
-  // The wizard does not reach this step while the plan leaves pieces out; checked again here because
-  // a quote with them must never be created, whatever the route in.
-  const unplacedCount = (result?.unplaced ?? []).reduce((acc, u) => acc + u.quantity, 0)
-  const blocked = unplacedCount > 0 || !selectedClient || missingPhone || (isAdmin && !branchId)
-
-  // A disabled button has to say what it is waiting for — the same `nextHint`/`nextDisabled` idiom
-  // the pre-order detail uses. Without it "Crear cotización" is simply dim, which is how a seller
-  // ends up reporting that a click did nothing.
-  const blockedReason =
-    unplacedCount > 0
-      ? `${unplacedReason(unplacedCount)}; corrígelo en Costos.`
-      : !selectedClient
-        ? 'Falta elegir el cliente.'
-        : missingPhone
-          ? 'El cliente no tiene celular registrado.'
-          : isAdmin && !branchId
-            ? 'Falta elegir la sucursal.'
-            : undefined
-
   const pricing = result?.pricing ? pricingWithServices(result.pricing, services) : undefined
 
-  const handleCreate = () => {
-    if (blocked || !selectedClient) return
-    createPreOrder.mutate(
-      {
-        clientId: Number(selectedClient.id),
-        source: 'dashboard',
-        notes: draft.notes || undefined,
-        priceLevel,
-        variant,
-        layoutAdjustments,
-        materials,
-        requirements,
-        additionalServices: buildServiceLines(services),
-        branchId: isGlobalBranch && branchId ? Number(branchId) : undefined,
-      },
-      {
-        onSuccess: (preOrder) => {
-          trackPreorderCreated(preOrder.id, (layoutAdjustments?.length ?? 0) > 0)
-          onCreated?.()
-          void navigate(`/preorders/${preOrder.id}`)
-        },
-      },
-    )
-  }
-
-  const mutationError = createPreOrder.error
   const branchError =
-    mutationError instanceof ApiError
-      ? mutationError.errors.find((e) => e.field === 'branchId')?.message
+    createError instanceof ApiError
+      ? createError.errors.find((e) => e.field === 'branchId')?.message
       : undefined
 
   // The form needs no card — its own labels say what each field is, and "Datos de la cotización"
@@ -213,7 +143,7 @@ const QuoteStep = ({
             type="button"
             onClick={() => openClientModal(null)}
           >
-            <CIcon icon={cilUserPlus} className="me-1" />
+            <Icon name="addClient" className="me-1" />
             Nuevo cliente
           </CButton>
         </div>
@@ -247,10 +177,11 @@ const QuoteStep = ({
 
         {isGlobalBranch && (
           <>
-            <CFormLabel className="mt-3">
+            <CFormLabel htmlFor="quote-branch" className="mt-3">
               Sucursal {isAdmin && <span className="text-danger">*</span>}
             </CFormLabel>
             <CFormSelect
+              id="quote-branch"
               value={branchId}
               onChange={(e) => onDraftChange('branchId', e.target.value)}
               invalid={!!branchError}
@@ -286,9 +217,9 @@ const QuoteStep = ({
           imprime en todos los documentos y la ve el cliente.
         </div>
 
-        {mutationError && (
+        {createError && (
           <CAlert color="danger" className="mt-3 mb-0 py-2 small">
-            {mutationError.message || 'Error al crear la cotización. Intente nuevamente.'}
+            {createError.message || 'Error al crear la cotización. Intente nuevamente.'}
           </CAlert>
         )}
       </CCol>
@@ -296,7 +227,7 @@ const QuoteStep = ({
       <CCol xs={12} lg={5}>
         {/* Same frame as the KPI tiles in the other steps (`Kpi` in summaryTables). */}
         <div className="border rounded-3 p-3">
-          <div className="text-body-secondary small text-uppercase fw-semibold mb-2">Resumen</div>
+          <div className="eyebrow mb-2">Resumen</div>
           <div className="d-flex justify-content-between gap-3 py-1 border-bottom">
             <span className="text-body-secondary small">Cliente</span>
             <span className="small fw-semibold text-end" {...MASK}>
@@ -358,41 +289,23 @@ const QuoteStep = ({
             <span className="fw-semibold text-end">{pricing ? fmtMoney(pricing.total) : '—'}</span>
           </div>
 
-          <div className="text-body-secondary small mb-3">
+          <div className="text-body-secondary small">
             El total se recalcula en el servidor al crear la cotización, con el nivel de precio
-            elegido arriba.
+            elegido en Costos.
           </div>
-
-          <CButton
-            color="primary"
-            className="w-100"
-            type="button"
-            disabled={blocked || isPending}
-            onClick={handleCreate}
-          >
-            {isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={cilCart} className="me-1" />
-            )}
-            Crear cotización
-          </CButton>
-          {blockedReason && !isPending && (
-            <div className="small text-body-secondary text-center mt-1">{blockedReason}</div>
-          )}
         </div>
       </CCol>
 
       {/* The same form the /clients page uses. It renders its own CModalBody/CModalFooter, so it
           drops in here untouched; `container` is what keeps it painted in fullscreen. */}
-      <CModal
+      <Modal
         visible={clientModal !== null}
         onClose={() => setClientModal(null)}
         backdrop="static"
         container={container}
       >
         <CModalHeader>
-          <CModalTitle>{clientModal?.client ? 'Editar cliente' : 'Nuevo cliente'}</CModalTitle>
+          <ModalTitle>{clientModal?.client ? 'Editar cliente' : 'Nuevo cliente'}</ModalTitle>
         </CModalHeader>
         {clientModal && (
           <ClientForm
@@ -404,7 +317,7 @@ const QuoteStep = ({
             error={clientMutation.error}
           />
         )}
-      </CModal>
+      </Modal>
     </CRow>
   )
 }

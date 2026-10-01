@@ -1,11 +1,6 @@
-import { useEffect } from 'react'
 import {
-  CButton,
-  CModal,
   CModalBody,
-  CModalFooter,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -14,16 +9,17 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilChevronLeft, cilChevronRight } from '@coreui/icons'
 
 import { MASK } from 'src/shared/analytics'
-import { useSwipeNav } from 'src/shared/hooks/useSwipeNav'
+import { usePaging } from 'src/shared/hooks/usePaging'
+import Pager from 'src/shared/components/Pager'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
 import { orderedActivities } from './activities'
 import BandTypeBadge from './BandTypeBadge'
 import type { BoardUsage, WorkshopQueueItem } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import { fmtMeters } from 'src/shared/utils/format'
 
 // How the sheets of ONE material split between whole boards and the half, shown under the name
 // only when there IS a half — with none, the quantity on the right already says everything.
@@ -80,31 +76,13 @@ const WorkshopMaterialsModal = ({
   const activities = orderedActivities(item?.activities)
   // The order has a banding track at all -- which is now simply "the row exists".
   const showBanding = activities.some((activity) => activity.type === 'banding')
-  const hasPrev = index != null && index > 0
-  const hasNext = index != null && index < items.length - 1
-
-  // The swipe is a shortcut, never the only way through: the shop floor is gloved hands on a dusty
-  // panel, where a drag fails far more often than a tap, so `‹ ›` stay in the header regardless.
-  const swipeRef = useSwipeNav({
-    enabled: index != null,
-    onPrev: () => hasPrev && index != null && onIndexChange(index - 1),
-    onNext: () => hasNext && index != null && onIndexChange(index + 1),
-  })
-
-  // Arrow keys page between orders, the same way the cut-diagram modal pages between sheets. Nothing
-  // in this dialog takes typed input, so they cost no field its own arrows.
-  useEffect(() => {
-    if (index == null) return
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && index < items.length - 1) onIndexChange(index + 1)
-      if (e.key === 'ArrowLeft' && index > 0) onIndexChange(index - 1)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [index, items.length, onIndexChange])
+  // ← / → and a swipe page between orders. The swipe is a shortcut, never the only way through: the
+  // shop floor is gloved hands on a dusty panel, where a drag fails far more often than a tap, so
+  // `‹ ›` stay in the header regardless.
+  const { swipeRef } = usePaging({ index, count: items.length, onChange: onIndexChange })
 
   return (
-    <CModal
+    <Modal
       size="lg"
       visible={!!item}
       onClose={onClose}
@@ -115,41 +93,28 @@ const WorkshopMaterialsModal = ({
       // in exactly that state.
       fullscreen="lg"
     >
-      <CModalHeader className="materials-header">
-        <div className="materials-headline">
-          <div className="min-w-0">
-            <div className="materials-eyebrow">Materiales de la orden</div>
-            <CModalTitle className="materials-title">{item?.orderCode ?? '—'}</CModalTitle>
-            {/* Who the order is for, because paging changes it under you: the code alone is not
-                enough to tell you where you landed. */}
-            <div className="materials-client" {...MASK}>
-              {item ? `${item.client.firstName} ${item.client.lastName}` : ''}
-            </div>
-          </div>
-          <div className="materials-nav">
-            <button
-              type="button"
-              className="materials-nav__btn"
-              disabled={!hasPrev}
-              aria-label="Orden anterior"
-              onClick={() => index != null && onIndexChange(index - 1)}
-            >
-              <CIcon icon={cilChevronLeft} />
-            </button>
-            <span className="materials-nav__count">
-              {index == null ? '' : `${index + 1} de ${items.length}`}
-            </span>
-            <button
-              type="button"
-              className="materials-nav__btn"
-              disabled={!hasNext}
-              aria-label="Orden siguiente"
-              onClick={() => index != null && onIndexChange(index + 1)}
-            >
-              <CIcon icon={cilChevronRight} />
-            </button>
+      <CModalHeader className="viewer-header">
+        <div>
+          <div className="materials-eyebrow">Materiales de la orden</div>
+          <ModalTitle className="materials-title">{item?.orderCode ?? '—'}</ModalTitle>
+          {/* Who the order is for, because paging changes it under you: the code alone is not
+              enough to tell you where you landed. */}
+          <div className="materials-client" {...MASK}>
+            {item ? `${item.client.firstName} ${item.client.lastName}` : ''}
           </div>
         </div>
+        {index != null && items.length > 1 && (
+          <div className="viewer-header__tools">
+            <Pager
+              index={index}
+              count={items.length}
+              onChange={onIndexChange}
+              noun="Orden"
+              size="lg"
+              className="ms-auto"
+            />
+          </div>
+        )}
       </CModalHeader>
 
       <CModalBody>
@@ -159,8 +124,7 @@ const WorkshopMaterialsModal = ({
           {/* The order's two tracks, pinned to the top of the body rather than scattered over the two
             section headings. This dialog is a paging tool — the point of `‹ ›` is to review a shift's
             orders quickly — so the state has to be in ONE place that does not move under you as you
-            page. On the body's neutral ground, not up on the coral band: these badges carry meaning
-            in their colour, and blue-on-coral and amber-on-coral read as neither. */}
+            page. */}
           {item && (
             <div className="materials-status d-flex flex-wrap gap-2">
               <OrderStatusBadge status={item.status} />
@@ -170,7 +134,7 @@ const WorkshopMaterialsModal = ({
             </div>
           )}
 
-          <div className="usage-label mb-2">Tableros</div>
+          <div className="eyebrow mb-2">Tableros</div>
           <CTable small responsive className="summary-table materials-table mb-4">
             <CTableHead>
               <CTableRow>
@@ -225,7 +189,7 @@ const WorkshopMaterialsModal = ({
             canteador's cue and must not depend on the material list being populated. */}
           {showBanding && (
             <>
-              <div className="usage-label mb-2">Tapacantos</div>
+              <div className="eyebrow mb-2">Tapacantos</div>
               <CTable small responsive className="summary-table materials-table mb-0">
                 <CTableHead>
                   <CTableRow>
@@ -244,7 +208,7 @@ const WorkshopMaterialsModal = ({
                           {line.bandType && <BandTypeBadge bandType={line.bandType} />}
                         </CTableDataCell>
                         <CTableDataCell className="text-end fw-semibold">
-                          {line.linearM.toFixed(1)} m
+                          {fmtMeters(line.linearM, 1)}
                         </CTableDataCell>
                       </CTableRow>
                     ))
@@ -263,7 +227,7 @@ const WorkshopMaterialsModal = ({
                         {banding.length} {banding.length === 1 ? 'tapacanto' : 'tapacantos'}
                       </CTableDataCell>
                       <CTableDataCell className="text-end fw-semibold">
-                        {meters.toFixed(1)} m
+                        {fmtMeters(meters, 1)}
                       </CTableDataCell>
                     </CTableRow>
                   </CTableFoot>
@@ -273,13 +237,7 @@ const WorkshopMaterialsModal = ({
           )}
         </div>
       </CModalBody>
-
-      <CModalFooter>
-        <CButton color="secondary" size="lg" onClick={onClose}>
-          Cerrar
-        </CButton>
-      </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

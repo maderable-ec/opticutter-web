@@ -46,8 +46,8 @@ describe('toggleRole', () => {
 
 describe('homePathForRoles', () => {
   it('lands each role on a route it can open', () => {
-    expect(homePathForRoles(['administrador'])).toBe('/dashboard')
-    expect(homePathForRoles(['vendedor'])).toBe('/optimizer')
+    expect(homePathForRoles(['administrador'])).toBe('/inicio')
+    expect(homePathForRoles(['vendedor'])).toBe('/inicio')
     expect(homePathForRoles(['operador'])).toBe('/workshop-board')
     expect(homePathForRoles(['canteador'])).toBe('/workshop-board')
     expect(homePathForRoles(['operador', 'canteador'])).toBe('/workshop-board')

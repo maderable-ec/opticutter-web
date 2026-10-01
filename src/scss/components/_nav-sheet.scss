@@ -1,0 +1,87 @@
+// The phone's menu (`NavSheet`): a section title over each group of entries, and rows as tall as a
+// thumb. The entry for the screen on view is lit the way the sidebar lights it (the coral mark down
+// its left edge) on the bottom bar's soft coral, so the two menus of the phone agree.
+.nav-sheet .offcanvas-body {
+  padding-top: 0.5rem;
+  // No footer under the last entry: the body keeps clear of a notched phone's home indicator.
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.nav-sheet__section + .nav-sheet__section {
+  margin-top: 0.5rem;
+}
+
+.nav-sheet__title {
+  margin: 0;
+  padding-block: 0.5rem 0.25rem;
+}
+
+.nav-sheet__list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+// The row's tint runs to the sheet's edges; the icon stays on the titles' line.
+.nav-sheet__link {
+  display: flex;
+  gap: 0.875rem;
+  align-items: center;
+  min-height: 3rem;
+  padding: 0.5rem 1rem;
+  margin-inline: calc(-1 * var(--cui-offcanvas-padding-x));
+  font-weight: 500;
+  color: var(--cui-body-color);
+  text-decoration: none;
+
+  .mb-icon {
+    flex: 0 0 auto;
+    color: var(--cui-secondary-color);
+  }
+
+  // A tap leaves `:hover` on whatever ends up under the finger, and the sheet rises right under
+  // the one that tapped «Más»: the hover tint only where there is a pointer to hover with.
+  &:active {
+    color: var(--cui-body-color);
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  @media (hover: hover) {
+    &:hover {
+      color: var(--cui-body-color);
+      background-color: rgba(var(--cui-primary-rgb), 0.06);
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: -2px;
+  }
+
+  &.active {
+    font-weight: 600;
+    background-color: var(--cui-primary-bg-subtle);
+    box-shadow: inset 3px 0 0 var(--brand-coral);
+
+    .mb-icon {
+      color: var(--cui-primary-text-emphasis);
+    }
+  }
+}
+
+.nav-sheet__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// What a hub holds, its tabs by name: the sheet opens no second level to show them.
+.nav-sheet__tabs {
+  font-size: var(--mb-text-sm);
+  font-weight: 400;
+  color: var(--cui-secondary-color);
+
+  .active & {
+    color: var(--cui-primary-text-emphasis);
+  }
+}

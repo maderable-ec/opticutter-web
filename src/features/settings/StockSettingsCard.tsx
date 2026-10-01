@@ -1,27 +1,13 @@
 import { useState } from 'react'
 import type { ChangeEvent } from 'react'
-import {
-  CAlert,
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CFormInput,
-  CFormLabel,
-  CInputGroup,
-  CInputGroupText,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCheckAlt, cilSave } from '@coreui/icons'
+import { CCol, CFormInput, CFormLabel, CInputGroup, CInputGroupText, CRow } from '@coreui/react'
 
 import FieldError from 'src/shared/components/FieldError'
 import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useStockSettings, useUpdateStockSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { StockSettings } from './types'
+import SettingsSection from './SettingsSection'
 
 // Two fields and not one, because the units are not the same: a board is
 // counted in whole sheets and a tapacanto in linear metres. The unit rides
@@ -96,98 +82,53 @@ const StockSettingsCard = () => {
   const genericError = hasGenericError(update.error, serverErrors)
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <strong>Stock mínimo</strong>
-        <div className="d-flex gap-2">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleDiscard}
-          >
-            Descartar
-          </CButton>
-          <CButton
-            color="primary"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleSave}
-          >
-            {update.isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={savedFlash ? cilCheckAlt : cilSave} className="me-1" />
-            )}
-            {savedFlash ? 'Guardado' : 'Guardar'}
-          </CButton>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {isLoading || inputs === null ? (
-          <div className="text-center py-5">
-            {isError ? (
-              <div className="text-body-secondary">
-                No se pudo cargar la configuración de stock.{' '}
-                <CButton size="sm" color="link" onClick={() => void refetch()}>
-                  Reintentar
-                </CButton>
-              </div>
-            ) : (
-              <CSpinner color="primary" />
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-body-secondary small mb-3">
-              Debajo de estos mínimos un producto se considera <strong>con stock bajo</strong>: se
-              avisa al cotizar y aparece en el reporte de Analítica. El stock se consulta por
-              sucursal en el sistema de inventario, así que una sucursal sin bodega configurada no
-              genera alertas.
-            </p>
-
-            {savedFlash && (
-              <CAlert color="success" className="py-2">
-                Configuración de stock guardada correctamente.
-              </CAlert>
-            )}
-            {genericError && (
-              <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
-              </CAlert>
-            )}
-
-            <CRow className="g-3">
-              {FIELDS.map(({ key, label, unit, hint }) => (
-                <CCol xs={12} md={4} key={key}>
-                  <CFormLabel htmlFor={`stock-${key}`}>{label}</CFormLabel>
-                  <CInputGroup>
-                    <CFormInput
-                      id={`stock-${key}`}
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={inputs[key]}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
-                        setInputs({ ...inputs, [key]: e.target.value })
-                        setClientErrors({ ...clientErrors, [key]: '' })
-                      }}
-                      invalid={!!fieldErrors[key]}
-                    />
-                    <CInputGroupText>{unit}</CInputGroupText>
-                  </CInputGroup>
-                  <FieldError name={key} errors={fieldErrors} />
-                  <div className="form-text">{hint}</div>
-                </CCol>
-              ))}
-            </CRow>
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+    <SettingsSection
+      title="Stock mínimo"
+      description={
+        <>
+          Debajo de estos mínimos un producto se considera <strong>con stock bajo</strong>: se avisa
+          al cotizar y aparece en el reporte de stock bajo. El stock se consulta por sucursal en el
+          sistema de inventario, así que una sucursal sin bodega configurada no genera alertas.
+        </>
+      }
+      ready={!isLoading && inputs !== null}
+      isError={isError}
+      onRetry={() => void refetch()}
+      dirty={isDirty}
+      saving={update.isPending}
+      saved={savedFlash}
+      savedMessage="Configuración de stock guardada correctamente."
+      error={genericError ? update.error?.message || 'Error al guardar. Intenta nuevamente.' : null}
+      onSave={handleSave}
+      onDiscard={handleDiscard}
+    >
+      {inputs && (
+        <CRow className="g-3">
+          {FIELDS.map(({ key, label, unit, hint }) => (
+            <CCol xs={12} md={4} key={key}>
+              <CFormLabel htmlFor={`stock-${key}`}>{label}</CFormLabel>
+              <CInputGroup>
+                <CFormInput
+                  id={`stock-${key}`}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={inputs[key]}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setInputs({ ...inputs, [key]: e.target.value })
+                    setClientErrors({ ...clientErrors, [key]: '' })
+                  }}
+                  invalid={!!fieldErrors[key]}
+                />
+                <CInputGroupText>{unit}</CInputGroupText>
+              </CInputGroup>
+              <FieldError name={key} errors={fieldErrors} />
+              <div className="form-text">{hint}</div>
+            </CCol>
+          ))}
+        </CRow>
+      )}
+    </SettingsSection>
   )
 }
 

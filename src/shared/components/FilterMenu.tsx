@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { CBadge, CDropdown, CDropdownMenu, CDropdownToggle } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilFilter } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 interface FilterMenuProps {
   // Total count across every field inside, shown as a badge on the toggle —
@@ -24,7 +23,7 @@ const FilterMenu = ({ activeCount, onClear, children }: FilterMenuProps) => (
       variant="outline"
       className="d-flex align-items-center gap-2"
     >
-      <CIcon icon={cilFilter} />
+      <Icon name="filter" />
       Filtros
       {activeCount > 0 && (
         <CBadge color="primary" shape="rounded-pill">

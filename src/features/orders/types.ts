@@ -6,6 +6,7 @@ import type {
   PlacedPieceEdges,
   Remainder,
 } from 'src/features/optimizer/types'
+import type { IconName } from 'src/shared/icons/registry'
 
 export type OrderStatus =
   | 'confirmed'
@@ -348,7 +349,7 @@ export interface CardAction {
   color: 'primary' | 'success'
   // Optional: the derivation lives in `activities.ts`, which is icon-free on purpose. The card
   // picks a default per `kind` when this is absent.
-  icon?: string[]
+  icon?: IconName
   disabled?: boolean
   title?: string
   /**

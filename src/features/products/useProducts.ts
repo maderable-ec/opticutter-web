@@ -13,6 +13,7 @@ export const useProducts = hooks.useList
 export const useCreateProduct = hooks.useCreate
 export const useUpdateProduct = hooks.useUpdate
 export const useDeleteProduct = hooks.useDelete
+export const useProductsTotal = hooks.useTotal
 
 // The dry run behind the sync modal: the server runs the whole pass against the
 // external inventory and rolls back, so the operator approves the deletions

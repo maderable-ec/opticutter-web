@@ -1,0 +1,40 @@
+// Every `<Icon>` (Lucide and the trade's own glyphs). Its own class rather than CoreUI's `.icon`,
+// whose `fill: currentcolor` would fill a stroke icon solid.
+//
+// The sizes sit in `:where()`, at zero specificity, so any class that sizes an icon in its place
+// wins without a fight: the pill's `1em`, the menu's 1.25rem, the bottom bar's disc.
+// The stroke never follows the size: `nonScalingStroke` keeps it at 1.75px (`Icon.tsx`).
+
+:where(.mb-icon) {
+  display: inline-block;
+  flex-shrink: 0;
+  // Sits on the text's baseline like CoreUI's icons did, so a button keeps its height.
+  vertical-align: -0.125rem;
+}
+
+:where(.mb-icon--sm) {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+:where(.mb-icon--md) {
+  width: 1rem;
+  height: 1rem;
+}
+
+:where(.mb-icon--lg) {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+:where(.mb-icon--xl) {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+// The logo and the isotype: drawings with their own fills, sized by their `height`.
+.brand-mark {
+  display: inline-block;
+  vertical-align: -0.125rem;
+  fill: currentcolor;
+}

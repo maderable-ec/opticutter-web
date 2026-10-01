@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import CIcon from '@coreui/icons-react'
+import BrandMark from 'src/shared/icons/BrandMark'
 
-import { logo } from 'src/assets/brand/logo'
 import { accentFor } from './groupColors'
 
 // Cover for the results pane while /optimize runs. A real shop job (200-350 pieces, several
@@ -67,7 +66,7 @@ const OptimizingOverlay = () => {
           ))}
           <rect className="optimizing-saw" x="0" y="0" width="2" height="120" />
         </svg>
-        <CIcon customClassName="optimizing-logo" icon={logo} height={24} />
+        <BrandMark mark="logo" height={24} className="optimizing-logo" />
         <div className="optimizing-stage">{stageText(elapsed)}</div>
         <div className="optimizing-elapsed">{elapsed} s</div>
       </div>

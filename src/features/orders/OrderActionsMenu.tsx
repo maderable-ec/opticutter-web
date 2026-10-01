@@ -6,16 +6,8 @@ import {
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
-import {
-  cilBolt,
-  cilBuilding,
-  cilCloudDownload,
-  cilExternalLink,
-  cilFile,
-  cilOptions,
-} from '@coreui/icons'
 
-import CIcon from '@coreui/icons-react'
+import Icon from 'src/shared/icons/Icon'
 import type { PiecesExportFormat } from './types'
 
 // The order's paperwork and its administrative moves, in one ⋮ — the same grammar as the
@@ -67,7 +59,7 @@ const OrderActionsMenu = ({
   return (
     <CDropdown alignment="end" portal>
       <CDropdownToggle color="secondary" variant="outline" caret={false} title="Acciones">
-        <CIcon icon={cilOptions} />
+        <Icon name="overflow" />
       </CDropdownToggle>
       <CDropdownMenu style={{ minWidth: 260 }}>
         {hasDocs && (
@@ -80,7 +72,7 @@ const OrderActionsMenu = ({
                 className="d-flex align-items-center"
                 onClick={onOrderPdf}
               >
-                <CIcon icon={cilExternalLink} className="me-2" />
+                <Icon name="external" className="me-2" />
                 Orden de pedido PDF
               </CDropdownItem>
             )}
@@ -93,7 +85,7 @@ const OrderActionsMenu = ({
                   className="d-flex align-items-center"
                   onClick={() => onExportPieces(format)}
                 >
-                  <CIcon icon={cilCloudDownload} className="me-2" />
+                  <Icon name="download" className="me-2" />
                   {label}
                 </CDropdownItem>
               ))}
@@ -112,7 +104,7 @@ const OrderActionsMenu = ({
                 className="d-flex align-items-center"
                 onClick={onInvoice}
               >
-                <CIcon icon={cilFile} className="me-2" />
+                <Icon name="invoice" className="me-2" />
                 Asociar factura…
               </CDropdownItem>
             )}
@@ -123,7 +115,7 @@ const OrderActionsMenu = ({
                 className="d-flex align-items-center"
                 onClick={onChangeBranch}
               >
-                <CIcon icon={cilBuilding} className="me-2" />
+                <Icon name="branches" className="me-2" />
                 Cambiar sucursal…
               </CDropdownItem>
             )}
@@ -134,7 +126,7 @@ const OrderActionsMenu = ({
                 className="d-flex align-items-center"
                 onClick={onTogglePriority}
               >
-                <CIcon icon={cilBolt} className="me-2" />
+                <Icon name="priority" className="me-2" />
                 {isPriority ? 'Quitar prioridad…' : 'Marcar como prioritaria…'}
               </CDropdownItem>
             )}

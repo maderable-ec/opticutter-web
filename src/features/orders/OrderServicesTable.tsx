@@ -9,7 +9,7 @@ import {
 } from '@coreui/react'
 
 import { fmtMoney } from 'src/shared/utils/format'
-import LineItemList from './LineItemList'
+import LineItemList from 'src/shared/components/LineItemList'
 import type { AdditionalServiceInput } from 'src/features/optimizer/types'
 
 // What the order bills BESIDES the material: perforación, armado, bisagras — the work the

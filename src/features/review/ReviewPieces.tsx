@@ -12,8 +12,7 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilChevronBottom, cilChevronRight } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import CantoPreview from 'src/shared/components/CantoPreview'
 import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
@@ -135,7 +134,7 @@ const ReviewPieces = ({ pieces }: ReviewPiecesProps) => {
                 </span>
                 <span className="d-flex align-items-center gap-2 text-body-secondary small text-nowrap">
                   {group.units} {group.units === 1 ? 'pieza' : 'piezas'}
-                  <CIcon icon={open ? cilChevronBottom : cilChevronRight} size="sm" />
+                  <Icon name={open ? 'chevronDown' : 'chevronRight'} size="sm" />
                 </span>
               </CButton>
             </CCardHeader>

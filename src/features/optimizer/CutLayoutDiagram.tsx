@@ -1,18 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import {
-  CBadge,
-  CButton,
-  CCol,
-  CModal,
-  CModalBody,
-  CModalFooter,
-  CModalHeader,
-  CModalTitle,
-  CRow,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilFullscreen, cilMove } from '@coreui/icons'
+import { CBadge, CButton, CCol, CModalBody, CModalHeader, CRow } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { track } from 'src/shared/analytics'
 import SheetSvg from 'src/shared/components/SheetSvg'
@@ -21,7 +10,11 @@ import { fmtMoney } from 'src/features/review/format'
 import type { EditorFocus } from './layoutEditor/useLayoutEditor'
 import type { AdjustmentSummary, LayoutGroup, MaterialSummary, ModalContainer } from './types'
 import { usePieceColors } from './pieceColors'
-import { SheetInspector, useArrowPaging, useSheetHover } from './sheetDetail'
+import { SheetInspector, useSheetHover } from './sheetDetail'
+import Pager from 'src/shared/components/Pager'
+import { usePaging } from 'src/shared/hooks/usePaging'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import { fmtPercent } from 'src/shared/utils/format'
 
 // One summary line + a fullscreen sheet viewer behind it, for the pre-order detail page (through
 // `OptimizationPreview`). The wizard shows the same viewer as a step of its own (`LayoutStep`), built
@@ -95,12 +88,14 @@ export const PlanFacts = ({ layoutGroups, extra, adjustment }: PlanFactsProps) =
       {extra}
       {/* The one number worth a colour: below 80% the plan is worth a second look. Last, after every
           plain measurement: it is the verdict on the list, not another item in it. */}
-      <CBadge color={totals.efficiency >= 80 ? 'success' : 'warning'}>
-        {totals.efficiency.toFixed(1)}% aprovechamiento
+      <CBadge
+        className={`status-pill status-pill--${totals.efficiency >= 80 ? 'success' : 'progress'}`}
+      >
+        {fmtPercent(totals.efficiency)} aprovechamiento
       </CBadge>
       {/* A plan the seller rearranged says so, and what it changed, where the plan is summed up. */}
       {adjustment && (
-        <CBadge color="info" title={adjusted || undefined}>
+        <CBadge className="status-pill status-pill--info" title={adjusted || undefined}>
           Ajustado a mano
           {adjusted ? ` · ${adjusted}` : ''}
         </CBadge>
@@ -186,19 +181,15 @@ const SheetDetailModal = ({
   const group = index == null ? null : (groups[index] ?? null)
   const { hoverPiece, hoverSig, setHoverSig, inspect, leave } = useSheetHover(group)
 
-  const hasPrev = index != null && index > 0
-  const hasNext = index != null && index < groups.length - 1
-  const go = (delta: number) => {
-    if (index != null) onIndexChange(index + delta)
-  }
-
-  useArrowPaging({ index, count: groups.length, onChange: onIndexChange })
+  // Paging between patterns without closing: checking one sheet against the next is the whole
+  // point of the expanded view, and reopening from the grid each time loses the comparison.
+  usePaging({ index, count: groups.length, onChange: onIndexChange })
 
   const layout = group?.layout
   const materialName = group ? materialNameFor(group.materialKey) : ''
 
   return (
-    <CModal
+    <Modal
       visible={index != null}
       onClose={onClose}
       // Fullscreen, not a centered `xl`: this is now the only way to see the plan, and the page it
@@ -207,28 +198,40 @@ const SheetDetailModal = ({
       scrollable
       container={container}
     >
-      <CModalHeader className="d-flex align-items-center gap-2">
-        {/* The title grows to fill the bar so the button sits beside the close cross: Bootstrap's
-            `.btn-close` already carries `margin-left: auto`, and a second auto margin would park
-            the button in the middle of the header. */}
-        <CModalTitle className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
+      <CModalHeader className="viewer-header">
+        <ModalTitle className="d-flex align-items-center gap-2 flex-wrap">
           <span>{group ? patternTitle(group, materialName) : ''}</span>
-          {group?.layout.material.halfBoard && <CBadge color="info">½ medio</CBadge>}
-        </CModalTitle>
-        {onAdjust && group && (
-          // The wrapper carries the tooltip: a disabled button fires no pointer events.
-          <span title={adjustDisabledReason}>
-            <CButton
-              size="sm"
-              color="primary"
-              variant="outline"
-              disabled={!!adjustDisabledReason}
-              onClick={() => onAdjust(editorFocusOf(group))}
-            >
-              <CIcon icon={cilMove} className="me-1" />
-              Ajustar distribución
-            </CButton>
-          </span>
+          {group?.layout.material.halfBoard && (
+            <CBadge className="status-pill status-pill--info">½ medio</CBadge>
+          )}
+        </ModalTitle>
+        {group && (onAdjust || groups.length > 1) && (
+          <div className="viewer-header__tools">
+            {onAdjust && (
+              // The wrapper carries the tooltip: a disabled button fires no pointer events.
+              <span title={adjustDisabledReason}>
+                <CButton
+                  size="sm"
+                  color="primary"
+                  variant="outline"
+                  disabled={!!adjustDisabledReason}
+                  onClick={() => onAdjust(editorFocusOf(group))}
+                >
+                  <Icon name="adjustLayout" className="me-1" />
+                  Ajustar distribución
+                </CButton>
+              </span>
+            )}
+            {groups.length > 1 && index != null && (
+              <Pager
+                index={index}
+                count={groups.length}
+                onChange={onIndexChange}
+                noun="Hoja"
+                className="ms-auto"
+              />
+            )}
+          </div>
         )}
       </CModalHeader>
       <CModalBody style={{ scrollbarGutter: 'stable' }}>
@@ -255,10 +258,11 @@ const SheetDetailModal = ({
                 // hover at all.
                 onPieceTap={inspect}
                 // The column is sticky, so anything taller than the modal's scrollport can never be
-                // scrolled into view: its bottom edge stays clipped right where the pager sits.
-                // Reserve is the modal chrome around the body — header, footer, padding. No upper
-                // cap now that the dialog is fullscreen: the sheet is what the screen is for.
-                maxHeight="calc(100dvh - 12rem)"
+                // scrolled into view: its bottom edge would stay clipped. Reserve is the modal
+                // chrome around the body — the header (two rows on a phone, with the pager) and the
+                // padding. No upper cap now that the dialog is fullscreen: the sheet is what the
+                // screen is for.
+                maxHeight="calc(100dvh - 9rem)"
                 showDimensions
                 enableZoom
               />
@@ -275,34 +279,7 @@ const SheetDetailModal = ({
           </CRow>
         )}
       </CModalBody>
-      {groups.length > 1 && (
-        // Paging between patterns without closing: checking one sheet against the next is the whole
-        // point of the expanded view, and reopening from the grid each time loses the comparison.
-        <CModalFooter className="justify-content-between">
-          <CButton
-            color="secondary"
-            variant="outline"
-            disabled={!hasPrev}
-            onClick={() => go(-1)}
-            aria-label="Hoja anterior"
-          >
-            ‹ Anterior
-          </CButton>
-          <span className="text-body-secondary small text-nowrap">
-            {(index ?? 0) + 1} / {groups.length}
-          </span>
-          <CButton
-            color="secondary"
-            variant="outline"
-            disabled={!hasNext}
-            onClick={() => go(1)}
-            aria-label="Hoja siguiente"
-          >
-            Siguiente ›
-          </CButton>
-        </CModalFooter>
-      )}
-    </CModal>
+    </Modal>
   )
 }
 
@@ -388,9 +365,7 @@ const CutLayoutDiagram = ({
           each piece with its own measurement already. Hovering a piece inside the viewer still dims
           the rest, which is what the key was actually used for. */}
       <div className="d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3">
-        <span className="small text-body-secondary text-uppercase fw-semibold">
-          Diagrama de cortes
-        </span>
+        <span className="eyebrow">Diagrama de cortes</span>
         <PlanFacts layoutGroups={layoutGroups} extra={extra} adjustment={adjustment} />
         <CButton
           size="sm"
@@ -399,7 +374,7 @@ const CutLayoutDiagram = ({
           className="ms-auto"
           onClick={openViewer}
         >
-          <CIcon icon={cilFullscreen} className="me-1" />
+          <Icon name="fullscreen" className="me-1" />
           Ver diagrama
         </CButton>
       </div>

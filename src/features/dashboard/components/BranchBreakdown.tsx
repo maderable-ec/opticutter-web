@@ -1,95 +1,61 @@
-import { CCard, CCardBody, CCardHeader, CSpinner } from '@coreui/react'
-import { CChartBar } from '@coreui/react-chartjs'
-import { getStyle } from '@coreui/utils'
-import { useBranchBreakdown } from '../useAnalytics'
+import EmptyState from 'src/shared/components/EmptyState'
+import LoadingBlock from 'src/shared/components/LoadingBlock'
+import { ErrorState } from 'src/shared/components/QueryState'
 import { fmtMoney } from 'src/shared/utils/format'
+import { useBranchBreakdown } from '../useAnalytics'
+import { fmtInt } from '../format'
+import BarList from './BarList'
+import ReportSection from './ReportSection'
 
 interface BranchBreakdownProps {
   from: string
   to: string
+  // The branch the rest of the page is filtered to: marked here, since this block shows them all.
   branchId?: number
+  className?: string
 }
 
-const BranchBreakdown = ({ from, to, branchId }: BranchBreakdownProps) => {
-  const { data, isLoading, error } = useBranchBreakdown(from, to, branchId)
-
-  const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="text-center py-5">
-          <CSpinner color="primary" />
-        </div>
-      )
-    }
-
-    if (error) {
-      return (
-        <div className="text-danger small py-3">Error cargando comparativo: {error.message}</div>
-      )
-    }
-
-    const items = data?.items ?? []
-    const allZero = items.every((i) => i.orderCount === 0)
-
-    if (items.length === 0 || allZero) {
-      return (
-        <div className="text-body-secondary text-center py-5 small">
-          Sin órdenes en el período seleccionado
-        </div>
-      )
-    }
-
-    return (
-      <CChartBar
-        style={{ height: '280px' }}
-        data={{
-          labels: items.map((i) => i.label),
-          datasets: [
-            {
-              label: 'Órdenes',
-              data: items.map((i) => i.orderCount),
-              backgroundColor: `rgba(${getStyle('--cui-info-rgb')}, 0.7)`,
-              borderRadius: 4,
-            },
-          ],
-        }}
-        options={{
-          indexAxis: 'y',
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                afterLabel: (ctx) => {
-                  const revenue = items[ctx.dataIndex]?.revenue ?? 0
-                  return revenue > 0 ? `Ingresos: ${fmtMoney(revenue)}` : ''
-                },
-              },
-            },
-          },
-          scales: {
-            x: {
-              beginAtZero: true,
-              grid: { color: getStyle('--cui-border-color-translucent') },
-              ticks: { color: getStyle('--cui-body-color'), precision: 0 },
-            },
-            y: {
-              grid: { display: false },
-              ticks: { color: getStyle('--cui-body-color') },
-            },
-          },
-        }}
-      />
-    )
-  }
+// The branches side by side. Always all of them — a comparison of one is not a comparison — so
+// with a branch picked above, this is the one block the filter does not narrow, and it says so.
+const BranchBreakdown = ({ from, to, branchId, className }: BranchBreakdownProps) => {
+  const { data, isLoading, isError, isPlaceholderData, refetch } = useBranchBreakdown(from, to)
+  const items = data?.items ?? []
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="small fw-semibold text-body-secondary">
-        Comparativo por sucursal
-      </CCardHeader>
-      <CCardBody>{renderContent()}</CCardBody>
-    </CCard>
+    <ReportSection
+      title="Por sucursal"
+      caption={
+        branchId
+          ? 'Todas las sucursales, para comparar con la elegida.'
+          : 'Órdenes creadas en el período en cada sucursal.'
+      }
+      className={className}
+      refreshing={isPlaceholderData}
+    >
+      {isLoading ? (
+        <LoadingBlock rows={3} label="Cargando sucursales…" />
+      ) : isError ? (
+        <ErrorState onRetry={() => void refetch()} />
+      ) : items.every((i) => i.orderCount === 0) ? (
+        <EmptyState title="Sin órdenes en el período" />
+      ) : (
+        <BarList
+          label="Órdenes por sucursal"
+          items={items.map((item) => ({
+            id: item.key,
+            label: item.label,
+            value: item.orderCount,
+            current: branchId !== undefined && item.key === String(branchId),
+            figure: (
+              <>
+                <strong>{fmtInt(item.orderCount)}</strong>{' '}
+                <span className="text-body-secondary">· {fmtMoney(item.revenue)}</span>
+              </>
+            ),
+          }))}
+        />
+      )}
+    </ReportSection>
   )
 }
 

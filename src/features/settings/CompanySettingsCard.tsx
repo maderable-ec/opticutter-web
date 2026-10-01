@@ -1,25 +1,14 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import {
-  CAlert,
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CFormInput,
-  CFormLabel,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilArrowBottom, cilArrowTop, cilCheckAlt, cilPlus, cilSave, cilTrash } from '@coreui/icons'
+import { CButton, CCol, CFormInput, CFormLabel, CRow } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import FieldError from 'src/shared/components/FieldError'
 import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useCompanySettings, useUpdateCompanySettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { Branch, CompanyPayload, CompanySettings } from './types'
+import SettingsSection from './SettingsSection'
 
 const TEXT_FIELDS = [
   { key: 'name', label: 'Nombre', max: 128, type: 'text', placeholder: 'Razón social', col: 6 },
@@ -81,6 +70,7 @@ const CompanySettingsCard = () => {
   const { data, isLoading, isError, refetch } = useCompanySettings()
   const update = useUpdateCompanySettings()
   const [savedFlash, flashSaved] = useSavedFlash()
+  const idPrefix = useId()
 
   const [form, setForm] = useState<FormState | null>(null)
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
@@ -206,172 +196,136 @@ const CompanySettingsCard = () => {
   const genericError = hasGenericError(update.error, serverErrors)
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <strong>Datos de la empresa</strong>
-        <div className="d-flex gap-2">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleDiscard}
-          >
-            Descartar
-          </CButton>
-          <CButton
-            color="primary"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleSave}
-          >
-            {update.isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={savedFlash ? cilCheckAlt : cilSave} className="me-1" />
-            )}
-            {savedFlash ? 'Guardado' : 'Guardar'}
-          </CButton>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {isLoading || !form ? (
-          <div className="text-center py-5">
-            {isError ? (
-              <div className="text-body-secondary">
-                No se pudieron cargar los datos.{' '}
-                <CButton size="sm" color="link" onClick={() => void refetch()}>
-                  Reintentar
-                </CButton>
-              </div>
-            ) : (
-              <CSpinner color="primary" />
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-body-secondary small mb-3">
-              Estos datos forman el membrete de las órdenes de pedido y hojas de producción, y se
-              reflejan en vivo en los PDF de pedidos existentes.
-            </p>
-
-            {savedFlash && (
-              <CAlert color="success" className="py-2">
-                Datos de la empresa guardados correctamente.
-              </CAlert>
-            )}
-            {genericError && (
-              <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
-              </CAlert>
-            )}
-
-            <CRow className="g-3">
-              {TEXT_FIELDS.map(({ key, label, max, type, placeholder, col }) => (
-                <CCol xs={12} md={col} key={key}>
-                  <CFormLabel>{label}</CFormLabel>
-                  <CFormInput
-                    type={type}
-                    value={form[key]}
-                    maxLength={max}
-                    placeholder={placeholder}
-                    onChange={onChangeText(key)}
-                    invalid={!!fieldErrors[key]}
-                  />
-                  <FieldError name={key} errors={fieldErrors} />
-                </CCol>
-              ))}
-            </CRow>
-
-            <hr className="my-3" />
-            <div className="d-flex justify-content-between align-items-center mb-2">
-              <strong>Sucursales</strong>
-              <CButton
-                size="sm"
-                color="secondary"
-                variant="outline"
-                type="button"
-                onClick={addBranch}
-              >
-                <CIcon icon={cilPlus} className="me-1" />
-                Agregar sucursal
-              </CButton>
-            </div>
-
-            {form.branches.length === 0 && (
-              <div className="text-body-secondary small mb-2">No hay sucursales registradas.</div>
-            )}
-
-            {form.branches.map((b, i) => (
-              <div className="border rounded p-2 mb-2" key={b.uid}>
-                <CRow className="g-2 align-items-start">
-                  <CCol xs={12} md={4}>
-                    <CFormLabel className="small mb-1">Nombre</CFormLabel>
-                    <CFormInput
-                      size="sm"
-                      value={b.name}
-                      maxLength={128}
-                      placeholder="Matriz"
-                      onChange={updateBranch(b.uid, 'name')}
-                      invalid={!!fieldErrors[`branches.${i}.name`]}
-                    />
-                    <FieldError name={`branches.${i}.name`} errors={fieldErrors} />
-                  </CCol>
-                  <CCol xs={12} md={6}>
-                    <CFormLabel className="small mb-1">Dirección</CFormLabel>
-                    <CFormInput
-                      size="sm"
-                      value={b.address}
-                      maxLength={256}
-                      placeholder="Av. Siempre Viva 123"
-                      onChange={updateBranch(b.uid, 'address')}
-                      invalid={!!fieldErrors[`branches.${i}.address`]}
-                    />
-                    <FieldError name={`branches.${i}.address`} errors={fieldErrors} />
-                  </CCol>
-                  <CCol xs={12} md={2} className="d-flex gap-1 justify-content-end align-items-end">
-                    <CButton
-                      size="sm"
-                      variant="ghost"
-                      color="secondary"
-                      type="button"
-                      disabled={i === 0}
-                      onClick={() => moveBranch(i, -1)}
-                      title="Subir"
-                    >
-                      <CIcon icon={cilArrowTop} />
-                    </CButton>
-                    <CButton
-                      size="sm"
-                      variant="ghost"
-                      color="secondary"
-                      type="button"
-                      disabled={i === form.branches.length - 1}
-                      onClick={() => moveBranch(i, 1)}
-                      title="Bajar"
-                    >
-                      <CIcon icon={cilArrowBottom} />
-                    </CButton>
-                    <CButton
-                      size="sm"
-                      variant="ghost"
-                      color="danger"
-                      type="button"
-                      onClick={() => removeBranch(b.uid)}
-                      title="Eliminar sucursal"
-                    >
-                      <CIcon icon={cilTrash} />
-                    </CButton>
-                  </CCol>
-                </CRow>
-              </div>
+    <SettingsSection
+      title="Datos de la empresa"
+      description="Estos datos forman el membrete de las órdenes y de las hojas de producción, y se reflejan en vivo en los PDF de las órdenes existentes."
+      ready={!isLoading && !!form}
+      isError={isError}
+      onRetry={() => void refetch()}
+      dirty={isDirty}
+      saving={update.isPending}
+      saved={savedFlash}
+      savedMessage="Datos de la empresa guardados correctamente."
+      error={genericError ? update.error?.message || 'Error al guardar. Intenta nuevamente.' : null}
+      onSave={handleSave}
+      onDiscard={handleDiscard}
+    >
+      {form && (
+        <>
+          <CRow className="g-3">
+            {TEXT_FIELDS.map(({ key, label, max, type, placeholder, col }) => (
+              <CCol xs={12} md={col} key={key}>
+                <CFormLabel htmlFor={`${idPrefix}-${key}`}>{label}</CFormLabel>
+                <CFormInput
+                  id={`${idPrefix}-${key}`}
+                  type={type}
+                  value={form[key]}
+                  maxLength={max}
+                  placeholder={placeholder}
+                  onChange={onChangeText(key)}
+                  invalid={!!fieldErrors[key]}
+                />
+                <FieldError name={key} errors={fieldErrors} />
+              </CCol>
             ))}
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+          </CRow>
+
+          <hr className="my-3" />
+          <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <h3 className="eyebrow mb-0">Sucursales</h3>
+            <CButton
+              size="sm"
+              color="secondary"
+              variant="outline"
+              type="button"
+              onClick={addBranch}
+            >
+              <Icon name="add" className="me-1" />
+              Agregar sucursal
+            </CButton>
+          </div>
+
+          {form.branches.length === 0 && (
+            <div className="text-body-secondary small mb-2">No hay sucursales registradas.</div>
+          )}
+
+          {form.branches.map((b, i) => (
+            <div className="border rounded p-2 mb-2" key={b.uid}>
+              <CRow className="g-2 align-items-start">
+                <CCol xs={12} md={4}>
+                  <CFormLabel htmlFor={`${idPrefix}-${b.uid}-name`} className="small mb-1">
+                    Nombre
+                  </CFormLabel>
+                  <CFormInput
+                    id={`${idPrefix}-${b.uid}-name`}
+                    size="sm"
+                    value={b.name}
+                    maxLength={128}
+                    placeholder="Matriz"
+                    onChange={updateBranch(b.uid, 'name')}
+                    invalid={!!fieldErrors[`branches.${i}.name`]}
+                  />
+                  <FieldError name={`branches.${i}.name`} errors={fieldErrors} />
+                </CCol>
+                <CCol xs={12} md={6}>
+                  <CFormLabel htmlFor={`${idPrefix}-${b.uid}-address`} className="small mb-1">
+                    Dirección
+                  </CFormLabel>
+                  <CFormInput
+                    id={`${idPrefix}-${b.uid}-address`}
+                    size="sm"
+                    value={b.address}
+                    maxLength={256}
+                    placeholder="Av. Siempre Viva 123"
+                    onChange={updateBranch(b.uid, 'address')}
+                    invalid={!!fieldErrors[`branches.${i}.address`]}
+                  />
+                  <FieldError name={`branches.${i}.address`} errors={fieldErrors} />
+                </CCol>
+                <CCol xs={12} md={2} className="d-flex gap-1 justify-content-end align-items-end">
+                  {/* Named by position, not by the branch's name: it may still be empty. */}
+                  <CButton
+                    size="sm"
+                    variant="ghost"
+                    color="secondary"
+                    type="button"
+                    disabled={i === 0}
+                    onClick={() => moveBranch(i, -1)}
+                    title="Subir"
+                    aria-label={`Subir la sucursal ${i + 1}`}
+                  >
+                    <Icon name="moveUp" />
+                  </CButton>
+                  <CButton
+                    size="sm"
+                    variant="ghost"
+                    color="secondary"
+                    type="button"
+                    disabled={i === form.branches.length - 1}
+                    onClick={() => moveBranch(i, 1)}
+                    title="Bajar"
+                    aria-label={`Bajar la sucursal ${i + 1}`}
+                  >
+                    <Icon name="moveDown" />
+                  </CButton>
+                  <CButton
+                    size="sm"
+                    variant="ghost"
+                    color="danger"
+                    type="button"
+                    onClick={() => removeBranch(b.uid)}
+                    title="Eliminar sucursal"
+                    aria-label={`Eliminar la sucursal ${i + 1}`}
+                  >
+                    <Icon name="delete" />
+                  </CButton>
+                </CCol>
+              </CRow>
+            </div>
+          ))}
+        </>
+      )}
+    </SettingsSection>
   )
 }
 

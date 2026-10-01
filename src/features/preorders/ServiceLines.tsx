@@ -1,6 +1,6 @@
+import { useId } from 'react'
 import { CButton, CFormInput } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilPlus, cilTrash } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SearchableSelect from 'src/shared/components/SearchableSelect'
 import { fmtMoney } from 'src/shared/utils/format'
@@ -39,6 +39,8 @@ const ServiceLines = ({
   onRemove,
   container,
 }: ServiceLinesProps) => {
+  // Ties each label to its input: the line repeats, so the ids carry the line's uid.
+  const uid = useId()
   const activeOptions = catalog
     .filter((s) => s.isActive)
     .map((s) => ({ value: String(s.id), label: s.name, sublabel: fmtMoney(s.price) }))
@@ -77,9 +79,13 @@ const ServiceLines = ({
         <div className="d-flex flex-column gap-2 mb-2">
           {services.map((s) => {
             const lineTotal = (Number(s.unitPrice) || 0) * (Number(s.quantity) || 0)
+            const id = (field: string) => `${uid}-${s.uid}-${field}`
+            // One row from `md`; on a phone a small grid (`.service-line`): the service across the
+            // top beside its trash can, then quantity, price and subtotal side by side. Wrapped as
+            // a flex row it broke wherever the widths ran out, and the trash can landed alone.
             return (
-              <div key={s.uid} className="d-flex flex-wrap align-items-end gap-2">
-                <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+              <div key={s.uid} className="service-line">
+                <div className="service-line__service">
                   <label className="form-label small mb-1">Servicio</label>
                   <SearchableSelect
                     size="sm"
@@ -92,36 +98,46 @@ const ServiceLines = ({
                     container={container}
                   />
                 </div>
-                <div style={{ width: 90 }}>
-                  <label className="form-label small mb-1">Cantidad</label>
+                <div className="service-line__qty">
+                  <label className="form-label small mb-1" htmlFor={id('qty')}>
+                    Cantidad
+                  </label>
                   <CFormInput
+                    id={id('qty')}
                     size="sm"
                     type="number"
+                    inputMode="numeric"
                     min={1}
                     step={1}
                     value={s.quantity}
                     onChange={(e) => onUpdate(s.uid, 'quantity', e.target.value)}
                   />
                 </div>
-                <div style={{ width: 120 }}>
+                <div className="service-line__price">
                   {/* The one price in the system that is typed WITH tax: it comes
                       off a service price list, not from the vendor's inventory.
                       The server converts it to net so the document's single IVA
                       line covers it too. */}
-                  <label className="form-label small mb-1" title="IVA incluido">
+                  <label
+                    className="form-label small mb-1"
+                    htmlFor={id('price')}
+                    title="IVA incluido"
+                  >
                     P. Unit. (c/IVA)
                   </label>
                   <CFormInput
+                    id={id('price')}
                     size="sm"
                     type="number"
+                    inputMode="decimal"
                     min={0}
                     step="0.01"
                     value={s.unitPrice}
                     onChange={(e) => onUpdate(s.uid, 'unitPrice', e.target.value)}
                   />
                 </div>
-                <div style={{ width: 100 }} className="text-end">
-                  <label className="form-label small mb-1 d-block">Subtotal</label>
+                <div className="service-line__total text-end">
+                  <div className="form-label small mb-1">Subtotal</div>
                   <span className="small">{fmtMoney(lineTotal)}</span>
                 </div>
                 <CButton
@@ -129,10 +145,12 @@ const ServiceLines = ({
                   variant="ghost"
                   color="danger"
                   type="button"
+                  className="service-line__remove"
                   title="Eliminar servicio"
+                  aria-label="Eliminar servicio"
                   onClick={() => onRemove(s.uid)}
                 >
-                  <CIcon icon={cilTrash} />
+                  <Icon name="delete" />
                 </CButton>
               </div>
             )
@@ -154,7 +172,7 @@ const ServiceLines = ({
         className="add-slot w-100"
         onClick={onAdd}
       >
-        <CIcon icon={cilPlus} className="me-1" />
+        <Icon name="add" className="me-1" />
         Agregar servicio
       </CButton>
     </div>

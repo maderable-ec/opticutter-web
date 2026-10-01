@@ -1,9 +1,25 @@
-import type { Page } from '@playwright/test'
+import type { Page, Request } from '@playwright/test'
 import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
 import type { OptimizerAutosave } from 'src/features/optimizer/optimizerStorage'
 import type { Product } from 'src/features/products/types'
 import type { MockApi } from './api'
-import { boardProduct, branch, edgeBandingProduct } from './data'
+import {
+  analyticsSummary,
+  analyticsTimeseries,
+  attendanceReport,
+  boardProduct,
+  bottlenecksReport,
+  branch,
+  branchBreakdown,
+  client,
+  edgeBandingProduct,
+  lowStockReport,
+  productivityReport,
+  statusBreakdown,
+  minutesAgo,
+  order,
+  preOrderSummary,
+} from './data'
 
 // The stubs a whole screen needs to load, shared by the specs and the UX captures.
 
@@ -85,3 +101,94 @@ export const stubOptimizer = (api: MockApi) =>
     .get(`/products/${BOARD.id}/edge-bandings`, [TAPE])
     // The Costos step's service picker.
     .list('/additional-services/', [])
+
+const DAY_MS = 24 * 60 * 60_000
+const inDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString()
+
+// What each count on Inicio answers, by the status it asks for. A count is a listing asked for one
+// row, so the number lives in `pagination.total`.
+export const HOME_TOTALS: Record<string, number> = {
+  changes_requested: 2,
+  confirmed: 3,
+  finished: 1,
+  queued: 4,
+  in_process: 2,
+}
+
+const query = (req: Request) => new URL(req.url()).searchParams
+
+// The oldest open quotes, of which two lapse within three days.
+const openQuotes = () => [
+  preOrderSummary({ id: 120, code: 'PRE-000120', expiresAt: inDays(1) }),
+  preOrderSummary({ id: 121, code: 'PRE-000121', status: 'draft', expiresAt: inDays(2.5) }),
+  preOrderSummary({ id: 122, code: 'PRE-000122', expiresAt: inDays(6) }),
+]
+
+const homeOrders = (req: Request) => {
+  const q = query(req)
+  if (q.get('sort') === 'stalest')
+    return [
+      order({ id: '43', code: 'ORD-000043', status: 'queued', queuedAt: minutesAgo(60 * 26) }),
+      order({ statusChangedAt: minutesAgo(60 * 5) }),
+      order({
+        id: '44',
+        code: 'ORD-000044',
+        status: 'queued',
+        queuedAt: minutesAgo(90),
+        client: client(),
+      }),
+    ]
+  // The admin's «Hoy»: two orders born today, one of them with a half board.
+  if (q.get('createdFrom'))
+    return [
+      order({
+        id: '46',
+        code: 'ORD-000046',
+        status: 'confirmed',
+        createdAt: new Date().toISOString(),
+      }),
+      order({
+        id: '47',
+        code: 'ORD-000047',
+        status: 'confirmed',
+        total: 138.2,
+        createdAt: new Date().toISOString(),
+        lines: order().lines.map((l) =>
+          l.linearM == null ? { ...l, quantity: 2, halfBoard: true } : l,
+        ),
+      }),
+    ]
+  return [order()]
+}
+
+/** Inicio: the office's counts, and with `admin` the day's figures and the stock report too. */
+export const stubHome = (api: MockApi, { admin = false } = {}) => {
+  api.list('/branches/', [branch(), branch({ id: 2, code: 'NTE', name: 'Norte' })])
+  api.list(
+    '/preorders/',
+    (req) => (query(req).getAll('status').length > 1 ? openQuotes() : [preOrderSummary()]),
+    (req) => {
+      const statuses = query(req).getAll('status')
+      return statuses.length === 1 ? (HOME_TOTALS[statuses[0] ?? ''] ?? 0) : openQuotes().length
+    },
+  )
+  api.list('/orders/', homeOrders, (req) => {
+    const statuses = query(req).getAll('status')
+    return query(req).get('limit') === '1'
+      ? (HOME_TOTALS[statuses[0] ?? ''] ?? 0)
+      : homeOrders(req).length
+  })
+  if (admin) api.get('/analytics/low-stock', lowStockReport())
+}
+
+/** The four reports' endpoints (`/dashboard`, `/analytics/*`), and the branches their filter lists. */
+export const stubReports = (api: MockApi) => {
+  api.list('/branches/', [branch(), branch({ id: 2, code: 'NTE', name: 'Norte' })])
+  api.get('/analytics/summary', analyticsSummary())
+  api.get('/analytics/timeseries', analyticsTimeseries())
+  api.get('/analytics/breakdown/status', statusBreakdown())
+  api.get('/analytics/breakdown/branch', branchBreakdown())
+  api.get('/analytics/bottlenecks', bottlenecksReport())
+  api.get('/analytics/users', productivityReport())
+  api.get('/analytics/attendance', attendanceReport())
+}

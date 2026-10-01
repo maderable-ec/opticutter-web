@@ -1,9 +1,7 @@
-import { Link } from 'react-router-dom'
-import { CBadge } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilBolt } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import { MASK } from 'src/shared/analytics'
+import ListCard from 'src/shared/components/ListCard'
 import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
@@ -21,8 +19,7 @@ import type { Order } from './types'
 // orders fit a screen this way; which activity is late is one tap away on the detail page. Do not
 // put the per-activity clocks back here.
 //
-// A real link rather than a row with an onClick: a long-press on a phone offers "open in a new tab",
-// which is how somebody following several orders keeps the list. Nothing inside it is interactive.
+// A `ListCard` with a link (long-press opens it in a new tab). Nothing inside it is interactive.
 
 interface OrderCardProps {
   order: Order
@@ -33,18 +30,29 @@ const OrderCard = ({ order }: OrderCardProps) => {
   const reference = order.notes?.trim()
 
   return (
-    <Link to={`/orders/${order.id}`} className="order-card">
-      <div className="d-flex flex-wrap align-items-center gap-2">
-        <strong>{order.code ?? '—'}</strong>
-        {order.isPriority && (
-          <CBadge color="warning" title="Atención prioritaria">
-            <CIcon icon={cilBolt} size="sm" />
-          </CBadge>
-        )}
-        <OrderStatusBadge status={order.status} />
-        <strong className="ms-auto text-nowrap">{fmtMoney(order.total)}</strong>
-      </div>
-
+    <ListCard
+      to={`/orders/${order.id}`}
+      title={order.code ?? '—'}
+      badges={
+        <>
+          {order.isPriority && (
+            <span className="badge status-pill status-pill--progress" title="Atención prioritaria">
+              <Icon name="priority" className="status-pill__icon" />
+              <span className="visually-hidden">Prioritaria</span>
+            </span>
+          )}
+          <OrderStatusBadge status={order.status} />
+        </>
+      }
+      amount={fmtMoney(order.total)}
+      meta={
+        <>
+          <ElapsedNote iso={statusClock(order)} status={order.status} />
+          <span>{order.branch.name}</span>
+          <span>{fmtDate(order.createdAt)}</span>
+        </>
+      }
+    >
       {/* Client and reference on one line: the reference is what tells two jobs of the same client
           apart, and it is the part that truncates. */}
       <div className="text-truncate mt-1" {...MASK}>
@@ -59,15 +67,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
           ))}
         </div>
       )}
-
-      {/* The separators are drawn by `.order-card__meta` rather than written here: the elapsed note
-          renders nothing on a closed order and would leave a dangling "·". */}
-      <div className="order-card__meta mt-1">
-        <ElapsedNote iso={statusClock(order)} status={order.status} />
-        <span>{order.branch.name}</span>
-        <span>{fmtDate(order.createdAt)}</span>
-      </div>
-    </Link>
+    </ListCard>
   )
 }
 

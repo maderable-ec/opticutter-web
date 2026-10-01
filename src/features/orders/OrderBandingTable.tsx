@@ -7,8 +7,8 @@ import {
   CTableRow,
 } from '@coreui/react'
 
-import { fmtMoney } from 'src/shared/utils/format'
-import LineItemList from './LineItemList'
+import { fmtMeters, fmtMoney } from 'src/shared/utils/format'
+import LineItemList from 'src/shared/components/LineItemList'
 import type { OrderLine } from './types'
 
 // The edge-banding half of the billing snapshot, billed by the metre. Sibling of
@@ -33,7 +33,7 @@ const OrderBandingTable = ({ lines }: OrderBandingTableProps) => {
         items={lines.map((l) => ({
           key: l.id,
           title: l.productName ?? '—',
-          detail: `${(l.linearM ?? l.quantity).toFixed(2)} m × ${fmtMoney(l.unitPriceSnapshot)}/m`,
+          detail: `${fmtMeters(l.linearM ?? l.quantity)} × ${fmtMoney(l.unitPriceSnapshot)}/m`,
           meta: l.productCode ?? undefined,
           amount: fmtMoney(l.lineTotal),
         }))}
@@ -45,7 +45,9 @@ const OrderBandingTable = ({ lines }: OrderBandingTableProps) => {
               <CTableHeaderCell>Tapacanto</CTableHeaderCell>
               <CTableHeaderCell>Código</CTableHeaderCell>
               <CTableHeaderCell className="text-end">Metros</CTableHeaderCell>
-              <CTableHeaderCell className="text-end">Precio/m</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">
+                Precio/<span className="unit">m</span>
+              </CTableHeaderCell>
               <CTableHeaderCell className="text-end">Total línea</CTableHeaderCell>
             </CTableRow>
           </CTableHead>
@@ -53,9 +55,9 @@ const OrderBandingTable = ({ lines }: OrderBandingTableProps) => {
             {lines.map((l) => (
               <CTableRow key={l.id}>
                 <CTableDataCell>{l.productName ?? '—'}</CTableDataCell>
-                <CTableDataCell>{l.productCode ?? '—'}</CTableDataCell>
+                <CTableDataCell className="text-nowrap">{l.productCode ?? '—'}</CTableDataCell>
                 <CTableDataCell className="text-end">
-                  {(l.linearM ?? l.quantity).toFixed(2)} m
+                  {fmtMeters(l.linearM ?? l.quantity)}
                 </CTableDataCell>
                 <CTableDataCell className="text-end">
                   {fmtMoney(l.unitPriceSnapshot)}

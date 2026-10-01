@@ -71,13 +71,20 @@ export class MockApi {
     return this.add('PATCH', path, (req) => envelope(resolve(data, req)))
   }
 
-  /** A paginated listing: the items plus `meta.pagination`, as `httpClient.list` reads it. */
-  list<T>(path: Matcher, items: Data<T[]>, total?: number) {
+  delete<T>(path: Matcher, data: Data<T>) {
+    return this.add('DELETE', path, (req) => envelope(resolve(data, req)))
+  }
+
+  /**
+   * A paginated listing: the items plus `meta.pagination`, as `httpClient.list` reads it. `total`
+   * can depend on the request, for a screen that counts one listing under several filters.
+   */
+  list<T>(path: Matcher, items: Data<T[]>, total?: Data<number>) {
     return this.add('GET', path, (req) => {
       const rows = resolve(items, req)
       const url = new URL(req.url())
       const pagination: Pagination = {
-        total: total ?? rows.length,
+        total: total === undefined ? rows.length : resolve(total, req),
         offset: Number(url.searchParams.get('offset') ?? 0),
         limit: Number(url.searchParams.get('limit') ?? 20),
       }

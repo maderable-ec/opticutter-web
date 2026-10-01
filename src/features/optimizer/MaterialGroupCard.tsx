@@ -1,16 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent } from 'react'
-import { CBadge, CButton, CFormCheck, CFormInput } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import {
-  cilChevronBottom,
-  cilChevronRight,
-  cilCopy,
-  cilLayers,
-  cilPencil,
-  cilPlus,
-  cilTrash,
-} from '@coreui/icons'
+import { CBadge, CButton, CFormCheck, CFormInput, CInputGroup } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { ModalContainer, PoolFillOrder } from './types'
@@ -30,6 +21,8 @@ import {
 import type { PiecesEditor } from './usePiecesEditor'
 import { useBoardEdgeBandings } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
+import PiecesMobileList from './PiecesMobileList'
+import { bandingLookup } from './pieceFields'
 import { reresolveSpecialEdges } from './specialEdges'
 
 // Short forms for the summary line; the modal spells them out in full.
@@ -72,6 +65,9 @@ interface MaterialGroupCardProps {
   // seller makes while typing the despiece, not stock configuration, so it belongs on the line
   // next to the material instead of two clicks away inside the modal.
   onToggleSkipTrim?: () => void
+  // Opens a piece in the phone's edit sheet (`PieceEditSheet`), by flat index. The phone's list and
+  // its «+» are the only callers; the grid edits in place.
+  onOpenPiece: (flat: number) => void
 }
 
 // Quick-entry format: "720x400", "720x400x4", "720x400x4 Label", "720x400x4 Label 1L2C CS".
@@ -144,6 +140,7 @@ const MaterialGroupCard = ({
   onDuplicate,
   onConfigure,
   onToggleSkipTrim,
+  onOpenPiece,
 }: MaterialGroupCardProps) => {
   const [quickText, setQuickText] = useState('')
   const [quickError, setQuickError] = useState('')
@@ -209,6 +206,11 @@ const MaterialGroupCard = ({
     () => new Map(edgeBandings.map((p) => [String(p.id), p])),
     [edgeBandings],
   )
+  // The coordinated tapes too, for the phone's list: it reads a piece's band type off its tape.
+  const bandingById = useMemo(
+    () => bandingLookup(boardEdgeBandings, edgeBandings),
+    [boardEdgeBandings, edgeBandings],
+  )
   const prevSpecialBoardId = useRef(boardId)
   useEffect(() => {
     if (prevSpecialBoardId.current === boardId || edgeBandings.length === 0) return
@@ -238,8 +240,9 @@ const MaterialGroupCard = ({
     .join(', ')
   const fillOrderLabel = FILL_ORDER_LABELS[m.fillOrder ?? 'auto']
 
-  const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return
+  // Enter in the line, or its «Agregar» button: on a phone the keyboard's Enter key is easy to miss,
+  // and a line whose only way in is a key nobody sees reads as an input that does nothing.
+  const submitQuickEntry = () => {
     if (!quickText.trim()) return
     const parsed = parseQuickEntry(quickText)
     if (!parsed) {
@@ -267,6 +270,12 @@ const MaterialGroupCard = ({
     setQuickError('')
   }
 
+  const handleQuickEntry = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    submitQuickEntry()
+  }
+
   const title = materialLabel(m, boards)
 
   return (
@@ -292,9 +301,11 @@ const MaterialGroupCard = ({
           type="button"
           className="px-1"
           title={collapsed ? 'Expandir piezas' : 'Plegar piezas'}
+          aria-label={collapsed ? 'Expandir piezas' : 'Plegar piezas'}
+          aria-expanded={!collapsed}
           onClick={onToggle}
         >
-          <CIcon icon={collapsed ? cilChevronRight : cilChevronBottom} />
+          <Icon name={collapsed ? 'chevronRight' : 'chevronDown'} />
         </CButton>
 
         {/* ONE door, and it is the material itself: the identity IS the control, so reaching the
@@ -314,13 +325,15 @@ const MaterialGroupCard = ({
               onClick={onConfigure}
             >
               <span className="material-dot" />
-              <span className="fw-semibold text-truncate">{title}</span>
+              {/* Truncated on the pinned line from `md`; on a phone it wraps, because «MELAMINA…»
+                  cut after three letters named nothing (`.material-identity__name`). */}
+              <span className="fw-semibold material-identity__name">{title}</span>
               {allOffcuts.length > 0 && (
                 <span className="small text-body-secondary text-nowrap">
                   · {allOffcuts.length === 1 ? '1 retazo' : `${allOffcuts.length} retazos`}
                 </span>
               )}
-              <CIcon icon={cilPencil} size="sm" className="material-identity__pencil" />
+              <Icon name="edit" size="sm" className="material-identity__pencil" />
             </button>
 
             {/* Sibling of the identity, never inside it: that is a <button>, and a nested input
@@ -339,7 +352,7 @@ const MaterialGroupCard = ({
                   checked={!!m.skipTrim}
                   onChange={onToggleSkipTrim}
                   aria-label="Cortar sin refilar"
-                  label={<span className="small text-nowrap d-none d-md-inline">Sin refilar</span>}
+                  label={<span className="small text-nowrap">Sin refilar</span>}
                 />
               </div>
             )}
@@ -358,13 +371,13 @@ const MaterialGroupCard = ({
               </>
             )}
             <CButton size="sm" color="primary" type="button" onClick={onConfigure}>
-              <CIcon icon={cilLayers} className="d-md-none" />
+              <Icon name="board" className="d-md-none" />
               <span className="d-none d-md-inline">Definir material</span>
             </CButton>
           </>
         )}
 
-        <div className="ms-auto d-flex align-items-center gap-2">
+        <div className="material-group__actions ms-auto d-flex align-items-center gap-2">
           <span className="small text-body-secondary text-nowrap">
             <strong className="text-body">{rows.length}</strong> piezas
           </span>
@@ -393,7 +406,7 @@ const MaterialGroupCard = ({
             title="Duplicar material y sus piezas"
             onClick={() => onDuplicate(m)}
           >
-            <CIcon icon={cilCopy} />
+            <Icon name="copy" />
           </CButton>
           <CButton
             size="sm"
@@ -403,7 +416,7 @@ const MaterialGroupCard = ({
             title="Eliminar material"
             onClick={() => onRequestDelete(m)}
           >
-            <CIcon icon={cilTrash} />
+            <Icon name="delete" />
           </CButton>
         </div>
       </div>
@@ -433,45 +446,91 @@ const MaterialGroupCard = ({
               )}
             </div>
           )}
-          <PieceRowsTable
-            materialUid={m.uid}
-            rows={rows}
-            startIndex={startIndex}
-            materialValid={materialValid}
-            editor={editor}
-            edgeBandings={edgeBandings}
-            boardEdgeBandings={boardEdgeBandings}
-            boardThickness={board?.attributes.thickness}
-            container={container}
-            matches={matches}
-            activeMatch={activeMatch}
-          />
-          <div className="d-flex align-items-center gap-2 mt-2 flex-wrap">
-            {/* Icon-only: the input beside it already says how to add a piece, and Enter on the last
-                row of the table does the same. This is the explicit affordance, not the main path. */}
+          {/* The grid is for typing a despiece, the list for reading one on a phone and correcting it
+              in a sheet. Both are mounted and the breakpoint picks. */}
+          <div className="d-none d-md-block">
+            <PieceRowsTable
+              materialUid={m.uid}
+              rows={rows}
+              startIndex={startIndex}
+              materialValid={materialValid}
+              editor={editor}
+              edgeBandings={edgeBandings}
+              boardEdgeBandings={boardEdgeBandings}
+              boardThickness={board?.attributes.thickness}
+              container={container}
+              matches={matches}
+              activeMatch={activeMatch}
+            />
+          </div>
+          <div className="d-md-none">
+            <PiecesMobileList
+              rows={rows}
+              startIndex={startIndex}
+              materialValid={materialValid}
+              byId={bandingById}
+              matches={matches}
+              activeMatch={activeMatch}
+              onOpen={onOpenPiece}
+            />
+          </div>
+          <div className="quick-entry">
+            {/* Icon-only: the line beside it is the main way in, and Enter on the last row of the
+                grid does the same. On a laptop it adds an empty row and puts the caret in it; on a
+                phone, where there is no row to type in, it opens the new piece in the sheet. */}
             <CButton
               size="sm"
               color="primary"
               variant="outline"
               type="button"
-              title="Agregar pieza"
+              className="d-none d-md-inline-flex"
+              title="Agregar pieza vacía"
+              aria-label="Agregar pieza vacía"
               onClick={() => editor.addTo(m.uid)}
             >
-              <CIcon icon={cilPlus} />
+              <Icon name="add" />
             </CButton>
-            <CFormInput
+            {/* With its word on a phone, and under the line (`.quick-entry` reorders it): there is
+                room for the word, and beside the line it cut the format hint in the placeholder. */}
+            <CButton
               size="sm"
-              value={quickText}
-              onChange={(e) => {
-                setQuickText(e.target.value)
-                setQuickError('')
+              color="primary"
+              variant="ghost"
+              type="button"
+              className="quick-entry__new d-md-none"
+              onClick={() => {
+                // `addTo` appends at the end of this group, which is where the next flat index is.
+                editor.addTo(m.uid)
+                onOpenPiece(startIndex + rows.length)
               }}
-              onKeyDown={handleQuickEntry}
-              placeholder="720×400×4  Etiqueta  1L2C  CS  (Enter para agregar)"
-              invalid={!!quickError}
-              style={{ maxWidth: 380 }}
-            />
-            {quickError && <small className="text-danger">{quickError}</small>}
+            >
+              <Icon name="add" className="me-1" />
+              Nueva pieza
+            </CButton>
+            <CInputGroup size="sm" className="quick-entry__line">
+              <CFormInput
+                value={quickText}
+                onChange={(e) => {
+                  setQuickText(e.target.value)
+                  setQuickError('')
+                }}
+                onKeyDown={handleQuickEntry}
+                enterKeyHint="done"
+                aria-label="Entrada rápida: medidas, cantidad, etiqueta y canto"
+                placeholder="720×400×4 Etiqueta 1L2C CS"
+                invalid={!!quickError}
+              />
+              <CButton
+                color="primary"
+                variant="outline"
+                type="button"
+                title="Agregar la pieza escrita (Enter)"
+                onClick={submitQuickEntry}
+              >
+                Agregar
+              </CButton>
+            </CInputGroup>
+            {quickError && <small className="text-danger w-100">{quickError}</small>}
           </div>
         </div>
       )}

@@ -1,0 +1,376 @@
+// The active page is white on the coral fill, like the buttons (4.77:1 on coral-600). Bootstrap
+// hard-codes that `#fff` without running `color-contrast()`, so it is only right because the fill is
+// the 600 step — the letterhead coral would put it back at 3.58:1.
+.pagination {
+  --cui-pagination-active-border-color: var(--cui-primary);
+}
+
+// A listing on a phone (`ListCard`). A divided list and not boxes: it already sits on a `.surface`,
+// and a bordered card inside a bordered plane is a double frame per row. The coral rule on top is the
+// one `.list-table` draws under its header, so the phone view carries the same cue. The press state
+// is the table's hover alpha — one declaration for both themes.
+.list-cards {
+  border-top: 2px solid var(--brand-coral);
+}
+
+.list-card {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 0.25rem;
+  border: 0;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  background: none;
+  color: inherit;
+  text-align: start;
+  text-decoration: none;
+
+  &:hover,
+  &:active {
+    color: inherit;
+    background-color: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cui-primary);
+    outline-offset: -2px;
+  }
+}
+
+// A row that is read, not opened: no press state to promise a tap.
+.list-card--static {
+  &:hover,
+  &:active {
+    background-color: transparent;
+  }
+}
+
+// A row with a control of its own beside it (`action`): the rule moves from the card to the pair,
+// so it runs under the control too.
+.list-card-row {
+  display: flex;
+  align-items: center;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+
+  > .list-card {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-bottom: 0;
+  }
+}
+
+.list-card__action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+  padding-inline: 0.25rem;
+}
+
+.list-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-card__amount {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+// Short facts · with dots · between them. The dots are drawn here so a missing item (the elapsed
+// note is silent on a closed order) does not leave one dangling at the start of the line.
+.list-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin-top: 0.25rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+
+  > * + *::before {
+    content: '·';
+    margin-inline: 0.4rem;
+    color: var(--cui-secondary-color);
+  }
+}
+
+// A header line of short facts ("Creada … · Confirmada … · En cola …"). Inline with dots from `md`;
+// below it, one fact per line and no dots — wrapped inline, a date broke inside "09:20 a. m." or a
+// dot led the next line. `nowrap` per fact is what keeps each one whole on a wide screen too.
+.fact-line {
+  // `inline-block` as well: JSX renders the facts with no whitespace between them, so with `nowrap`
+  // on each the whole line had nowhere to break and ran off the right edge of a 768px tablet, under
+  // the ⋮. Between two inline blocks the line can wrap.
+  > span {
+    display: inline-block;
+    white-space: nowrap;
+  }
+
+  // The dot is the line's, not the fact's: a due date in red must not paint the separator red.
+  > span + span::before {
+    content: '·';
+    margin-inline: 0.3em;
+    color: var(--cui-secondary-color);
+    font-weight: 400;
+  }
+
+  @media (max-width: 767.98px) {
+    display: flex;
+    flex-direction: column;
+
+    > span {
+      white-space: normal;
+    }
+
+    > span + span::before {
+      content: none;
+    }
+  }
+}
+
+// The billing lines of an order on a phone (`LineItemList`), in place of tables of four to seven
+// columns that scrolled sideways and hid the line total. Same rule on top as `.summary-table`.
+.line-items {
+  border-top: 2px solid var(--brand-coral);
+}
+
+.line-item {
+  padding: 0.5rem 0.25rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+}
+
+// What a line lets you decide (Costos: Nivel, Entero), as labelled switches under its figures.
+.line-item__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.375rem;
+
+  .form-check {
+    margin-bottom: 0;
+  }
+}
+
+// A listing's toolbar (`ListToolbar`): the search grows to 360px next to the filters and the
+// actions. On a phone the search shares the first row with «Filtros» — it grows, the button keeps
+// its size — and the actions wrap under them. With the search on a row of its own, the toolbar took
+// three rows of the screen before the first record.
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  > :first-child {
+    flex: 1 1 14rem;
+    min-width: 0;
+    max-width: 22.5rem;
+  }
+
+  // A label broken over two lines inside a button reads as two buttons.
+  .btn {
+    white-space: nowrap;
+  }
+
+  @media (max-width: 767.98px) {
+    > :first-child {
+      flex-basis: 10rem;
+      max-width: none;
+    }
+  }
+}
+
+// A listing row's code as the link to its record (`RecordLink`): the row's own ink and weight, so
+// the table reads as before, with the underline only where a link is expected to show one. On one
+// line: at 768 px «ORD-000043» broke at its hyphen, and half a code reads as another code.
+.record-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    color: inherit;
+    text-decoration: underline;
+  }
+}
+
+// A billed service line (`ServiceLines`): one row from `md`; on a phone the service across the top
+// beside its trash can, and quantity, price and subtotal side by side under it.
+.service-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+
+  &__service {
+    flex: 1 1 220px;
+    min-width: 220px;
+  }
+
+  &__qty {
+    width: 90px;
+  }
+
+  &__price {
+    width: 120px;
+  }
+
+  &__total {
+    width: 100px;
+  }
+
+  @media (max-width: 767.98px) {
+    display: grid;
+    grid-template-areas:
+      'service service remove'
+      'qty price total';
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    padding-bottom: 0.75rem;
+    border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+
+    &__service {
+      grid-area: service;
+      min-width: 0;
+    }
+
+    &__qty {
+      grid-area: qty;
+      width: auto;
+    }
+
+    &__price {
+      grid-area: price;
+      width: auto;
+    }
+
+    &__total {
+      grid-area: total;
+      width: auto;
+      min-width: 5rem;
+    }
+
+    &__remove {
+      grid-area: remove;
+      align-self: end;
+    }
+  }
+}
+
+// A cut list read on a phone (`CutListCards`): a card per piece under its material. Divided rows
+// like `.list-card`, under the same coral rule the tables draw — it sits on a surface already.
+.cut-list__group + .cut-list__group {
+  margin-top: 1rem;
+}
+
+.cut-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  padding: 0.375rem 0.25rem;
+  border-radius: var(--cui-border-radius-sm);
+  background-color: var(--mb-tone-neutral-bg);
+  overflow-wrap: anywhere;
+}
+
+.cut-list__pieces {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cut-piece {
+  padding: 0.625rem 0.25rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  font-size: var(--mb-text-base);
+}
+
+.cut-piece__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.cut-piece__label {
+  overflow-wrap: anywhere;
+}
+
+// The quantity is what the shop counts off: on the right, like a listing's amount.
+.cut-piece__qty {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.cut-piece__edges {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: var(--mb-text-md);
+  overflow-wrap: anywhere;
+
+  > svg {
+    margin-top: 0.125rem;
+  }
+}
+
+.cut-piece__codes {
+  margin-top: 0.25rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+}
+
+// A status history on a phone (`StatusHistoryTable`): one entry per move, newest where the table
+// puts it, the note in full under its line.
+.history-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-entry {
+  padding: 0.625rem 0.25rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  font-size: var(--mb-text-md);
+}
+
+.history-entry__move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.history-entry__meta {
+  margin-top: 0.25rem;
+  color: var(--cui-secondary-color);
+}
+
+.history-entry__note {
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+// The quote's surface on a phone: «Resumen» opens on the result — the total, the boards — and the
+// services (an edit rather than a reading, under a rule) and the stock notice (a heads-up that
+// never blocks) come after the totals. From `md` the surface is the document it always was.
+@media (max-width: 767.98px) {
+  .quote-surface {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .quote-surface__stock {
+    order: 2;
+  }
+
+  .quote-surface__services {
+    order: 1;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  }
+}

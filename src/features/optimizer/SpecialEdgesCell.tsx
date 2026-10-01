@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { CFormInput } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilX } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import type { EdgeBandingProduct } from 'src/features/products/types'
 import { useToastStore } from 'src/shared/store/toastStore'
@@ -107,7 +106,7 @@ const SpecialEdgesCell = ({
               aria-label={`Quitar canto especial ${label}`}
               onClick={() => remove(productId)}
             >
-              <CIcon icon={cilX} size="sm" />
+              <Icon name="close" size="sm" />
             </button>
           </span>
         )

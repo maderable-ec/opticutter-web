@@ -1,0 +1,26 @@
+// The action bar (`ActionBar`), pinned to the bottom of the viewport so "Siguiente" is reachable without scrolling
+// past a long pieces list. The vertical padding is inside the sticky box on purpose: it keeps the
+// bar off the window's bottom edge once the page is scrolled to the end.
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  // Below Bootstrap's $zindex-dropdown (1000), not above it: the bar now hosts the actions menu's
+  // sibling controls and "Mover a…" opens upward out of it. At the sticky tier (1020) the bar
+  // painted over its own menus. Everything it must cover — the table's sticky cells — sits at 3.
+  z-index: 990;
+  padding-block: 0.75rem;
+  // Clear of the home indicator on a notched phone (`viewport-fit=cover` is set in index.html, which
+  // is what makes the inset non-zero).
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  margin-top: 0.25rem;
+  background-color: var(--mb-page-bg);
+}
+
+// Why the primary action is refused, on its own line above the buttons on a phone (`ActionBar`).
+.action-bar__hint {
+  flex: 0 0 100%;
+  padding-inline: 0.25rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+  line-height: 1.3;
+}

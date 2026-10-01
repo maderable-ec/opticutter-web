@@ -8,12 +8,12 @@ import {
   CDropdownMenu,
   CDropdownToggle,
 } from '@coreui/react'
-import { cilAccountLogout, cilLockLocked, cilUser } from '@coreui/icons'
-import CIcon from '@coreui/icons-react'
+import Icon from 'src/shared/icons/Icon'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
 import { rolesLabel } from 'src/features/auth/roleLabels'
 import { THEME_OPTIONS } from './themeOptions'
+import { useFromHere } from 'src/shared/hooks/useShellNav'
 
 // Initials from the full name (first letter of the first two words) fall back to the email.
 const initialsFor = (fullName: string | null | undefined, email: string | undefined) => {
@@ -35,6 +35,7 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
   const user = useCurrentUser()
   const logout = useLogout()
   const navigate = useNavigate()
+  const fromHere = useFromHere()
 
   const displayName = user?.fullName ?? user?.email ?? '—'
   const firstName = user?.fullName?.trim().split(/\s+/)[0] ?? displayName
@@ -44,7 +45,7 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
   return (
     <CDropdown variant="nav-item" placement="bottom-end">
       <CDropdownToggle className="py-0 pe-0 d-flex align-items-center gap-2" caret={false}>
-        <CAvatar color="secondary" textColor="white" shape="rounded-circle" size="md">
+        <CAvatar className="avatar-initials" shape="rounded-circle" size="md">
           {initials}
         </CAvatar>
         <span className="d-none d-sm-inline fw-semibold">{firstName}</span>
@@ -55,14 +56,15 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
           {roleLabel && <CBadge color="secondary">{roleLabel}</CBadge>}
         </CDropdownHeader>
         <CDropdownItem onClick={() => void navigate('/profile')} style={{ cursor: 'pointer' }}>
-          <CIcon icon={cilUser} className="me-2" />
+          <Icon name="profile" className="me-2" />
           Perfil
         </CDropdownItem>
         <CDropdownItem
-          onClick={() => void navigate('/profile/change-password')}
+          // «Cancelar» there comes back to the screen the menu was opened over.
+          onClick={() => void navigate('/profile/change-password', { state: fromHere })}
           style={{ cursor: 'pointer' }}
         >
-          <CIcon icon={cilLockLocked} className="me-2" />
+          <Icon name="lock" className="me-2" />
           Cambiar contraseña
         </CDropdownItem>
         {/* The header's own theme selector is hidden below `md` to give the title room, so on a
@@ -80,16 +82,19 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
               type="button"
               onClick={() => onColorModeChange(option.value)}
             >
-              <CIcon icon={option.icon} className="me-2" />
+              <Icon name={option.icon} className="me-2" />
               {option.label}
             </CDropdownItem>
           ))}
         </div>
         <CDropdownDivider />
         <CDropdownItem onClick={logout} style={{ cursor: 'pointer' }}>
-          <CIcon icon={cilAccountLogout} className="me-2" />
+          <Icon name="logout" className="me-2" />
           Cerrar sesión
         </CDropdownItem>
+        {/* Moved here from the footer the layout no longer has. */}
+        <CDropdownDivider />
+        <div className="px-3 pb-1 small text-body-secondary">Powered by Denis Siavichay</div>
       </CDropdownMenu>
     </CDropdown>
   )

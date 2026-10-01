@@ -1,59 +1,30 @@
-import { memo } from 'react'
-import { useLocation } from 'react-router-dom'
-
-import { routes } from '../routes'
-import type { AppRoute } from '../routes'
-
+import { Link } from 'react-router-dom'
 import { CBreadcrumb, CBreadcrumbItem } from '@coreui/react'
 
-interface Breadcrumb {
-  pathname: string
-  name: string
-  active: boolean
+import type { Crumb } from '../navigation'
+
+interface AppBreadcrumbProps {
+  // `breadcrumbsFor`: the screen itself is the last one.
+  crumbs: Crumb[]
 }
 
-const AppBreadcrumb = () => {
-  const currentLocation = useLocation().pathname
+// Router links, not `href`s: a crumb used to reload the whole app (and drop the optimizer's undo,
+// the query cache and the open sidebar) just to go one list up. Keyed by name: on a hub's first tab
+// the hub's crumb and the screen's share a path («Estadísticas / Resumen» are both `/dashboard`).
+const AppBreadcrumb = ({ crumbs }: AppBreadcrumbProps) => (
+  <CBreadcrumb className="my-0">
+    {crumbs.map((crumb, index) =>
+      index === crumbs.length - 1 ? (
+        <CBreadcrumbItem key={crumb.name} active>
+          {crumb.name}
+        </CBreadcrumbItem>
+      ) : (
+        <CBreadcrumbItem key={crumb.name}>
+          <Link to={crumb.to}>{crumb.name}</Link>
+        </CBreadcrumbItem>
+      ),
+    )}
+  </CBreadcrumb>
+)
 
-  const getRouteName = (pathname: string, routes: AppRoute[]): string | false => {
-    const currentRoute = routes.find((route) => route.path === pathname)
-    return currentRoute ? currentRoute.name : false
-  }
-
-  const getBreadcrumbs = (location: string): Breadcrumb[] => {
-    const breadcrumbs: Breadcrumb[] = []
-    location.split('/').reduce((prev, curr, index, array) => {
-      const currentPathname = `${prev}/${curr}`
-      const routeName = getRouteName(currentPathname, routes)
-      if (routeName) {
-        breadcrumbs.push({
-          pathname: currentPathname,
-          name: routeName,
-          active: index + 1 === array.length,
-        })
-      }
-      return currentPathname
-    })
-    return breadcrumbs
-  }
-
-  const breadcrumbs = getBreadcrumbs(currentLocation)
-
-  return (
-    <CBreadcrumb className="my-0">
-      <CBreadcrumbItem href="/">Home</CBreadcrumbItem>
-      {breadcrumbs.map((breadcrumb, index) => {
-        return (
-          <CBreadcrumbItem
-            {...(breadcrumb.active ? { active: true } : { href: breadcrumb.pathname })}
-            key={index}
-          >
-            {breadcrumb.name}
-          </CBreadcrumbItem>
-        )
-      })}
-    </CBreadcrumb>
-  )
-}
-
-export default memo(AppBreadcrumb)
+export default AppBreadcrumb

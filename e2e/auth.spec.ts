@@ -1,3 +1,4 @@
+import { stubHome } from './fixtures/scenarios'
 import { expect, test } from './fixtures/test'
 
 // Who lands where. A wrong role does not error: the route guard silently redirects to the role's
@@ -9,8 +10,19 @@ test('el operador aterriza en el tablero de taller', async ({ page, api, loginAs
 
   await page.goto('/')
   await expect(page).toHaveURL(/\/workshop-board$/)
-  await expect(page.getByText('No hay órdenes en el tablero.')).toBeVisible()
+  await expect(page.getByText('No hay órdenes en el taller.')).toBeVisible()
 })
+
+for (const roles of [['vendedor'], ['administrador']] as const) {
+  test(`el ${roles[0]} aterriza en Inicio`, async ({ page, api, loginAs }) => {
+    await loginAs([...roles], { user: { branchId: 1 } })
+    stubHome(api, { admin: roles[0] === 'administrador' })
+
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/inicio$/)
+    await expect(page.getByRole('heading', { name: 'Requiere atención' })).toBeVisible()
+  })
+}
 
 test('una ruta de otro rol devuelve al inicio del rol', async ({ page, api, loginAs }) => {
   await loginAs(['operador', 'canteador'])

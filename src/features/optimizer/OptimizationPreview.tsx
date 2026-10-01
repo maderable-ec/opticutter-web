@@ -9,7 +9,8 @@ import OptimizingOverlay from './OptimizingOverlay'
 import UnplacedPiecesAlert from './UnplacedPiecesAlert'
 import LayoutIssuesAlert from './layoutEditor/LayoutIssuesAlert'
 import type { EditorFocus } from './layoutEditor/useLayoutEditor'
-import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable, meters } from './summaryTables'
+import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable } from './summaryTables'
+import { fmtMeters } from 'src/shared/utils/format'
 
 // The result of a cut run: KPIs, cost tables and the diagram bar stacked together. Used by the
 // pre-order detail page; the optimizer wizard lays the same data out itself in `CostsStep`, and the
@@ -41,7 +42,13 @@ interface OptimizationPreviewProps {
   // why it cannot.
   onAdjustLayout?: (focus: EditorFocus) => void
   adjustDisabledReason?: string
+  // Class for each part of the result, so a page split into parts on a phone (`Segments`) can
+  // place them: the money (KPIs, tables, totals), the plan (the diagram) and the alerts about the
+  // plan, which concern both. Omitted, every part is plain.
+  partClass?: (part: 'money' | 'alerts' | 'plan') => string
 }
+
+const noClass = () => ''
 
 const OptimizationPreview = ({
   result,
@@ -55,9 +62,10 @@ const OptimizationPreview = ({
   marksDisabled,
   onAdjustLayout,
   adjustDisabledReason,
+  partClass = noClass,
 }: OptimizationPreviewProps) => (
   <>
-    <div className="text-body-secondary small text-uppercase fw-semibold mb-2">Resultado</div>
+    <div className={`${partClass('money')} eyebrow mb-2`}>Resultado</div>
     {/* Relative so the optimizing overlay can cover exactly this pane: the previous result stays
         on screen underneath, dimmed, instead of blanking out while the new one is computed. */}
     <div style={{ position: 'relative', minHeight: isPending ? '18rem' : undefined }}>
@@ -75,7 +83,7 @@ const OptimizationPreview = ({
       )}
       {result && (
         <>
-          <CRow className="g-2 mb-3">
+          <CRow className={`${partClass('money')} g-2 mb-3`}>
             <Kpi label="Tableros usados" value={result.totalBoardsUsed} />
             {/* The figure the client is quoted, not the materials' net subtotal:
                 this is the headline of the quote, and everything else on the page
@@ -83,49 +91,58 @@ const OptimizationPreview = ({
                 back to boards + banding on a payload with no pricing block. */}
             <Kpi
               label="Total (con IVA)"
+              emphasis
               value={fmtMoney(
                 result.pricing?.total ??
                   (result.totalBoardsCost ?? 0) + (result.totalEdgeBandingCost ?? 0),
               )}
             />
-            <Kpi label="Corte lineal" value={meters(result.totalCutLinearM)} />
-            <Kpi label="Tapacanto lineal" value={meters(result.totalEdgeBandingLinearM)} />
+            <Kpi label="Corte lineal" value={fmtMeters(result.totalCutLinearM)} />
+            <Kpi label="Tapacanto lineal" value={fmtMeters(result.totalEdgeBandingLinearM)} />
           </CRow>
 
           {/* A pre-order re-optimizes on every read, so a catalog change or a quote
               saved before the rule can show pieces that no longer fit. Saying it
               here, with the send blocked, is what keeps that from reaching the
               client and the workshop. */}
-          <UnplacedPiecesAlert
-            unplaced={result.unplaced}
-            materialsSummary={result.materialsSummary}
-          />
-          <LayoutIssuesAlert issues={result.layoutIssues} />
+          <div className={partClass('alerts')}>
+            <UnplacedPiecesAlert
+              unplaced={result.unplaced}
+              materialsSummary={result.materialsSummary}
+            />
+            <LayoutIssuesAlert issues={result.layoutIssues} />
+          </div>
 
-          <MaterialsSummaryTable
-            rows={result.materialsSummary ?? []}
-            leveledKeys={leveledKeys}
-            onToggleLevel={onToggleLevel}
-            wholeBoardKeys={wholeBoardKeys}
-            onToggleWholeBoard={onToggleWholeBoard}
-            marksDisabled={marksDisabled}
-          />
-          <EdgeBandingSummaryTable rows={result.edgeBandingsSummary ?? []} />
+          <div className={partClass('money')}>
+            <MaterialsSummaryTable
+              rows={result.materialsSummary ?? []}
+              leveledKeys={leveledKeys}
+              onToggleLevel={onToggleLevel}
+              wholeBoardKeys={wholeBoardKeys}
+              onToggleWholeBoard={onToggleWholeBoard}
+              marksDisabled={marksDisabled}
+            />
+            <EdgeBandingSummaryTable rows={result.edgeBandingsSummary ?? []} />
+          </div>
 
-          <CutLayoutDiagram
-            layoutGroups={result.layoutGroups}
-            materialsSummary={result.materialsSummary}
-            onAdjust={onAdjustLayout}
-            adjustDisabledReason={adjustDisabledReason}
-            adjustment={result.adjustmentSummary}
-          />
+          <div className={partClass('plan')}>
+            <CutLayoutDiagram
+              layoutGroups={result.layoutGroups}
+              materialsSummary={result.materialsSummary}
+              onAdjust={onAdjustLayout}
+              adjustDisabledReason={adjustDisabledReason}
+              adjustment={result.adjustmentSummary}
+            />
+          </div>
 
           {/* Level picker and totals on one line, the same pairing the Costos step uses. The level
               shown — and the per-board marks above — are the pending selection; the totals
               are the ones the server last computed, so they only agree again after "Actualizar
               cotización". */}
           {(priceLevel || result.pricing) && (
-            <div className="d-flex flex-wrap justify-content-between align-items-end gap-3 border-top pt-3">
+            <div
+              className={`${partClass('money')} d-flex flex-wrap justify-content-between align-items-end gap-3 border-top pt-3`}
+            >
               {priceLevel}
               {/* ms-auto, not just the row's justify-content: on a closed quote there is no level
                   picker, and a lone child in a space-between row lands on the left. */}

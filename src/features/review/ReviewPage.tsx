@@ -1,20 +1,9 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import {
-  CAlert,
-  CBadge,
-  CButton,
-  CCard,
-  CCardBody,
-  CCol,
-  CContainer,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
+import { CAlert, CBadge, CButton, CCard, CCardBody, CCol, CContainer, CRow } from '@coreui/react'
+import BrandMark from 'src/shared/icons/BrandMark'
 
-import { logo } from 'src/assets/brand/logo'
 import { ApiError } from 'src/shared/api/types'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { useReview } from './useReview'
@@ -24,6 +13,8 @@ import ReviewQuote from './ReviewQuote'
 import ReviewActions from './ReviewActions'
 import { fmtDate, fmtDateTime, reviewErrorMessage } from './format'
 import type { ReviewPreOrder } from './types'
+import Spinner from 'src/shared/components/Spinner'
+import { useDocumentTitle } from 'src/shared/hooks/useDocumentTitle'
 
 // Two independent axes, so the same state reads correctly at both breakpoints: `RailTab` is which
 // panel the right rail shows (meaningful everywhere), and `MobileView` is whether the diagram or the
@@ -38,27 +29,28 @@ interface ShellProps {
   footer?: ReactNode
 }
 
+// `main`: the page is all content, and its actions (the footer) belong to it too.
 const Shell = ({ children, wide = false, footer }: ShellProps) => (
-  <div
+  <main
     className="bg-body-tertiary d-flex flex-column"
-    style={{ borderTop: '4px solid #E85050', minHeight: '100dvh' }}
+    style={{ borderTop: '4px solid var(--brand-coral)', minHeight: '100dvh' }}
   >
     <CContainer className="py-4 flex-grow-1" style={{ maxWidth: wide ? 1280 : 880 }}>
       <div className="text-center mb-4">
-        <CIcon icon={logo} height={48} />
+        <BrandMark mark="logo" height={48} />
         <div className="text-body-secondary small mt-2">Revisión de cotización</div>
       </div>
       {children}
     </CContainer>
     {footer}
-  </div>
+  </main>
 )
 
 const InfoView = ({ title, children }: { title: ReactNode; children?: ReactNode }) => (
   <Shell>
     <CCard>
       <CCardBody className="text-center py-5">
-        <h5>{title}</h5>
+        <h1 className="h5">{title}</h1>
         {children && <div className="text-body-secondary mt-2">{children}</div>}
       </CCardBody>
     </CCard>
@@ -71,7 +63,7 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
       <div className="d-flex align-items-start justify-content-between flex-wrap gap-2">
         <div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <h5 className="mb-0">Cotización {data.reference}</h5>
+            <h1 className="h5 mb-0">Cotización {data.reference}</h1>
             {data.status === 'changes_requested' && <CBadge color="info">Cambios pedidos</CBadge>}
             {data.status === 'confirmed' && <CBadge color="success">Confirmada</CBadge>}
           </div>
@@ -157,6 +149,8 @@ const RailTabs = ({ tab, onChange }: { tab: RailTab; onChange: (t: RailTab) => v
 )
 
 const ReviewPage = () => {
+  // Never the quote's code or reference: the tab title outlives the page in the browser history.
+  useDocumentTitle('Revisión de cotización · Maderable')
   const { token } = useParams()
   const { data, isLoading, error, refetch, isFetching } = useReview(token)
   // The plan leads on mobile: it's the one thing the client can't see anywhere else.
@@ -171,7 +165,7 @@ const ReviewPage = () => {
     return (
       <Shell>
         <div className="text-center py-5">
-          <CSpinner color="primary" />
+          <Spinner color="primary" />
         </div>
       </Shell>
     )
@@ -192,10 +186,10 @@ const ReviewPage = () => {
         <Shell>
           <CCard>
             <CCardBody className="text-center py-5">
-              <h5>No se pudo cargar</h5>
+              <h1 className="h5">No se pudo cargar</h1>
               <div className="text-body-secondary mb-3">Revisa tu conexión e intenta de nuevo.</div>
               <CButton color="primary" onClick={() => void refetch()} disabled={isFetching}>
-                {isFetching ? <CSpinner size="sm" /> : 'Reintentar'}
+                {isFetching ? <Spinner size="sm" /> : 'Reintentar'}
               </CButton>
             </CCardBody>
           </CCard>

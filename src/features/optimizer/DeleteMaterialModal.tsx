@@ -3,17 +3,16 @@ import {
   CButton,
   CFormLabel,
   CFormSelect,
-  CModal,
   CModalBody,
   CModalFooter,
   CModalHeader,
-  CModalTitle,
 } from '@coreui/react'
 
 import type { BoardProduct } from 'src/features/products/types'
 import type { MaterialForm } from './optimizerForm'
 import { materialLabel } from './optimizerForm'
 import type { ModalContainer } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface DeleteMaterialModalProps {
   material: MaterialForm | null // target; the modal is visible while non-null
@@ -47,9 +46,9 @@ const DeleteMaterialModal = ({
     : (otherMaterials[0]?.uid ?? '')
 
   return (
-    <CModal visible={!!material} onClose={onClose} alignment="center" container={container}>
+    <Modal visible={!!material} onClose={onClose} alignment="center" container={container}>
       <CModalHeader>
-        <CModalTitle>Eliminar material</CModalTitle>
+        <ModalTitle>Eliminar material</ModalTitle>
       </CModalHeader>
       <CModalBody>
         <p className="mb-3">
@@ -116,7 +115,7 @@ const DeleteMaterialModal = ({
           </CButton>
         )}
       </CModalFooter>
-    </CModal>
+    </Modal>
   )
 }
 

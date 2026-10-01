@@ -1,0 +1,419 @@
+@use '../type';
+
+// --- Cutting canvas («Corte», /orders/:id/workshop) ---------------------------------------------
+// The one screen that owns the whole viewport. It runs on a tablet bolted next to the saw, where
+// the only task is marking pieces cut, and the smallest panel in the shop (Infinix XPad, 960×544
+// CSS in landscape) leaves ~544px of height — less than the chrome this page used to stack above
+// the diagram. So the page is a fixed three-row grid, the layout puts no header under it
+// (`AppRoute.immersive`), and only the middle row grows. Nothing scrolls; there is nowhere to scroll
+// to.
+//
+// This is the layout, not the Fullscreen API. The API sits on top of it, hosted on this same
+// element, and buys only the browser's own toolbar back — so the screen still fits on a panel
+// where fullscreen is refused.
+.workshop-shell {
+  position: fixed;
+  inset: 0;
+  // Above anything sticky or fixed in the page (1030), below modals (1055) and the toaster (1090) —
+  // so the confirm dialog and any error still land on top of the canvas.
+  z-index: 1035;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  // The layout's `min-vh-100` wrapper is still behind this; without it iOS rubber-bands the page
+  // under a fixed element.
+  overscroll-behavior: none;
+  background-color: var(--cui-body-bg);
+
+  // The Fullscreen API paints its own black backdrop, so the theme background is restated here.
+  &:fullscreen {
+    background-color: var(--cui-body-bg);
+  }
+}
+
+.workshop-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+// Order code, status, banding and reference, with the client on a second line. The one part
+// allowed to shrink: everything to its right is a control, and a control that truncates is a
+// control you cannot hit. Two short lines fit the height of the `lg` controls, so the bar does not
+// grow; on one line, the name was the only item able to shrink and vanished on a tablet.
+.workshop-identity {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workshop-identity__line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.workshop-pager {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+// Fixed width so the bar does not shift as the counters change under the finger.
+.workshop-pager__label {
+  min-width: 13rem;
+  white-space: nowrap;
+}
+
+.workshop-total {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workshop-total__bar {
+  width: 6rem;
+}
+
+// Below lg the bar has no room for everything, and three things go in the order they stop earning
+// their width: the progress BAR (the fraction beside it is the same fact, exactly), the pager's
+// fixed width (it only exists to stop the counters shifting under a finger, and a narrow panel has
+// no room to spend on that), and the banding badge — the canteado track is read-only here and
+// `canteador` cannot even open this route. Hiding them is what stops a badge being clipped
+// mid-word, which reads as a broken screen rather than a full one.
+@media (max-width: 991.98px) {
+  .workshop-total__bar,
+  .workshop-banding-badge {
+    display: none;
+  }
+
+  .workshop-pager__label {
+    min-width: 0;
+  }
+}
+
+// On a phone — not the shop's device, the floor runs on tablets, but an order's cut opens from one
+// too — the bar takes two rows: the way back, whose order it is and fullscreen on top; the pager and
+// the order's total under them. On one row the identity was the only thing able to shrink: at 360px
+// the order code vanished, and with the pager alone on the second row the status badge was still
+// clipped mid-word. A grid, so the total can sit beside the pager instead of wrapping to a third row.
+@media (max-width: 575.98px) {
+  .workshop-topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'back identity fullscreen'
+      'pager pager total';
+  }
+
+  .workshop-back {
+    grid-area: back;
+  }
+
+  .workshop-identity {
+    grid-area: identity;
+  }
+
+  .workshop-fullscreen {
+    grid-area: fullscreen;
+  }
+
+  .workshop-pager {
+    grid-area: pager;
+  }
+
+  .workshop-pager__label {
+    flex: 1 1 auto;
+  }
+
+  .workshop-total {
+    grid-area: total;
+  }
+}
+
+.workshop-stage-wrap {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workshop-stage {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  // The swipe that pages between boards needs the horizontal axis. Without this the browser
+  // consumes the gesture before any handler sees it; with it, vertical scrolling stays native.
+  touch-action: pan-y;
+}
+
+// The board's name over the diagram, so naming what is on screen costs no row of its own. It sits
+// on the letterbox margin most of the time, but a sheet whose ratio matches the stage leaves none —
+// hence the translucent chip, which keeps the name readable without ever hiding a piece.
+.workshop-boardname {
+  position: absolute;
+  bottom: 0.25rem;
+  left: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 60%;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--cui-border-radius);
+  background-color: rgba(var(--cui-body-bg-rgb), 0.82);
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+  pointer-events: none;
+}
+
+// One action at a time — the states that could fill this row turn out to be mutually exclusive.
+.workshop-actionbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--cui-border-color);
+}
+
+.workshop-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0.5rem;
+}
+
+.workshop-picker__item {
+  min-width: 0;
+  text-align: start;
+
+  // Read from the saw, inside a large button: the pill and the material line a step over the rest of
+  // the app. They used to grow with the button (`.badge` and `.small` were em); in rem they had
+  // dropped to 12 and 14px on the panel.
+  .badge {
+    font-size: var(--mb-text-md);
+  }
+
+  .small {
+    font-size: var(--mb-text-base);
+  }
+}
+
+// --- The Taller's queue (/workshop-board) -----------------------------------------------------
+// The landing page of `operador` and `canteador` — the only screen those roles have — read at
+// arm's length on a touch panel with no hover, so nothing here may depend on a `title=`.
+
+// The order's stage as a spine, so a whole column can be triaged before a single badge is read.
+// The accent lives in CSS rather than an inline `border-left` for the reason `.material-group`
+// documents: the `.border` utility declares the shorthand `!important` and would beat it. A
+// `data-` attribute rather than a custom property also spares the call site the `as CSSProperties`
+// assertion that `--*` vars need in React.
+.workshop-card {
+  border-left: 6px solid var(--cui-border-color);
+
+  &[data-status='queued'] {
+    border-left-color: var(--cui-secondary);
+  }
+
+  // `cutting` and `cut` were two states and are now one: the spine says the order is being
+  // worked on, and the activity badges say how far each part of the work got. Amber, the tone of
+  // the «En proceso» badge beside it; it was coral, which is the colour of «Tomar», so the card
+  // an operador should NOT take next wore the colour of the button that takes it.
+  &[data-status='in_process'] {
+    border-left-color: var(--cui-warning);
+  }
+
+  // Priority attention deliberately does NOT touch the left spine: that channel is the STAGE, and
+  // triaging a column by stage without reading a badge is the whole reason it exists. Urgency is a
+  // second, orthogonal question, so it gets a second channel — a warning ring plus a tinted ground,
+  // both readable at arm's length on the shop-floor panel.
+  &[data-priority='true'] {
+    background-color: rgba(var(--cui-warning-rgb), 0.07);
+    box-shadow: 0 0 0 2px rgba(var(--cui-warning-rgb), 0.55);
+  }
+}
+
+// The order's code, read from the saw: the scale's top step, fixed. It was `.fs-4`, which Bootstrap
+// scales with the viewport (23.3px on the 960 panel, 24px on a desktop).
+.workshop-card__code {
+  font-size: var(--mb-text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+// A step tighter than `gap-3`: at 1rem the first row of cards ended below a 544px panel, under the
+// count line, and the one card a whole shift acts on first was the one cut off.
+.workshop-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// «En cola 3 · En proceso 2» over the cards. The badges are the ones the cards wear, so the line is
+// also the key to the spines; the numbers are sized to be read from the saw.
+.workshop-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.workshop-counts__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.workshop-counts__n {
+  font-size: var(--mb-text-lg);
+  font-weight: 700;
+  line-height: 1;
+}
+
+// Says WHY the card is at the top of the board. Same pill shape as `.workshop-next` (they stack on
+// a prioritized head of queue), in warning so the two never read as the same kind of statement.
+.workshop-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10rem;
+  background-color: var(--mb-tone-progress-bg);
+  color: var(--mb-tone-progress-fg);
+  @include type.small-caps;
+}
+
+.workshop-priority__icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+// Head of the FIFO queue. Computed client-side from the oldest `queued` item rather than trusting
+// the server's order, so it stays true whatever the endpoint decides to sort by.
+.workshop-next {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10rem;
+  background-color: var(--cui-primary-bg-subtle);
+  color: var(--cui-primary-text-emphasis);
+  @include type.small-caps;
+}
+
+// The material lists collapsed to one tappable line on the card itself. A real order carries six
+// boards and four banding lines; printing them all made the card taller than the queue it sits in,
+// and this board's whole job is to be scanned. The counts stay (they say how big the job is), the
+// names move behind `WorkshopMaterialsModal`.
+//
+// A `<button>` spanning the full row, not a link at the end of a sentence: on a touch panel the row
+// IS the control, and a chevron-sized target is not one.
+.usage-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-tertiary-bg);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--cui-primary);
+  }
+}
+
+.usage-summary__chevron {
+  flex: 0 0 auto;
+  color: var(--cui-secondary-color);
+}
+
+// The materials dialog's header (`.viewer-header`, with the `Pager`): the order's code, under a small
+// caps line that says what the dialog is, and the client under it. It used to sit on a solid coral
+// band with a pager of its own; the coral is the action's colour, and the band was the one dialog
+// that needed a theme exception for its ✕.
+.materials-eyebrow {
+  @include type.small-caps;
+
+  color: var(--cui-secondary-color);
+}
+
+.materials-title {
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.materials-client {
+  overflow: hidden;
+  font-size: var(--mb-text-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// The swipe surface. `pan-y` is what makes the gesture possible at all: it hands vertical scrolling
+// back to the browser (so a long material list still scrolls natively) and reserves the horizontal
+// axis for `useSwipeNav`, which the browser would otherwise consume before any handler saw it.
+//
+// `min-height: 100%` so the whole body is swipeable even when two short tables would not fill it.
+// It resolves only when the dialog has a definite height — i.e. under `lg`, where it is fullscreen,
+// which is exactly where the gesture applies.
+.materials-swipe {
+  min-height: 100%;
+  touch-action: pan-y;
+}
+
+// The two status badges as a strip across the top of the dialog body. Bled out to the dialog's edges with
+// a negative margin of its own padding, so the rule under it spans the full width and the block
+// reads as an extension of the header rather than as a card floating inside the content.
+.materials-status {
+  margin: calc(var(--cui-modal-padding) * -1);
+  margin-bottom: var(--cui-modal-padding);
+  padding: 0.75rem var(--cui-modal-padding);
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  background-color: var(--cui-tertiary-bg);
+}
+
+// Boards and edge banding used by an order, inside that dialog. They began as `.badge`s, which carry
+// `white-space: nowrap` — and `flex-wrap` wraps BETWEEN items, never inside one, so a catalogue name
+// like "MDP MELAMÍNICO NOGAL TERRA 15MM 2150X2440" had a min-content width wider than its card,
+// refused to shrink, and spilled past the border (`.card` declares no `overflow` to clip it).
+//
+// `overflow-wrap: anywhere` on the name column is what actually closes that: it lets an unbroken
+// catalogue code — one with no spaces to break at — reduce the cell's min-content width. The
+// quantity column never wraps, so the numbers line up down the table (Plex's figures are tabular).
+.materials-table {
+  > :not(caption) > * > td:first-child {
+    overflow-wrap: anywhere;
+  }
+
+  > :not(caption) > * > *:last-child {
+    white-space: nowrap;
+  }
+
+  // The totals row reads as a sum, not as another product: the heavier rule above it does the
+  // separating, so it needs no fill of its own.
+  > tfoot > tr > td {
+    border-top: 2px solid var(--cui-border-color);
+  }
+}
+
+// "2 enteros · 1 medio" under a board's name: how that material's sheets split, printed only when
+// there IS a half. Secondary ink and a step down in size so it reads as a note ON the name rather
+// than as a second material — the exact confusion the merged row exists to end. It escapes the
+// `white-space: nowrap` above by living in the FIRST cell, which is the wrapping one.
+.materials-breakdown {
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}

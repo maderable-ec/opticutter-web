@@ -1,0 +1,93 @@
+@use '@coreui/coreui/scss/coreui' as *;
+@use 'palette' as p;
+
+// Design tokens as custom properties: what CoreUI's own `--cui-*` variables do not cover. Components
+// read these; raw hexes stay in `_palette.scss`.
+:root {
+  // The letterhead, for the places that need a brand colour that is not the theme's primary — the
+  // logo, the cut diagram, the rule under a table header.
+  --brand-coral: #{p.$brand-coral};
+  --brand-orange: #{p.$brand-orange};
+  --brand-black: #{p.$brand-black};
+  --brand-coral-soft: #{p.$brand-coral-soft};
+  --brand-grey: #{p.$brand-grey};
+
+  // The page itself, under the white surfaces. Its own token and not `--cui-tertiary-bg`: in the
+  // dark theme CoreUI needs the tertiary fill LIGHTER than a surface, and the page is darker.
+  --mb-page-bg: #{p.$graphite-100};
+
+  // The menu: the brand black in both themes, one step deeper in the dark one so it still reads as
+  // a separate plane next to the page.
+  --mb-sidebar-bg: #{p.$brand-black};
+
+  // Its two widths (`.side-nav`): the rail of icons over their names up to `xl`, the full menu from
+  // there.
+  --mb-rail-w: 5.25rem;
+  --mb-sidebar-w: 16rem;
+
+  // The type scale (`_type.scss` says what each step is for).
+  --mb-text-xs: 0.75rem;
+  --mb-text-sm: 0.8125rem;
+  --mb-text-md: 0.875rem;
+  --mb-text-base: 1rem;
+  --mb-text-lg: 1.25rem;
+  --mb-text-xl: 1.5rem;
+
+  // The technical accent: measures, the optimization, information.
+  --mb-tech: #{p.$teal-600};
+  --mb-tech-ink: #0b5e73;
+  --mb-tech-soft: #e1f0f3;
+
+  // Business states. Each tone is a soft fill and an ink that clears 4.5:1 on it; a state is never
+  // told by colour alone (the badge adds an icon and the word).
+  --mb-tone-neutral-bg: #{p.$graphite-200};
+  --mb-tone-neutral-fg: #{p.$graphite-700};
+  --mb-tone-info-bg: #e1f0f3;
+  --mb-tone-info-fg: #0b5e73;
+  --mb-tone-progress-bg: #fcefd8;
+  --mb-tone-progress-fg: #8a4a06;
+  --mb-tone-success-bg: #e2f2e6;
+  --mb-tone-success-fg: #1c6b34;
+  --mb-tone-danger-bg: #fce7ec;
+  --mb-tone-danger-fg: #{p.$danger};
+  --mb-tone-graphite-bg: #{p.$brand-black};
+  --mb-tone-graphite-fg: #{p.$graphite-100};
+
+  // The same tones as a data mark (a report's bar): one solid per tone that clears 3:1 on the
+  // surface, where the soft fill is too pale to see and the ink too heavy to fill a bar with.
+  --mb-tone-neutral-mark: #8a887f;
+  --mb-tone-info-mark: #{p.$teal-600};
+  --mb-tone-progress-mark: #c9820a;
+  --mb-tone-success-mark: #{p.$success};
+  --mb-tone-danger-mark: #{p.$danger};
+  --mb-tone-graphite-mark: #{p.$brand-black};
+}
+
+@include color-mode(dark, true) {
+  --mb-page-bg: #{p.$graphite-950};
+  --mb-sidebar-bg: #10100f;
+
+  --mb-tech: #{p.$teal-400};
+  --mb-tech-ink: #9fd6e3;
+  --mb-tech-soft: #15313a;
+
+  --mb-tone-neutral-bg: #2c2b27;
+  --mb-tone-neutral-fg: #d6d4cb;
+  --mb-tone-info-bg: #15313a;
+  --mb-tone-info-fg: #9fd6e3;
+  --mb-tone-progress-bg: #3a2a12;
+  --mb-tone-progress-fg: #f2c27a;
+  --mb-tone-success-bg: #16301d;
+  --mb-tone-success-fg: #8cd39e;
+  --mb-tone-danger-bg: #3b1522;
+  --mb-tone-danger-fg: #f4a3b8;
+  --mb-tone-graphite-bg: #edebe4;
+  --mb-tone-graphite-fg: #{p.$brand-black};
+
+  --mb-tone-neutral-mark: #8a887f;
+  --mb-tone-info-mark: #{p.$teal-400};
+  --mb-tone-progress-mark: #{p.$warning};
+  --mb-tone-success-mark: #4caf6a;
+  --mb-tone-danger-mark: #e0668a;
+  --mb-tone-graphite-mark: #{p.$graphite-400};
+}

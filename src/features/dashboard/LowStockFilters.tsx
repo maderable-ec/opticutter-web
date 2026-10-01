@@ -1,8 +1,16 @@
-import FilterMenu, { FilterSection } from 'src/shared/components/FilterMenu'
+import { FilterSection } from 'src/shared/components/FilterMenu'
+import ListFilters from 'src/shared/components/ListFilters'
 import FilterCheckboxList, { type FilterOption } from 'src/shared/components/FilterCheckboxList'
 import type { FilterChip } from 'src/shared/components/FilterChips'
-import { subtypeLabel, subtypeOptionsFor } from 'src/features/products/productSubtypes'
+import { useFilterSheet } from 'src/shared/hooks/useFilterSheet'
+import {
+  prunedSubtypes,
+  subtypeLabel,
+  subtypeOptionsFor,
+} from 'src/features/products/productSubtypes'
 import type { Branch } from 'src/features/branches/types'
+import type { LowStockFilterValues } from './lowStock'
+import { filterLowStock } from './lowStock'
 import type { LowStockItem } from './types'
 
 const TYPE_LABELS: Record<LowStockItem['type'], string> = {
@@ -14,18 +22,12 @@ const TYPE_OPTIONS: FilterOption<LowStockItem['type']>[] = (
   Object.keys(TYPE_LABELS) as LowStockItem['type'][]
 ).map((value) => ({ value, label: TYPE_LABELS[value] }))
 
-export interface LowStockFilterValues {
-  branch: string[]
-  type: LowStockItem['type'][]
-  subtype: string[]
-}
+export type { LowStockFilterValues }
 
-interface LowStockFiltersProps {
-  values: LowStockFilterValues
-  branches: Branch[]
-  onChange: <K extends keyof LowStockFilterValues>(key: K, value: LowStockFilterValues[K]) => void
-  onClear: () => void
-}
+type OnFilterChange = <K extends keyof LowStockFilterValues>(
+  key: K,
+  value: LowStockFilterValues[K],
+) => void
 
 // Same panel as the product catalog's: one "Filtros" button, checkbox lists inside,
 // chips underneath. Three sections: where the material is, what kind it is, and
@@ -38,8 +40,16 @@ interface LowStockFiltersProps {
 // The branch options come from the branch list and not from the report's own rows:
 // a branch with everything well stocked has no rows, and disappearing from the
 // filter is precisely what would stop somebody checking it.
-const LowStockFilters = ({ values, branches, onChange, onClear }: LowStockFiltersProps) => (
-  <FilterMenu activeCount={activeCount(values)} onClear={onClear}>
+const LowStockFilterFields = ({
+  values,
+  branches,
+  onChange,
+}: {
+  values: LowStockFilterValues
+  branches: Branch[]
+  onChange: OnFilterChange
+}) => (
+  <>
     <FilterSection label="Sucursal">
       <FilterCheckboxList
         values={values.branch}
@@ -63,8 +73,59 @@ const LowStockFilters = ({ values, branches, onChange, onClear }: LowStockFilter
         onChange={(next) => onChange('subtype', next)}
       />
     </FilterSection>
-  </FilterMenu>
+  </>
 )
+
+interface LowStockFiltersProps {
+  values: LowStockFilterValues
+  search: string
+  // The whole report, for the sheet's count: nothing is fetched to answer it.
+  items: LowStockItem[]
+  branches: Branch[]
+  onChange: OnFilterChange
+  onApply: (values: LowStockFilterValues) => void
+  onClear: () => void
+}
+
+const LowStockFilters = ({
+  values,
+  search,
+  items,
+  branches,
+  onChange,
+  onApply,
+  onClear,
+}: LowStockFiltersProps) => {
+  const sheet = useFilterSheet(values)
+
+  // Narrowing the types strands the subtypes that no longer belong to them. In the draft both move
+  // at once, as the page's own handler does for the URL.
+  const updateDraft: OnFilterChange = (key, value) => {
+    if (key === 'type') {
+      const type = value as LowStockItem['type'][]
+      sheet.replace({ ...sheet.draft, type, subtype: prunedSubtypes(type, sheet.draft.subtype) })
+      return
+    }
+    sheet.update(key, value)
+  }
+
+  return (
+    <ListFilters
+      values={values}
+      onChange={onChange}
+      onClear={onClear}
+      sheet={{ ...sheet, update: updateDraft }}
+      onApply={onApply}
+      cleared={() => ({ branch: [], type: [], subtype: [] })}
+      activeCount={activeCount}
+      resultCount={filterLowStock(items, sheet.draft, search).length}
+      noun={{ one: 'producto', other: 'productos' }}
+      renderFields={(v, change) => (
+        <LowStockFilterFields values={v} branches={branches} onChange={change} />
+      )}
+    />
+  )
+}
 
 export default LowStockFilters
 

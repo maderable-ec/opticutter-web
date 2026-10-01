@@ -24,7 +24,12 @@ const FilterActiveSection = ({
 }: FilterActiveSectionProps) => (
   <FilterSection label={label}>
     <div className="px-3 py-1">
-      <CFormSelect size="sm" value={value} onChange={(e) => onChange(e.target.value)}>
+      <CFormSelect
+        size="sm"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
         <option value="">{bothLabel}</option>
         <option value="true">{activeLabel}</option>
         <option value="false">{inactiveLabel}</option>

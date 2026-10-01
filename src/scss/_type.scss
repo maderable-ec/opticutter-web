@@ -1,0 +1,41 @@
+// The type system on IBM Plex Sans (step 12, chosen 2026-09-30 from a specimen of the real screens).
+// Six sizes, in rem so nothing compounds (`--mb-text-*` in `_tokens.scss`):
+//
+//   xs   0.75rem    small caps, table headers, status pills, captions
+//   sm   0.8125rem  secondary lines: hints, metadata, chips
+//   md   0.875rem   `.small`, dense text: the despiece grid, segments, table bodies from `md`
+//   base 1rem       body, rows, fields
+//   lg   1.25rem    a record's code (`h2.h5`), a KPI figure, a dialog title
+//   xl   1.5rem     the shop floor's codes and figures
+//
+// Before this there were twelve sizes, five letter-spacings for one small-caps label and a 10.5px
+// pill. A new size is a new step here, never a value in a component. The one literal left is the
+// 16px every field gets under `md` (`_base.scss`, the filter sheet): that is iOS's floor against
+// zooming in on focus, not a step of the scale.
+//
+// Weights: 400 text, 500 controls, 600 titles, codes, figures and `<strong>`, 700 only on the shop
+// floor (codes and counts read from the saw). Plex's variable font stops at 700.
+//
+// Plex Sans draws tabular figures by default — a column of lengths lines up without
+// `tabular-nums`, and the one declaration left (on `body`, `_base.scss`) is for the fallback font.
+
+// The one small-caps label: a block's title (`.eyebrow`), a table's column names, the menu's section
+// titles, the shop floor's pills. It was defined five times with five letter-spacings.
+@mixin small-caps {
+  font-size: var(--mb-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+// A section label over a block of content ("MATERIALES", "PRODUCCIÓN").
+.eyebrow {
+  @include small-caps;
+  color: var(--cui-secondary-color);
+}
+
+// A unit symbol inside small caps keeps its case: «PRECIO/m», «ÁREA m²». Uppercased, «M» is mega.
+.unit {
+  text-transform: none;
+}

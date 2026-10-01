@@ -1,0 +1,95 @@
+@use '@coreui/coreui/scss/coreui' as *;
+@use '../type';
+
+// Cost summary tables, in the brand palette instead of the generic grey they had.
+//
+// The tint is LIGHT_CORAL with a solid coral rule under it, not the solid coral band the order document
+// prints. On paper that band heads a full page of rows; here the tables run one or two rows, and a
+// saturated header outweighed its own content — two of them stacked turned the step red. The rule
+// carries the brand cue at full strength, the fill stays out of the way.
+//
+// `.list-table` is the same header on the list pages, which until now wore CoreUI's stock
+// `bg-body-tertiary` grey — the brand tint reached every detail table and none of the eight
+// listings. Note the call sites must DROP that utility class: Bootstrap's background utilities are
+// `!important` and the grey would win over this rule regardless of order.
+.summary-table > thead > tr > th,
+.list-table > thead > tr > th {
+  background-color: var(--brand-coral-soft);
+  color: var(--brand-black);
+  border-bottom: 2px solid var(--brand-coral);
+  // A header labels columns rather than titling a block: the small caps, and never wrapping — a
+  // two-line header on a six-column table costs a row of data on every screen. The money tables
+  // wore 16px bold here, heavier than the one or two rows under them.
+  @include type.small-caps;
+  white-space: nowrap;
+}
+
+// From `md` a table's body is the dense step: the code and the client still lead the row, and the
+// header sits one step under the figures instead of two. A phone reads the same records as cards at
+// 16px. The shop floor's material tables (`.materials-table`) keep the body size: they are read from
+// arm's length on the panel.
+@include media-breakpoint-up(md) {
+  .list-table,
+  .summary-table:not(.materials-table) {
+    font-size: var(--mb-text-md);
+
+    // The second line of a cell (a quote's reference under its client) one step under the row.
+    .small {
+      font-size: var(--mb-text-sm);
+    }
+  }
+}
+
+.list-table {
+
+  // Rows open their record — on every listing: the ones with a detail page navigate to it, the
+  // CRUD ones open their edit modal. The cursor belongs here, not in an inline style repeated per
+  // page, and the hover is an alpha of the accent so one declaration serves both themes.
+  > tbody > tr {
+    cursor: pointer;
+    --cui-table-hover-bg: rgba(var(--cui-primary-rgb), 0.06);
+  }
+
+  // ...except where the row genuinely does nothing: a read-only role has no edit modal to open, and
+  // a hand cursor that promises one is a lie. Opt out rather than opt in, since clickable is now
+  // the rule on all eight listings.
+  &.rows-static > tbody > tr {
+    cursor: default;
+  }
+}
+
+// The soft coral is a light tint and would swallow the dark theme's text, so dark mode keeps the
+// same structure with the fill dropped to a translucent wash of the accent.
+@include color-mode(dark) {
+  .summary-table > thead > tr > th,
+  .list-table > thead > tr > th {
+    background-color: rgba(var(--cui-primary-rgb), 0.18);
+    color: var(--cui-body-color);
+  }
+}
+
+// A row that needs attention (`.table-warning`: a tape without its alias, an imported material with
+// no match). CoreUI paints table variants in fixed light tints with near-black ink in both themes, so
+// in the dark one the row came out as a cream strip inside a dark dialog, and its link text lost
+// the contrast it had everywhere else. Here it takes the theme's own subtle warning.
+@include color-mode(dark) {
+  .table-warning {
+    --cui-table-color: var(--cui-body-color);
+    --cui-table-bg: var(--cui-warning-bg-subtle);
+    --cui-table-border-color: var(--cui-warning-border-subtle);
+    --cui-table-striped-bg: var(--cui-warning-bg-subtle);
+    --cui-table-striped-color: var(--cui-body-color);
+    --cui-table-active-bg: var(--cui-warning-bg-subtle);
+    --cui-table-active-color: var(--cui-body-color);
+    --cui-table-hover-bg: var(--cui-warning-bg-subtle);
+    --cui-table-hover-color: var(--cui-body-color);
+  }
+}
+
+// A table that scrolls sideways is the containing block of what is positioned inside it. The
+// screen-reader text in its cells (`.visually-hidden`, absolutely positioned) otherwise took the
+// page as its box, sat at its column's place past the scroller's right edge, and made the whole
+// page scroll sideways — 330px on the attendance matrix at 1280.
+.table-responsive {
+  position: relative;
+}

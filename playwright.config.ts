@@ -4,10 +4,10 @@ import { defineConfig, devices } from '@playwright/test'
 // backend, no credentials, same result on any machine. The npm scripts pick the projects, so a
 // bare `npx playwright test` also runs `screens` and WebKit:
 //
-//   npm run test:e2e   desktop + both workshop tablets (WebKit included)
+//   npm run test:e2e   desktop, a phone and both workshop tablets (WebKit included)
 //   npm run screens    UX captures into e2e/.screens (never in CI)
 //
-// CI runs Chromium only: `desktop` and `taller-infinix`.
+// CI runs Chromium only: `desktop`, `phone` and `taller-infinix`.
 
 // `E2E_PORT` runs the suite on a server of its own next to the dev server on :3000.
 const PORT = Number(process.env.E2E_PORT ?? 3000)
@@ -15,6 +15,10 @@ const PORT = Number(process.env.E2E_PORT ?? 3000)
 // The shop floor runs on two tablets and every operador/canteador screen must fit both without
 // scroll. The Infinix is the binding one: 960×600 CSS, ~544 usable under the browser bar.
 const TALLER = /@taller/
+
+// The seller's and the admin's phone: the bottom nav, the header's «‹» and whatever else only
+// exists below `md`.
+const MOVIL = /@movil/
 
 export default defineConfig({
   testDir: 'e2e',
@@ -34,6 +38,7 @@ export default defineConfig({
     {
       name: 'desktop',
       testIgnore: 'screens/**',
+      grepInvert: MOVIL,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     {
@@ -52,6 +57,17 @@ export default defineConfig({
       testIgnore: 'screens/**',
       grep: TALLER,
       use: { ...devices['iPad (gen 7) landscape'], viewport: { width: 1080, height: 735 } },
+    },
+    {
+      name: 'phone',
+      testIgnore: 'screens/**',
+      grep: MOVIL,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        hasTouch: true,
+        isMobile: true,
+      },
     },
     {
       name: 'screens',

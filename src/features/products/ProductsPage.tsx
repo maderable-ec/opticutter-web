@@ -7,11 +7,8 @@ import type {
   ProductType,
 } from './types'
 import {
-  CBadge,
   CButton,
-  CModal,
   CModalHeader,
-  CModalTitle,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -19,15 +16,15 @@ import {
   CTableHeaderCell,
   CTableRow,
 } from '@coreui/react'
-import { cilPlus, cilSync, cilTrash } from '@coreui/icons'
 import { useCreateProduct, useDeleteProduct, useProducts, useUpdateProduct } from './useProducts'
 import { useState } from 'react'
 
-import CIcon from '@coreui/icons-react'
+import Icon from 'src/shared/icons/Icon'
 import ProductForm from './ProductForm'
 import SyncCatalogModal from './SyncCatalogModal'
 import ProductsFilters, {
   activeCount,
+  productFilterParams,
   productsFilterChips,
   prunedSubtypes,
   type ProductsFilterValues,
@@ -37,18 +34,24 @@ import { useHasRole } from 'src/features/auth/useAuth'
 import { useQueryClient } from '@tanstack/react-query'
 import { fmtMoney } from 'src/shared/utils/format'
 import SearchInput from 'src/shared/components/SearchInput'
+import EmptyState from 'src/shared/components/EmptyState'
+import ListToolbar from 'src/shared/components/ListToolbar'
+import ListCard from 'src/shared/components/ListCard'
+import ActiveBadge from 'src/shared/components/ActiveBadge'
 import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
-import DeleteConfirmModal from 'src/shared/components/DeleteConfirmModal'
+import ConfirmDialog from 'src/shared/components/ConfirmDialog'
 import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import type { ListSort } from 'src/shared/components/FilterSortSection'
 import { useListParams } from 'src/shared/hooks/useListParams'
+import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 const TYPE_CONFIG: Record<string, StatusConfigEntry> = {
-  board: { color: 'info', label: 'Tablero' },
-  edge_banding: { color: 'warning', label: 'Tapacanto' },
-  hardware: { color: 'secondary', label: 'Herraje' },
+  board: { tone: 'info', label: 'Tablero' },
+  edge_banding: { tone: 'neutral', label: 'Tapacanto' },
+  hardware: { tone: 'graphite', label: 'Herraje' },
 }
 const BAND_TYPE_LABELS: Record<string, string> = { Soft: 'Suave', Hard: 'Duro' }
 
@@ -102,6 +105,35 @@ const FamilyCell = ({ product }: { product: Product }) => (
   </CTableDataCell>
 )
 
+// A product's short facts on a phone card: the gross price, the measures of its type and its
+// family. The table's per-type columns, as one line.
+const ProductFacts = ({ product }: { product: Product }) => {
+  const a = (product.attributes ?? {}) as BoardAttributes & EdgeBandingAttributes
+  return (
+    <>
+      <span>c/IVA {fmtMoney(product.priceWithTax)}</span>
+      {product.type === 'board' && a.height && a.width && (
+        <span>
+          {a.height} × {a.width}
+          {a.thickness ? ` · ${a.thickness} mm` : ' mm'}
+        </span>
+      )}
+      {product.type === 'edge_banding' && a.width && (
+        <span>
+          {a.width} × {a.thickness ?? '—'} mm
+          {a.bandType ? ` · ${BAND_TYPE_LABELS[a.bandType] ?? a.bandType}` : ''}
+        </span>
+      )}
+      {product.family && (
+        <span>
+          {product.family.name}
+          {product.alias ? ` · ${product.alias}` : ''}
+        </span>
+      )}
+    </>
+  )
+}
+
 const ProductsPage = () => {
   const isReadOnly = useHasRole('vendedor')
   const queryClient = useQueryClient()
@@ -144,6 +176,17 @@ const ProductsPage = () => {
     }
     setParam(key, value)
   }
+  // The phone's sheet applies its draft in one url write, which also closes it.
+  const handleApply = (next: ProductsFilterValues) =>
+    setParams(
+      {
+        ...next,
+        subtype: prunedSubtypes(next.type, next.subtype),
+        sort: next.sort === 'name' ? undefined : next.sort,
+        [FILTER_SHEET_PARAM]: undefined,
+      },
+      { replace: true },
+    )
   const handleClear = () => clearParams(FILTER_KEYS)
 
   const selectedFamily = families.find((f) => String(f.id) === values.family)
@@ -164,14 +207,7 @@ const ProductsPage = () => {
   // Built inline, not memoised: React Query hashes the query key structurally, so a fresh object
   // with the same contents is the same key and does not refetch.
   const queryParams: ProductListParams = {
-    search: search || undefined,
-    type: values.type.length ? values.type : undefined,
-    subtype: values.subtype.length ? values.subtype : undefined,
-    isActive: values.isActive ? values.isActive === 'true' : undefined,
-    // 'none' is the assignment queue. Two API parameters rather than one
-    // nullable filter, because a query string cannot carry a null.
-    familyId: values.family && values.family !== 'none' ? Number(values.family) : undefined,
-    unassigned: values.family === 'none' ? true : undefined,
+    ...productFilterParams(values, search),
     sort: values.sort,
     offset,
     limit,
@@ -216,85 +252,90 @@ const ProductsPage = () => {
     if (singleType === 'board') {
       return (
         <>
-          <CTableHeaderCell>ID</CTableHeaderCell>
+          <CTableHeaderCell className="d-none d-lg-table-cell">ID</CTableHeaderCell>
           <CTableHeaderCell>Código</CTableHeaderCell>
           <CTableHeaderCell>Nombre</CTableHeaderCell>
-          <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
-          <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (s/IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (c/IVA)</CTableHeaderCell>
           <CTableHeaderCell>Dimensiones</CTableHeaderCell>
           <CTableHeaderCell>Grosor</CTableHeaderCell>
           <CTableHeaderCell>Familia</CTableHeaderCell>
           <CTableHeaderCell>Estado</CTableHeaderCell>
-          <CTableHeaderCell />
+          <CTableHeaderCell>
+            <span className="visually-hidden">Acciones</span>
+          </CTableHeaderCell>
         </>
       )
     }
     if (singleType === 'edge_banding') {
       return (
         <>
-          <CTableHeaderCell>ID</CTableHeaderCell>
+          <CTableHeaderCell className="d-none d-lg-table-cell">ID</CTableHeaderCell>
           <CTableHeaderCell>Código</CTableHeaderCell>
           <CTableHeaderCell>Nombre</CTableHeaderCell>
-          <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
-          <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (s/IVA)</CTableHeaderCell>
+          <CTableHeaderCell>Precio (c/IVA)</CTableHeaderCell>
           <CTableHeaderCell>Grosor</CTableHeaderCell>
           <CTableHeaderCell>Ancho</CTableHeaderCell>
           <CTableHeaderCell>Tipo</CTableHeaderCell>
           <CTableHeaderCell>Color</CTableHeaderCell>
           <CTableHeaderCell>Familia</CTableHeaderCell>
           <CTableHeaderCell>Estado</CTableHeaderCell>
-          <CTableHeaderCell />
+          <CTableHeaderCell>
+            <span className="visually-hidden">Acciones</span>
+          </CTableHeaderCell>
         </>
       )
     }
     return (
       <>
-        <CTableHeaderCell>ID</CTableHeaderCell>
+        <CTableHeaderCell className="d-none d-lg-table-cell">ID</CTableHeaderCell>
         <CTableHeaderCell>Tipo</CTableHeaderCell>
         <CTableHeaderCell>Código</CTableHeaderCell>
         <CTableHeaderCell>Nombre</CTableHeaderCell>
-        <CTableHeaderCell>Precio (sin IVA)</CTableHeaderCell>
-        <CTableHeaderCell>Precio (con IVA)</CTableHeaderCell>
+        <CTableHeaderCell>Precio (s/IVA)</CTableHeaderCell>
+        <CTableHeaderCell>Precio (c/IVA)</CTableHeaderCell>
         <CTableHeaderCell>Estado</CTableHeaderCell>
-        <CTableHeaderCell />
+        <CTableHeaderCell>
+          <span className="visually-hidden">Acciones</span>
+        </CTableHeaderCell>
       </>
     )
   }
 
-  const renderRow = (p: Product) => {
-    // The row opens the editor, so only the destructive action keeps a button — and it must not
-    // also open it on the way.
-    const actions = (
-      <CTableDataCell className="text-end text-nowrap">
-        {!isReadOnly && (
-          <CButton
-            variant="ghost"
-            color="danger"
-            size="sm"
-            aria-label={`Eliminar ${p.name}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              openDelete(p)
-            }}
-          >
-            <CIcon icon={cilTrash} />
-          </CButton>
-        )}
-      </CTableDataCell>
+  // The row opens the editor, so only the destructive action keeps a button — and it must not also
+  // open it on the way. In the last column from `md`, beside the card on a phone.
+  const deleteButton = (p: Product) =>
+    isReadOnly ? null : (
+      <CButton
+        variant="ghost"
+        color="danger"
+        size="sm"
+        aria-label={`Eliminar ${p.name}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          openDelete(p)
+        }}
+      >
+        <Icon name="delete" />
+      </CButton>
     )
 
-    const statusBadge = (
-      <CBadge color={p.isActive ? 'success' : 'secondary'}>
-        {p.isActive ? 'Activo' : 'Inactivo'}
-      </CBadge>
+  const renderRow = (p: Product) => {
+    const actions = (
+      <CTableDataCell className="text-end text-nowrap">{deleteButton(p)}</CTableDataCell>
     )
+
+    const statusBadge = <ActiveBadge active={p.isActive} />
 
     if (singleType === 'board') {
       const a = (p.attributes ?? {}) as BoardAttributes & EdgeBandingAttributes
       return (
         <CTableRow key={p.id} onClick={isReadOnly ? undefined : () => openEdit(p)}>
-          <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
-          <CTableDataCell>
+          <CTableDataCell className="d-none d-lg-table-cell text-body-secondary">
+            {p.id}
+          </CTableDataCell>
+          <CTableDataCell className="text-nowrap">
             <strong>{p.code}</strong>
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
@@ -315,8 +356,10 @@ const ProductsPage = () => {
       const a = (p.attributes ?? {}) as BoardAttributes & EdgeBandingAttributes
       return (
         <CTableRow key={p.id} onClick={isReadOnly ? undefined : () => openEdit(p)}>
-          <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
-          <CTableDataCell>
+          <CTableDataCell className="d-none d-lg-table-cell text-body-secondary">
+            {p.id}
+          </CTableDataCell>
+          <CTableDataCell className="text-nowrap">
             <strong>{p.code}</strong>
           </CTableDataCell>
           <CTableDataCell>{p.name}</CTableDataCell>
@@ -337,11 +380,13 @@ const ProductsPage = () => {
 
     return (
       <CTableRow key={p.id} onClick={isReadOnly ? undefined : () => openEdit(p)}>
-        <CTableDataCell className="text-body-secondary">{p.id}</CTableDataCell>
+        <CTableDataCell className="d-none d-lg-table-cell text-body-secondary">
+          {p.id}
+        </CTableDataCell>
         <CTableDataCell>
           <StatusBadge config={TYPE_CONFIG} value={p.type} />
         </CTableDataCell>
-        <CTableDataCell>
+        <CTableDataCell className="text-nowrap">
           <strong>{p.code}</strong>
         </CTableDataCell>
         <CTableDataCell>{p.name}</CTableDataCell>
@@ -355,75 +400,114 @@ const ProductsPage = () => {
 
   const colSpan = singleType === 'board' ? 9 : singleType === 'edge_banding' ? 11 : 8
 
+  // Two different dead ends: an empty catalog is a fact, an over-narrow filter is a place the user
+  // needs a way out of. Shared by the table and the phone's card list.
+  const emptyState = isFiltered ? (
+    <EmptyState
+      icon="clearFilters"
+      title="Ningún producto coincide con los filtros."
+      action={
+        <CButton color="secondary" variant="outline" onClick={handleClear}>
+          Limpiar filtros
+        </CButton>
+      }
+    />
+  ) : (
+    <EmptyState title="Aún no hay productos." />
+  )
+
   return (
     <>
       <div className="surface">
-        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <ListToolbar>
           <SearchInput
             value={search}
             // `replace`: one history entry per settled keystroke would bury the page behind the list.
             onChange={(value) => setParam('q', value, { replace: true })}
             placeholder="Buscar por código o nombre…"
-            className="flex-grow-1"
-            style={{ maxWidth: 360 }}
           />
-          <ProductsFilters values={values} onChange={handleChange} onClear={handleClear} />
+          <ProductsFilters
+            values={values}
+            search={search}
+            onChange={handleChange}
+            onApply={handleApply}
+            onClear={handleClear}
+          />
           <div className="d-flex gap-2 ms-auto">
             {/* The seller syncs but doesn't edit: pulling fresh prices is part of
                 quoting (it's the pass that loads Precio 2/3), editing the catalog
                 is the admin's. Backed by `products:sync` vs `products:write`. */}
             <CButton color="secondary" variant="outline" onClick={() => setSyncModal(true)}>
-              <CIcon icon={cilSync} className="me-1" />
-              Sincronizar catálogo
+              <Icon name="sync" className="me-1" />
+              Sincronizar<span className="d-none d-md-inline"> catálogo</span>
             </CButton>
             {!isReadOnly && (
               <CButton color="primary" onClick={openCreate}>
-                <CIcon icon={cilPlus} className="me-1" />
+                <Icon name="add" className="me-1" />
                 Nuevo producto
               </CButton>
             )}
           </div>
-        </div>
+        </ListToolbar>
 
         <FilterChips chips={chips} onClearAll={handleClear} />
 
         <QueryState isLoading={isLoading} isError={isError} onRetry={() => void refetch()}>
-          {/* A vendedor has no editor to open, and a hand cursor promising one would be a lie. */}
-          <CTable
-            align="middle"
-            hover
-            responsive
-            className={`list-table${isReadOnly ? ' rows-static' : ''}`}
-          >
-            <CTableHead>
-              <CTableRow>{renderHeaders()}</CTableRow>
-            </CTableHead>
-            <CTableBody>
-              {products.length === 0 ? (
-                <CTableRow>
-                  {/* Two different dead ends: an empty catalog is a fact, an over-narrow filter is
-                      a place the user needs a way out of. */}
-                  <CTableDataCell
-                    colSpan={colSpan}
-                    className="text-center text-body-secondary py-5"
-                  >
-                    {isFiltered ? (
+          {/* Both views are mounted and the breakpoint picks one. On a phone the eight to eleven
+              columns scrolled sideways and left the price, what a seller opens the catalog for, off
+              the screen. A vendedor's card opens nothing: there is no editor for that role. */}
+          <div className="d-md-none">
+            {products.length === 0 ? (
+              emptyState
+            ) : (
+              <div className="list-cards">
+                {products.map((p) => (
+                  <ListCard
+                    key={p.id}
+                    onClick={isReadOnly ? undefined : () => openEdit(p)}
+                    title={p.code}
+                    badges={
                       <>
-                        <div>Ningún producto coincide con los filtros.</div>
-                        <CButton color="link" size="sm" onClick={handleClear}>
-                          Limpiar filtros
-                        </CButton>
+                        <StatusBadge config={TYPE_CONFIG} value={p.type} />
+                        {/* Only the exception: «Activo» on every row of a catalog says nothing. */}
+                        {!p.isActive && <ActiveBadge active={false} />}
                       </>
-                    ) : (
-                      'Aún no hay productos.'
-                    )}
-                  </CTableDataCell>
-                </CTableRow>
-              ) : (
-                products.map(renderRow)
-              )}
-            </CTableBody>
-          </CTable>
+                    }
+                    amount={fmtMoney(p.price)}
+                    meta={<ProductFacts product={p} />}
+                    action={deleteButton(p)}
+                  >
+                    <div className="mt-1">{p.name}</div>
+                  </ListCard>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="d-none d-md-block">
+            {/* A vendedor has no editor to open, and a hand cursor promising one would be a lie. */}
+            <CTable
+              align="middle"
+              hover
+              responsive
+              className={`list-table${isReadOnly ? ' rows-static' : ''}`}
+            >
+              <CTableHead>
+                <CTableRow>{renderHeaders()}</CTableRow>
+              </CTableHead>
+              <CTableBody>
+                {products.length === 0 ? (
+                  <CTableRow>
+                    <CTableDataCell colSpan={colSpan} className="p-0">
+                      {emptyState}
+                    </CTableDataCell>
+                  </CTableRow>
+                ) : (
+                  products.map(renderRow)
+                )}
+              </CTableBody>
+            </CTable>
+          </div>
         </QueryState>
 
         <Pagination
@@ -435,15 +519,16 @@ const ProductsPage = () => {
         />
       </div>
 
-      <CModal
+      <Modal
         visible={formModal.visible}
         onClose={closeForm}
         backdrop="static"
         size="lg"
         scrollable
+        fullscreen="md"
       >
         <CModalHeader>
-          <CModalTitle>{formModal.product ? 'Editar producto' : 'Nuevo producto'}</CModalTitle>
+          <ModalTitle>{formModal.product ? 'Editar producto' : 'Nuevo producto'}</ModalTitle>
         </CModalHeader>
         <ProductForm
           key={formModal.product?.id ?? 'new'}
@@ -453,18 +538,20 @@ const ProductsPage = () => {
           isSubmitting={isSubmitting}
           error={formError}
         />
-      </CModal>
+      </Modal>
 
-      <DeleteConfirmModal
+      <ConfirmDialog
         visible={deleteModal.visible}
         title="Eliminar producto"
+        confirmLabel="Eliminar"
+        tone="danger"
         onClose={closeDelete}
         onConfirm={handleDelete}
-        isPending={deleteMutation.isPending}
+        pending={deleteMutation.isPending}
       >
         ¿Eliminar <strong>{deleteModal.product?.name}</strong> ({deleteModal.product?.code})? Esta
         acción no se puede deshacer.
-      </DeleteConfirmModal>
+      </ConfirmDialog>
 
       <SyncCatalogModal
         visible={syncModal}

@@ -1,30 +1,18 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import {
-  CAlert,
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CFormInput,
-  CFormLabel,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCheckAlt, cilSave } from '@coreui/icons'
+import { CCol, CFormInput, CFormLabel, CRow } from '@coreui/react'
 
 import FieldError from 'src/shared/components/FieldError'
 import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { usePreorderSettings, useUpdatePreorderSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { PreorderPayload, PreorderSettings } from './types'
+import SettingsSection from './SettingsSection'
 
 // Each key matches the API field name (and server error field). All are positive integers.
 const FIELDS = [
-  ['preorderValidityDays', 'Validez de la pre-orden (días)'],
-  ['maxOpenPreordersPerClient', 'Tope de pre-órdenes abiertas por cliente'],
+  ['preorderValidityDays', 'Validez de la cotización (días)'],
+  ['maxOpenPreordersPerClient', 'Tope de cotizaciones abiertas por cliente'],
 ] as const
 
 type FormKey = (typeof FIELDS)[number][0]
@@ -46,6 +34,7 @@ const PreorderSettingsCard = () => {
   const { data, isLoading, isError, refetch } = usePreorderSettings()
   const update = useUpdatePreorderSettings()
   const [savedFlash, flashSaved] = useSavedFlash()
+  const idPrefix = useId()
 
   const [form, setForm] = useState<FormState | null>(null)
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
@@ -121,88 +110,40 @@ const PreorderSettingsCard = () => {
   const genericError = hasGenericError(update.error, serverErrors)
 
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <strong>Pre-órdenes</strong>
-        <div className="d-flex gap-2">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleDiscard}
-          >
-            Descartar
-          </CButton>
-          <CButton
-            color="primary"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleSave}
-          >
-            {update.isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={savedFlash ? cilCheckAlt : cilSave} className="me-1" />
-            )}
-            {savedFlash ? 'Guardado' : 'Guardar'}
-          </CButton>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {isLoading || !form ? (
-          <div className="text-center py-5">
-            {isError ? (
-              <div className="text-body-secondary">
-                No se pudieron cargar los parámetros.{' '}
-                <CButton size="sm" color="link" onClick={() => void refetch()}>
-                  Reintentar
-                </CButton>
-              </div>
-            ) : (
-              <CSpinner color="primary" />
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-body-secondary small mb-3">
-              Controlan cuánto tiempo es válida una pre-orden y cuántas puede tener abiertas cada
-              cliente. Vencido ese plazo, la pre-orden pasa a expirada.
-            </p>
-
-            {savedFlash && (
-              <CAlert color="success" className="py-2">
-                Configuración de pre-órdenes guardada correctamente.
-              </CAlert>
-            )}
-            {genericError && (
-              <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
-              </CAlert>
-            )}
-
-            <CRow className="g-3">
-              {FIELDS.map(([key, label]) => (
-                <CCol xs={12} md={6} key={key}>
-                  <CFormLabel>{label}</CFormLabel>
-                  <CFormInput
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={form[key]}
-                    onChange={onChange(key)}
-                    invalid={!!fieldErrors[key]}
-                  />
-                  <FieldError name={key} errors={fieldErrors} />
-                </CCol>
-              ))}
-            </CRow>
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+    <SettingsSection
+      title="Cotizaciones"
+      description="Controlan cuánto tiempo es válida una cotización y cuántas puede tener abiertas cada cliente. Pasado ese plazo, la cotización queda vencida."
+      ready={!isLoading && !!form}
+      isError={isError}
+      onRetry={() => void refetch()}
+      dirty={isDirty}
+      saving={update.isPending}
+      saved={savedFlash}
+      savedMessage="Configuración de cotizaciones guardada correctamente."
+      error={genericError ? update.error?.message || 'Error al guardar. Intenta nuevamente.' : null}
+      onSave={handleSave}
+      onDiscard={handleDiscard}
+    >
+      {form && (
+        <CRow className="g-3">
+          {FIELDS.map(([key, label]) => (
+            <CCol xs={12} md={6} key={key}>
+              <CFormLabel htmlFor={`${idPrefix}-${key}`}>{label}</CFormLabel>
+              <CFormInput
+                id={`${idPrefix}-${key}`}
+                type="number"
+                min={1}
+                step={1}
+                value={form[key]}
+                onChange={onChange(key)}
+                invalid={!!fieldErrors[key]}
+              />
+              <FieldError name={key} errors={fieldErrors} />
+            </CCol>
+          ))}
+        </CRow>
+      )}
+    </SettingsSection>
   )
 }
 

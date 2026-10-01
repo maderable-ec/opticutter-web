@@ -1,7 +1,6 @@
 import { useId, useMemo, useState } from 'react'
 import { CBadge, CButton, CCard, CCardBody, CCollapse } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilChevronBottom, cilChevronRight } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 
 import SheetSvg from 'src/shared/components/SheetSvg'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
@@ -92,7 +91,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
         aria-expanded={showLegend}
         aria-controls={legendId}
       >
-        <CIcon icon={showLegend ? cilChevronBottom : cilChevronRight} size="sm" />
+        <Icon name={showLegend ? 'chevronDown' : 'chevronRight'} size="sm" />
         Leyenda de colores
         <span>({legend.length})</span>
       </CButton>

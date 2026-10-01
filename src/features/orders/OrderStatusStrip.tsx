@@ -124,7 +124,9 @@ const OrderStatusStrip = ({
   if (!sentence && work.length === 0) return null
 
   return (
-    <CAlert color={tone} className="py-2 small mb-3">
+    // `.order-strip` rings the activity pills: on an order in process the strip is amber, and so was
+    // the cut's pill, which dissolved into it.
+    <CAlert color={tone} className="order-strip py-2 small mb-3">
       {sentence && <div className={work.length > 0 ? 'mb-2' : undefined}>{sentence}</div>}
       {/* Below `md` one activity per line, and each line may wrap: badge, clock, count and actor
           are all `nowrap` and together ran past a phone's width. */}

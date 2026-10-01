@@ -1,23 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import useUIStore from 'src/shared/store/uiStore'
-import {
-  CContainer,
-  CDropdown,
-  CDropdownItem,
-  CDropdownMenu,
-  CDropdownToggle,
-  CHeader,
-  CHeaderNav,
-  CHeaderToggler,
-  useColorModes,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilContrast, cilMenu, cilMoon, cilSun } from '@coreui/icons'
+import type { Back, Crumb } from 'src/shared/navigation'
+import { stateFor } from 'src/shared/hooks/useShellNav'
+import { CHeaderToggler } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import AppBreadcrumb from './AppBreadcrumb'
-import AppHeaderDropdown from './AppHeaderDropdown'
-import { THEME_OPTIONS } from './themeOptions'
-import NotificationBell from 'src/features/notifications/NotificationBell'
+import ShellHeader from './ShellHeader'
 
 // One row, not two. The breadcrumb used to have a strip of its own below this one, and the role
 // shortcuts that sat here duplicated the sidebar link for link — so the breadcrumb took their place
@@ -26,80 +15,59 @@ import NotificationBell from 'src/features/notifications/NotificationBell'
 //
 // On a phone the row cannot carry all of it: the trail was left ~140px and every crumb ellipsized
 // into "Ho… / Ór… / Deta…". Below `md` the trail shows only its active crumb (see
-// `.header-breadcrumb` in style.scss) and the theme selector moves into the user menu, which leaves
+// `.header-breadcrumb` in _shell.scss) and the theme selector moves into the user menu, which leaves
 // toggler · title · bell · avatar.
-const AppHeader = () => {
-  const headerRef = useRef<HTMLDivElement>(null)
-  // One instance for both selectors, so the header icon and the user menu's check agree.
-  const { colorMode, setColorMode } = useColorModes('coreui-free-react-admin-template-theme')
+//
+// The left end on a phone is one of three things. Inside a record: «‹ Órdenes», the way back (to
+// wherever the record was opened from, see `returnFor`), and no title (the record says what it is
+// right under it). On a screen with the bottom nav: the title alone, because «Más» already opens
+// the menu. Anywhere else (the optimizer's steps): «Menú», the only way out of the flow, which opens
+// the same sheet as «Más» with the whole menu in it. From `md` up the header has no menu button:
+// the sidebar is always on screen, a rail and then the full menu. A role with nothing to choose
+// from gets no button at all.
+interface AppHeaderProps {
+  hasMenu: boolean
+  withBottomNav: boolean
+  crumbs: Crumb[]
+  back: Back | null
+}
 
-  const sidebarShow = useUIStore((state) => state.sidebarShow)
-  const setSidebarShow = useUIStore((state) => state.setSidebarShow)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (headerRef.current) {
-        headerRef.current.classList.toggle('shadow-sm', document.documentElement.scrollTop > 0)
-      }
-    }
-
-    document.addEventListener('scroll', handleScroll)
-    return () => document.removeEventListener('scroll', handleScroll)
-  }, [])
+const AppHeader = ({ hasMenu, withBottomNav, crumbs, back }: AppHeaderProps) => {
+  const sheetShow = useUIStore((state) => state.navSheetShow)
+  const setSheetShow = useUIStore((state) => state.setNavSheetShow)
 
   return (
-    <CHeader position="sticky" className="mb-3 p-0" ref={headerRef}>
-      <CContainer className="border-bottom px-3 px-md-4" fluid>
+    <ShellHeader>
+      {hasMenu && !back && !withBottomNav && (
         <CHeaderToggler
-          onClick={() => setSidebarShow(!sidebarShow)}
+          className="d-md-none"
+          onClick={() => setSheetShow(true)}
           style={{ marginInlineStart: '-14px' }}
+          aria-label="Menú"
+          aria-haspopup="dialog"
+          aria-expanded={sheetShow}
         >
-          <CIcon icon={cilMenu} size="lg" />
+          <Icon name="more" size="lg" />
         </CHeaderToggler>
-        {/* `min-width: 0` is what lets a long trail ellipsize instead of pushing the icons off the
-            right edge — a flex item's default `min-width: auto` refuses to shrink past its content. */}
-        <div className="header-breadcrumb me-auto overflow-hidden" style={{ minWidth: 0 }}>
-          <AppBreadcrumb />
-        </div>
-        <CHeaderNav>
-          <NotificationBell />
-        </CHeaderNav>
-        <CHeaderNav>
-          <li className="nav-item py-1 d-none d-md-block">
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
-          <CDropdown variant="nav-item" placement="bottom-end" className="d-none d-md-block">
-            <CDropdownToggle caret={false}>
-              {colorMode === 'dark' ? (
-                <CIcon icon={cilMoon} size="lg" />
-              ) : colorMode === 'auto' ? (
-                <CIcon icon={cilContrast} size="lg" />
-              ) : (
-                <CIcon icon={cilSun} size="lg" />
-              )}
-            </CDropdownToggle>
-            <CDropdownMenu>
-              {THEME_OPTIONS.map((option) => (
-                <CDropdownItem
-                  key={option.value}
-                  active={colorMode === option.value}
-                  className="d-flex align-items-center"
-                  as="button"
-                  type="button"
-                  onClick={() => setColorMode(option.value)}
-                >
-                  <CIcon className="me-2" icon={option.icon} size="lg" /> {option.label}
-                </CDropdownItem>
-              ))}
-            </CDropdownMenu>
-          </CDropdown>
-          <li className="nav-item py-1">
-            <div className="vr h-100 mx-2 text-body text-opacity-75"></div>
-          </li>
-          <AppHeaderDropdown colorMode={colorMode} onColorModeChange={setColorMode} />
-        </CHeaderNav>
-      </CContainer>
-    </CHeader>
+      )}
+      {back && (
+        <Link to={back.to} state={stateFor(back)} className="header-back d-md-none me-auto">
+          {/* The ActionBar's own «‹», not CoreUI's chevron, whose outline reads as a double one. */}
+          <span className="header-back-mark" aria-hidden>
+            ‹
+          </span>
+          {back.name}
+        </Link>
+      )}
+      {/* `min-width: 0` is what lets a long trail ellipsize instead of pushing the icons off the
+          right edge — a flex item's default `min-width: auto` refuses to shrink past its content. */}
+      <div
+        className={`header-breadcrumb me-auto overflow-hidden${back ? ' d-none d-md-block' : ''}`}
+        style={{ minWidth: 0 }}
+      >
+        <AppBreadcrumb crumbs={crumbs} />
+      </div>
+    </ShellHeader>
   )
 }
 

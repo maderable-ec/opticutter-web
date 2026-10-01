@@ -1,7 +1,10 @@
-import { CBadge, CButton, CModal, CModalBody, CModalHeader, CModalTitle } from '@coreui/react'
+import { CBadge, CButton, CModalBody, CModalHeader } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
+import { boardCutState } from './progress'
 import type { CutBoard } from './types'
+import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 interface WorkshopBoardPickerProps {
   visible: boolean
@@ -25,7 +28,7 @@ const WorkshopBoardPicker = ({
   onClose,
   container,
 }: WorkshopBoardPickerProps) => (
-  <CModal
+  <Modal
     visible={visible}
     onClose={onClose}
     size="lg"
@@ -34,27 +37,29 @@ const WorkshopBoardPicker = ({
     container={container}
   >
     <CModalHeader>
-      <CModalTitle>Tableros</CModalTitle>
+      <ModalTitle>Tableros</ModalTitle>
     </CModalHeader>
     <CModalBody>
       <div className="workshop-picker">
         {boards.map((b) => {
-          const { cutPieces, totalPieces } = b.progress
-          const done = totalPieces > 0 && cutPieces >= totalPieces
+          const state = boardCutState(b.progress)
+          const current = b.id === currentId
           return (
             <CButton
               key={b.id}
               size="lg"
-              color={done ? 'success' : cutPieces > 0 ? 'primary' : 'secondary'}
-              variant={b.id === currentId ? undefined : 'outline'}
+              color="secondary"
+              variant={current ? undefined : 'outline'}
+              aria-current={current ? 'true' : undefined}
               className="workshop-picker__item text-start"
               onClick={() => onSelect(b.id)}
             >
               <span className="d-flex align-items-center gap-2">
                 <span className="fw-semibold">Tablero {b.sheetNumber}</span>
                 {b.halfBoard && <CBadge color="info">½ medio</CBadge>}
-                <span className="ms-auto text-nowrap">
-                  {done ? '✓ Listo' : `${cutPieces}/${totalPieces}`}
+                <span className={`badge status-pill status-pill--${state.tone} ms-auto`}>
+                  {state.icon && <Icon name={state.icon} className="status-pill__icon" />}
+                  {state.label}
                 </span>
               </span>
               <span className="small d-block text-truncate">{stripHalfSuffix(b.productName)}</span>
@@ -63,7 +68,7 @@ const WorkshopBoardPicker = ({
         })}
       </div>
     </CModalBody>
-  </CModal>
+  </Modal>
 )
 
 export default WorkshopBoardPicker

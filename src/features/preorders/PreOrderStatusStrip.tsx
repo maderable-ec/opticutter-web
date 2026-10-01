@@ -1,11 +1,11 @@
-import { CAlert, CButton, CSpinner } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCopy, cilExternalLink, cilLink } from '@coreui/icons'
+import { CAlert, CButton } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { MASK } from 'src/shared/analytics'
 import { fmtDate, fmtDateTime } from 'src/shared/utils/format'
 import { isOpen } from './status'
 import type { PreOrderStatus, ReviewLinkInfo } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 // Where the quote stands AND what to do about it. It replaces four mutually exclusive full-width
 // alerts plus a card that held a single sentence about the review link — five blocks of which at most
@@ -41,7 +41,7 @@ interface PreOrderStatusStripProps {
   onShare?: () => void
   isSharePending?: boolean
   // Why the button is inert right now: unsaved edits, or a client with no phone. Printed beside it,
-  // the same way `WizardFooter` pairs `nextHint` with `nextDisabled` — a disabled button with no
+  // the same way `ActionBar` pairs `nextHint` with `nextDisabled` — a disabled button with no
   // reason is the one thing worse than no button.
   shareBlockedReason?: string
   onViewOrder?: () => void
@@ -136,10 +136,10 @@ const PreOrderStatusStrip = ({
       <div className="d-flex flex-wrap align-items-center gap-2">
         <span>{sentence}</span>
         <div className="ms-auto d-flex flex-wrap align-items-center gap-2">
-          {linkText && <span className="opacity-75">{linkText}</span>}
+          {linkText && <span className="fw-normal">{linkText}</span>}
           {onShare && open && (
             <>
-              {shareBlockedReason && <span className="opacity-75">{shareBlockedReason}</span>}
+              {shareBlockedReason && <span className="fw-normal">{shareBlockedReason}</span>}
               <CButton
                 size="sm"
                 color={shareIsNextStep ? 'primary' : 'secondary'}
@@ -150,9 +150,9 @@ const PreOrderStatusStrip = ({
                 onClick={onShare}
               >
                 {isSharePending ? (
-                  <CSpinner size="sm" className="me-1" />
+                  <Spinner size="sm" className="me-1" />
                 ) : (
-                  <CIcon icon={cilLink} className="me-1" />
+                  <Icon name="link" className="me-1" />
                 )}
                 {shareLabel}
               </CButton>
@@ -166,7 +166,7 @@ const PreOrderStatusStrip = ({
               type="button"
               onClick={onViewOrder}
             >
-              <CIcon icon={cilExternalLink} className="me-1" />
+              <Icon name="external" className="me-1" />
               Ver orden
             </CButton>
           )}
@@ -181,9 +181,9 @@ const PreOrderStatusStrip = ({
               onClick={onDuplicate}
             >
               {isDuplicatePending ? (
-                <CSpinner size="sm" className="me-1" />
+                <Spinner size="sm" className="me-1" />
               ) : (
-                <CIcon icon={cilCopy} className="me-1" />
+                <Icon name="copy" className="me-1" />
               )}
               Duplicar cotización
             </CButton>

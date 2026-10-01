@@ -31,6 +31,18 @@ export const createCrudHooks = <
       placeholderData: keepPreviousData,
     })
 
+  // How many rows a set of filters would return, without the rows: the phone filter sheet's «Ver 12
+  // productos». One row is the cheapest page that still carries `pagination.total`. Under the same
+  // `[key]` family, so a create or a delete refreshes the count with the list.
+  const useTotal = (params: ListParams, enabled: boolean) =>
+    useQuery({
+      queryKey: [key, 'total', params],
+      queryFn: () => api.list({ ...params, offset: 0, limit: 1 }),
+      select: (res) => res.pagination.total,
+      enabled,
+      placeholderData: keepPreviousData,
+    })
+
   const useCreate = () => {
     const qc = useQueryClient()
     return useMutation({
@@ -55,5 +67,5 @@ export const createCrudHooks = <
     })
   }
 
-  return { useList, useCreate, useUpdate, useDelete }
+  return { useList, useTotal, useCreate, useUpdate, useDelete }
 }

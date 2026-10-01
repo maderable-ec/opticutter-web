@@ -1,0 +1,48 @@
+// A panel rising from the bottom edge (`BottomSheet`): as tall as its content, never taller than
+// the screen minus a strip of the page above it — the strip is what says "this sits over your list,
+// the list is still there". From `md` the same sheet is capped and centred rather than stretched
+// across a laptop, where a 1280px-wide form of four fields would read as a broken page.
+.bottom-sheet.offcanvas-bottom {
+  --cui-offcanvas-height: auto;
+  max-height: calc(100dvh - 3rem);
+  border-top-left-radius: var(--cui-border-radius-lg);
+  border-top-right-radius: var(--cui-border-radius-lg);
+
+  @media (min-width: 768px) {
+    max-width: 36rem;
+    margin-inline: auto;
+    border-inline: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  }
+}
+
+.bottom-sheet__header {
+  align-items: flex-start;
+  gap: 0.75rem;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+}
+
+.bottom-sheet__title {
+  margin: 0;
+  font-size: var(--mb-text-base);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bottom-sheet__subtitle {
+  margin-top: 0.125rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+  overflow-wrap: anywhere;
+}
+
+// The actions stay on screen whatever the body scrolls to, clear of a notched phone's home
+// indicator — the same inset the action bar keeps.
+.bottom-sheet__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem var(--cui-offcanvas-padding-x);
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+}

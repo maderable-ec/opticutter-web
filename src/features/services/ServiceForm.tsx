@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useId, useState, type FormEvent } from 'react'
 import {
   CButton,
   CCol,
@@ -9,12 +9,12 @@ import {
   CModalBody,
   CModalFooter,
   CRow,
-  CSpinner,
 } from '@coreui/react'
 
 import { ApiError } from 'src/shared/api/types'
 import FieldError from 'src/shared/components/FieldError'
 import type { AdditionalService, AdditionalServicePayload } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 interface FormState {
   name: string
@@ -47,6 +47,8 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
     isActive: service?.isActive ?? true,
   })
 
+  // Each label names its field, for a screen reader and for the tap on the label itself.
+  const id = useId()
   const fieldErrors = mapServerErrors(error)
   const hasGenericError = error && Object.keys(fieldErrors).length === 0
 
@@ -60,10 +62,11 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
       <CModalBody>
         <CRow className="g-3">
           <CCol xs={12}>
-            <CFormLabel>
+            <CFormLabel htmlFor={`${id}-name`}>
               Nombre <span className="text-danger">*</span>
             </CFormLabel>
             <CFormInput
+              id={`${id}-name`}
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               required
@@ -73,11 +76,13 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
             <FieldError name="name" errors={fieldErrors} />
           </CCol>
           <CCol xs={12}>
-            <CFormLabel>
+            <CFormLabel htmlFor={`${id}-price`}>
               Precio por defecto (IVA incluido) <span className="text-danger">*</span>
             </CFormLabel>
             <CFormInput
+              id={`${id}-price`}
               type="number"
+              inputMode="decimal"
               value={form.price}
               onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
               required
@@ -89,6 +94,7 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
           </CCol>
           <CCol xs={12}>
             <CFormSwitch
+              id={`${id}-active`}
               label="Activo"
               checked={form.isActive}
               onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
@@ -104,11 +110,11 @@ const ServiceForm = ({ service, onSubmit, onCancel, isSubmitting, error }: Servi
         </CRow>
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" type="button" onClick={onCancel}>
+        <CButton color="secondary" variant="outline" type="button" onClick={onCancel}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <CSpinner size="sm" /> : 'Guardar'}
+          {isSubmitting ? <Spinner size="sm" /> : 'Guardar'}
         </CButton>
       </CModalFooter>
     </CForm>

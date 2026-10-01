@@ -1,89 +1,125 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
+import { useId } from 'react'
 import type { ElementType, ReactNode } from 'react'
 
-import SimpleBar from 'simplebar-react'
-import 'simplebar-react/dist/simplebar.min.css'
+import Icon from 'src/shared/icons/Icon'
+import type { IconName } from 'src/shared/icons/registry'
 
-import { CBadge, CNavLink, CSidebarNav } from '@coreui/react'
-
-export interface NavBadge {
-  color?: string
-  text?: string
-}
+import { useFromHere } from '../hooks/useShellNav'
+import { entryCurrent, navLeaves } from '../navigation'
+import type { NavSection } from '../navigation'
+import type { WorkspaceId } from '../routes'
 
 export interface NavItem {
   component: ElementType
   name?: ReactNode
-  icon?: ReactNode
-  badge?: NavBadge
+  icon?: IconName
   to?: string
-  href?: string
   items?: NavItem[]
   roles?: string[]
+  // A hub's entry (`HUBS`), declared by its id; `sectionsForRoles` fills in `to` and `matches`.
+  hub?: string
+  // Every path the entry stands for: a hub's entry opens its first tab and stays lit on all of them.
+  matches?: string[]
+  // A hub's tabs by name, for the phone's sheet to say what is in it.
+  tabs?: string[]
+  // The workspace the entry leads into; `sectionsForRoles` fills it in from the route.
+  workspace?: WorkspaceId
+  // The menu's one action («Cotizar»): the sidebar draws it as the button on top instead of a row,
+  // as the phone's bar draws it as its disc (`BottomNavItem.primary`). The phone's sheet lists it.
+  action?: boolean
   [key: string]: unknown
 }
 
-interface AppSidebarNavProps {
-  items: NavItem[]
+interface HubNavLinkProps {
+  to: string
+  matches: string[]
+  children: ReactNode
 }
 
-export const AppSidebarNav = ({ items }: AppSidebarNavProps) => {
-  const navLink = (name?: ReactNode, icon?: ReactNode, badge?: NavBadge, indent = false) => {
-    return (
-      <>
-        {icon
-          ? icon
-          : indent && (
-              <span className="nav-icon">
-                <span className="nav-icon-bullet"></span>
-              </span>
-            )}
-        {name && name}
-        {badge && (
-          <CBadge color={badge.color} className="ms-auto" size="sm">
-            {badge.text}
-          </CBadge>
-        )}
-      </>
-    )
-  }
-
-  const navItem = (item: NavItem, index: number, indent = false) => {
-    const { component, name, badge, icon, ...rest } = item
-    const Component = component
-    return (
-      <Component as="div" key={index}>
-        {rest.to || rest.href ? (
-          <CNavLink
-            {...(rest.to && { as: NavLink })}
-            {...(rest.href && { target: '_blank', rel: 'noopener noreferrer' })}
-            {...rest}
-          >
-            {navLink(name, icon, badge, indent)}
-          </CNavLink>
-        ) : (
-          navLink(name, icon, badge, indent)
-        )}
-      </Component>
-    )
-  }
-
-  const navGroup = (item: NavItem, index: number) => {
-    const { component, name, icon, items, ...rest } = item
-    const Component = component
-    return (
-      <Component compact as="div" key={index} toggler={navLink(name, icon)} {...rest}>
-        {items?.map((subItem, subIndex) =>
-          subItem.items ? navGroup(subItem, subIndex) : navItem(subItem, subIndex, true),
-        )}
-      </Component>
-    )
-  }
-
+// A `NavLink` only lights on its own path, and a hub's entry has to stay lit on every tab. On the
+// path it opens it is the page; on another tab it is the place the page is in.
+const HubNavLink = ({ to, matches, children }: HubNavLinkProps) => {
+  const { pathname } = useLocation()
+  const current = entryCurrent({ to, matches }, pathname)
   return (
-    <CSidebarNav as={SimpleBar}>
-      {items &&
-        items.map((item, index) => (item.items ? navGroup(item, index) : navItem(item, index)))}
-    </CSidebarNav>
+    <Link
+      to={to}
+      className={`side-nav__link${current ? ' active' : ''}`}
+      aria-current={current ?? undefined}
+    >
+      {children}
+    </Link>
   )
 }
+
+// Going into a workspace is not a move between screens: the workspace has no menu to come back by,
+// so its «Salir» needs to know where this was (`exitFor`). Every other entry carries nothing.
+const WorkspaceNavLink = ({ to, children }: { to: string; children: ReactNode }) => (
+  <NavLink to={to} state={useFromHere()} className="side-nav__link">
+    {children}
+  </NavLink>
+)
+
+const NavEntry = ({ item }: { item: NavItem }) => {
+  const { name, icon, to, matches, workspace } = item
+  if (!to) return null
+  const content = (
+    <>
+      {icon && <Icon name={icon} />}
+      <span className="side-nav__label">{name}</span>
+    </>
+  )
+  if (matches) {
+    return (
+      <HubNavLink to={to} matches={matches}>
+        {content}
+      </HubNavLink>
+    )
+  }
+  if (workspace) return <WorkspaceNavLink to={to}>{content}</WorkspaceNavLink>
+  return (
+    <NavLink to={to} className="side-nav__link">
+      {content}
+    </NavLink>
+  )
+}
+
+// A section is a list named by its title. The rail has no room for the title and draws a hairline
+// in its place, but the list keeps its name: `aria-labelledby` reads a hidden element all the same.
+const NavSectionList = ({ section }: { section: NavSection }) => {
+  const titleId = useId()
+  const items = navLeaves(section.items).filter((item) => !item.action)
+  if (items.length === 0) return null
+  return (
+    <div className="side-nav__section">
+      {section.title && (
+        <div id={titleId} className="side-nav__title">
+          {section.title}
+        </div>
+      )}
+      <ul className="side-nav__list" aria-labelledby={section.title ? titleId : undefined}>
+        {items.map((item, i) => (
+          <li key={item.to ?? i}>
+            <NavEntry item={item} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+interface AppSidebarNavProps {
+  sections: NavSection[]
+}
+
+// The entries, a list per section, less the action (the button on top, `AppSidebar`). A group is its
+// children, as in the phone's sheet: no entry has any today, and a level to open is one more tap the
+// rail has no room to show.
+export const AppSidebarNav = ({ sections }: AppSidebarNavProps) => (
+  <>
+    {sections.map((section, i) => (
+      <NavSectionList key={section.title ?? i} section={section} />
+    ))}
+  </>
+)

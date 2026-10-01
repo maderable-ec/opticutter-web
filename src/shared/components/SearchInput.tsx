@@ -7,8 +7,7 @@ import {
   type RefObject,
 } from 'react'
 import { CFormInput, CInputGroup, CInputGroupText } from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilSearch } from '@coreui/icons'
+import Icon from 'src/shared/icons/Icon'
 import { useDebounce } from 'src/shared/hooks/useDebounce'
 import { SEARCH_DEBOUNCE_MS } from 'src/shared/constants'
 
@@ -82,7 +81,7 @@ const SearchInput = ({
   return (
     <CInputGroup className={className} style={style} size={size}>
       <CInputGroupText>
-        <CIcon icon={cilSearch} />
+        <Icon name="search" />
       </CInputGroupText>
       <CFormInput
         ref={inputRef}

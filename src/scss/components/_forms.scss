@@ -1,0 +1,14 @@
+// A long form in sections (`ProductForm`): a `fieldset` per group with its `legend` lettered like
+// every `.eyebrow`, and a rule between groups. On a phone the dialog is the whole screen and the form
+// one long scroll, where the headings are what says where in it you are.
+.form-section {
+  > legend {
+    margin-bottom: 0.5rem;
+  }
+
+  & + & {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  }
+}

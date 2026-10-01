@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CButton } from '@coreui/react'
+import Icon from 'src/shared/icons/Icon'
 
 import { resetOptimizerSession, track } from 'src/shared/analytics'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
@@ -21,20 +23,26 @@ import {
 import type { MaterialForm, RequirementForm, RequirementIssue } from './optimizerForm'
 import type { LayoutAdjustment, OptimizeResponse, OptimizerDraftPayload } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
+import { DISCARD_ADJUSTMENTS, DISCARD_WORK } from './confirmations'
+import { useConfirm } from 'src/shared/hooks/useConfirm'
 import {
   buildServiceLines,
+  pricingWithServices,
   serviceLineFromApi,
   useServiceLines,
 } from 'src/features/preorders/useServiceLines'
+import { fmtMoney } from 'src/features/review/format'
 import { downloadCsv, requirementsToCsv } from './piecesCsv'
 import { usePiecesEditor } from './usePiecesEditor'
 import { useCollapsedGroups } from './useCollapsedGroups'
 import { usePiecesNavigation } from './usePiecesNavigation'
 import { useEditorShortcuts } from './useEditorShortcuts'
 import { useQuoteDraft } from './useQuoteDraft'
+import { useCreateQuote } from './useCreateQuote'
 import { signatureOf, useOptimizerWizard } from './useOptimizerWizard'
 import type { StepId } from './useOptimizerWizard'
-import WizardSteps, { WizardFooter } from './WizardSteps'
+import WizardSteps from './WizardSteps'
+import ActionBar from 'src/shared/components/ActionBar'
 import OptimizerActionsMenu from './OptimizerActionsMenu'
 import PiecesSelectionBar from './PiecesSelectionBar'
 import PiecesSummary from './PiecesSummary'
@@ -50,7 +58,8 @@ import LayoutEditorModal from './layoutEditor/LayoutEditorModal'
 import type { EditorFocus } from './layoutEditor/useLayoutEditor'
 import OptimizingOverlay from './OptimizingOverlay'
 import { PlanFacts } from './CutLayoutDiagram'
-import { meters } from './summaryTables'
+import Spinner from 'src/shared/components/Spinner'
+import { fmtMeters } from 'src/shared/utils/format'
 
 // One-line summary of the blocked rows, for the toast. The per-row reasons stay in the alert.
 const issuesSummary = (issues: RequirementIssue[]): string => {
@@ -118,6 +127,7 @@ const OptimizerPage = () => {
   // Modals and dropdown menus must portal INSIDE the fullscreen host: document.body sits outside
   // the fullscreen element, so anything portaled there mounts but is never painted.
   const modalContainer = useCallback(() => containerRef.current, [containerRef])
+  const [confirm, confirmDialog] = useConfirm({ container: modalContainer })
   const addToast = useToastStore((s) => s.addToast)
 
   const { data: boards = [] } = useBoards()
@@ -241,6 +251,18 @@ const OptimizerPage = () => {
     unplacedCount,
   })
   const onPieces = wizard.step === 'pieces'
+  // «Crear cotización» rides in the action bar like every step's next move, so the page owns it.
+  const createQuote = useCreateQuote({
+    result,
+    materials: built.materials,
+    requirements: built.requirements,
+    priceLevel,
+    variant,
+    layoutAdjustments,
+    services: services.lines,
+    draft: quote.draft,
+    onCreated: clearAutosave,
+  })
   // The two steps that read the plan; the run and "Volver a optimizar" belong to them.
   const onPlan = wizard.step === 'layout' || wizard.step === 'costs'
 
@@ -337,14 +359,11 @@ const OptimizerPage = () => {
     wizard.goTo('pieces')
   }
 
-  const handleNew = () => {
-    if (
-      hasWork &&
-      !window.confirm('¿Empezar un trabajo nuevo? Se descartará lo que no hayas guardado.')
-    )
-      return
+  const newJob = async () => {
+    if (hasWork && !(await confirm(DISCARD_WORK))) return
     resetWorkspace()
   }
+  const handleNew = () => void newJob()
 
   // "Save draft": PUT if a draftId exists; otherwise prompt for a name and create (POST).
   const handleSaveDraft = () => {
@@ -611,21 +630,18 @@ const OptimizerPage = () => {
 
   // Bump the seed and recompute — each seed yields a deterministic, cached layout, genuinely
   // different when alternatives exist. This is what "Volver a optimizar" does once a result exists.
-  const handleAlternative = () => {
+  const alternative = async () => {
     if (!canOptimize) return
     // Another alternative is another plan: hand adjustments made on this one would pin its sheets
     // over the new search and hide it. So they go, and the seller is asked first.
-    if (
-      layoutAdjustments &&
-      !window.confirm('Otra alternativa descarta los ajustes manuales de la distribución. ¿Seguir?')
-    )
-      return
+    if (layoutAdjustments && !(await confirm(DISCARD_ADJUSTMENTS))) return
     if (layoutAdjustments) track('layout_adjustments_discarded')
     const next = variant + 1
     setVariant(next)
     setLayoutAdjustments(null)
     runOptimize({ variant: next, layoutAdjustments: null })
   }
+  const handleAlternative = () => void alternative()
 
   // The editor works on the plan on screen, so it opens only when that plan matches the inputs.
   const adjustDisabledReason = optimize.isPending
@@ -763,6 +779,13 @@ const OptimizerPage = () => {
         <PiecesSummary requirements={pieces.requirements} materials={materials} />
       )}
     </>
+  ) : wizard.step === 'quote' && result?.pricing ? (
+    // What «Crear cotización» is about to put on paper, next to it: on a phone the summary with the
+    // total sits a screen below the client field.
+    <span className="text-nowrap">
+      <span className="text-body-secondary small">Total</span>{' '}
+      <strong>{fmtMoney(pricingWithServices(result.pricing, services.lines).total)}</strong>
+    </span>
   ) : wizard.step === 'layout' && result && result.layoutGroups.length > 0 ? (
     // Not on a phone: there it would put the bar on two lines, and the sheet's own stats sit right
     // under it anyway.
@@ -773,8 +796,8 @@ const OptimizerPage = () => {
         extra={
           <>
             <span className="small">
-              · corte <strong>{meters(result.totalCutLinearM)}</strong> · tapacanto{' '}
-              <strong>{meters(result.totalEdgeBandingLinearM)}</strong>
+              · corte <strong>{fmtMeters(result.totalCutLinearM)}</strong> · tapacanto{' '}
+              <strong>{fmtMeters(result.totalEdgeBandingLinearM)}</strong>
             </span>
             {/* Which alternative is on screen: it names the run, it does not measure the plan. */}
             {variant > 0 && (
@@ -862,16 +885,13 @@ const OptimizerPage = () => {
           {wizard.step === 'quote' && (
             <QuoteStep
               result={result}
-              materials={built.materials}
               requirements={built.requirements}
               priceLevel={priceLevel}
-              variant={variant}
-              layoutAdjustments={layoutAdjustments}
               services={services.lines}
               draft={quote.draft}
               onDraftChange={quote.setField}
+              createError={createQuote.error}
               container={modalContainer}
-              onCreated={clearAutosave}
             />
           )}
         </div>
@@ -890,15 +910,34 @@ const OptimizerPage = () => {
 
       {/* Each button names where it goes — "‹ Despiece", "Costos ›" — so the next stop is readable
           without looking up at the trail. */}
-      <WizardFooter
+      <ActionBar
         onBack={wizard.index > 0 ? wizard.back : undefined}
         backLabel={wizard.prevLabel}
         onNext={wizard.isLast ? undefined : handleNext}
         nextLabel={wizard.nextLabel}
         nextDisabled={!wizard.canGoNext || optimize.isPending}
         nextHint={wizard.nextBlockedReason}
+        hint={
+          wizard.step === 'quote' && !createQuote.isPending ? createQuote.blockedReason : undefined
+        }
         left={footerLeft}
-      />
+      >
+        {wizard.step === 'quote' && (
+          <CButton
+            color="primary"
+            type="button"
+            disabled={!!createQuote.blockedReason || createQuote.isPending}
+            onClick={createQuote.create}
+          >
+            {createQuote.isPending ? (
+              <Spinner size="sm" className="me-1" />
+            ) : (
+              <Icon name="createQuote" className="me-1" />
+            )}
+            Crear cotización
+          </CButton>
+        )}
+      </ActionBar>
 
       <DeleteMaterialModal
         material={deleteTarget}
@@ -940,6 +979,8 @@ const OptimizerPage = () => {
         onClose={() => setShowSaveDraft(false)}
         error={saveDraft.error}
       />
+
+      {confirmDialog}
 
       {/* The layout's toaster sits outside this element, and fullscreen renders only this subtree —
           so a second renderer is mounted here to keep toasts visible. Both read the same store;

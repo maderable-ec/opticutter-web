@@ -1,7 +1,9 @@
+import { useId } from 'react'
 import {
   CBadge,
   CCol,
   CFormCheck,
+  CFormSwitch,
   CTable,
   CTableBody,
   CTableDataCell,
@@ -11,30 +13,34 @@ import {
 } from '@coreui/react'
 
 import { fmtMoney } from 'src/features/review/format'
+import LineItemList from 'src/shared/components/LineItemList'
+import StatTile from 'src/shared/components/StatTile'
 import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import type { EdgeBandingSummary, MaterialSummary } from './types'
+import { fmtMeters, fmtNumber } from 'src/shared/utils/format'
 
 // Result read-outs shared by the wizard's steps and the pre-order preview. The wizard splits them
 // across two steps (geometry vs money); the pre-order keeps them stacked in one card.
+//
+// Each table mounts a `LineItemList` beside itself for a phone, and the breakpoint picks: five to
+// seven columns scrolled sideways there, and the Nivel and Entero checks — the two decisions this
+// step exists for — sat past the right edge.
 
 interface KpiProps {
   label: string
   value: string | number
   // Column span at `md` and up. Four tiles per row by default.
   md?: number
+  // The total of the row: the figure the client is quoted.
+  emphasis?: boolean
 }
 
-// Compact KPI tile with a subtle border, so the headline metrics read as a scannable group.
-export const Kpi = ({ label, value, md = 3 }: KpiProps) => (
+// A `StatTile` in a grid column, so the headline metrics read as a scannable group.
+export const Kpi = ({ label, value, md = 3, emphasis }: KpiProps) => (
   <CCol xs={6} md={md}>
-    <div className="border rounded-3 p-2 h-100">
-      <div className="text-body-secondary small text-uppercase">{label}</div>
-      <div className="fs-5 fw-semibold">{value}</div>
-    </div>
+    <StatTile label={label} value={value} emphasis={emphasis} />
   </CCol>
 )
-
-export const meters = (n?: number | null) => (n != null ? `${n.toFixed(2)} m` : '—')
 
 interface MaterialsSummaryTableProps {
   rows: MaterialSummary[]
@@ -58,6 +64,8 @@ export const MaterialsSummaryTable = ({
   onToggleWholeBoard,
   marksDisabled = false,
 }: MaterialsSummaryTableProps) => {
+  // Ids for the phone's switches, which need one to tie each label to its input.
+  const uid = useId()
   if (!rows.length) return null
   // Only where there is a board that can actually use it: a half board is billed off the list
   // price at every level, so a plan cut entirely in halves would carry a column that does
@@ -68,149 +76,228 @@ export const MaterialsSummaryTable = ({
   // which is what makes the decision reversible: once promoted, the "½ medio" row is gone.
   const promotable =
     !!onToggleWholeBoard && rows.some((m) => m.halfBoard || wholeBoardKeys?.has(m.materialKey))
+  const nameOf = (m: MaterialSummary) =>
+    stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey
+  // Which marks a row offers — the same rules as the two columns below.
+  const levelOn = (m: MaterialSummary) => selectable && m.productId != null && !m.halfBoard
+  const wholeOn = (m: MaterialSummary) =>
+    promotable &&
+    m.productId != null &&
+    (m.halfBoard || (wholeBoardKeys?.has(m.materialKey) ?? false))
   return (
-    <CTable small responsive className="summary-table mb-3">
-      <CTableHead>
-        <CTableRow>
-          {/* "Material", not "Tablero": a row here can be a catalog board, a retazo of the
+    <>
+      {/* Phone. The marks are labelled switches: a list row has no column header to explain a bare
+          checkbox. */}
+      <LineItemList
+        className="d-md-none mb-3"
+        items={rows.map((m, i) => ({
+          key: `${m.materialKey}-${m.halfBoard ? 'half' : 'full'}`,
+          title: (
+            <>
+              {nameOf(m)} {m.halfBoard && <CBadge color="info">½ medio</CBadge>}{' '}
+              {m.skipTrim && <CBadge color="secondary">sin refilar</CBadge>}
+            </>
+          ),
+          detail: `${m.count} × ${fmtMoney(m.costPerUnit)}`,
+          meta: `${m.width}×${m.height}×${m.thickness} mm`,
+          amount: fmtMoney(m.totalCost),
+          controls:
+            levelOn(m) || wholeOn(m) ? (
+              <>
+                {levelOn(m) && (
+                  <CFormSwitch
+                    id={`${uid}-level-${i}`}
+                    label="Aplicar nivel de precio"
+                    checked={leveledKeys?.has(m.materialKey) ?? false}
+                    disabled={marksDisabled}
+                    onChange={() => onToggleLevel?.(m.materialKey)}
+                  />
+                )}
+                {wholeOn(m) && (
+                  <CFormSwitch
+                    id={`${uid}-whole-${i}`}
+                    label="Tablero entero"
+                    checked={wholeBoardKeys?.has(m.materialKey) ?? false}
+                    disabled={marksDisabled}
+                    onChange={() => onToggleWholeBoard?.(m.materialKey)}
+                  />
+                )}
+              </>
+            ) : undefined,
+        }))}
+      />
+      <div className="d-none d-md-block">
+        <CTable small responsive className="summary-table mb-3">
+          <CTableHead>
+            <CTableRow>
+              {/* "Material", not "Tablero": a row here can be a catalog board, a retazo of the
               workshop or one the client brought, and a quote can be made entirely of the last
               kind. The clash the old wording avoided is gone — the count column is "Cant.". */}
-          <CTableHeaderCell>Material</CTableHeaderCell>
-          <CTableHeaderCell>Medida</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
-          {/* Precio unitario, no eficiencia: esta es la tabla de dinero del paso, y con solo
+              <CTableHeaderCell>Material</CTableHeaderCell>
+              <CTableHeaderCell>Medida</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Cant.</CTableHeaderCell>
+              {/* Precio unitario, no eficiencia: esta es la tabla de dinero del paso, y con solo
               Cant. y Costo había que dividir para saber a cuánto sale el tablero — que es el
               número que se negocia y el que decide el check de "Nivel" de la misma fila. El
               aprovechamiento se lee en la barra del diagrama de cortes (y por patrón, dentro). */}
-          <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Costo</CTableHeaderCell>
-          {/* Last column, right after the cost it acts on: the checkbox answers "is THIS amount
+              <CTableHeaderCell className="text-end">Precio unit.</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Costo</CTableHeaderCell>
+              {/* Last column, right after the cost it acts on: the checkbox answers "is THIS amount
               billed at the chosen level", so it reads next to the amount. */}
-          {selectable && (
-            <CTableHeaderCell
-              className="text-center"
-              title="Cobrar este tablero al nivel de precio seleccionado"
-            >
-              Nivel
-            </CTableHeaderCell>
-          )}
-          {/* Sits after "Nivel" because it acts on the same row of money, and because it is the
+              {selectable && (
+                <CTableHeaderCell
+                  className="text-center"
+                  title="Cobrar este tablero al nivel de precio seleccionado"
+                >
+                  Nivel
+                </CTableHeaderCell>
+              )}
+              {/* Sits after "Nivel" because it acts on the same row of money, and because it is the
               rarer decision of the two. */}
-          {promotable && (
-            <CTableHeaderCell
-              className="text-center"
-              title="Entregar y cobrar el tablero completo: el cliente se lleva la mitad sin cortar"
-            >
-              Entero
-            </CTableHeaderCell>
-          )}
-        </CTableRow>
-      </CTableHead>
-      <CTableBody>
-        {rows.map((m) => (
-          // A material billed as full boards AND half boards yields two rows sharing one
-          // materialKey, so the key has to include `halfBoard`. Plain `materialKey` was already
-          // a duplicate-key collision; it went unnoticed while the cells were static text and
-          // would have started mixing up state now that a row carries a checkbox.
-          <CTableRow key={`${m.materialKey}-${m.halfBoard ? 'half' : 'full'}`}>
-            <CTableDataCell>
-              {stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey}{' '}
-              {m.halfBoard && <CBadge color="info">½ medio</CBadge>}{' '}
-              {/* Read-only here, deliberately: the decision is taken in Despiece because it
+              {promotable && (
+                <CTableHeaderCell
+                  className="text-center"
+                  title="Entregar y cobrar el tablero completo: el cliente se lleva la mitad sin cortar"
+                >
+                  Entero
+                </CTableHeaderCell>
+              )}
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {rows.map((m) => (
+              // A material billed as full boards AND half boards yields two rows sharing one
+              // materialKey, so the key has to include `halfBoard`. Plain `materialKey` was already
+              // a duplicate-key collision; it went unnoticed while the cells were static text and
+              // would have started mixing up state now that a row carries a checkbox.
+              <CTableRow key={`${m.materialKey}-${m.halfBoard ? 'half' : 'full'}`}>
+                <CTableDataCell>
+                  {stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey}{' '}
+                  {m.halfBoard && <CBadge color="info">½ medio</CBadge>}{' '}
+                  {/* Read-only here, deliberately: the decision is taken in Despiece because it
                   re-runs the search, and offering it on the money screen would invite a
                   re-optimize from the one step that is supposed to be instant. */}
-              {m.skipTrim && (
-                <CBadge color="secondary" title="Se corta sin refilar los bordes">
-                  sin refilar
-                </CBadge>
-              )}
-            </CTableDataCell>
-            <CTableDataCell className="text-nowrap">
-              {m.width}×{m.height}×{m.thickness} mm
-            </CTableDataCell>
-            <CTableDataCell className="text-end">{m.count}</CTableDataCell>
-            {/* El precio al que se factura esta línea: si el tablero está marcado, ya llega con
+                  {m.skipTrim && (
+                    <CBadge color="secondary" title="Se corta sin refilar los bordes">
+                      sin refilar
+                    </CBadge>
+                  )}
+                </CTableDataCell>
+                <CTableDataCell className="text-nowrap">
+                  {m.width}×{m.height}×{m.thickness} mm
+                </CTableDataCell>
+                <CTableDataCell className="text-end">{m.count}</CTableDataCell>
+                {/* El precio al que se factura esta línea: si el tablero está marcado, ya llega con
                 el precio del nivel desde el backend (no hay fila de descuento en ningún lado).
                 El medio tablero es la excepción y llega SIEMPRE sobre el precio de lista
                 (mitad + recargo), en su propia fila: el nivel es una concesión sobre la plancha
                 entera y el medio ya carga su recargo porque el taller se queda con la otra mitad. */}
-            <CTableDataCell className="text-end">{fmtMoney(m.costPerUnit)}</CTableDataCell>
-            <CTableDataCell className="text-end">{fmtMoney(m.totalCost)}</CTableDataCell>
-            {selectable && (
-              <CTableDataCell className="text-center">
-                {/* Only catalog boards have levels — an offcut or a manual measurement is priced
+                <CTableDataCell className="text-end">{fmtMoney(m.costPerUnit)}</CTableDataCell>
+                <CTableDataCell className="text-end">{fmtMoney(m.totalCost)}</CTableDataCell>
+                {selectable && (
+                  <CTableDataCell className="text-center">
+                    {/* Only catalog boards have levels — an offcut or a manual measurement is priced
                     by the request. The half-board row is out too: it bills off the list price at
                     every level, so a check there would move no number on its own line. The whole
                     board of the same material keeps the check, and it marks the material. */}
-                {m.productId != null && !m.halfBoard && (
-                  <CFormCheck
-                    checked={leveledKeys?.has(m.materialKey) ?? false}
-                    disabled={marksDisabled}
-                    onChange={() => onToggleLevel?.(m.materialKey)}
-                    aria-label={`Cobrar al nivel seleccionado: ${
-                      stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey
-                    }`}
-                  />
+                    {m.productId != null && !m.halfBoard && (
+                      <CFormCheck
+                        checked={leveledKeys?.has(m.materialKey) ?? false}
+                        disabled={marksDisabled}
+                        onChange={() => onToggleLevel?.(m.materialKey)}
+                        aria-label={`Cobrar al nivel seleccionado: ${
+                          stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey
+                        }`}
+                      />
+                    )}
+                  </CTableDataCell>
                 )}
-              </CTableDataCell>
-            )}
-            {promotable && (
-              <CTableDataCell className="text-center">
-                {/* Bound to the materialKey, not to this row: marking it merges the "½ medio" row
+                {promotable && (
+                  <CTableDataCell className="text-center">
+                    {/* Bound to the materialKey, not to this row: marking it merges the "½ medio" row
                     into the whole-board one, so a row-scoped check would vanish with the row and
                     leave no way to undo the decision — which is also why an already-marked
                     material keeps its check on the promoted (no longer half) row. */}
-                {m.productId != null &&
-                  (m.halfBoard || (wholeBoardKeys?.has(m.materialKey) ?? false)) && (
-                    <CFormCheck
-                      checked={wholeBoardKeys?.has(m.materialKey) ?? false}
-                      disabled={marksDisabled}
-                      onChange={() => onToggleWholeBoard?.(m.materialKey)}
-                      aria-label={`Cobrar tablero entero de ${
-                        stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey
-                      }`}
-                    />
-                  )}
-              </CTableDataCell>
-            )}
-          </CTableRow>
-        ))}
-      </CTableBody>
-    </CTable>
+                    {m.productId != null &&
+                      (m.halfBoard || (wholeBoardKeys?.has(m.materialKey) ?? false)) && (
+                        <CFormCheck
+                          checked={wholeBoardKeys?.has(m.materialKey) ?? false}
+                          disabled={marksDisabled}
+                          onChange={() => onToggleWholeBoard?.(m.materialKey)}
+                          aria-label={`Cobrar tablero entero de ${
+                            stripHalfSuffix(m.productName) ?? m.productCode ?? m.materialKey
+                          }`}
+                        />
+                      )}
+                  </CTableDataCell>
+                )}
+              </CTableRow>
+            ))}
+          </CTableBody>
+        </CTable>
+      </div>
+    </>
   )
 }
 
 export const EdgeBandingSummaryTable = ({ rows }: { rows: EdgeBandingSummary[] }) => {
   if (!rows.length) return null
   return (
-    <CTable small responsive className="summary-table mb-3">
-      <CTableHead>
-        <CTableRow>
-          <CTableHeaderCell>Tapacanto</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">m netos</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">m facturados</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Precio/m</CTableHeaderCell>
-          <CTableHeaderCell className="text-end">Costo</CTableHeaderCell>
-        </CTableRow>
-      </CTableHead>
-      <CTableBody>
-        {rows.map((e) => (
-          <CTableRow key={e.productId ?? 'sin-producto'}>
-            <CTableDataCell>
+    <>
+      <LineItemList
+        className="d-md-none mb-3"
+        items={rows.map((e) => ({
+          key: e.productId ?? 'sin-producto',
+          title: (
+            <>
               {e.productName ?? e.productCode ?? 'Sin asignar'}
-              {e.color ? <span className="text-body-secondary"> · {e.color}</span> : null}
-            </CTableDataCell>
-            <CTableDataCell className="text-end">{e.netLinearM.toFixed(2)}</CTableDataCell>
-            <CTableDataCell className="text-end">{e.billedLinearM}</CTableDataCell>
-            <CTableDataCell className="text-end">
-              {e.pricePerM ? fmtMoney(e.pricePerM) : '—'}
-            </CTableDataCell>
-            <CTableDataCell className="text-end">
-              {e.totalCost ? fmtMoney(e.totalCost) : '—'}
-            </CTableDataCell>
-          </CTableRow>
-        ))}
-      </CTableBody>
-    </CTable>
+              {e.color ? <span className="fw-normal text-body-secondary"> · {e.color}</span> : null}
+            </>
+          ),
+          detail: `${fmtMeters(e.billedLinearM, 2, 0)} × ${e.pricePerM ? fmtMoney(e.pricePerM) : '—'}`,
+          meta: `${fmtMeters(e.netLinearM)} netos`,
+          amount: e.totalCost ? fmtMoney(e.totalCost) : '—',
+        }))}
+      />
+      <div className="d-none d-md-block">
+        <CTable small responsive className="summary-table mb-3">
+          <CTableHead>
+            <CTableRow>
+              <CTableHeaderCell>Tapacanto</CTableHeaderCell>
+              <CTableHeaderCell className="text-end">
+                Netos (<span className="unit">m</span>)
+              </CTableHeaderCell>
+              <CTableHeaderCell className="text-end">
+                Facturados (<span className="unit">m</span>)
+              </CTableHeaderCell>
+              <CTableHeaderCell className="text-end">
+                Precio/<span className="unit">m</span>
+              </CTableHeaderCell>
+              <CTableHeaderCell className="text-end">Costo</CTableHeaderCell>
+            </CTableRow>
+          </CTableHead>
+          <CTableBody>
+            {rows.map((e) => (
+              <CTableRow key={e.productId ?? 'sin-producto'}>
+                <CTableDataCell>
+                  {e.productName ?? e.productCode ?? 'Sin asignar'}
+                  {e.color ? <span className="text-body-secondary"> · {e.color}</span> : null}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">{fmtNumber(e.netLinearM, 2)}</CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {fmtNumber(e.billedLinearM, 2, 0)}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {e.pricePerM ? fmtMoney(e.pricePerM) : '—'}
+                </CTableDataCell>
+                <CTableDataCell className="text-end">
+                  {e.totalCost ? fmtMoney(e.totalCost) : '—'}
+                </CTableDataCell>
+              </CTableRow>
+            ))}
+          </CTableBody>
+        </CTable>
+      </div>
+    </>
   )
 }

@@ -1,27 +1,13 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import {
-  CAlert,
-  CButton,
-  CCard,
-  CCardBody,
-  CCardHeader,
-  CCol,
-  CFormInput,
-  CFormLabel,
-  CInputGroup,
-  CInputGroupText,
-  CRow,
-  CSpinner,
-} from '@coreui/react'
-import CIcon from '@coreui/icons-react'
-import { cilCheckAlt, cilSave } from '@coreui/icons'
+import { CCol, CFormInput, CFormLabel, CInputGroup, CInputGroupText, CRow } from '@coreui/react'
 
 import FieldError from 'src/shared/components/FieldError'
 import { fieldErrorsFromApiError, hasGenericError } from 'src/shared/api/errors'
 import { useCuttingSettings, useUpdateCuttingSettings } from './useSettings'
 import { useSavedFlash } from './useSavedFlash'
 import type { CuttingPayload, CuttingSettings } from './types'
+import SettingsSection from './SettingsSection'
 
 // Distance fields shown in mm. The key matches the API field name (and server error field).
 const MM_FIELDS = [
@@ -66,6 +52,7 @@ const CuttingSettingsCard = () => {
   const { data, isLoading, isError, refetch } = useCuttingSettings()
   const update = useUpdateCuttingSettings()
   const [savedFlash, flashSaved] = useSavedFlash()
+  const idPrefix = useId()
 
   const [form, setForm] = useState<FormState | null>(null)
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({})
@@ -143,128 +130,84 @@ const CuttingSettingsCard = () => {
   const fieldErrors = { ...serverErrors, ...clientErrors }
   const genericError = hasGenericError(update.error, serverErrors)
 
+  const fieldId = (key: FormKey) => `${idPrefix}-${key}`
+
   return (
-    <CCard className="mb-4">
-      <CCardHeader className="d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <strong>Parámetros de corte</strong>
-        <div className="d-flex gap-2">
-          <CButton
-            color="secondary"
-            variant="outline"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleDiscard}
-          >
-            Descartar
-          </CButton>
-          <CButton
-            color="primary"
-            size="sm"
-            type="button"
-            disabled={!isDirty || update.isPending}
-            onClick={handleSave}
-          >
-            {update.isPending ? (
-              <CSpinner size="sm" className="me-1" />
-            ) : (
-              <CIcon icon={savedFlash ? cilCheckAlt : cilSave} className="me-1" />
-            )}
-            {savedFlash ? 'Guardado' : 'Guardar'}
-          </CButton>
-        </div>
-      </CCardHeader>
-      <CCardBody>
-        {isLoading || !form ? (
-          <div className="text-center py-5">
-            {isError ? (
-              <div className="text-body-secondary">
-                No se pudieron cargar los parámetros.{' '}
-                <CButton size="sm" color="link" onClick={() => void refetch()}>
-                  Reintentar
-                </CButton>
-              </div>
-            ) : (
-              <CSpinner color="primary" />
-            )}
-          </div>
-        ) : (
-          <>
-            <p className="text-body-secondary small mb-3">
-              Cambiar estos parámetros afecta futuras optimizaciones y cotizaciones. Los pedidos ya
-              confirmados conservan su precio.
-            </p>
+    <SettingsSection
+      title="Parámetros de corte"
+      description="Cambiar estos parámetros afecta futuras optimizaciones y cotizaciones. Las órdenes ya confirmadas conservan su precio."
+      ready={!isLoading && !!form}
+      isError={isError}
+      onRetry={() => void refetch()}
+      dirty={isDirty}
+      saving={update.isPending}
+      saved={savedFlash}
+      savedMessage="Parámetros de corte guardados correctamente."
+      error={genericError ? update.error?.message || 'Error al guardar. Intenta nuevamente.' : null}
+      onSave={handleSave}
+      onDiscard={handleDiscard}
+    >
+      {form && (
+        <CRow className="g-3">
+          {MM_FIELDS.map(([key, label]) => (
+            <CCol xs={6} md={4} key={key}>
+              <CFormLabel htmlFor={fieldId(key)}>{label}</CFormLabel>
+              <CInputGroup>
+                <CFormInput
+                  id={fieldId(key)}
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={form[key]}
+                  onChange={onChange(key)}
+                  invalid={!!fieldErrors[key]}
+                />
+                <CInputGroupText>mm</CInputGroupText>
+              </CInputGroup>
+              <FieldError name={key} errors={fieldErrors} />
+            </CCol>
+          ))}
 
-            {savedFlash && (
-              <CAlert color="success" className="py-2">
-                Parámetros de corte guardados correctamente.
-              </CAlert>
-            )}
-            {genericError && (
-              <CAlert color="danger" className="py-2">
-                {update.error?.message || 'Error al guardar. Intenta nuevamente.'}
-              </CAlert>
-            )}
+          <CCol xs={6} md={4}>
+            <CFormLabel htmlFor={fieldId('edgeBandingWasteFactor')}>Merma de tapacanto</CFormLabel>
+            <CInputGroup>
+              <CFormInput
+                id={fieldId('edgeBandingWasteFactor')}
+                type="number"
+                min={0}
+                step="any"
+                value={form.edgeBandingWasteFactor}
+                onChange={onChange('edgeBandingWasteFactor')}
+                invalid={!!fieldErrors.edgeBandingWasteFactor}
+              />
+              <CInputGroupText>%</CInputGroupText>
+            </CInputGroup>
+            <FieldError name="edgeBandingWasteFactor" errors={fieldErrors} />
+            <div className="form-text">Ej.: 10 % = +10 % de material.</div>
+          </CCol>
 
-            <CRow className="g-3">
-              {MM_FIELDS.map(([key, label]) => (
-                <CCol xs={6} md={4} key={key}>
-                  <CFormLabel>{label}</CFormLabel>
-                  <CInputGroup>
-                    <CFormInput
-                      type="number"
-                      min={0}
-                      step="any"
-                      value={form[key]}
-                      onChange={onChange(key)}
-                      invalid={!!fieldErrors[key]}
-                    />
-                    <CInputGroupText>mm</CInputGroupText>
-                  </CInputGroup>
-                  <FieldError name={key} errors={fieldErrors} />
-                </CCol>
-              ))}
-
-              <CCol xs={6} md={4}>
-                <CFormLabel>Merma de tapacanto</CFormLabel>
-                <CInputGroup>
-                  <CFormInput
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={form.edgeBandingWasteFactor}
-                    onChange={onChange('edgeBandingWasteFactor')}
-                    invalid={!!fieldErrors.edgeBandingWasteFactor}
-                  />
-                  <CInputGroupText>%</CInputGroupText>
-                </CInputGroup>
-                <FieldError name="edgeBandingWasteFactor" errors={fieldErrors} />
-                <div className="form-text">Ej.: 10 % = +10 % de material.</div>
-              </CCol>
-
-              <CCol xs={6} md={4}>
-                <CFormLabel>Recargo medio tablero</CFormLabel>
-                <CInputGroup>
-                  <CFormInput
-                    type="number"
-                    min={0}
-                    step="any"
-                    value={form.halfBoardMarkupPct}
-                    onChange={onChange('halfBoardMarkupPct')}
-                    invalid={!!fieldErrors.halfBoardMarkupPct}
-                  />
-                  <CInputGroupText>%</CInputGroupText>
-                </CInputGroup>
-                <FieldError name="halfBoardMarkupPct" errors={fieldErrors} />
-                <div className="form-text">
-                  Ej.: 15 % = el medio tablero cuesta 50 % + 15 % adicional del precio completo.
-                </div>
-              </CCol>
-            </CRow>
-          </>
-        )}
-      </CCardBody>
-    </CCard>
+          <CCol xs={6} md={4}>
+            <CFormLabel htmlFor={fieldId('halfBoardMarkupPct')}>Recargo medio tablero</CFormLabel>
+            <CInputGroup>
+              <CFormInput
+                id={fieldId('halfBoardMarkupPct')}
+                type="number"
+                min={0}
+                step="any"
+                value={form.halfBoardMarkupPct}
+                onChange={onChange('halfBoardMarkupPct')}
+                invalid={!!fieldErrors.halfBoardMarkupPct}
+              />
+              <CInputGroupText>%</CInputGroupText>
+            </CInputGroup>
+            <FieldError name="halfBoardMarkupPct" errors={fieldErrors} />
+            <div className="form-text">
+              Ej.: 15 % = el medio tablero cuesta 50 % + 15 % adicional del precio completo.
+            </div>
+          </CCol>
+        </CRow>
+      )}
+    </SettingsSection>
   )
 }
 

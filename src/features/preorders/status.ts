@@ -4,14 +4,16 @@ import type { PreOrderStatus } from './types'
 // The seven labels lived only in `PreOrderStatusBadge`, which is where the badge looks for them and
 // nowhere the list page's filter options could. Same move as `orders/status.ts`: one module knows
 // where a quote stands, and the badge is just one of its readers.
+// `changes_requested` is `progress`, the one open state that waits on the SELLER: the client answered
+// and the quote needs a look before it goes back out.
 export const PREORDER_STATUS_CONFIG: Record<PreOrderStatus, StatusConfigEntry> = {
-  draft: { color: 'secondary', label: 'Borrador' },
-  sent: { color: 'info', label: 'Enviada' },
-  changes_requested: { color: 'warning', label: 'Cambios solicitados' },
-  confirmed: { color: 'success', label: 'Confirmada' },
-  rejected: { color: 'danger', label: 'Rechazada' },
-  expired: { color: 'secondary', label: 'Vencida' },
-  cancelled: { color: 'danger', label: 'Cancelada' },
+  draft: { tone: 'neutral', icon: 'draft', label: 'Borrador' },
+  sent: { tone: 'info', icon: 'sent', label: 'Enviada' },
+  changes_requested: { tone: 'progress', icon: 'changesRequested', label: 'Cambios solicitados' },
+  confirmed: { tone: 'success', icon: 'confirmed', label: 'Confirmada' },
+  rejected: { tone: 'danger', icon: 'rejected', label: 'Rechazada' },
+  expired: { tone: 'neutral', icon: 'expired', label: 'Vencida' },
+  cancelled: { tone: 'danger', icon: 'cancelled', label: 'Cancelada' },
 }
 
 export const PREORDER_STATUS_VALUES = Object.keys(PREORDER_STATUS_CONFIG) as PreOrderStatus[]

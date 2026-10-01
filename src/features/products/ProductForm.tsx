@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import {
   CButton,
@@ -12,7 +12,6 @@ import {
   CModalBody,
   CModalFooter,
   CRow,
-  CSpinner,
 } from '@coreui/react'
 
 import { ApiError } from 'src/shared/api/types'
@@ -20,6 +19,7 @@ import { useAllProductFamilies } from 'src/features/productFamilies/useProductFa
 import FieldError from 'src/shared/components/FieldError'
 import { BOARD_SUBTYPES, EDGE_BANDING_SUBTYPES, subtypeLabel } from './productSubtypes'
 import type { Product, ProductPayload, ProductType } from './types'
+import Spinner from 'src/shared/components/Spinner'
 
 const TYPES: { value: ProductType; label: string }[] = [
   { value: 'board', label: 'Tablero (Board)' },
@@ -137,6 +137,8 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
   })
   const [attrs, setAttrs] = useState<AttrsForm>(initAttrs(product))
 
+  // Each label names its field, for a screen reader and for the tap on the label itself.
+  const id = useId()
   const fieldErrors = mapServerErrors(error)
   const hasGenericError = error && Object.keys(fieldErrors).length === 0
 
@@ -191,126 +193,172 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
     })
   }
 
+  // The family picker, the same for both types; its note differs because a board and a tape are
+  // coordinated from opposite ends.
+  const familySelect = (
+    <CFormSelect
+      id={`${id}-family`}
+      value={form.familyId}
+      onChange={(e) =>
+        setForm((f) => ({
+          ...f,
+          familyId: e.target.value === '' ? '' : Number(e.target.value),
+        }))
+      }
+    >
+      <option value="">— Sin familia —</option>
+      {families.map((fam) => (
+        <option key={fam.id} value={fam.id}>
+          {fam.name}
+        </option>
+      ))}
+    </CFormSelect>
+  )
+
+  const required = <span className="text-danger">*</span>
+
   return (
     <CForm onSubmit={handleSubmit} className="d-flex flex-column overflow-hidden">
       <CModalBody>
-        <CRow className="g-3">
-          <CCol xs={12}>
-            <CFormLabel>
-              Tipo <span className="text-danger">*</span>
-            </CFormLabel>
-            <CFormSelect value={type} onChange={handleTypeChange} disabled={isEdit} required>
-              {TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </CFormSelect>
-          </CCol>
+        {/* Three sections — the article, its prices, what its type measures — where it used to be
+            one run of some twenty fields. On a phone the dialog is the whole screen and this is a
+            long scroll; the headings are what says where in it you are. */}
+        <fieldset className="form-section">
+          <legend className="eyebrow">Artículo</legend>
+          <CRow className="g-3">
+            <CCol xs={12}>
+              <CFormLabel htmlFor={`${id}-type`}>Tipo {required}</CFormLabel>
+              <CFormSelect
+                id={`${id}-type`}
+                value={type}
+                onChange={handleTypeChange}
+                disabled={isEdit}
+                required
+              >
+                {TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </CFormSelect>
+            </CCol>
 
-          <CCol xs={6}>
-            <CFormLabel>
-              Código <span className="text-danger">*</span>
-            </CFormLabel>
-            <CFormInput
-              value={form.code}
-              onChange={set('code')}
-              required
-              maxLength={32}
-              placeholder="Ej: MDP-SL-CSH-15"
-            />
-            <FieldError name="code" errors={fieldErrors} />
-          </CCol>
+            <CCol xs={12} sm={5}>
+              <CFormLabel htmlFor={`${id}-code`}>Código {required}</CFormLabel>
+              <CFormInput
+                id={`${id}-code`}
+                value={form.code}
+                onChange={set('code')}
+                required
+                maxLength={32}
+                placeholder="Ej: MDP-SL-CSH-15"
+              />
+              <FieldError name="code" errors={fieldErrors} />
+            </CCol>
 
-          <CCol xs={6}>
-            <CFormLabel>
-              Precio 1 <span className="text-danger">*</span>
-            </CFormLabel>
-            <CFormInput
-              type="number"
-              value={form.price}
-              onChange={set('price')}
-              required
-              min={0}
-              step="0.000001"
-              placeholder="0.00"
-            />
-            <div className="form-text">Precio de lista, sin IVA.</div>
-            <FieldError name="price" errors={fieldErrors} />
-          </CCol>
+            <CCol xs={12} sm={7}>
+              <CFormLabel htmlFor={`${id}-name`}>Nombre {required}</CFormLabel>
+              <CFormInput
+                id={`${id}-name`}
+                value={form.name}
+                onChange={set('name')}
+                required
+                maxLength={128}
+                placeholder="Ej: MDP 15mm Cashmere"
+              />
+              <FieldError name="name" errors={fieldErrors} />
+            </CCol>
 
-          <CCol xs={6}>
-            <CFormLabel>Precio 2</CFormLabel>
-            <CFormInput
-              type="number"
-              value={form.price2}
-              onChange={set('price2')}
-              min={0}
-              step="0.000001"
-              placeholder="Vacío = usa el Precio 1"
-            />
-            <FieldError name="price2" errors={fieldErrors} />
-          </CCol>
+            <CCol xs={12}>
+              <CFormLabel htmlFor={`${id}-description`}>Descripción</CFormLabel>
+              <CFormTextarea
+                id={`${id}-description`}
+                value={form.description}
+                onChange={set('description')}
+                maxLength={256}
+                rows={2}
+                placeholder="Opcional"
+              />
+              <FieldError name="description" errors={fieldErrors} />
+            </CCol>
 
-          <CCol xs={6}>
-            <CFormLabel>Precio 3</CFormLabel>
-            <CFormInput
-              type="number"
-              value={form.price3}
-              onChange={set('price3')}
-              min={0}
-              step="0.000001"
-              placeholder="Vacío = usa el Precio 1"
-            />
-            <FieldError name="price3" errors={fieldErrors} />
-          </CCol>
+            <CCol xs={12}>
+              <CFormSwitch
+                id={`${id}-active`}
+                label="Activo"
+                checked={form.isActive}
+                onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+              />
+            </CCol>
+          </CRow>
+        </fieldset>
 
-          <CCol xs={12}>
-            <CFormLabel>
-              Nombre <span className="text-danger">*</span>
-            </CFormLabel>
-            <CFormInput
-              value={form.name}
-              onChange={set('name')}
-              required
-              maxLength={128}
-              placeholder="Ej: MDP 15mm Cashmere"
-            />
-            <FieldError name="name" errors={fieldErrors} />
-          </CCol>
+        <fieldset className="form-section">
+          <legend className="eyebrow">Precios sin IVA</legend>
+          <CRow className="g-3">
+            <CCol xs={12} sm={4}>
+              <CFormLabel htmlFor={`${id}-price`}>Precio 1 {required}</CFormLabel>
+              <CFormInput
+                id={`${id}-price`}
+                type="number"
+                inputMode="decimal"
+                value={form.price}
+                onChange={set('price')}
+                required
+                min={0}
+                step="0.000001"
+                placeholder="0.00"
+              />
+              <FieldError name="price" errors={fieldErrors} />
+            </CCol>
 
-          <CCol xs={12}>
-            <CFormLabel>Descripción</CFormLabel>
-            <CFormTextarea
-              value={form.description}
-              onChange={set('description')}
-              maxLength={256}
-              rows={2}
-              placeholder="Opcional"
-            />
-            <FieldError name="description" errors={fieldErrors} />
-          </CCol>
+            <CCol xs={12} sm={4}>
+              <CFormLabel htmlFor={`${id}-price2`}>Precio 2</CFormLabel>
+              <CFormInput
+                id={`${id}-price2`}
+                type="number"
+                inputMode="decimal"
+                value={form.price2}
+                onChange={set('price2')}
+                min={0}
+                step="0.000001"
+                placeholder="Usa el Precio 1"
+              />
+              <FieldError name="price2" errors={fieldErrors} />
+            </CCol>
 
-          <CCol xs={12}>
-            <CFormSwitch
-              label="Activo"
-              checked={form.isActive}
-              onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-            />
-          </CCol>
+            <CCol xs={12} sm={4}>
+              <CFormLabel htmlFor={`${id}-price3`}>Precio 3</CFormLabel>
+              <CFormInput
+                id={`${id}-price3`}
+                type="number"
+                inputMode="decimal"
+                value={form.price3}
+                onChange={set('price3')}
+                min={0}
+                step="0.000001"
+                placeholder="Usa el Precio 1"
+              />
+              <FieldError name="price3" errors={fieldErrors} />
+            </CCol>
+            <CCol xs={12}>
+              <div className="form-text mt-0">
+                El Precio 1 es el de lista. Sin Precio 2 o 3, la cotización usa el 1 en ese nivel.
+              </div>
+            </CCol>
+          </CRow>
+        </fieldset>
 
-          {type === 'board' && (
-            <>
-              <CCol xs={12}>
-                <hr className="my-1" />
-                <small className="text-body-secondary">Atributos del tablero</small>
-              </CCol>
+        {type === 'board' && (
+          <fieldset className="form-section">
+            <legend className="eyebrow">Atributos del tablero</legend>
+            <CRow className="g-3">
               <CCol xs={4}>
-                <CFormLabel>
-                  Largo (mm) <span className="text-danger">*</span>
-                </CFormLabel>
+                <CFormLabel htmlFor={`${id}-height`}>Largo (mm) {required}</CFormLabel>
                 <CFormInput
+                  id={`${id}-height`}
                   type="number"
+                  inputMode="numeric"
                   value={attrs.height}
                   onChange={setAttr('height')}
                   required
@@ -321,11 +369,11 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="height" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
-                <CFormLabel>
-                  Ancho (mm) <span className="text-danger">*</span>
-                </CFormLabel>
+                <CFormLabel htmlFor={`${id}-width`}>Ancho (mm) {required}</CFormLabel>
                 <CFormInput
+                  id={`${id}-width`}
                   type="number"
+                  inputMode="numeric"
                   value={attrs.width}
                   onChange={setAttr('width')}
                   required
@@ -336,11 +384,11 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="width" errors={fieldErrors} />
               </CCol>
               <CCol xs={4}>
-                <CFormLabel>
-                  Grosor (mm) <span className="text-danger">*</span>
-                </CFormLabel>
+                <CFormLabel htmlFor={`${id}-thickness`}>Grosor (mm) {required}</CFormLabel>
                 <CFormInput
+                  id={`${id}-thickness`}
                   type="number"
+                  inputMode="numeric"
                   value={attrs.thickness}
                   onChange={setAttr('thickness')}
                   required
@@ -351,8 +399,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="thickness" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
-                <CFormLabel>Dirección de veta</CFormLabel>
+                <CFormLabel htmlFor={`${id}-grain`}>Dirección de veta</CFormLabel>
                 <CFormInput
+                  id={`${id}-grain`}
                   value={attrs.grainDirection}
                   onChange={setAttr('grainDirection')}
                   maxLength={4}
@@ -361,35 +410,24 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="grainDirection" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
-                <CFormLabel>Subtipo</CFormLabel>
-                <CFormSelect value={attrs.subtype} onChange={setAttr('subtype')}>
+                <CFormLabel htmlFor={`${id}-subtype`}>Subtipo</CFormLabel>
+                <CFormSelect
+                  id={`${id}-subtype`}
+                  value={attrs.subtype}
+                  onChange={setAttr('subtype')}
+                >
                   <option value="">Sin especificar</option>
-                  {BOARD_SUBTYPES.map((s) => (
-                    <option key={s} value={s}>
-                      {subtypeLabel(s)}
+                  {BOARD_SUBTYPES.map((st) => (
+                    <option key={st} value={st}>
+                      {subtypeLabel(st)}
                     </option>
                   ))}
                 </CFormSelect>
                 <FieldError name="subtype" errors={fieldErrors} />
               </CCol>
               <CCol xs={12}>
-                <CFormLabel>Familia</CFormLabel>
-                <CFormSelect
-                  value={form.familyId}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      familyId: e.target.value === '' ? '' : Number(e.target.value),
-                    }))
-                  }
-                >
-                  <option value="">— Sin familia —</option>
-                  {families.map((fam) => (
-                    <option key={fam.id} value={fam.id}>
-                      {fam.name}
-                    </option>
-                  ))}
-                </CFormSelect>
+                <CFormLabel htmlFor={`${id}-family`}>Familia</CFormLabel>
+                {familySelect}
                 <small className="text-body-secondary">
                   El diseño con el que coordinan los tapacantos. Se administra en Productos →
                   Familias; en un artículo sincronizado se siembra una sola vez desde la columna
@@ -397,21 +435,20 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 </small>
                 <FieldError name="familyId" errors={fieldErrors} />
               </CCol>
-            </>
-          )}
+            </CRow>
+          </fieldset>
+        )}
 
-          {type === 'edge_banding' && (
-            <>
-              <CCol xs={12}>
-                <hr className="my-1" />
-                <small className="text-body-secondary">Atributos del tapacanto</small>
-              </CCol>
-              <CCol xs={4}>
-                <CFormLabel>
-                  Grosor (mm) <span className="text-danger">*</span>
-                </CFormLabel>
+        {type === 'edge_banding' && (
+          <fieldset className="form-section">
+            <legend className="eyebrow">Atributos del tapacanto</legend>
+            <CRow className="g-3">
+              <CCol xs={6} sm={4}>
+                <CFormLabel htmlFor={`${id}-thickness`}>Grosor (mm) {required}</CFormLabel>
                 <CFormInput
+                  id={`${id}-thickness`}
                   type="number"
+                  inputMode="decimal"
                   value={attrs.thickness}
                   onChange={setAttr('thickness')}
                   required
@@ -421,12 +458,12 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 />
                 <FieldError name="thickness" errors={fieldErrors} />
               </CCol>
-              <CCol xs={4}>
-                <CFormLabel>
-                  Ancho (mm) <span className="text-danger">*</span>
-                </CFormLabel>
+              <CCol xs={6} sm={4}>
+                <CFormLabel htmlFor={`${id}-width`}>Ancho (mm) {required}</CFormLabel>
                 <CFormInput
+                  id={`${id}-width`}
                   type="number"
+                  inputMode="numeric"
                   value={attrs.width}
                   onChange={setAttr('width')}
                   required
@@ -436,9 +473,13 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 />
                 <FieldError name="width" errors={fieldErrors} />
               </CCol>
-              <CCol xs={4}>
-                <CFormLabel>Tipo de canto</CFormLabel>
-                <CFormSelect value={attrs.bandType} onChange={setAttr('bandType')}>
+              <CCol xs={12} sm={4}>
+                <CFormLabel htmlFor={`${id}-band`}>Tipo de canto</CFormLabel>
+                <CFormSelect
+                  id={`${id}-band`}
+                  value={attrs.bandType}
+                  onChange={setAttr('bandType')}
+                >
                   <option value="">Sin especificar</option>
                   <option value="Soft">Suave (Soft)</option>
                   <option value="Hard">Duro (Hard)</option>
@@ -446,8 +487,9 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="bandType" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
-                <CFormLabel>Color / Diseño</CFormLabel>
+                <CFormLabel htmlFor={`${id}-color`}>Color / Diseño</CFormLabel>
                 <CFormInput
+                  id={`${id}-color`}
                   value={attrs.color}
                   onChange={setAttr('color')}
                   maxLength={64}
@@ -456,9 +498,11 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 <FieldError name="color" errors={fieldErrors} />
               </CCol>
               <CCol xs={6}>
-                <CFormLabel>Largo del rollo (mm)</CFormLabel>
+                <CFormLabel htmlFor={`${id}-length`}>Largo del rollo (mm)</CFormLabel>
                 <CFormInput
+                  id={`${id}-length`}
                   type="number"
+                  inputMode="numeric"
                   value={attrs.length}
                   onChange={setAttr('length')}
                   min={1}
@@ -467,44 +511,34 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 />
                 <FieldError name="length" errors={fieldErrors} />
               </CCol>
-              <CCol xs={6}>
-                <CFormLabel>Subtipo</CFormLabel>
-                <CFormSelect value={attrs.subtype} onChange={setAttr('subtype')}>
+              <CCol xs={12} sm={6}>
+                <CFormLabel htmlFor={`${id}-subtype`}>Subtipo</CFormLabel>
+                <CFormSelect
+                  id={`${id}-subtype`}
+                  value={attrs.subtype}
+                  onChange={setAttr('subtype')}
+                >
                   <option value="">Sin especificar</option>
-                  {EDGE_BANDING_SUBTYPES.map((s) => (
-                    <option key={s} value={s}>
-                      {subtypeLabel(s)}
+                  {EDGE_BANDING_SUBTYPES.map((st) => (
+                    <option key={st} value={st}>
+                      {subtypeLabel(st)}
                     </option>
                   ))}
                 </CFormSelect>
                 <FieldError name="subtype" errors={fieldErrors} />
               </CCol>
-              <CCol xs={6}>
-                <CFormLabel>Familia</CFormLabel>
-                <CFormSelect
-                  value={form.familyId}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      familyId: e.target.value === '' ? '' : Number(e.target.value),
-                    }))
-                  }
-                >
-                  <option value="">— Sin familia —</option>
-                  {families.map((fam) => (
-                    <option key={fam.id} value={fam.id}>
-                      {fam.name}
-                    </option>
-                  ))}
-                </CFormSelect>
+              <CCol xs={12} sm={6}>
+                <CFormLabel htmlFor={`${id}-family`}>Familia</CFormLabel>
+                {familySelect}
                 <small className="text-body-secondary">
                   Coordina con el tablero; nunca se imprime. Se administra en Productos → Familias.
                 </small>
                 <FieldError name="familyId" errors={fieldErrors} />
               </CCol>
-              <CCol xs={6}>
-                <CFormLabel>Alias</CFormLabel>
+              <CCol xs={12} sm={6}>
+                <CFormLabel htmlFor={`${id}-alias`}>Alias</CFormLabel>
                 <CFormInput
+                  id={`${id}-alias`}
                   value={form.alias}
                   onChange={(e) => setForm((f) => ({ ...f, alias: e.target.value }))}
                   maxLength={20}
@@ -516,24 +550,22 @@ const ProductForm = ({ product, onSubmit, onCancel, isSubmitting, error }: Produ
                 </small>
                 <FieldError name="alias" errors={fieldErrors} />
               </CCol>
-            </>
-          )}
+            </CRow>
+          </fieldset>
+        )}
 
-          {hasGenericError && (
-            <CCol xs={12}>
-              <div className="text-danger small">
-                {error?.message || 'Error al guardar. Intente nuevamente.'}
-              </div>
-            </CCol>
-          )}
-        </CRow>
+        {hasGenericError && (
+          <div className="text-danger small mt-3">
+            {error?.message || 'Error al guardar. Intente nuevamente.'}
+          </div>
+        )}
       </CModalBody>
       <CModalFooter>
-        <CButton color="secondary" type="button" onClick={onCancel}>
+        <CButton color="secondary" variant="outline" type="button" onClick={onCancel}>
           Cancelar
         </CButton>
         <CButton color="primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? <CSpinner size="sm" /> : 'Guardar'}
+          {isSubmitting ? <Spinner size="sm" /> : 'Guardar'}
         </CButton>
       </CModalFooter>
     </CForm>

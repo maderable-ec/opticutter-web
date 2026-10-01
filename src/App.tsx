@@ -5,11 +5,16 @@ import { useAuthStore } from 'src/shared/store/authStore'
 import { authApi } from 'src/features/auth/authApi'
 import useNumberInputWheelGuard from 'src/shared/hooks/useNumberInputWheelGuard'
 
-import { CSpinner, useColorModes } from '@coreui/react'
+import { useColorModes } from '@coreui/react'
+// IBM Plex Sans, self-hosted: bundled with the app, so the CSP stays `'self'`. A variable font: every
+// weight in one file per script, and the browser only fetches the Latin one. Plex Mono went with
+// step 12: it drew a code no differently from Sans, and only two fields used it.
+import '@fontsource-variable/ibm-plex-sans/wght.css'
 import './scss/style.scss'
 
 import { authRoutes } from 'src/features/auth/routes'
 import { reviewRoutes } from 'src/features/review/routes'
+import Spinner from 'src/shared/components/Spinner'
 
 // Public routes rendered standalone (without the admin layout).
 const publicRoutes = [...authRoutes, ...reviewRoutes]
@@ -59,7 +64,7 @@ const RequireAuth = ({ children }: { children: React.ReactNode }) => {
   if (status === 'idle' || status === 'loading') {
     return (
       <div className="min-vh-100 d-flex align-items-center justify-content-center">
-        <CSpinner color="primary" />
+        <Spinner color="primary" />
       </div>
     )
   }
@@ -99,17 +104,14 @@ const App = () => {
       <Suspense
         fallback={
           <div className="pt-3 text-center">
-            <CSpinner color="primary" variant="grow" />
+            <Spinner color="primary" variant="grow" />
           </div>
         }
       >
         <Routes>
-          {publicRoutes.map((route) => {
-            const Element = route.element
-            return Element ? (
-              <Route key={route.path} path={route.path} element={<Element />} />
-            ) : null
-          })}
+          {publicRoutes.map((route) => (
+            <Route key={route.path} path={route.path} element={<route.element />} />
+          ))}
           <Route
             path="*"
             element={
