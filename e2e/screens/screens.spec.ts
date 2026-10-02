@@ -168,7 +168,9 @@ const threeBoardPlan = () => {
   return {
     ...plan,
     progress: { cutPieces: total + 3, totalPieces: total * 3 },
-    boards: [sheet(1, total), sheet(2, 3), sheet(3, 0)],
+    // The one the canvas opens on (the first with pieces pending) is a half, so its pill sits
+    // beside a long name in the material strip and in the picker.
+    boards: [sheet(1, total), { ...sheet(2, 3), halfBoard: true }, sheet(3, 0)],
   }
 }
 

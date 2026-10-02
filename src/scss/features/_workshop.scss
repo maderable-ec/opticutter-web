@@ -60,6 +60,12 @@
   min-width: 0;
 }
 
+// The client and the reference wrap instead of truncating: which job is on the saw is information,
+// not decoration. `anywhere` so a single unbroken word cannot push the block wider than the bar.
+.workshop-identity__who {
+  overflow-wrap: anywhere;
+}
+
 .workshop-pager {
   display: flex;
   flex: 0 0 auto;
@@ -140,9 +146,11 @@
   }
 }
 
+// The material strip over the drawing, which takes the rest of the height.
 .workshop-stage-wrap {
   position: relative;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -156,23 +164,27 @@
   touch-action: pan-y;
 }
 
-// The board's name over the diagram, so naming what is on screen costs no row of its own. It sits
-// on the letterbox margin most of the time, but a sheet whose ratio matches the stage leaves none —
-// hence the translucent chip, which keeps the name readable without ever hiding a piece.
+// The board's material, the one thing the operador takes to the rack, on a row of its own and in
+// full. It used to float over the drawing's letterbox so it cost no row — capped at 60% and
+// truncated, which on a 390px phone dropped a third of `MDF BLANCO RANURADO 2C (2.44X2.15)M-15MM`
+// (219px of the 322 it needs), while on the 960×544 panel a long name covered the board's corner.
+// The row costs the drawing ~30px of height on that panel, accepted; on a phone it costs nothing,
+// since there the sheet is bound by the width. The tinted ground and the rule match
+// `.materials-status`.
+//
+// Running text, not a flex row: as a flex item the name dropped whole below the icon whenever it
+// did not fit beside it, leaving the glyph alone on a line. `balance` evens the lines, so a name
+// that wraps breaks near its middle (`MDF BLANCO RANURADO 2C` / `(2.44X2.15)M-15MM`) instead of
+// after the hyphen that leaves `15MM` alone; `anywhere` breaks a code with no spaces too.
 .workshop-boardname {
-  position: absolute;
-  bottom: 0.25rem;
-  left: 0.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  max-width: 60%;
-  padding: 0.1rem 0.45rem;
-  border-radius: var(--cui-border-radius);
-  background-color: rgba(var(--cui-body-bg-rgb), 0.82);
-  color: var(--cui-secondary-color);
-  font-size: var(--mb-text-md);
-  pointer-events: none;
+  padding: 0.25rem 0.75rem;
+  border-bottom: 1px solid var(--cui-border-color);
+  background-color: var(--cui-tertiary-bg);
+  font-size: var(--mb-text-base);
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 // One action at a time — the states that could fill this row turn out to be mutually exclusive.
@@ -204,6 +216,15 @@
   .small {
     font-size: var(--mb-text-base);
   }
+}
+
+// The material wraps in full: it is how a board is matched to the rack, and it was truncated at
+// every width (by 149px in the desktop's three columns). Only the name: `anywhere` on the whole
+// button let «Tablero 2» break mid-word. Lines balanced, as in `.workshop-boardname`.
+.workshop-picker__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 // --- The Taller's queue (/workshop-board) -----------------------------------------------------

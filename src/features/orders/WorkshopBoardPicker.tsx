@@ -1,7 +1,7 @@
 import { CBadge, CButton, CModalBody, CModalHeader } from '@coreui/react'
 import Icon from 'src/shared/icons/Icon'
 
-import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
+import BoardName from './BoardName'
 import { boardCutState } from './progress'
 import type { CutBoard } from './types'
 import { Modal, ModalTitle } from 'src/shared/components/Modal'
@@ -55,14 +55,23 @@ const WorkshopBoardPicker = ({
               onClick={() => onSelect(b.id)}
             >
               <span className="d-flex align-items-center gap-2">
-                <span className="fw-semibold">Tablero {b.sheetNumber}</span>
-                {b.halfBoard && <CBadge color="info">½ medio</CBadge>}
+                <span className="fw-semibold text-nowrap">Tablero {b.sheetNumber}</span>
                 <span className={`badge status-pill status-pill--${state.tone} ms-auto`}>
                   {state.icon && <Icon name={state.icon} className="status-pill__icon" />}
                   {state.label}
                 </span>
               </span>
-              <span className="small d-block text-truncate">{stripHalfSuffix(b.productName)}</span>
+              {/* In full: the material is how the operador matches a board to the rack. The half
+                  pill follows it, as in the canvas's strip; beside «Tablero N» it left the row no
+                  room in the iPad's three columns. */}
+              <span className="workshop-picker__name small d-block">
+                <BoardName productName={b.productName} />
+                {b.halfBoard && (
+                  <CBadge color="info" className="ms-2">
+                    ½ medio
+                  </CBadge>
+                )}
+              </span>
             </CButton>
           )
         })}

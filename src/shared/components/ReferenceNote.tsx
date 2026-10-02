@@ -3,15 +3,18 @@
 // so every call site can drop it in unconditionally.
 //
 // A reference often names the client or the site, and it rides in `title` too, which session replay
-// text masking does not reach: so the whole note is recorded as an empty box (NO_CAPTURE).
+// text masking does not reach: so the whole note is recorded as an empty box (NO_CAPTURE). The
+// `inline` variant carries no `title`, so masking its text is enough.
 
-import { NO_CAPTURE } from 'src/shared/analytics'
+import { MASK, NO_CAPTURE } from 'src/shared/analytics'
 
 interface ReferenceNoteProps {
   notes?: string | null
   // `subtitle`: one truncated line under the code in a table (full text on hover).
   // `header`: labelled line for a detail header, clamped to two lines.
-  variant?: 'subtitle' | 'header'
+  // `inline`: continues the text beside it after a «·», in full and wrapping, for a bar where a
+  // truncated reference would hide which job of the client it is (the cutting canvas).
+  variant?: 'subtitle' | 'header' | 'inline'
   // Width cap for the `subtitle` variant, so a long reference doesn't stretch the column.
   maxWidth?: number
   className?: string
@@ -33,6 +36,17 @@ const ReferenceNote = ({
 }: ReferenceNoteProps) => {
   const text = notes?.trim()
   if (!text) return null
+
+  if (variant === 'inline') {
+    return (
+      <span className={`text-body-secondary ${className}`} {...MASK}>
+        {/* The line may break before the «·», never after it: the dot goes down with the
+            reference instead of dangling at the end of the name. */}
+        {' ·\u00a0'}
+        {text}
+      </span>
+    )
+  }
 
   if (variant === 'header') {
     return (
