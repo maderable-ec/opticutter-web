@@ -6,7 +6,6 @@ import Icon from 'src/shared/icons/Icon'
 import { useHasRole } from 'src/features/auth/useAuth'
 import { usePrintLabel } from 'src/features/print/usePrint'
 import { PALETTE, pieceSig } from 'src/shared/utils/cutDrawing'
-import { stripHalfSuffix } from 'src/shared/utils/halfBoard'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
 import { usePaging } from 'src/shared/hooks/usePaging'
 import Pager from 'src/shared/components/Pager'
@@ -21,6 +20,7 @@ import ActivityBadge from './ActivityBadge'
 import { findActivity, orderedActivities } from './activities'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import WorkshopBoardPicker from './WorkshopBoardPicker'
+import BoardName from './BoardName'
 import { cutBarColor, cutPct } from './progress'
 import { useCuttingPlan, useMarkPiece, useUpdateActivity } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
@@ -243,13 +243,15 @@ const WorkshopPage = () => {
           {/* No "solo lectura" label: the status badge already says `Cortada`, the action bar is gone
             and the pieces carry no pointer affordance — a third copy only cost the width that
             truncated the badges next to it. */}
-          {/* Which job of this client is on the saw. First thing to go when the bar runs out of room. */}
-          <ReferenceNote notes={plan.notes} maxWidth={220} className="d-none d-xl-block" />
         </div>
-        {/* Whose job is on the saw, under its code. Its own line, so it keeps the whole width of the
-            block at every size; no `title`, since touch panels have no hover. */}
-        <div className="small fw-semibold text-truncate lh-sm" {...MASK}>
-          {clientName(plan.client)}
+        {/* Whose job is on the saw and which of their jobs, under its code: the client, then the
+            reference. Its own line, so it keeps the whole width of the block at every size, and it
+            wraps rather than truncating — on a phone the name lost its end, and the reference only
+            showed from `xl`. A second line here costs the drawing nothing on a phone, where the
+            sheet is bound by the width. No `title`, since touch panels have no hover. */}
+        <div className="workshop-identity__who small lh-sm" {...MASK}>
+          <span className="fw-semibold">{clientName(plan.client)}</span>
+          <ReferenceNote notes={plan.notes} variant="inline" />
         </div>
       </div>
 
@@ -378,6 +380,19 @@ const WorkshopPage = () => {
       {topBar}
 
       <div className="workshop-stage-wrap">
+        {/* Which physical board this is — the material to fetch from the rack — in full, on a row of
+            its own between the bar and the drawing. It used to sit over the drawing's letterbox to
+            cost no row, capped at 60% and truncated: on a 390px phone a third of a real catalogue
+            name was gone, and on the panel a long one covered the board's corner. */}
+        <div className="workshop-boardname">
+          <Icon name="board" className="me-2" />
+          <BoardName productName={current.productName} />
+          {current.halfBoard && (
+            <CBadge color="info" className="ms-2">
+              ½ medio
+            </CBadge>
+          )}
+        </div>
         <WorkshopBoardSvg
           key={current.id}
           board={current}
@@ -388,12 +403,6 @@ const WorkshopPage = () => {
           onPrevBoard={safeIndex > 0 ? () => goTo(safeIndex - 1) : undefined}
           onNextBoard={safeIndex < boards.length - 1 ? () => goTo(safeIndex + 1) : undefined}
         />
-        {/* Which physical board this is, over the letterbox margin the sheet leaves anyway: it
-            names what is on screen and costs no row. */}
-        <div className="workshop-boardname">
-          <span className="text-truncate">{stripHalfSuffix(current.productName)}</span>
-          {current.halfBoard && <CBadge color="info">½ medio</CBadge>}
-        </div>
       </div>
 
       {/* A read-only order has nothing to act on, so the bar goes and the diagram takes its height. */}

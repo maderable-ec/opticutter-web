@@ -835,11 +835,13 @@ export const cuttingPlan = (overrides: Partial<CuttingPlan> = {}): CuttingPlan =
         id: 1,
         sheetNumber: 1,
         materialKey: 'mat-e2e',
-        productCode: 'MEL-BL-18',
-        productName: 'MELAMINA BLANCA 18MM',
+        productCode: 'MDF-BL-RAN-15',
+        // A real catalogue name, of the long kind: the 20-character one this used to carry hid that
+        // the canvas truncated the material on a phone.
+        productName: 'MDF BLANCO RANURADO 2C (2.44X2.15)M-15MM',
         width: 2150,
         height: 2440,
-        thickness: 18,
+        thickness: 15,
         progress: { cutPieces: 7, totalPieces: pieces.length },
         pieces,
         remainders: PLAN_LAYOUT.remainders,

@@ -1,8 +1,26 @@
+import type { Page } from '@playwright/test'
 import { cuttingPlan, workshopQueueItem } from './fixtures/data'
 import { expect, test } from './fixtures/test'
 
 // The cutting canvas. It owns the whole viewport on the panel next to the saw (@taller), and it
 // opens on a phone too (@movil), where its top bar takes two rows.
+
+// The fixture's board carries a real catalogue name, of the long kind.
+const MATERIAL = cuttingPlan().boards[0]?.productName ?? ''
+
+// How far an element's text overflows its own box: 0 when it shows whole.
+const hiddenPx = (page: Page, selector: string) =>
+  page.locator(selector).evaluate((el) => el.scrollWidth - el.clientWidth)
+
+// The material is what the operador takes to the rack: whole, on its own row, and off the drawing.
+const expectWholeMaterial = async (page: Page) => {
+  const strip = page.locator('.workshop-boardname')
+  await expect(strip).toHaveText(MATERIAL)
+  expect(await hiddenPx(page, '.workshop-boardname')).toBeLessThanOrEqual(1)
+  const box = await strip.boundingBox()
+  const stage = await page.locator('.workshop-stage').boundingBox()
+  expect(box && stage && box.y + box.height <= stage.y + 1).toBe(true)
+}
 
 test.describe('lienzo de corte', { tag: '@taller' }, () => {
   test.beforeEach(async ({ api, loginAs }) => {
@@ -19,13 +37,24 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
       y: document.documentElement.scrollHeight - window.innerHeight,
     }))
     expect(overflow).toEqual({ x: 0, y: 0 })
-    // The identity is the part of the bar allowed to shrink: it must shrink by truncating the
-    // client's name, never by clipping the code or the status mid-word.
+    // The identity is the part of the bar allowed to give: the client and the reference wrap,
+    // and the code and the status are never clipped mid-word.
     const identity = page.locator('.workshop-identity__line')
     await expect(identity).toContainText('ORD-000041')
     await expect(identity).toContainText('En proceso')
-    const clipped = await identity.evaluate((el) => el.scrollWidth - el.clientWidth)
-    expect(clipped).toBeLessThanOrEqual(1)
+    expect(await hiddenPx(page, '.workshop-identity__line')).toBeLessThanOrEqual(1)
+  })
+
+  test('nombra el material del tablero entero, en su propia franja', async ({ page }) => {
+    await page.goto('/orders/41/workshop')
+    await expectWholeMaterial(page)
+  })
+
+  test('dice de quién es el trabajo y cuál, con la referencia', async ({ page }) => {
+    await page.goto('/orders/41/workshop')
+    const who = page.locator('.workshop-identity__who')
+    await expect(who).toHaveText('María Fernanda Villavicencio Ortega · Cocina edificio Norte')
+    expect(await hiddenPx(page, '.workshop-identity__who')).toBeLessThanOrEqual(1)
   })
 
   test('«Volver» lleva al operador a la cola del Taller, con ese nombre', async ({ page, api }) => {
@@ -46,7 +75,7 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
 })
 
 test(
-  'en el celular, la barra del lienzo va en dos filas y no recorta el estado',
+  'en el celular, la barra del lienzo va en dos filas y no recorta nada',
   { tag: '@movil' },
   async ({ page, api, loginAs }) => {
     await loginAs(['operador'])
@@ -55,11 +84,18 @@ test(
     await page.goto('/orders/41/workshop')
     const identity = page.locator('.workshop-identity__line')
     await expect(identity).toContainText('En proceso')
-    const clipped = await identity.evaluate((el) => el.scrollWidth - el.clientWidth)
-    expect(clipped).toBeLessThanOrEqual(1)
+    expect(await hiddenPx(page, '.workshop-identity__line')).toBeLessThanOrEqual(1)
 
     // The pager sits under the identity, not beside it.
     const top = async (selector: string) => (await page.locator(selector).boundingBox())?.y ?? 0
     expect(await top('.workshop-pager')).toBeGreaterThan(await top('.workshop-identity'))
+
+    // The client's whole name and the reference, which used to be cut and hidden on a phone.
+    const who = page.locator('.workshop-identity__who')
+    await expect(who).toHaveText('María Fernanda Villavicencio Ortega · Cocina edificio Norte')
+    expect(await hiddenPx(page, '.workshop-identity__who')).toBeLessThanOrEqual(1)
+
+    // On a phone the material broke off a third of its name.
+    await expectWholeMaterial(page)
   },
 )
