@@ -1,13 +1,17 @@
 // Entry of the "Cantos especiales" column: `2L CS BLN` → a count of sides, a band type and an alias,
 // resolved against the catalog to the one tapacanto those sides will carry. It is the Canto column's
 // own notation on purpose, so the seller writes one language: `2L CS BLN` puts both long sides on
-// BLN, and two long sides on DIFFERENT tapes are two entries, `1L CS BLN` then `1L CS CHM`. Each
-// count COMPLETES before it replaces: it takes the sides of its kind that have no edge at all, and
-// only once those run out the ones the auto banding covers — a `2L1C` piece plus `1C BLN` is banded
-// on all four sides, not re-coloured on the one it had. Within each group `1L` is `left` and `1C` is
-// `top`, as in the Canto column. The type may
-// be left out (`1L BLN`): the entry then takes the piece's own, since the common case is changing
-// the colour of a side, not its type. Pure — the cell turns what comes back into tags and toasts.
+// BLN, and two long sides on DIFFERENT tapes are two entries, `1L CS BLN` then `1L CS CHM`.
+//
+// A canto especial ADDS to the Canto, never replaces it: it only takes sides the Canto leaves bare,
+// so per kind the Canto plus the special edges band at most the two sides there are. A `2L1C` piece
+// plus `1C BLN` is banded on all four sides; a `2L` piece refuses `1L BLN` and says to lower the Canto
+// to `1L` first. The other way round, the Canto cannot grow onto a side a special edge holds
+// (`cantoFits`). The piece is symmetric, so what a special edge holds is a COUNT per kind, not a
+// side: when the Canto takes the side one sits on (`1L` is always `left`), it moves to the other
+// (`seatSpecialEdges`). The type may be left out (`1L BLN`): the entry then takes the piece's own,
+// since the common case is changing the colour of a side, not its type. Pure — the cell turns what
+// comes back into tags and toasts.
 //
 // The alias is looked up in the WHOLE catalog of active tapacantos, not in the board's coordinated
 // list: a special edge exists precisely to put a different design on a side. An alias names a
@@ -32,8 +36,9 @@ import {
   BANDTYPE_LABEL,
   CS_CD_TO_BANDTYPE,
   edgeWidthFitsBoard,
+  sidesFromNotation,
 } from './optimizerForm'
-import type { BandType, SpecialEdgeForm } from './optimizerForm'
+import type { BandType, CantoNotation, SpecialEdgeForm } from './optimizerForm'
 import type { EdgeSide } from './types'
 
 export const SPECIAL_EDGE_FORMAT_HINT = 'Lados [Tipo] Alias, p. ej. 2L CS BLN o 1L BLN'
@@ -161,6 +166,14 @@ export const specialEdgeTags = (
     }
   })
 
+// The sides the special edges hold, as the Canto's own record: what `CantoPreview` draws dashed.
+export const specialSidesOf = (edges: SpecialEdgeForm[]): Record<EdgeSide, boolean> => ({
+  top: edges.some((e) => e.side === 'top'),
+  bottom: edges.some((e) => e.side === 'bottom'),
+  left: edges.some((e) => e.side === 'left'),
+  right: edges.some((e) => e.side === 'right'),
+})
+
 export const specialEdgeFits = (
   product: EdgeBandingProduct | undefined,
   thickness: number | undefined,
@@ -171,41 +184,62 @@ export interface SpecialEdgeMessage {
   color: 'success' | 'warning'
 }
 
-// Where the entry landed, because it is not always where the seller pictured it: on sides that had
-// no edge, in place of the piece's own, or both.
-const placement = (sides: EdgeSide[], autoSides: Set<EdgeSide>): string => {
-  const added = sides.filter((s) => !autoSides.has(s))
-  const replaced = sides.filter((s) => autoSides.has(s))
-  if (replaced.length === 0) {
-    return `${sidesDescription(sides)} que no ${sides.length > 1 ? 'tenían' : 'tenía'} canto`
-  }
-  if (added.length === 0) return `${sidesDescription(sides)}, en lugar del canto de la pieza`
-  return `completa ${sidesDescription(added)} y reemplaza ${sidesDescription(replaced)}`
-}
-
 const confirmation = (
   sides: EdgeSide[],
   product: EdgeBandingProduct,
   inherited: boolean,
-  autoSides: Set<EdgeSide>,
 ): string => {
   const bandType = product.attributes.bandType as BandType | undefined
   const type = bandType
     ? ` · canto ${BANDTYPE_LABEL[bandType].toLowerCase()} (${BANDTYPE_ABBR[bandType]}${inherited ? ', el de la pieza' : ''})`
     : ''
   return (
-    `Canto especial ${sidesNotation(sides)} (${placement(sides, autoSides)})${type}: ` +
+    `Canto especial ${sidesNotation(sides)} (${sidesDescription(sides)} sin canto)${type}: ` +
     `${stripBandingPrefix(product.name)} (${product.code})`
   )
 }
 
+type SideKind = 'long' | 'short'
+const KIND_SIDES: Record<SideKind, EdgeSide[]> = { long: LONG_SIDES, short: SHORT_SIDES }
 const KIND_WORDS = { long: 'lados largos', short: 'lados cortos' } as const
 
-// Why an entry did not fit: nothing of its kind is free, or it asked for both and one is taken.
-const noRoom = (entry: string, kind: 'long' | 'short', free: number): string =>
-  free === 0
+// The Canto of a count per kind, on its canonical sides (`1L` is `left`, `1C` is `top`) — the
+// notation the Canto column would show for it, '—' for none.
+const cantoOfCounts = (long: number, short: number): CantoNotation =>
+  (sidesNotation([...LONG_SIDES.slice(0, long), ...SHORT_SIDES.slice(0, short)]) ||
+    '—') as CantoNotation
+
+// Why an entry did not fit when the Canto alone is in the way: the sides of the kinds it asked for
+// that the Canto covers, and the Canto that would leave room — the seller asked for a side the
+// Canto already bands, and a special edge adds.
+const cantoInTheWay = (
+  entry: string,
+  canto: EdgeSide[],
+  covered: EdgeSide[],
+  suggested: CantoNotation,
+): string =>
+  `«${entry}»: el Canto ${sidesNotation(canto)} ya cubre ${sidesDescription(covered)}. ` +
+  'Un canto especial se suma al Canto, no lo reemplaza: ' +
+  `${suggested === '—' ? 'quita el Canto' : `cambia el Canto a ${suggested}`} para agregarlo.`
+
+// Why an entry did not fit when other special edges hold the sides: nothing of its kind is free, or
+// it asked for both and one is taken. With the Canto holding the rest, both have to give.
+const specialsInTheWay = (
+  entry: string,
+  kind: SideKind,
+  free: number,
+  cantoHolds: number,
+): string => {
+  if (cantoHolds > 0) {
+    return (
+      `«${entry}» pide los dos ${KIND_WORDS[kind]}, pero el Canto cubre uno y el otro tiene ` +
+      'canto especial: quita ese tag y baja el Canto para agregarlo'
+    )
+  }
+  return free === 0
     ? `«${entry}»: ya no quedan ${KIND_WORDS[kind]} libres; quita el tag que los ocupa para cambiarlos`
     : `«${entry}» pide los dos ${KIND_WORDS[kind]} y solo queda uno libre; quita el tag que ocupa el otro`
+}
 
 // What an entry needs to know about its piece.
 export interface SpecialEdgePiece {
@@ -214,23 +248,28 @@ export interface SpecialEdgePiece {
   // The piece's own type (the Tipo column, or the one of its tapacanto): what an entry with no
   // CS/CD takes. '' when the piece has none.
   bandType: BandType | ''
-  // The sides the Canto column bands: an entry fills the OTHER ones first.
+  // The sides the Canto column bands: an entry may only take the OTHER ones.
   autoSides: EdgeSide[]
 }
 
-// The sides of one kind an entry may take, in the order it takes them: those with no edge at all,
-// then those the auto banding covers — completing comes before replacing. A side that already
-// carries a special edge is never offered.
-const freeSides = (kind: EdgeSide[], taken: Set<EdgeSide>, autoSides: Set<EdgeSide>) => {
-  const open = kind.filter((s) => !taken.has(s))
-  return [...open.filter((s) => !autoSides.has(s)), ...open.filter((s) => autoSides.has(s))]
+// The sides of one kind an entry may take: those with no edge at all — neither the Canto's nor a
+// special one.
+const freeSides = (kind: EdgeSide[], taken: Set<EdgeSide>, autoSides: Set<EdgeSide>) =>
+  kind.filter((s) => !taken.has(s) && !autoSides.has(s))
+
+// The sides a piece still has bare, in the Canto notation (`1L1C`), '' for none: what the cell
+// offers before anything is typed.
+export const freeSidesNotation = (autoSides: EdgeSide[], edges: SpecialEdgeForm[]): string => {
+  const auto = new Set(autoSides)
+  const taken = new Set(edges.map((e) => e.side))
+  return sidesNotation([...LONG_SIDES, ...SHORT_SIDES].filter((s) => !auto.has(s) && !taken.has(s)))
 }
 
 // Applies what the seller typed. Several entries may come at once, separated by commas or
 // semicolons; each one is accepted or refused on its own, and every outcome gets a message — the
-// confirmation names the real product and says where it landed, a refusal says exactly what to
-// fix. A side that already carries a special edge is never overwritten: the seller removes that
-// tag to change it.
+// confirmation names the real product, a refusal says exactly what to fix. An entry only takes
+// sides with no edge: one the Canto bands is refused with the Canto that would leave room, and a
+// side that already carries a special edge is never overwritten (the seller removes that tag).
 export const addSpecialEdges = (
   current: SpecialEdgeForm[],
   text: string,
@@ -265,11 +304,23 @@ export const addSpecialEdges = (
       long: freeSides(LONG_SIDES, taken, autoSides),
       short: freeSides(SHORT_SIDES, taken, autoSides),
     }
-    const lacking = (['long', 'short'] as const).find(
+    const lacking = (['long', 'short'] as const).filter(
       (kind) => free[kind].length < parsed.value[kind],
     )
-    if (lacking) {
-      refuse(noRoom(entry, lacking, free[lacking].length))
+    if (lacking.length) {
+      const deficit = (kind: SideKind) =>
+        lacking.includes(kind) ? parsed.value[kind] - free[kind].length : 0
+      const cantoHolds = (kind: SideKind) => KIND_SIDES[kind].filter((s) => autoSides.has(s))
+      const blocked = lacking.find((kind) => cantoHolds(kind).length < deficit(kind))
+      if (blocked) {
+        refuse(specialsInTheWay(entry, blocked, free[blocked].length, cantoHolds(blocked).length))
+      } else {
+        const suggested = cantoOfCounts(
+          cantoHolds('long').length - deficit('long'),
+          cantoHolds('short').length - deficit('short'),
+        )
+        refuse(cantoInTheWay(entry, piece.autoSides, lacking.flatMap(cantoHolds), suggested))
+      }
       continue
     }
     const resolved = resolveSpecialEdge({ bandType, alias }, catalog, piece.thickness)
@@ -281,11 +332,51 @@ export const addSpecialEdges = (
     const productId = String(resolved.value.id)
     next = sortBySide([...next, ...sides.map((side) => ({ side, productId }))])
     messages.push({
-      message: confirmation(sides, resolved.value, !parsed.value.bandType, autoSides),
+      message: confirmation(sides, resolved.value, !parsed.value.bandType),
       color: 'success',
     })
   }
   return { next, messages, rejected }
+}
+
+// The special edges re-seated for a Canto: each one stays where it is when the Canto leaves its
+// side bare, and moves to a bare side of its kind when the Canto takes it — the piece is symmetric,
+// so a `1L` special edge on `left` and on `right` are the same piece. null when a kind holds more
+// special edges than the Canto leaves sides for: that Canto does not fit the piece.
+export const seatSpecialEdges = (
+  cantoSides: Record<EdgeSide, boolean>,
+  edges: SpecialEdgeForm[],
+): SpecialEdgeForm[] | null => {
+  const seated: SpecialEdgeForm[] = []
+  for (const kind of [LONG_SIDES, SHORT_SIDES]) {
+    const bare = kind.filter((s) => !cantoSides[s])
+    const own = sortBySide(edges.filter((e) => kind.includes(e.side)))
+    if (own.length > bare.length) return null
+    const stay = own.filter((e) => bare.includes(e.side))
+    const open = bare.filter((s) => !stay.some((e) => e.side === s))
+    const moved = own
+      .filter((e) => !bare.includes(e.side))
+      .map((e, k) => ({ ...e, side: open[k] ?? e.side }))
+    seated.push(...stay, ...moved)
+  }
+  return sortBySide(seated)
+}
+
+// Whether a piece with these special edges takes this Canto: the Canto column's options, enabled.
+export const cantoFits = (notation: string, edges: SpecialEdgeForm[]): boolean =>
+  seatSpecialEdges(sidesFromNotation(notation), edges) !== null
+
+// Why some Canto options are off, for the select's title: what the special edges hold and the most
+// the Canto can still band. undefined when the piece has none, and every option fits.
+export const cantoLimit = (edges: SpecialEdgeForm[]): string | undefined => {
+  if (!edges.length) return undefined
+  const held = edges.map((e) => e.side)
+  const long = held.filter((s) => LONG_SIDES.includes(s)).length
+  const short = held.length - long
+  const max = cantoOfCounts(2 - long, 2 - short)
+  return max === '—'
+    ? 'Los cantos especiales ocupan los cuatro lados: la pieza no admite Canto'
+    : `Los cantos especiales ocupan ${sidesNotation(held)}: el Canto puede cubrir hasta ${max}`
 }
 
 // After a board change: each special edge keeps its design and type and moves to the width that

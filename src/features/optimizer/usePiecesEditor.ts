@@ -1,7 +1,13 @@
 import { useCallback, useState } from 'react'
 
-import { cloneRequirement, emptyRequirement, isRequirementEmpty } from './optimizerForm'
+import {
+  additiveSpecialEdges,
+  cloneRequirement,
+  emptyRequirement,
+  isRequirementEmpty,
+} from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
+import { seatSpecialEdges } from './specialEdges'
 
 // Campos que admiten "rellenar hacia abajo" (aplicar de una fila a varias).
 export type FillableField =
@@ -90,24 +96,33 @@ const fillSource = (
     ? candidates.find((i) => rs[i] !== undefined && hasCanto(rs[i]))
     : candidates[0]
 
+// A row with a Canto from somewhere else: its special edges re-seated around it, or null when they
+// do not fit beside it — a special edge adds to the Canto, so the two cannot share a side.
+const withCopiedCanto = (
+  r: RequirementForm,
+  edgeBanding: RequirementForm['edgeBanding'],
+): RequirementForm | null => {
+  const specialEdges = seatSpecialEdges(edgeBanding.sides, r.specialEdges ?? [])
+  return specialEdges ? { ...r, edgeBanding, specialEdges } : null
+}
+
 // Applies a single field value from `src` onto `r`. Edge-banding sub-fields are copied immutably.
-const applyField = (
+// null when the row cannot take it: its Canto and its special edges would share a side, which the
+// row's own controls never allow either. The fill leaves that row as it was and says so.
+export const applyField = (
   r: RequirementForm,
   src: RequirementForm,
   field: FillableField,
-): RequirementForm => {
+): RequirementForm | null => {
   if (field === 'edgeBanding') {
-    return {
-      ...r,
-      edgeBanding: {
-        productId: src.edgeBanding.productId,
-        sides: { ...src.edgeBanding.sides },
-        bandType: src.edgeBanding.bandType ?? '',
-      },
-    }
+    return withCopiedCanto(r, {
+      productId: src.edgeBanding.productId,
+      sides: { ...src.edgeBanding.sides },
+      bandType: src.edgeBanding.bandType ?? '',
+    })
   }
   if (field === 'edgeBandingSides') {
-    return { ...r, edgeBanding: { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } } }
+    return withCopiedCanto(r, { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } })
   }
   if (field === 'edgeBandingProductId') {
     // A row with no canto keeps its disabled cell empty: a product stored there would beat the
@@ -124,7 +139,9 @@ const applyField = (
     }
   }
   if (field === 'specialEdges') {
-    return { ...r, specialEdges: (src.specialEdges ?? []).map((e) => ({ ...e })) }
+    // Re-seated around this row's own Canto: the source's sides mean a count per kind, not a place.
+    const specialEdges = seatSpecialEdges(r.edgeBanding.sides, src.specialEdges ?? [])
+    return specialEdges ? { ...r, specialEdges } : null
   }
   if (field === 'edgeBandingBandType') {
     // Mirror the manual "Tipo" select: the band type and its coordinated tapacanto travel
@@ -139,6 +156,42 @@ const applyField = (
     }
   }
   return { ...r, [field]: src[field] }
+}
+
+// What a fill says about the rows it left alone (see `applyField`); null when it reached them all.
+export const skippedFillMessage = (field: FillableField, skipped: number): string | null => {
+  if (skipped === 0) return null
+  const pieces = skipped === 1 ? '1 pieza' : `${skipped} piezas`
+  if (field === 'specialEdges') {
+    return (
+      `No se igualaron los cantos especiales en ${pieces}: su Canto ya cubre esos lados, ` +
+      'y un canto especial se suma al Canto'
+    )
+  }
+  return (
+    `No se igualó el Canto en ${pieces}: sus cantos especiales ` +
+    'ocupan esos lados; quítalos para cambiar el Canto'
+  )
+}
+
+// The rows a fill reaches, with the source's value applied: `skipped` counts the ones that could
+// not take it and were left as they were.
+const fillRows = (
+  rs: RequirementForm[],
+  src: RequirementForm,
+  srcIndex: number,
+  field: FillableField,
+  inTarget: (i: number) => boolean,
+): { next: RequirementForm[]; skipped: number } => {
+  let skipped = 0
+  const next = rs.map((r, i) => {
+    if (i === srcIndex || !inTarget(i)) return r
+    const filled = applyField(r, src, field)
+    if (filled) return filled
+    skipped++
+    return r
+  })
+  return { next, skipped }
 }
 
 // Comparator for a sortable field. Blank numeric cells sink to the bottom; labels sort locale-aware.
@@ -162,7 +215,11 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   // `initial` is only used to hydrate the initial state (e.g. from autosave). Passing it in
   // subsequent renders does not reset the list: later edits take precedence.
   const [requirements, setRequirements] = useState<RequirementForm[]>(() =>
-    clusterByMaterial(initial && initial.length ? initial : [emptyRequirement(firstUid())]),
+    clusterByMaterial(
+      initial && initial.length
+        ? initial.map(additiveSpecialEdges)
+        : [emptyRequirement(firstUid())],
+    ),
   )
   const [selected, setSelected] = useState<Set<number>>(() => new Set())
   // Row index to focus after adding (consumed by the table and then cleared).
@@ -212,8 +269,10 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   // Adds imported/pasted rows. `replace` replaces the list; otherwise appends (replacing a single
   // blank row if that is all that exists). The result is reclustered so multi-material imports group.
   // Returns the resulting list so the caller can prune material groups that ended up with no pieces.
-  const addMany = (rows: RequirementForm[], replace: boolean): RequirementForm[] => {
+  const addMany = (incoming: RequirementForm[], replace: boolean): RequirementForm[] => {
     const rs = requirements
+    // A draft or an import may carry rows saved when a special edge still replaced the Canto.
+    const rows = incoming.map(additiveSpecialEdges)
     const next = replace
       ? clusterByMaterial(rows.length ? rows : [emptyRequirement(firstUid())])
       : rs.length === 1 && rs[0] && isRequirementEmpty(rs[0])
@@ -266,50 +325,60 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   ) => setRequirements((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
 
   // Flat table: applies the value from the source row (first, or first selected) to the scope.
-  const fillDown = (field: FillableField, scope: FillScope) => {
-    applyWithHistory((rs) => {
-      const hasSel = scope === 'selected' && selected.size > 0
-      const candidates = hasSel ? [...selected].sort((a, b) => a - b) : rs.map((_, i) => i)
-      const srcIndex = fillSource(rs, candidates, field)
-      const src = srcIndex === undefined ? undefined : rs[srcIndex]
-      if (!src) return rs
-      const inTarget = (i: number) => (hasSel ? selected.has(i) : true)
-      return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))
-    })
+  // Every fill returns how many rows could not take the value (see `applyField`).
+  const fillDown = (field: FillableField, scope: FillScope): number => {
+    const rs = requirements
+    const hasSel = scope === 'selected' && selected.size > 0
+    const candidates = hasSel ? [...selected].sort((a, b) => a - b) : rs.map((_, i) => i)
+    const srcIndex = fillSource(rs, candidates, field)
+    const src = srcIndex === undefined ? undefined : rs[srcIndex]
+    if (srcIndex === undefined || !src) return 0
+    const { next, skipped } = fillRows(rs, src, srcIndex, field, (i) =>
+      hasSel ? selected.has(i) : true,
+    )
+    applyWithHistory(() => next)
+    return skipped
   }
 
   // Grouped view: applies the value from the group's source row (first, or first selected in the
   // group) to the rest of that material's group.
-  const fillDownGroup = (materialUid: string, field: FillableField, scope: FillScope) => {
-    applyWithHistory((rs) => {
-      const [start, end] = rangeOf(rs, materialUid)
-      if (start >= end) return rs
-      const selInGroup = [...selected].filter((i) => i >= start && i < end).sort((a, b) => a - b)
-      const hasSel = scope === 'selected' && selInGroup.length > 0
-      const candidates = hasSel
-        ? selInGroup
-        : Array.from({ length: end - start }, (_, k) => start + k)
-      const srcIndex = fillSource(rs, candidates, field)
-      const src = srcIndex === undefined ? undefined : rs[srcIndex]
-      if (!src) return rs
-      const inTarget = (i: number) => i >= start && i < end && (hasSel ? selected.has(i) : true)
-      return rs.map((r, i) => (i === srcIndex || !inTarget(i) ? r : applyField(r, src, field)))
-    })
+  const fillDownGroup = (materialUid: string, field: FillableField, scope: FillScope): number => {
+    const rs = requirements
+    const [start, end] = rangeOf(rs, materialUid)
+    if (start >= end) return 0
+    const selInGroup = [...selected].filter((i) => i >= start && i < end).sort((a, b) => a - b)
+    const hasSel = scope === 'selected' && selInGroup.length > 0
+    const candidates = hasSel
+      ? selInGroup
+      : Array.from({ length: end - start }, (_, k) => start + k)
+    const srcIndex = fillSource(rs, candidates, field)
+    const src = srcIndex === undefined ? undefined : rs[srcIndex]
+    if (srcIndex === undefined || !src) return 0
+    const { next, skipped } = fillRows(
+      rs,
+      src,
+      srcIndex,
+      field,
+      (i) => i >= start && i < end && (hasSel ? selected.has(i) : true),
+    )
+    applyWithHistory(() => next)
+    return skipped
   }
 
   // Copies the field value from row `srcIndex` to rows between srcIndex and targetIndex (inclusive),
   // without touching the source. Used by the drag fill handle. In the grouped view srcIndex and
   // targetIndex are always within one contiguous group, so the fill stays inside that group.
-  const fillRange = (srcIndex: number, targetIndex: number, field: FillableField) => {
-    if (srcIndex === targetIndex) return
-    applyWithHistory((rs) => {
-      const src = rs[srcIndex]
-      if (!src) return rs
-      const lo = Math.min(srcIndex, targetIndex)
-      const hi = Math.max(srcIndex, targetIndex)
-      return rs.map((r, i) => (i < lo || i > hi || i === srcIndex ? r : applyField(r, src, field)))
-    })
+  const fillRange = (srcIndex: number, targetIndex: number, field: FillableField): number => {
+    if (srcIndex === targetIndex) return 0
+    const rs = requirements
+    const src = rs[srcIndex]
+    if (!src) return 0
+    const lo = Math.min(srcIndex, targetIndex)
+    const hi = Math.max(srcIndex, targetIndex)
+    const { next, skipped } = fillRows(rs, src, srcIndex, field, (i) => i >= lo && i <= hi)
+    applyWithHistory(() => next)
     setSelected(new Set())
+    return skipped
   }
 
   // Grouped view: drag-reorders a row to another position WITHIN its material's block. `toFlat`

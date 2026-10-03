@@ -76,10 +76,10 @@ export interface EdgeBandingForm {
   bandType?: '' | BandType
 }
 
-// A canto especial: one side banded with a tape of its own, winning over the auto banding on that
-// side (and adding the side when the Canto column left it bare). Only the resolved product is kept —
-// the type and the alias the seller typed are the product's, read back from the catalog to display
-// it. See `specialEdges.ts`.
+// A canto especial: one side banded with a tape of its own, ADDED to the auto banding on a side the
+// Canto column leaves bare — the two never share a side. Only the resolved product is kept — the
+// type and the alias the seller typed are the product's, read back from the catalog to display it.
+// See `specialEdges.ts`.
 export interface SpecialEdgeForm {
   side: EdgeSide
   productId: string
@@ -253,17 +253,32 @@ export const selectedSides = (eb: EdgeBandingForm): EdgeSide[] =>
 
 export const hasEdgeBanding = (eb: EdgeBandingForm): boolean => selectedSides(eb).length > 0
 
-// The Canto column's sides that still carry the auto tapacanto: the ones no canto especial took.
-// Mirrors the precedence of `Requirement.side_products` in the backend.
+// The Canto column's sides that carry the auto tapacanto. Every side the Canto bands since special
+// edges add rather than replace; the filter only matters for a row saved before that, until
+// `additiveSpecialEdges` normalizes it on the way in.
 export const autoBandedSides = (r: RequirementForm): EdgeSide[] => {
   const taken = new Set((r.specialEdges ?? []).map((e) => e.side))
   return selectedSides(r.edgeBanding).filter((side) => !taken.has(side))
 }
 
+// A row saved when a canto especial still REPLACED the Canto on its side (an autosave, a draft, a
+// quote) comes in with both on one side. It is read as what it always meant: the side goes to the
+// special edge and leaves the Canto — `2L` + a special `1L` becomes `1L` + `1L`, the same tapes on
+// the same sides, the same metres. The backend coerces it the same way
+// (`Requirement._special_edges_add_to_the_canto`). A row with no overlap comes back as it was, the
+// same object.
+export const additiveSpecialEdges = (r: RequirementForm): RequirementForm => {
+  const special = r.specialEdges ?? []
+  if (!special.some((e) => r.edgeBanding.sides[e.side])) return r
+  const sides = { ...r.edgeBanding.sides }
+  for (const e of special) sides[e.side] = false
+  return { ...r, edgeBanding: { ...r.edgeBanding, sides } }
+}
+
 // A piece has edge-banding sides selected but no tapacanto (product) chosen. Allowed for a raw
 // optimize (geometry only, productId assigned later), but must be resolved before quoting so the
 // banding can be priced and drawn — otherwise it produces an unidentified/unpriced banding line.
-// Sides a canto especial took do not count: their tape is already named.
+// Only the Canto's sides count: a canto especial names its own tape.
 export const needsBandingProduct = (r: RequirementForm): boolean =>
   autoBandedSides(r).length > 0 && !r.edgeBanding.productId
 

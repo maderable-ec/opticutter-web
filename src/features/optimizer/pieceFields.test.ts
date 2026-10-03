@@ -4,10 +4,12 @@ import { emptyRequirement, sidesFromNotation } from './optimizerForm'
 import type { EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
   bandingLookup,
+  cantoOptions,
   pieceReadout,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
+  withCanto,
   withCantoNotation,
 } from './pieceFields'
 
@@ -160,5 +162,40 @@ describe('pieceReadout', () => {
       groovingCode: ' R1 ',
     })
     expect(pieceReadout(r, BY_ID)).toMatchObject({ specialTapes: 2, codes: 'Abis B2 · Ran R1' })
+  })
+})
+
+describe('withCanto', () => {
+  const withSpecial = (canto: string, side: 'left' | 'right'): RequirementForm => ({
+    ...emptyRequirement('m1'),
+    edgeBanding: banding({ sides: sidesFromNotation(canto) }),
+    specialEdges: [{ side, productId: '3' }],
+  })
+
+  it('moves a special edge off the side the new Canto takes', () => {
+    const next = withCanto(withSpecial('—', 'left'), '1L', COORD)
+    expect(next?.edgeBanding.sides.left).toBe(true)
+    expect(next?.specialEdges).toEqual([{ side: 'right', productId: '3' }])
+  })
+
+  it('refuses a Canto that would share a side with a special edge', () => {
+    expect(withCanto(withSpecial('1L', 'right'), '2L', COORD)).toBeNull()
+  })
+})
+
+describe('cantoOptions', () => {
+  it('lists every Canto and turns off, with the reason, the ones a special edge blocks', () => {
+    const r: RequirementForm = {
+      ...emptyRequirement('m1'),
+      specialEdges: [{ side: 'left', productId: '3' }],
+    }
+    const off = cantoOptions(r).filter((o) => o.disabled)
+    expect(off.map((o) => o.value)).toEqual(['2L', '2L1C', '4L'])
+    expect(off[0]?.label).toBe('2L — ocupado por canto especial')
+    expect(cantoOptions(r, 'Sin canto')[0]).toEqual({
+      value: '—',
+      label: 'Sin canto',
+      disabled: false,
+    })
   })
 })

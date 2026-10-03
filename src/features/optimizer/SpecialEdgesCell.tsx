@@ -10,6 +10,7 @@ import type { EdgeSide } from './types'
 import {
   SPECIAL_EDGE_FORMAT_HINT,
   addSpecialEdges,
+  freeSidesNotation,
   specialEdgeFits,
   specialEdgeTags,
 } from './specialEdges'
@@ -26,7 +27,7 @@ interface SpecialEdgesCellProps {
   thickness?: number
   // The piece's own type (Tipo column, or its tapacanto's): what an entry without CS/CD takes.
   inheritedBandType: BandType | ''
-  // The sides the Canto column bands: an entry completes the other sides before replacing these.
+  // The sides the Canto column bands: an entry only takes the other ones.
   autoSides: EdgeSide[]
   // Grid wiring, as on every other input of the table.
   row: number
@@ -38,9 +39,10 @@ interface SpecialEdgesCellProps {
 // The "Cantos especiales" cell: one tag per tape, in the Canto column's own notation (`2L CS BLN`),
 // and an input to add more. Enter (or leaving the cell) validates what was typed; every entry gets a
 // toast — the confirmation names the real tapacanto, a refusal says what to fix and leaves the text
-// in place. A tag always shows the type, also when the seller left it out and the entry took the
-// piece's. Removing a tag frees all its sides. The tags are the filter pills (`.filter-chip`), sized
-// for a table row.
+// in place, so after lowering the Canto it is one Enter away. A tag always shows the type, also when
+// the seller left it out and the entry took the piece's. Removing a tag frees all its sides. The
+// empty input says which sides are still bare ("Libre: 1C"): a canto especial adds to the Canto, so
+// those are all it can take. The tags are the filter pills (`.filter-chip`), sized for a table row.
 const SpecialEdgesCell = ({
   value,
   onChange,
@@ -84,6 +86,7 @@ const SpecialEdgesCell = ({
   }
 
   const remove = (productId: string) => onChange(value.filter((e) => e.productId !== productId))
+  const free = freeSidesNotation(autoSides, value)
 
   return (
     <div className="d-flex flex-wrap align-items-center gap-1">
@@ -117,8 +120,13 @@ const SpecialEdgesCell = ({
         data-col={col}
         value={text}
         invalid={invalid}
-        placeholder={value.length ? '+' : '2L CS BLN'}
-        title={`Cantos especiales: ${SPECIAL_EDGE_FORMAT_HINT}. Varios con coma.`}
+        placeholder={!free ? 'Sin lados libres' : value.length ? '+' : `Libre: ${free}`}
+        title={
+          `Cantos especiales: ${SPECIAL_EDGE_FORMAT_HINT}. Varios con coma. ` +
+          (free
+            ? `Se suman al Canto: quedan libres ${free}.`
+            : 'Se suman al Canto, y la pieza ya no tiene lados libres: baja el Canto o quita un tag.')
+        }
         aria-label="Cantos especiales"
         onFocus={onFocus}
         onChange={(e) => {

@@ -21,7 +21,6 @@ import type { EdgeBandingProduct } from 'src/features/products/types'
 import type { RequirementForm } from './optimizerForm'
 import {
   BAND_TYPES,
-  CANTO_NOTATIONS,
   displayedBandType,
   isRequirementEmpty,
   needsBandingProduct,
@@ -30,14 +29,18 @@ import {
 } from './optimizerForm'
 import {
   bandingLookup,
+  cantoOptions,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
-  withCantoNotation,
+  withCanto,
 } from './pieceFields'
 import type { ModalContainer } from './types'
 import EdgeBandingPickerModal from './EdgeBandingPickerModal'
 import SpecialEdgesCell from './SpecialEdgesCell'
+import { cantoLimit, specialSidesOf } from './specialEdges'
+import { useToastStore } from 'src/shared/store/toastStore'
+import { skippedFillMessage } from './usePiecesEditor'
 import type {
   FillScope,
   FillableField,
@@ -240,6 +243,13 @@ const PieceRowsTable = ({
 
   const flatOf = (local: number) => startIndex + local
 
+  // A fill leaves alone a row whose Canto and special edges would share a side, and says so.
+  const addToast = useToastStore((s) => s.addToast)
+  const reportSkipped = (field: FillableField, skipped: number) => {
+    const message = skippedFillMessage(field, skipped)
+    if (message) addToast(message, 'warning')
+  }
+
   // Applies a tapacanto choice to a piece, keeping the band type in sync with the chosen
   // product so the "Tipo" column never contradicts it. Shared by the dropdown and the picker.
   const setBandingProduct = (flat: number, req: RequirementForm, productId: string) =>
@@ -431,7 +441,9 @@ const PieceRowsTable = ({
         onPointerUp={(e) => {
           e.currentTarget.releasePointerCapture(e.pointerId)
           const field = drag && COL_FIELDS[drag.col]
-          if (drag && field) fillRange(flatOf(drag.srcRow), flatOf(drag.targetRow), field)
+          if (drag && field) {
+            reportSkipped(field, fillRange(flatOf(drag.srcRow), flatOf(drag.targetRow), field))
+          }
           setDrag(null)
         }}
         onPointerCancel={() => setDrag(null)}
@@ -476,7 +488,7 @@ const PieceRowsTable = ({
       type="button"
       className="p-1 ms-1"
       title={`${title} (aplicar a ${fillScope === 'selected' ? 'seleccionadas' : 'todas'})`}
-      onClick={() => fillDownGroup(materialUid, field, fillScope)}
+      onClick={() => reportSkipped(field, fillDownGroup(materialUid, field, fillScope))}
     >
       <Icon name="fillDown" size="sm" />
     </CButton>
@@ -559,7 +571,7 @@ const PieceRowsTable = ({
                 a row that already runs past a 1280 pane. «C. especiales» fits inside it. */}
             <CTableHeaderCell
               style={thStyle}
-              title="Cantos especiales: otro tapacanto en algunos lados de la pieza, con la notación del Canto: 2L CS BLN, o 1L BLN para usar el tipo de la pieza. En esos lados manda sobre el canto de las columnas anteriores."
+              title="Cantos especiales: otro tapacanto en los lados que el Canto deja sin canto, con la notación del Canto: 2L CS BLN, o 1L BLN para usar el tipo de la pieza. Se suman al Canto, no lo reemplazan."
             >
               C. especiales
               {renderFill('specialEdges', 'Igualar cantos especiales')}
@@ -715,28 +727,33 @@ const PieceRowsTable = ({
                     saying it twice. */}
                 <CTableDataCell style={cellStyle(4, local, 132)}>
                   <div className="d-flex align-items-center gap-1">
-                    <CantoPreview sides={req.edgeBanding.sides} />
+                    <CantoPreview
+                      sides={req.edgeBanding.sides}
+                      special={specialSidesOf(req.specialEdges ?? [])}
+                    />
+                    {/* A Canto that would share a side with a canto especial is listed but off,
+                        saying why: the special edges add to it (`cantoOptions`). */}
                     <CFormSelect
                       size="sm"
                       className="flex-grow-1"
                       style={{ minWidth: 0 }}
                       value={cantoNotation}
+                      title={cantoLimit(req.specialEdges ?? [])}
                       aria-label={`Canto de la pieza ${i + 1}`}
                       data-row={local}
                       data-col={4}
                       onFocus={() => setActiveCell({ row: local, col: 4 })}
-                      onChange={(e) =>
-                        update(
-                          i,
-                          'edgeBanding',
-                          withCantoNotation(req.edgeBanding, e.target.value, boardEdgeBandings),
-                        )
-                      }
+                      onChange={(e) => {
+                        const next = withCanto(req, e.target.value, boardEdgeBandings)
+                        if (!next) return
+                        update(i, 'edgeBanding', next.edgeBanding)
+                        update(i, 'specialEdges', next.specialEdges)
+                      }}
                       onKeyDown={(e) => handleKeyDown(e, local, 4)}
                     >
-                      {CANTO_NOTATIONS.map((n) => (
-                        <option key={n} value={n}>
-                          {n}
+                      {cantoOptions(req).map((o) => (
+                        <option key={o.value} value={o.value} disabled={o.disabled}>
+                          {o.label}
                         </option>
                       ))}
                     </CFormSelect>

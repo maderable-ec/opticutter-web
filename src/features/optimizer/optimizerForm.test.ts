@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { edgeWidthFitsBoard, notationFromSides, sidesFromNotation } from './optimizerForm'
+import {
+  additiveSpecialEdges,
+  edgeWidthFitsBoard,
+  emptyRequirement,
+  notationFromSides,
+  sidesFromNotation,
+} from './optimizerForm'
 import type { CantoNotation } from './optimizerForm'
 
 describe('edgeWidthFitsBoard', () => {
@@ -38,5 +44,27 @@ describe('canto notation', () => {
 
   it('reads an unknown notation as no banding', () => {
     expect(notationFromSides(sidesFromNotation('3L'))).toBe('—')
+  })
+})
+
+describe('additiveSpecialEdges', () => {
+  const piece = (canto: string, special: { side: 'left' | 'right' | 'top' | 'bottom' }[]) => ({
+    ...emptyRequirement('m1'),
+    edgeBanding: { productId: '7', sides: sidesFromNotation(canto), bandType: '' as const },
+    specialEdges: special.map((e) => ({ ...e, productId: '9' })),
+  })
+
+  it('leaves a row with no shared side as it was, the same object', () => {
+    const r = piece('2L1C', [{ side: 'bottom' }])
+    expect(additiveSpecialEdges(r)).toBe(r)
+  })
+
+  // Saved when a special edge still replaced the Canto: the same tapes on the same sides.
+  it('gives a shared side to the special edge and takes it off the Canto', () => {
+    const next = additiveSpecialEdges(piece('2L1C', [{ side: 'left' }]))
+    expect(notationFromSides(next.edgeBanding.sides)).toBe('1L1C')
+    expect(next.edgeBanding.sides.left).toBe(false)
+    expect(next.edgeBanding.productId).toBe('7')
+    expect(next.specialEdges).toEqual([{ side: 'left', productId: '9' }])
   })
 })
