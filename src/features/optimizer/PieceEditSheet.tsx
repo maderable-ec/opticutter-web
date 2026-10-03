@@ -19,7 +19,6 @@ import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/typ
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import {
   BAND_TYPES,
-  CANTO_NOTATIONS,
   displayedBandType,
   materialLabel,
   needsBandingProduct,
@@ -28,12 +27,13 @@ import {
 } from './optimizerForm'
 import {
   bandingLookup,
+  cantoOptions,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
-  withCantoNotation,
+  withCanto,
 } from './pieceFields'
-import { specialEdgeTags } from './specialEdges'
+import { cantoLimit, specialEdgeTags, specialSidesOf } from './specialEdges'
 import type { ModalContainer } from './types'
 import type { PiecesEditor } from './usePiecesEditor'
 import { useBoardEdgeBandings } from './useOptimizer'
@@ -250,22 +250,25 @@ const PieceEditSheet = ({
         Canto
       </CFormLabel>
       <div className="d-flex align-items-center gap-2">
-        <CantoPreview sides={req.edgeBanding.sides} />
+        <CantoPreview
+          sides={req.edgeBanding.sides}
+          special={specialSidesOf(req.specialEdges ?? [])}
+        />
         <CFormSelect
           id={ids.canto}
           className="flex-grow-1"
           style={{ minWidth: 0 }}
           value={notation}
-          onChange={(e) =>
-            update(
-              'edgeBanding',
-              withCantoNotation(req.edgeBanding, e.target.value, boardEdgeBandings),
-            )
-          }
+          onChange={(e) => {
+            const next = withCanto(req, e.target.value, boardEdgeBandings)
+            if (!next) return
+            update('edgeBanding', next.edgeBanding)
+            update('specialEdges', next.specialEdges)
+          }}
         >
-          {CANTO_NOTATIONS.map((n) => (
-            <option key={n} value={n}>
-              {n === '—' ? 'Sin canto' : n}
+          {cantoOptions(req, 'Sin canto').map((o) => (
+            <option key={o.value} value={o.value} disabled={o.disabled}>
+              {o.label}
             </option>
           ))}
         </CFormSelect>
@@ -296,6 +299,14 @@ const PieceEditSheet = ({
           })}
         </CButtonGroup>
       </div>
+
+      {/* The special edges are read-only here, so the way to free a side is said in words. */}
+      {cantoLimit(req.specialEdges ?? []) && (
+        <div className="form-text mt-1">
+          {cantoLimit(req.specialEdges ?? [])}. Para subir el Canto, quita el canto especial en la
+          computadora.
+        </div>
+      )}
 
       <CFormLabel className="mt-3">Tapacanto</CFormLabel>
       <SearchableSelect

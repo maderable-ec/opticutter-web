@@ -5,11 +5,13 @@ import { stripBandingPrefix } from 'src/shared/utils/text'
 import type { BandType, EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
   BANDTYPE_ABBR,
+  CANTO_NOTATIONS,
   displayedBandType,
   inferBandingProductId,
   notationFromSides,
   sidesFromNotation,
 } from './optimizerForm'
+import { cantoFits, seatSpecialEdges } from './specialEdges'
 
 // A piece's banding fields as the despiece edits them, and the piece as a list reads it. Two call
 // sites edit the same three fields — the grid on a laptop (`PieceRowsTable`) and the sheet on a
@@ -78,6 +80,36 @@ export const withCantoNotation = (
   }
   return next
 }
+
+// The Canto of a whole piece: the notation above, with the piece's special edges re-seated around
+// it — a `1L` special edge on `left` moves to `right` when the Canto takes `left`, the same piece.
+// null when they do not fit beside it: a special edge adds to the Canto, so per kind the two band at
+// most two sides. The select never offers such a Canto (`cantoOptions`); the fills skip the row.
+export const withCanto = (
+  r: RequirementForm,
+  notation: string,
+  boardEdgeBandings: EdgeBandingProduct[],
+): RequirementForm | null => {
+  const edgeBanding = withCantoNotation(r.edgeBanding, notation, boardEdgeBandings)
+  const specialEdges = seatSpecialEdges(edgeBanding.sides, r.specialEdges ?? [])
+  return specialEdges ? { ...r, edgeBanding, specialEdges } : null
+}
+
+export interface CantoOption {
+  value: string
+  label: string
+  disabled: boolean
+}
+
+// The Canto select's options for a piece: the ones its special edges leave room for, and the rest
+// shown but off, saying why — so the seller sees that `2L` exists and what holds it. `blank` is how
+// the select names "no Canto" ('—' in the grid, 'Sin canto' on the phone).
+export const cantoOptions = (r: RequirementForm, blank = '—'): CantoOption[] =>
+  CANTO_NOTATIONS.map((n) => {
+    const disabled = !cantoFits(n, r.specialEdges ?? [])
+    const label = n === '—' ? blank : n
+    return { value: n, label: disabled ? `${label} — ocupado por canto especial` : label, disabled }
+  })
 
 // Tipo: CS/CD, with THREE states. Pressing the type already shown returns to "unstated" (''), where
 // the type is read off the assigned tape. The tape follows the type: the board's coordinated one
