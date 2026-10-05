@@ -43,3 +43,27 @@ export interface StockCheckResult {
   checked: boolean
   alerts: StockAlertItem[]
 }
+
+// --- The low-stock report: not a metric over a window but a state right now, which is why it
+// takes no date range and lives here, with inventory, rather than with the reports.
+export interface LowStockItem {
+  productId: number
+  code: string
+  name: string
+  type: 'board' | 'edge_banding'
+  /** Material subtype (MDP, Plywood, Canto Solido…). Null for a product whose
+   *  attributes never carried one. */
+  subtype: string | null
+  /** 'sheets' for a board, 'linear_m' for edge banding. */
+  unit: StockUnit
+  branch: { id: number; code: string; name: string }
+  available: number
+  threshold: number
+}
+
+export interface LowStockReport {
+  /** False when the vendor's inventory did not answer — NOT "all well stocked". */
+  checked: boolean
+  thresholds: { board: number; edgeBanding: number }
+  items: LowStockItem[]
+}

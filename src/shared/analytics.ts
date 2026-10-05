@@ -26,7 +26,7 @@ const KEY = import.meta.env.VITE_POSTHOG_KEY
 // The public review page is opened by the client with a link whose token is a credential. It never
 // loads PostHog, and `before_send` drops anything captured while it is on screen.
 const REVIEW_PREFIX = '/review/'
-const OPTIMIZER_PATH = '/optimizer'
+const OPTIMIZER_PATH = '/preorders/new'
 
 // Masks the element's text, and everything inside it, in session replay.
 export const MASK = { 'data-ph-mask': '' } as const
@@ -36,7 +36,8 @@ export const NO_CAPTURE = 'ph-no-capture'
 type Step = 'pieces' | 'layout' | 'costs' | 'quote'
 
 // Event names are English snake_case. `$pathname` rides on every event, so the diagram and editor
-// events need no "where": it tells the wizard (/optimizer) from the pre-order (/preorders/:id).
+// events need no "where": it tells the wizard (/preorders/new, /optimizer until October 2026) from
+// the pre-order (/preorders/:id).
 interface Events {
   optimizer_step_viewed: { step: Step; index: number }
   cut_diagram_opened: { patterns: number; sheets: number }

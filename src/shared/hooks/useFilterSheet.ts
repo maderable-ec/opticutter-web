@@ -4,7 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 // The search param that says the phone's filter sheet is open. Exported because applying the sheet
 // has to drop it in the SAME url write that sets the filters (see `useListParams.setParams`: two
 // writes in one tick do not compose).
-export const FILTER_SHEET_PARAM = 'filtros'
+export const FILTER_SHEET_PARAM = 'filters'
 
 interface SheetState {
   filterSheet?: boolean
@@ -15,7 +15,7 @@ interface SheetState {
  *
  * Open lives in the URL, not in component state, for the phone's own reason: the back gesture. With
  * a sheet over the list, back is how an Android user dismisses it — in state, that gesture left the
- * listing altogether. Same idiom as the order detail's `?panel=piezas`.
+ * listing altogether. Same idiom as the order detail's `?panel=pieces`.
  *
  * The filters themselves are a DRAFT until "Ver resultados": the list is hidden behind the sheet,
  * so applying each tap only refetched something nobody could see, and pushed one history entry per

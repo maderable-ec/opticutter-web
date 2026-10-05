@@ -1,6 +1,6 @@
 import type { StatusTone } from 'src/shared/components/StatusBadge'
 import { formatDate } from 'src/shared/utils/date'
-import type { LowStockItem } from 'src/features/dashboard/types'
+import type { LowStockItem } from 'src/features/inventory/types'
 import { ORDER_STATUS_CONFIG } from 'src/features/orders/status'
 import type { Order, OrderListParams } from 'src/features/orders/types'
 import { OPEN_STATES, PREORDER_STATUS_CONFIG, isExpiringSoon } from 'src/features/preorders/status'
@@ -176,5 +176,4 @@ export const stockCounts = (items: LowStockItem[], branchId?: number): StockCoun
   return { low: mine.length - out, out }
 }
 
-export const lowStockLink = (branchId?: number) =>
-  listLink('/analytics/low-stock', { branch: branchId })
+export const lowStockLink = (branchId?: number) => listLink('/catalog/low-stock', { branchId })

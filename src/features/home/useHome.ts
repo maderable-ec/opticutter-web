@@ -1,6 +1,6 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 
-import { useLowStock } from 'src/features/dashboard/useAnalytics'
+import { useLowStock } from 'src/features/inventory/useLowStock'
 import { useOrders, useOrdersTotal } from 'src/features/orders/useOrders'
 import { usePreOrders, usePreOrdersTotal } from 'src/features/preorders/usePreOrders'
 import {

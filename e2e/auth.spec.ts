@@ -9,7 +9,7 @@ test('el operador aterriza en el tablero de taller', async ({ page, api, loginAs
   api.get('/orders/workshop-queue', [])
 
   await page.goto('/')
-  await expect(page).toHaveURL(/\/workshop-board$/)
+  await expect(page).toHaveURL(/\/workshop$/)
   await expect(page.getByText('No hay órdenes en el taller.')).toBeVisible()
 })
 
@@ -19,7 +19,7 @@ for (const roles of [['vendedor'], ['administrador']] as const) {
     stubHome(api, { admin: roles[0] === 'administrador' })
 
     await page.goto('/')
-    await expect(page).toHaveURL(/\/inicio$/)
+    await expect(page).toHaveURL(/\/home$/)
     await expect(page.getByRole('heading', { name: 'Requiere atención' })).toBeVisible()
   })
 }
@@ -29,7 +29,7 @@ test('una ruta de otro rol devuelve al inicio del rol', async ({ page, api, logi
   api.get('/orders/workshop-queue', [])
 
   await page.goto('/orders')
-  await expect(page).toHaveURL(/\/workshop-board$/)
+  await expect(page).toHaveURL(/\/workshop$/)
 })
 
 test('una sesión de otro día se cierra y pide login', async ({ page, loginAs }) => {

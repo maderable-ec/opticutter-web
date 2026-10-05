@@ -8,11 +8,12 @@ const WorkshopBoardPage = lazy(() => import('./WorkshopBoardPage'))
 
 export const ordersRoutes: AppRoute[] = [
   {
-    path: '/workshop-board',
+    // The Taller workspace: its queue is its own path, and the canvas an order is cut on sits under it.
+    path: '/workshop',
     name: 'Taller',
     element: WorkshopBoardPage,
     roles: ['administrador', 'operador', 'canteador'],
-    workspace: 'taller',
+    workspace: 'workshop',
   },
   {
     path: '/orders',
@@ -29,11 +30,11 @@ export const ordersRoutes: AppRoute[] = [
   },
   {
     // «Corte», not «Taller»: that is the place, and this is one order being cut in it.
-    path: '/orders/:id/workshop',
+    path: '/workshop/orders/:id',
     name: 'Corte',
     element: WorkshopPage,
     roles: ['administrador', 'vendedor', 'operador'],
-    workspace: 'taller',
+    workspace: 'workshop',
     immersive: true,
   },
 ]

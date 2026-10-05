@@ -3,6 +3,7 @@ import {
   branch,
   client,
   cuttingPlan,
+  lowStockReport,
   minutesAgo,
   order,
   preOrder,
@@ -56,6 +57,27 @@ const cuttingNow = workshopQueueItem({
 
 const bottomNav = (page: import('@playwright/test').Page) =>
   page.getByRole('navigation', { name: 'Navegación rápida' })
+
+// The paths before the URLs said which part of the product a screen is in (src/shared/legacyRoutes.ts
+// has the whole table): a bookmark or a link pasted in a chat still lands, query and record included.
+test('una dirección vieja lleva a donde vive hoy su pantalla', async ({ page, api, loginAs }) => {
+  await loginAs(['administrador'])
+  stubReports(api)
+  api.get('/inventory/low-stock', lowStockReport())
+  api.get('/orders/41/cutting-plan', cuttingPlan())
+
+  await page.goto('/dashboard?period=90d&branchId=2')
+  await expect(page).toHaveURL(/\/analytics\/summary\?period=90d&branchId=2$/)
+  await page.goto('/analytics/users')
+  await expect(page).toHaveURL(/\/analytics\/productivity$/)
+  await expect(page.locator('.header-breadcrumb')).toContainText('Productividad')
+  await page.goto('/analytics/low-stock')
+  await expect(page).toHaveURL(/\/catalog\/low-stock$/)
+  await expect(page.locator('.header-breadcrumb')).toContainText('Catálogo')
+  await page.goto('/orders/41/workshop')
+  await expect(page).toHaveURL(/\/workshop\/orders\/41$/)
+  await expect(page.getByRole('img', { name: /^Tablero 1:/ })).toBeVisible()
+})
 
 test('el menú del vendedor son sus dos secciones, sin nada que administrar', async ({
   page,
@@ -193,7 +215,7 @@ test(
     await loginAs(['operador'])
     api.get('/orders/workshop-queue', [])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await expect(page.getByText('No hay órdenes en el taller.')).toBeVisible()
     await expect(page.getByRole('banner')).toContainText('Taller')
     await expect(page.locator('.side-nav')).toHaveCount(0)
@@ -315,7 +337,7 @@ test.describe('en el celular', { tag: '@movil' }, () => {
       'page',
     )
     await sheet(page).getByRole('link', { name: 'Taller' }).click()
-    await expect(page).toHaveURL(/\/workshop-board$/)
+    await expect(page).toHaveURL(/\/workshop$/)
     await expect(page.locator('.workshop-card')).toHaveCount(1)
 
     await page.getByRole('button', { name: 'Salir del taller y volver a Clientes' }).click()
@@ -331,7 +353,7 @@ test.describe('en el celular', { tag: '@movil' }, () => {
     stubOptimizer(api)
     stubLists(api)
 
-    await page.goto('/optimizer')
+    await page.goto('/preorders/new')
     await expect(bottomNav(page)).toHaveCount(0)
     const menu = page.getByRole('button', { name: 'Menú', exact: true })
     await menu.click()
@@ -414,7 +436,7 @@ test.describe('el entorno Taller', () => {
       await page.goto('/orders?q=ORD-0000')
       // On screen at every width from `md`: the rail on the 960 panel, the full menu on a laptop.
       await page.locator('.side-nav__link', { hasText: 'Taller' }).click()
-      await expect(page).toHaveURL(/\/workshop-board$/)
+      await expect(page).toHaveURL(/\/workshop$/)
       await expect(page.locator('.workshop-card')).toHaveCount(1)
       // The office's shell steps aside.
       await expect(page.locator('.side-nav')).toHaveCount(0)
@@ -423,12 +445,12 @@ test.describe('el entorno Taller', () => {
 
       // The cut and back: the round trip inside the Taller keeps the way out.
       await page.getByRole('button', { name: 'Abrir corte' }).click()
-      await expect(page).toHaveURL(/\/orders\/41\/workshop$/)
+      await expect(page).toHaveURL(/\/workshop\/orders\/41$/)
       // The canvas brings its own bar: no header under it to Tab into unseen.
       await expect(page.getByRole('banner')).toHaveCount(0)
       await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toHaveCount(0)
       await page.getByRole('button', { name: 'Volver a Taller' }).click()
-      await expect(page).toHaveURL(/\/workshop-board$/)
+      await expect(page).toHaveURL(/\/workshop$/)
 
       await page.getByRole('button', { name: 'Salir del taller y volver a Órdenes' }).click()
       await expect(page).toHaveURL(/\/orders\?q=ORD-0000$/)
@@ -441,9 +463,9 @@ test.describe('el entorno Taller', () => {
     stubHome(api, { admin: true })
     api.get('/orders/workshop-queue', [cuttingNow])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await page.getByRole('button', { name: /^Salir del taller/ }).click()
-    await expect(page).toHaveURL(/\/inicio$/)
+    await expect(page).toHaveURL(/\/home$/)
   })
 
   test(
@@ -454,7 +476,7 @@ test.describe('el entorno Taller', () => {
       stubHome(api, { admin: true })
       api.get('/orders/workshop-queue', [cuttingNow])
 
-      await page.goto('/workshop-board')
+      await page.goto('/workshop')
       await expect(page.locator('.workshop-card')).toHaveCount(1)
       await expect(bottomNav(page)).toHaveCount(0)
       await expect(page.getByRole('button', { name: 'Menú', exact: true })).toHaveCount(0)
@@ -462,7 +484,7 @@ test.describe('el entorno Taller', () => {
       const exit = page.getByRole('button', { name: 'Salir del taller y volver a Inicio' })
       await expect(exit).toHaveText('Salir', { useInnerText: true })
       await exit.click()
-      await expect(page).toHaveURL(/\/inicio$/)
+      await expect(page).toHaveURL(/\/home$/)
       await expect(bottomNav(page)).toBeVisible()
     },
   )
@@ -482,7 +504,7 @@ test.describe('los hubs', () => {
     await loginAs(['administrador'])
     stubReports(api)
 
-    await page.goto('/dashboard?period=90d&branchId=2')
+    await page.goto('/analytics/summary?period=90d&branchId=2')
     await expect(page.locator('.side-nav__link')).toHaveCount(8)
     await expect(tabs(page, 'Estadísticas').getByRole('link')).toHaveText([
       'Resumen',
@@ -508,7 +530,7 @@ test.describe('los hubs', () => {
     const trail = page.locator('.header-breadcrumb')
     await expect(trail).toContainText('Estadísticas')
     await trail.getByRole('link', { name: 'Estadísticas' }).click()
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/analytics\/summary$/)
     await expect(entry).toHaveAttribute('aria-current', 'page')
   })
 
@@ -517,7 +539,7 @@ test.describe('los hubs', () => {
     api.list('/product-families/', [])
     api.list('/products/', [])
 
-    await page.goto('/products?q=nogal')
+    await page.goto('/catalog/products?q=nogal')
     await expect(tabs(page, 'Catálogo').getByRole('link')).toHaveText([
       'Productos',
       'Familias',
@@ -525,7 +547,7 @@ test.describe('los hubs', () => {
     ])
     // A search in one list means nothing in the next.
     await tabs(page, 'Catálogo').getByRole('link', { name: 'Familias' }).click()
-    await expect(page).toHaveURL(/\/product-families$/)
+    await expect(page).toHaveURL(/\/catalog\/families$/)
     await expect(page.locator('.side-nav__link', { hasText: 'Catálogo' })).toHaveClass(/active/)
   })
 
@@ -574,12 +596,12 @@ test.describe('volver al contexto', () => {
       api.get('/orders/workshop-queue', [cuttingNow])
       api.get('/orders/41/cutting-plan', cuttingPlan())
 
-      await page.goto('/workshop-board')
+      await page.goto('/workshop')
       await page.getByRole('button', { name: 'Abrir corte' }).click()
-      await expect(page).toHaveURL(/\/orders\/41\/workshop$/)
+      await expect(page).toHaveURL(/\/workshop\/orders\/41$/)
 
       await page.getByRole('button', { name: 'Volver a Taller' }).click()
-      await expect(page).toHaveURL(/\/workshop-board$/)
+      await expect(page).toHaveURL(/\/workshop$/)
     },
   )
 
@@ -588,12 +610,12 @@ test.describe('volver al contexto', () => {
     stubHome(api, { admin: true })
     stubOrder(api)
 
-    await page.goto('/inicio')
+    await page.goto('/home')
     await page.locator('.home .list-card', { hasText: 'ORD-000041' }).click()
     await expect(page).toHaveURL(/\/orders\/41$/)
 
     await page.getByRole('button', { name: 'Volver a Inicio' }).click()
-    await expect(page).toHaveURL(/\/inicio$/)
+    await expect(page).toHaveURL(/\/home$/)
   })
 
   test('la cadena se deshace paso a paso: orden → su cotización → la orden → la lista', async ({
@@ -703,12 +725,12 @@ test.describe('volver al contexto', () => {
       stubHome(api)
       stubOrder(api)
 
-      await page.goto('/inicio')
+      await page.goto('/home')
       await page.locator('.home .list-card', { hasText: 'ORD-000041' }).click()
       const back = page.locator('.header-back')
       await expect(back).toHaveText('‹Inicio')
       await back.click()
-      await expect(page).toHaveURL(/\/inicio$/)
+      await expect(page).toHaveURL(/\/home$/)
     },
   )
 })

@@ -8,7 +8,7 @@ import type { Client } from 'src/features/clients/types'
 // inside `QuoteStep` was destroyed by a single "Atrás" — a seller who went back to fix one measure
 // came forward to an empty form and had to look the client up again.
 //
-// Not in the localStorage autosave, deliberately: leaving `/optimizer` changes `pathname` and
+// Not in the localStorage autosave, deliberately: leaving `/preorders/new` changes `pathname` and
 // unmounts the page, so coming back gives a clean sheet the same way it gives no optimize result.
 export interface QuoteDraft {
   // The client OBJECT, not its id: the picker, the phone check and the summary read it directly,

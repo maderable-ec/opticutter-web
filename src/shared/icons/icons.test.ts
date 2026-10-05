@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { ORDER_STATUS_CONFIG, ORDER_STATUS_VALUES } from 'src/features/orders/status'
 import { PREORDER_STATUS_CONFIG, PREORDER_STATUS_VALUES } from 'src/features/preorders/status'
 import type { NavItem } from 'src/shared/components/AppSidebarNav'
-import { BOTTOM_NAV, HUBS, NAV_SECTIONS } from 'src/shared/navigation'
+import { HUBS } from 'src/shared/hubs'
+import { BOTTOM_NAV, NAV_SECTIONS } from 'src/shared/navigation'
 import { ICONS, type IconName } from './registry'
 
 // A glyph means one thing. With CoreUI the layers icon was Familias in the menu, «En cola» on an

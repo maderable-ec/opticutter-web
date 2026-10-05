@@ -46,7 +46,7 @@ test(
 
     // Trabajo: the cut list is the work order, in the shop's words, one card per piece.
     await parts.getByRole('tab', { name: 'Trabajo' }).click()
-    await expect(page).toHaveURL(/vista=trabajo/)
+    await expect(page).toHaveURL(/view=work/)
     const lateral = cutList.locator('.cut-piece', { hasText: 'Lateral' })
     await expect(lateral).toContainText('720 × 560 mm')
     await expect(lateral).toContainText('1L1C CS')
@@ -95,7 +95,7 @@ test('en la computadora, la orden sigue siendo una sola superficie', async ({
   await loginAs(['administrador'])
   stubOrder(api)
 
-  await page.goto('/orders/41?vista=cobro')
+  await page.goto('/orders/41?view=billing')
   await expect(page.getByRole('tablist', { name: 'Partes de la orden' })).toBeHidden()
   // Every part at once, whatever the URL says: the cut list behind its row, the money, the dates.
   await expect(page.getByRole('button', { name: 'Ver lista' })).toBeVisible()

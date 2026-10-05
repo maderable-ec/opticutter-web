@@ -22,7 +22,7 @@ import QueryState from 'src/shared/components/QueryState'
 import StatusBadge, { type StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import { useListParams } from 'src/shared/hooks/useListParams'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
-import { useLowStock } from './useAnalytics'
+import { useLowStock } from './useLowStock'
 import LowStockFilters, {
   activeCount,
   lowStockFilterChips,
@@ -49,7 +49,7 @@ const TYPE_CONFIG: Record<LowStockItem['type'], StatusConfigEntry> = {
 }
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
-const FILTER_KEYS = ['q', 'branch', 'type', 'subtype']
+const FILTER_KEYS = ['q', 'branchId', 'type', 'subtype']
 
 // Sheets are whole units, metres are not: "12 m" when the warehouse says 12.5 is as
 // wrong as "3.0 láminas".
@@ -76,7 +76,7 @@ const LowStockPage = () => {
 
   const search = getParam('q')
   const values: LowStockFilterValues = {
-    branch: getParams('branch'),
+    branchId: getParams('branchId'),
     type: getParams('type') as LowStockItem['type'][],
     subtype: getParams('subtype'),
   }
@@ -155,7 +155,7 @@ const LowStockPage = () => {
             Mínimos: {fmtNumber(data.thresholds.board, 1, 0)} láminas ·{' '}
             {fmtMeters(data.thresholds.edgeBanding, 1, 0)}
             <br />
-            <Link to="/settings">Configurar</Link>
+            <Link to="/company/settings">Configurar</Link>
           </div>
         )}
       </ListToolbar>

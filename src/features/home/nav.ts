@@ -5,7 +5,7 @@ export const homeNav: NavItem[] = [
   {
     component: CNavItem,
     name: 'Inicio',
-    to: '/inicio',
+    to: '/home',
     icon: 'home',
     roles: ['administrador', 'vendedor'],
   },

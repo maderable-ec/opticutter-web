@@ -29,7 +29,7 @@ test(
     await loginAs(['administrador'])
     stubProducts(api)
 
-    await page.goto('/products')
+    await page.goto('/catalog/products')
     await expect(page.locator('.list-cards .list-card').first()).toBeVisible()
     await page.getByRole('button', { name: 'Filtros' }).click()
 
@@ -42,7 +42,7 @@ test(
 
     await sheet.getByRole('button', { name: 'Ver 12 productos' }).click()
     await expect(page).toHaveURL(/type=board/)
-    await expect(page).not.toHaveURL(/filtros=1/)
+    await expect(page).not.toHaveURL(/filters=1/)
     await expect(sheet).toBeHidden()
     await expect(page.locator('.filter-chip', { hasText: 'Tablero' })).toBeVisible()
   },
@@ -86,7 +86,7 @@ test(
     await expect(cotizar).toBeVisible()
     await expect(cotizar).toHaveText('', { useInnerText: true })
     await cotizar.click()
-    await expect(page).toHaveURL(/\/optimizer$/)
+    await expect(page).toHaveURL(/\/preorders\/new$/)
   },
 )
 
@@ -112,7 +112,7 @@ test(
     await loginAs(['administrador'])
     stubProducts(api)
 
-    await page.goto('/products')
+    await page.goto('/catalog/products')
     await page.getByRole('button', { name: 'Filtros' }).click()
     // The same sheet as the reports' filters and the menu, named by its title, holding the focus.
     const sheet = page.getByRole('dialog', { name: 'Filtros' })
@@ -122,7 +122,7 @@ test(
 
     await page.keyboard.press('Escape')
     await expect(sheet).toBeHidden()
-    await expect(page).not.toHaveURL(/filtros=1|type=board/)
+    await expect(page).not.toHaveURL(/filters=1|type=board/)
     await expect(page.locator('.filter-chip')).toHaveCount(0)
   },
 )
@@ -155,7 +155,7 @@ test('en Familias, la fila abre la familia y la familia se edita desde ahí', as
   })
   api.put('/product-families/1', { ...cashmere, name: 'Cashmere Gris' })
 
-  await page.goto('/product-families')
+  await page.goto('/catalog/families')
   const row = page.locator('.list-table tbody tr', { hasText: 'Cashmere' })
   // Beside the row only delete, as in the rest of the catalog: editing is inside the family.
   await expect(row.getByRole('button', { name: 'Editar Cashmere' })).toHaveCount(0)

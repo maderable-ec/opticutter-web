@@ -58,7 +58,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       }),
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     const next = page.locator('.workshop-card', { has: page.locator('.workshop-next') })
     await expect(next).toHaveCount(1)
     await expect(next).toContainText('ORD-000003')
@@ -81,7 +81,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       }),
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     const next = page.locator('.workshop-card', { has: page.locator('.workshop-next') })
     await expect(next).toContainText('ORD-000002')
   })
@@ -95,7 +95,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       { message: 'Otro operador ya tomó esta orden.', code: 'CONFLICT' },
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await page.getByRole('button', { name: 'Tomar' }).click()
     // The question names the act and the order, and the button repeats the verb.
     await page
@@ -104,7 +104,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       .click()
 
     await expect(page.getByText('Otro operador ya tomó esta orden.')).toBeVisible()
-    await expect(page).toHaveURL(/\/workshop-board$/)
+    await expect(page).toHaveURL(/\/workshop$/)
   })
 
   test('los materiales pasan de orden con ‹ ›, con las flechas y nunca con Alt+←', async ({
@@ -117,7 +117,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       workshopQueueItem({ orderId: 3, orderCode: 'ORD-000003' }),
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await page.locator('.usage-summary').first().click()
     const dialog = page.getByRole('dialog', { name: 'ORD-000001' })
     await expect(dialog).toContainText('1 de 3')
@@ -147,14 +147,14 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       workshopQueueItem({ orderId: 3, orderCode: 'ORD-000003', status: 'in_process' }),
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     const counts = page.locator('.workshop-counts__item')
     await expect(counts).toHaveText([/En cola\s*2/, /En proceso\s*1/])
   })
 
   test('la primera fila de tarjetas entra entera en el panel del taller', async ({ page, api }) => {
     api.get('/orders/workshop-queue', tallestRow())
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await expectFirstRowInView(page)
   })
 
@@ -168,7 +168,7 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
       workshopQueueItem({ orderId: 2, orderCode: 'ORD-000046' }),
     ])
 
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await expect(page.locator('.workshop-card')).toHaveCount(2)
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - window.innerWidth,
@@ -187,9 +187,9 @@ test(
     stubHome(api, { admin: true })
     api.get('/orders/workshop-queue', tallestRow())
 
-    await page.goto('/inicio')
+    await page.goto('/home')
     const office = (await page.getByRole('banner').boundingBox())?.height
-    await page.goto('/workshop-board')
+    await page.goto('/workshop')
     await expect(page.getByRole('button', { name: /^Salir del taller/ })).toBeVisible()
     expect((await page.getByRole('banner').boundingBox())?.height).toBe(office)
   },

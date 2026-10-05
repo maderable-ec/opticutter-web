@@ -88,7 +88,10 @@ const TodaySection = ({ branchId }: { branchId?: number }) => {
       title={`Hoy · ${dayLabel.format(new Date())}`}
       action={
         // The branch the admin is looking at here is the one Resumen opens on.
-        <Link to={branchId ? `/dashboard?branchId=${branchId}` : '/dashboard'} className="small">
+        <Link
+          to={branchId ? `/analytics/summary?branchId=${branchId}` : '/analytics/summary'}
+          className="small"
+        >
           Resumen ›
         </Link>
       }

@@ -70,9 +70,10 @@ src/
 │       └── uiStore.ts               # UI: sidebarShow, sidebarUnfoldable, theme
 │
 └── features/
-    ├── auth/                        # Login, Register, Page404, Page500
-    ├── dashboard/                   # Analytics hub (see below)
-    ├── orders/                      # Order lifecycle + workshop cutting view
+    ├── auth/                        # Login, Page404, Page500
+    ├── analytics/                   # The Estadísticas hub (see below)
+    ├── inventory/                   # Stock: the quote's alert and the low-stock report
+    ├── orders/                      # Order lifecycle + the Taller (queue and cutting canvas)
     ├── preorders/                   # Quote/proposal lifecycle
     ├── products/                    # Product catalog (boards + edge banding)
     ├── clients/                     # Client management
@@ -89,19 +90,35 @@ src/
 
 | Feature | Routes | Description |
 |---------|--------|-------------|
-| `auth` | `/login` `/register` `/404` `/500` | JWT auth, role-based session, public pages |
-| `dashboard` | `/dashboard` `/analytics/*` | 4-page analytics: KPI summary, bottlenecks, user productivity, attendance. All `/api/v1/analytics/*` endpoints live here — not in a separate feature |
-| `orders` | `/orders` `/orders/create` `/orders/:id` | Full order lifecycle; workshop SVG cutting view; edge-banding queue |
+| `auth` | `/login` `/404` `/500` | JWT auth, role-based session, public pages |
+| `home` | `/home` | The office's landing: what needs doing today |
+| `optimizer` | `/preorders/new` | «Cotizar»: the cut plan wizard (Despiece → Optimización → Costos → Cotización), CSV/XML import, fullscreen SVG board diagram, draft save/load. It creates a pre-order |
 | `preorders` | `/preorders` `/preorders/:id` | Quote lifecycle (draft→sent→confirmed/rejected); client review links; audit trail |
-| `products` | `/products` | Board and edge-banding catalog; discriminated union type; CSV bulk import |
+| `orders` | `/orders` `/orders/:id` `/workshop` `/workshop/orders/:id` | Order lifecycle, and the Taller workspace: its queue and the canvas an order is cut on |
 | `clients` | `/clients` | Client management |
-| `branches` | `/branches` | Branch / location management (multi-branch model) |
-| `users` | `/users` | Staff user management with role assignment |
-| `settings` | `/settings` | Company info, kerf/trim parameters, quote validity, price tiers |
-| `profile` | `/profile` `/profile/password` | Self-service profile and password change |
-| `optimizer` | `/optimizer` | Cut plan wizard in 3 steps (Despiece → Costos → Cotización): piece input, CSV/XML import (the file's `Etiqueta` is read as edge banding), packing strategy, fullscreen SVG board diagram, draft save/load |
+| `products` · `productFamilies` · `services` · `inventory` | `/catalog/products` `/catalog/families` `/catalog/services` `/catalog/low-stock` | The Catálogo hub: boards and edge banding, their families, additional services and the low-stock report |
+| `analytics` | `/analytics/summary` `/analytics/bottlenecks` `/analytics/productivity` `/analytics/attendance` | The Estadísticas hub: the reports over `/api/v1/analytics/*` |
+| `users` · `branches` · `print` · `settings` | `/company/users` `/company/branches` `/company/printing` `/company/settings` | The Empresa hub: staff, branches, print agents and settings |
+| `profile` | `/profile` `/profile/change-password` | Self-service profile and password change |
 | `review` | `/review/:token` | Public quote review and approval portal (no auth required) |
-| `widgets` | `/widgets` | Template demo — candidate for removal |
+
+### URL convention
+
+A URL says which part of the product a screen belongs to:
+
+- **English, kebab-case, plural collections**, with the API's resource name where the screen shows
+  one (`/orders` ↔ `/api/v1/orders`, `/analytics/productivity` ↔ `/api/v1/analytics/productivity`).
+- **A place in the menu is a first segment.** A hub (`HUBS` in `src/shared/hubs.ts`) is a prefix and
+  its tabs are the second segment (`/catalog/low-stock`); the hub's own path opens its first tab the
+  user may open, and the breadcrumb finds the hub by that prefix. A workspace is a prefix too
+  (`/workshop`). The menu's section titles (Ventas, Producción, Gestión) are no places and no
+  segments.
+- **A record** is `/<collection>/:id`, **a new one** `/<collection>/new`, and **a part of a record**
+  a query param (`?view=`), never a path.
+- **Query params** are English camelCase like the API's (`branchId`, `isActive`); the UI's own are
+  `view`, `panel`, `filters` and `step`.
+- **Old paths** (`/optimizer`, `/inicio`, `/dashboard`…, until October 2026) redirect to the new ones
+  through `src/shared/legacyRoutes.ts`, query included.
 
 ## Key Subsystems
 
@@ -133,10 +150,10 @@ Four roles with distinct route access and landing pages:
 
 | Role | Access | Landing |
 |------|--------|---------|
-| `administrador` | All features | `/dashboard` |
-| `vendedor` | Optimizer, Pre-orders, Orders, Products, Clients | `/optimizer` |
-| `operador` | Workshop board, cutting canvas (`/orders/:id/workshop`) | `/workshop-board` |
-| `canteador` | Workshop board (banding and additional work) | `/workshop-board` |
+| `administrador` | All features | `/home` |
+| `vendedor` | Optimizer, Pre-orders, Orders, Catalog (no low stock), Clients | `/home` |
+| `operador` | Workshop board, cutting canvas (`/workshop/orders/:id`) | `/workshop` |
+| `canteador` | Workshop board (banding and additional work) | `/workshop` |
 
 A user holds a **list** of roles (`user.roles`) and gets the **union** of their access: every
 check goes through `hasAnyRole` (`features/auth/permissions.ts`), and the landing page is the

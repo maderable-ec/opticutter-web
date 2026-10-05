@@ -61,7 +61,7 @@ export const ordersApi = {
   setPriority: (id: string, data: SetPriorityPayload) =>
     httpClient.patch<Order>(`${BASE}/${id}/priority`, data),
   associateInvoice: (id: string, data: AssociateInvoicePayload) =>
-    httpClient.post<Order>(`${BASE}/${id}/invoice`, data),
+    httpClient.patch<Order>(`${BASE}/${id}/invoice`, data),
   getCuttingPlan: (id: string) => httpClient.get<CuttingPlan>(`${BASE}/${id}/cutting-plan`),
   markPiece: (id: string, pieceId: number, cut: boolean) =>
     httpClient.patch<MarkPieceResponse>(`${BASE}/${id}/cutting-plan/pieces/${pieceId}`, { cut }),

@@ -8,7 +8,7 @@ import { useReportFilters } from './useReportFilters'
 // Resumen: how the period went, for the admin (the seller's «what now» is Inicio). One filter row
 // scopes every block below it; the blocks are `.surface`s on a grid that pairs the short ones from
 // `lg`.
-const DashboardPage = () => {
+const SummaryPage = () => {
   const filters = useReportFilters()
   const { from, to, branchId, granularity } = filters
 
@@ -23,4 +23,4 @@ const DashboardPage = () => {
   )
 }
 
-export default DashboardPage
+export default SummaryPage

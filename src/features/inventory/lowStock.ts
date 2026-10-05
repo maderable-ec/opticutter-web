@@ -3,7 +3,7 @@ import type { LowStockItem } from './types'
 // What the low-stock report can be narrowed by. Strings for the branch because they travel in the
 // URL, where every value is one.
 export interface LowStockFilterValues {
-  branch: string[]
+  branchId: string[]
   type: LowStockItem['type'][]
   subtype: string[]
 }
@@ -19,7 +19,7 @@ export const filterLowStock = (
   const term = search.trim().toLowerCase()
   return items.filter(
     (item) =>
-      (values.branch.length === 0 || values.branch.includes(String(item.branch.id))) &&
+      (values.branchId.length === 0 || values.branchId.includes(String(item.branch.id))) &&
       (values.type.length === 0 || values.type.includes(item.type)) &&
       (values.subtype.length === 0 ||
         (item.subtype !== null && values.subtype.includes(item.subtype))) &&

@@ -2,7 +2,6 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type { Role } from 'src/features/auth/types'
 import type {
   AnalyticsSummary,
-  LowStockReport,
   AttendanceData,
   BottlenecksData,
   Granularity,
@@ -46,11 +45,9 @@ export const analyticsApi = {
   // User productivity (#2).
   users: (from?: string, to?: string, branchId?: number, role?: Role) =>
     httpClient.get<UsersProductivityData>(
-      `/api/v1/analytics/users${buildQs({ from, to, branchId, role })}`,
+      `/api/v1/analytics/productivity${buildQs({ from, to, branchId, role })}`,
     ),
   // Low stock (#4). No date range: stock is a state, not a series.
-  lowStock: (branchId?: number, type?: 'board' | 'edge_banding') =>
-    httpClient.get<LowStockReport>(`/api/v1/analytics/low-stock${buildQs({ branchId, type })}`),
   // Attendance / check-in time (#3).
   attendance: (from?: string, to?: string, branchId?: number, role?: Role) =>
     httpClient.get<AttendanceData>(

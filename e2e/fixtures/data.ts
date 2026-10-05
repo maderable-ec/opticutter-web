@@ -5,13 +5,12 @@ import type {
   AnalyticsSummary,
   AttendanceData,
   BottlenecksData,
-  LowStockReport,
   StatusBreakdownData,
   Timeseries,
   UserProductivity,
   UsersProductivityData,
-} from 'src/features/dashboard/types'
-import type { StockCheckResult } from 'src/features/inventory/types'
+} from 'src/features/analytics/types'
+import type { LowStockReport, StockCheckResult } from 'src/features/inventory/types'
 import type {
   Layout,
   OptimizeResponse,
@@ -555,7 +554,7 @@ export const lowStockReport = (overrides: Partial<LowStockReport> = {}): LowStoc
   ...overrides,
 })
 
-// --- The reports (`/dashboard`, `/analytics/*`) ---
+// --- The reports (`/analytics/*`) ---
 
 /** The last `n` UTC days, oldest first, as the API's `buckets`. */
 export const lastDays = (n: number) =>

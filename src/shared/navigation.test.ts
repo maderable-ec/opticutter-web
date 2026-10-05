@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CNavGroup, CNavItem } from '@coreui/react'
 
 import type { Role } from 'src/features/auth/types'
-import { REPORT_PARAMS } from 'src/features/dashboard/reportFilters'
+import { REPORT_PARAMS } from 'src/features/analytics/reportFilters'
 import {
   backFor,
   bottomNavFor,
@@ -12,6 +12,7 @@ import {
   exitFor,
   hasMenu,
   hubFor,
+  hubLanding,
   orderPathFor,
   originFrom,
   originOf,
@@ -70,16 +71,16 @@ describe('the menu by role', () => {
         .flatMap((s) => s.items)
         .find((item) => item.name === name)
     expect(hub(['vendedor'], 'Catálogo')).toMatchObject({
-      to: '/products',
-      matches: ['/products', '/product-families', '/additional-services'],
+      to: '/catalog/products',
+      matches: ['/catalog/products', '/catalog/families', '/catalog/services'],
     })
-    expect(hub(['administrador'], 'Catálogo')?.matches).toContain('/analytics/low-stock')
+    expect(hub(['administrador'], 'Catálogo')?.matches).toContain('/catalog/low-stock')
     expect(hub(['administrador'], 'Estadísticas')).toMatchObject({
-      to: '/dashboard',
+      to: '/analytics/summary',
       matches: [
-        '/dashboard',
+        '/analytics/summary',
         '/analytics/bottlenecks',
-        '/analytics/users',
+        '/analytics/productivity',
         '/analytics/attendance',
       ],
     })
@@ -135,14 +136,14 @@ describe('the hubs', () => {
       'Asistencia',
     ])
     // Stock bajo is the admin's, like its route.
-    expect(tabs('/products', ['vendedor'])).toEqual(['Productos', 'Familias', 'Servicios'])
-    expect(tabs('/analytics/low-stock', ['administrador'])).toEqual([
+    expect(tabs('/catalog/products', ['vendedor'])).toEqual(['Productos', 'Familias', 'Servicios'])
+    expect(tabs('/catalog/low-stock', ['administrador'])).toEqual([
       'Productos',
       'Familias',
       'Servicios',
       'Stock bajo',
     ])
-    expect(tabs('/print-agents', ['administrador'])).toEqual([
+    expect(tabs('/company/printing', ['administrador'])).toEqual([
       'Usuarios',
       'Sucursales',
       'Impresión',
@@ -150,14 +151,28 @@ describe('the hubs', () => {
     ])
   })
 
+  it('open, from their own path, on the first tab the role may open', () => {
+    expect(hubLanding('/catalog', ['vendedor'])).toBe('/catalog/products')
+    expect(hubLanding('/analytics', ['administrador'])).toBe('/analytics/summary')
+    expect(hubLanding('/company', ['vendedor'])).toBeNull()
+    expect(hubLanding('/orders', ['administrador'])).toBeNull()
+  })
+
+  it('are no screen above their tabs: going up from a tab would land on a sibling', () => {
+    expect(returnFor('/catalog/low-stock', ['administrador'])).toEqual({
+      to: '/home',
+      name: 'Inicio',
+    })
+  })
+
   it('are absent outside a hub and for a role with no tab in it', () => {
     expect(hubFor('/orders', ['administrador'])).toBeNull()
     expect(hubFor('/orders/41', ['administrador'])).toBeNull()
-    expect(hubFor('/users', ['vendedor'])).toBeNull()
+    expect(hubFor('/company/users', ['vendedor'])).toBeNull()
   })
 
   it('carry the reports’ window from one tab to the next, and nothing else', () => {
-    const keep = hubFor('/dashboard', ['administrador'])?.keepParams
+    const keep = hubFor('/analytics/summary', ['administrador'])?.keepParams
     expect(keep).toEqual(REPORT_PARAMS)
     expect(carryParams('?period=90d&q=x&branchId=2&offset=20', keep)).toBe('?period=90d&branchId=2')
     expect(carryParams('?from=2026-09-01&to=2026-09-15&role=operador', keep)).toBe(
@@ -165,9 +180,9 @@ describe('the hubs', () => {
     )
     expect(carryParams('', keep)).toBe('')
     // The catalog's lists filter on keys of their own.
-    expect(carryParams('?q=nogal&offset=20', hubFor('/products', ['vendedor'])?.keepParams)).toBe(
-      '',
-    )
+    expect(
+      carryParams('?q=nogal&offset=20', hubFor('/catalog/products', ['vendedor'])?.keepParams),
+    ).toBe('')
   })
 })
 
@@ -183,18 +198,18 @@ describe('the phone’s bottom bar', () => {
       'Más',
     ])
     expect(labels('/clients', ['administrador'])).toHaveLength(5)
-    expect(labels('/workshop-board', ['operador', 'canteador'])).toEqual([])
+    expect(labels('/workshop', ['operador', 'canteador'])).toEqual([])
   })
 
   it('stays out of a workspace, which is left by its own «Salir»', () => {
-    expect(labels('/workshop-board', ['administrador'])).toEqual([])
+    expect(labels('/workshop', ['administrador'])).toEqual([])
   })
 
   it('gives way inside a record and on a page with its own action bar', () => {
     expect(labels('/orders/41', ['vendedor'])).toEqual([])
     expect(labels('/preorders/123', ['vendedor'])).toEqual([])
-    expect(labels('/orders/41/workshop', ['administrador'])).toEqual([])
-    expect(labels('/optimizer', ['vendedor'])).toEqual([])
+    expect(labels('/workshop/orders/41', ['administrador'])).toEqual([])
+    expect(labels('/preorders/new', ['vendedor'])).toEqual([])
   })
 })
 
@@ -217,8 +232,8 @@ describe('the phone’s menu sheet', () => {
   })
 
   it('is the whole menu where there is no bar: the optimizer’s only way around', () => {
-    expect(sheet('/optimizer', ['vendedor'])).toEqual(sectionsForRoles(['vendedor']))
-    expect(sheet('/optimizer', ['administrador']).flatMap((s) => s.items)).toHaveLength(9)
+    expect(sheet('/preorders/new', ['vendedor'])).toEqual(sectionsForRoles(['vendedor']))
+    expect(sheet('/preorders/new', ['administrador']).flatMap((s) => s.items)).toHaveLength(9)
   })
 
   it('says what is in each hub, in the role’s tabs', () => {
@@ -254,7 +269,7 @@ describe('the phone’s menu sheet', () => {
   it('lights «Más» on a screen it leads to, and not on one the bar has', () => {
     const holds = (path: string) => sheetHolds(sheet(path, ['administrador']), path)
     expect(holds('/clients')).toBe(true)
-    expect(holds('/product-families')).toBe(true)
+    expect(holds('/catalog/families')).toBe(true)
     expect(holds('/analytics/attendance')).toBe(true)
     expect(holds('/orders')).toBe(false)
     expect(holds('/profile')).toBe(false)
@@ -262,18 +277,21 @@ describe('the phone’s menu sheet', () => {
 })
 
 describe('the entry that stands for the screen', () => {
-  const hub = { to: '/dashboard', matches: ['/dashboard', '/analytics/users'] }
+  const hub = {
+    to: '/analytics/summary',
+    matches: ['/analytics/summary', '/analytics/productivity'],
+  }
 
   it('is the page on its own screen and the place on the others it stands for', () => {
     expect(entryCurrent({ to: '/orders' }, '/orders')).toBe('page')
     expect(entryCurrent({ to: '/orders' }, '/orders/41')).toBe('true')
-    expect(entryCurrent(hub, '/dashboard')).toBe('page')
-    expect(entryCurrent(hub, '/analytics/users')).toBe('true')
+    expect(entryCurrent(hub, '/analytics/summary')).toBe('page')
+    expect(entryCurrent(hub, '/analytics/productivity')).toBe('true')
   })
 
   it('is no entry’s elsewhere, a path that only starts the same included', () => {
     expect(entryCurrent({ to: '/orders' }, '/preorders')).toBeNull()
-    expect(entryCurrent({ to: '/products' }, '/product-families')).toBeNull()
+    expect(entryCurrent({ to: '/catalog/products' }, '/catalog/families')).toBeNull()
     expect(entryCurrent(hub, '/analytics/bottlenecks')).toBeNull()
     expect(entryCurrent({}, '/orders')).toBeNull()
   })
@@ -282,7 +300,7 @@ describe('the entry that stands for the screen', () => {
 describe('the breadcrumb', () => {
   it('ends on the record, not on the list above it', () => {
     expect(breadcrumbsFor('/orders/41', ['vendedor'])).toEqual([
-      { to: '/inicio', name: 'Inicio' },
+      { to: '/home', name: 'Inicio' },
       { to: '/orders', name: 'Órdenes' },
       { to: '/orders/41', name: 'Detalle de orden' },
     ])
@@ -297,10 +315,12 @@ describe('the breadcrumb', () => {
     expect(pageTitle(breadcrumbsFor('/orders/41', ['vendedor'], order))).toBe(
       'ORD-2026-0041 · Maderable',
     )
-    // The order's crumb above its cutting canvas carries it too; the canvas keeps its own name.
-    expect(breadcrumbsFor('/orders/41/workshop', ['administrador'], order).slice(-2)).toEqual([
-      { to: '/orders/41', name: 'ORD-2026-0041' },
-      { to: '/orders/41/workshop', name: 'Corte' },
+    // The cutting canvas is in the Taller, not under the order: its trail runs through the queue,
+    // and the order's label is no name of the canvas.
+    expect(breadcrumbsFor('/workshop/orders/41', ['administrador'], order)).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/workshop', name: 'Taller' },
+      { to: '/workshop/orders/41', name: 'Corte' },
     ])
   })
 
@@ -315,45 +335,62 @@ describe('the breadcrumb', () => {
     expect(pageTitle(breadcrumbsFor('/orders/41', ['vendedor']))).toBe(
       'Detalle de orden · Maderable',
     )
-    expect(pageTitle(breadcrumbsFor('/inicio', ['administrador']))).toBe('Inicio · Maderable')
+    expect(pageTitle(breadcrumbsFor('/home', ['administrador']))).toBe('Inicio · Maderable')
     expect(pageTitle([])).toBe('Maderable')
   })
 
   it('does not lead with «Inicio» on the home screen itself', () => {
-    expect(breadcrumbsFor('/inicio', ['administrador'])).toEqual([
-      { to: '/inicio', name: 'Inicio' },
-    ])
-    expect(breadcrumbsFor('/workshop-board', ['operador'])).toEqual([
-      { to: '/workshop-board', name: 'Taller' },
-    ])
+    expect(breadcrumbsFor('/home', ['administrador'])).toEqual([{ to: '/home', name: 'Inicio' }])
+    expect(breadcrumbsFor('/workshop', ['operador'])).toEqual([{ to: '/workshop', name: 'Taller' }])
   })
 
-  it('names the hub between home and a tab, linked to its first tab', () => {
+  it('names the hub between home and a tab, by its path', () => {
     expect(breadcrumbsFor('/analytics/bottlenecks', ['administrador'])).toEqual([
-      { to: '/inicio', name: 'Inicio' },
-      { to: '/dashboard', name: 'Estadísticas' },
+      { to: '/home', name: 'Inicio' },
+      { to: '/analytics', name: 'Estadísticas' },
       { to: '/analytics/bottlenecks', name: 'Cuellos de botella' },
     ])
-    expect(breadcrumbsFor('/dashboard', ['administrador'])).toEqual([
-      { to: '/inicio', name: 'Inicio' },
-      { to: '/dashboard', name: 'Estadísticas' },
-      { to: '/dashboard', name: 'Resumen' },
+    expect(breadcrumbsFor('/analytics/summary', ['administrador'])).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/analytics', name: 'Estadísticas' },
+      { to: '/analytics/summary', name: 'Resumen' },
     ])
-    expect(breadcrumbsFor('/analytics/low-stock', ['administrador'])).toEqual([
-      { to: '/inicio', name: 'Inicio' },
-      { to: '/products', name: 'Catálogo' },
-      { to: '/analytics/low-stock', name: 'Stock bajo' },
+    expect(breadcrumbsFor('/catalog/low-stock', ['administrador'])).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/catalog', name: 'Catálogo' },
+      { to: '/catalog/low-stock', name: 'Stock bajo' },
+    ])
+    // A hub with any tab of theirs is a step the seller may take.
+    expect(breadcrumbsFor('/catalog/products', ['vendedor'])).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/catalog', name: 'Catálogo' },
+      { to: '/catalog/products', name: 'Productos' },
     ])
     // The tab stays the screen's name, for the browser tab and for «Volver».
-    expect(pageTitle(breadcrumbsFor('/analytics/users', ['administrador']))).toBe(
+    expect(pageTitle(breadcrumbsFor('/analytics/productivity', ['administrador']))).toBe(
       'Productividad · Maderable',
     )
   })
 
+  it('puts a new quote under the quotes, not as one of them', () => {
+    expect(breadcrumbsFor('/preorders/new', ['vendedor'])).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/preorders', name: 'Cotizaciones' },
+      { to: '/preorders/new', name: 'Cotizar' },
+    ])
+  })
+
+  it('starts at the shop floor’s home, which is the Taller itself', () => {
+    expect(breadcrumbsFor('/workshop/orders/41', ['operador'])).toEqual([
+      { to: '/workshop', name: 'Taller' },
+      { to: '/workshop/orders/41', name: 'Corte' },
+    ])
+  })
+
   it('skips the steps the user cannot open', () => {
-    expect(breadcrumbsFor('/orders/41/workshop', ['operador'])).toEqual([
-      { to: '/workshop-board', name: 'Inicio' },
-      { to: '/orders/41/workshop', name: 'Corte' },
+    expect(breadcrumbsFor('/workshop/orders/41', ['vendedor'])).toEqual([
+      { to: '/home', name: 'Inicio' },
+      { to: '/workshop/orders/41', name: 'Corte' },
     ])
   })
 })
@@ -365,31 +402,39 @@ describe('the phone’s «‹» back', () => {
       to: '/preorders',
       name: 'Cotizaciones',
     })
-    expect(backFor('/orders/41/workshop', ['administrador'])).toEqual({
-      to: '/orders/41',
-      name: 'Detalle de orden',
+    // The canvas is the Taller's: with no way in known, up is the queue, for whoever may open it.
+    expect(backFor('/workshop/orders/41', ['administrador'])).toEqual({
+      to: '/workshop',
+      name: 'Taller',
     })
   })
 
+  it('sends the seller home from a canvas reached by its link alone', () => {
+    // The queue above it is not theirs. Entered from the order's detail, the origin leads back there.
+    expect(backFor('/workshop/orders/41', ['vendedor'])).toEqual({ to: '/home', name: 'Inicio' })
+    const detail: Origin = { to: '/orders/41', name: 'ORD-2026-0041' }
+    expect(backFor('/workshop/orders/41', ['vendedor'], detail)).toEqual(detail)
+  })
+
   it('sends the operador home when nothing above the canvas is theirs', () => {
-    expect(backFor('/orders/41/workshop', ['operador'])).toEqual({
-      to: '/workshop-board',
+    expect(backFor('/workshop/orders/41', ['operador'])).toEqual({
+      to: '/workshop',
       name: 'Taller',
     })
   })
 
   it('is absent outside a record', () => {
     expect(backFor('/orders', ['vendedor'])).toBeNull()
-    expect(backFor('/optimizer', ['vendedor'])).toBeNull()
+    expect(backFor('/preorders/new', ['vendedor'])).toBeNull()
   })
 })
 
 describe('the way back to where a screen was entered from', () => {
-  const board: Origin = { to: '/workshop-board', name: 'Taller' }
-  const home: Origin = { to: '/inicio', name: 'Inicio' }
+  const board: Origin = { to: '/workshop', name: 'Taller' }
+  const home: Origin = { to: '/home', name: 'Inicio' }
 
   it('takes the admin from the canvas back to the board, not up to the order', () => {
-    expect(backFor('/orders/41/workshop', ['administrador'], board)).toEqual(board)
+    expect(backFor('/workshop/orders/41', ['administrador'], board)).toEqual(board)
   })
 
   it('takes a record back to the screen it was opened from, filters included', () => {
@@ -438,7 +483,7 @@ describe('the way back to where a screen was entered from', () => {
         'vendedor',
       ]),
     ).toEqual({ to: '/orders?status=queued', name: 'Órdenes', from: home })
-    expect(originOf({ pathname: '/workshop-board', search: '' }, ['administrador'])).toEqual(board)
+    expect(originOf({ pathname: '/workshop', search: '' }, ['administrador'])).toEqual(board)
   })
 
   it('names a record left behind by its code, so its «Volver» says which one', () => {
@@ -462,21 +507,21 @@ describe('the way back to where a screen was entered from', () => {
 })
 
 describe('the Taller workspace', () => {
-  const home: Origin = { to: '/inicio', name: 'Inicio' }
+  const home: Origin = { to: '/home', name: 'Inicio' }
   const list: Origin = { to: '/orders?status=queued', name: 'Órdenes', from: home }
 
   it('holds the queue and the canvas, and the canvas brings its own bar', () => {
-    expect(workspaceFor('/workshop-board')).toMatchObject({ id: 'taller', immersive: false })
-    expect(workspaceFor('/orders/41/workshop')).toMatchObject({ id: 'taller', immersive: true })
+    expect(workspaceFor('/workshop')).toMatchObject({ id: 'workshop', immersive: false })
+    expect(workspaceFor('/workshop/orders/41')).toMatchObject({ id: 'workshop', immersive: true })
     expect(workspaceFor('/orders/41')).toBeNull()
-    expect(workspaceFor('/inicio')).toBeNull()
+    expect(workspaceFor('/home')).toBeNull()
   })
 
   it('is entered from the menu by a link that carries the way out', () => {
     const entry = sectionsForRoles(['administrador'])
       .flatMap((s) => s.items)
       .find((item) => item.name === 'Taller')
-    expect(entry).toMatchObject({ to: '/workshop-board', workspace: 'taller' })
+    expect(entry).toMatchObject({ to: '/workshop', workspace: 'workshop' })
     const orders = sectionsForRoles(['administrador'])
       .flatMap((s) => s.items)
       .find((item) => item.name === 'Órdenes')
@@ -484,26 +529,24 @@ describe('the Taller workspace', () => {
   })
 
   it('lets the admin out to where they came from, filters and its own origin included', () => {
-    expect(exitFor('/workshop-board', ['administrador'], list)).toEqual(list)
+    expect(exitFor('/workshop', ['administrador'], list)).toEqual(list)
   })
 
   it('skips the origins inside the workspace on the way out', () => {
     // queue → canvas → back to the queue, which then says it was entered from the canvas
-    const canvas: Origin = { to: '/orders/41/workshop', name: 'Corte', from: list }
-    expect(exitFor('/workshop-board', ['administrador'], canvas)).toEqual(list)
+    const canvas: Origin = { to: '/workshop/orders/41', name: 'Corte', from: list }
+    expect(exitFor('/workshop', ['administrador'], canvas)).toEqual(list)
   })
 
   it('lets the admin out to home when the way in is unknown or closed to them', () => {
-    expect(exitFor('/workshop-board', ['administrador'])).toEqual(home)
-    expect(exitFor('/workshop-board', ['administrador'], { to: '/no-existe', name: 'x' })).toEqual(
-      home,
-    )
+    expect(exitFor('/workshop', ['administrador'])).toEqual(home)
+    expect(exitFor('/workshop', ['administrador'], { to: '/no-existe', name: 'x' })).toEqual(home)
   })
 
   it('has no way out for the shop floor, whose whole app it is', () => {
-    expect(exitFor('/workshop-board', ['operador'])).toBeNull()
-    expect(exitFor('/workshop-board', ['canteador'], home)).toBeNull()
-    expect(exitFor('/workshop-board', ['operador', 'canteador'])).toBeNull()
+    expect(exitFor('/workshop', ['operador'])).toBeNull()
+    expect(exitFor('/workshop', ['canteador'], home)).toBeNull()
+    expect(exitFor('/workshop', ['operador', 'canteador'])).toBeNull()
   })
 
   it('is no workspace’s exit outside one', () => {
@@ -515,8 +558,8 @@ describe('the screen an order opens on', () => {
   it('is the detail for the office, the canvas for the operador and the board for the canteador', () => {
     expect(orderPathFor(41, ['administrador'])).toBe('/orders/41')
     expect(orderPathFor(41, ['vendedor'])).toBe('/orders/41')
-    expect(orderPathFor(41, ['operador'])).toBe('/orders/41/workshop')
-    expect(orderPathFor(41, ['operador', 'canteador'])).toBe('/orders/41/workshop')
-    expect(orderPathFor(41, ['canteador'])).toBe('/workshop-board')
+    expect(orderPathFor(41, ['operador'])).toBe('/workshop/orders/41')
+    expect(orderPathFor(41, ['operador', 'canteador'])).toBe('/workshop/orders/41')
+    expect(orderPathFor(41, ['canteador'])).toBe('/workshop')
   })
 })

@@ -92,8 +92,8 @@ const WarningList = ({ warnings }: { warnings: ProductSyncIssue[] }) => (
         <strong>Todos entran al catálogo.</strong> Los de precio, IVA o medidas se corrigen en el
         sistema de inventario; los que llegaron <em>sin coordinar</em> son artículos nuevos cuya
         columna OBS. venía vacía, y se resuelven asignándoles una familia en{' '}
-        <Link to="/product-families">Productos → Familias</Link> — de ahí en adelante manda lo que
-        se elija acá, no lo que diga el inventario.
+        <Link to="/catalog/families">Catálogo → Familias</Link> — de ahí en adelante manda lo que se
+        elija acá, no lo que diga el inventario.
       </>
     }
   />

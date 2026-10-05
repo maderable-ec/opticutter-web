@@ -5,7 +5,7 @@ const PrintAgentsPage = lazy(() => import('./PrintAgentsPage'))
 
 export const printRoutes: AppRoute[] = [
   {
-    path: '/print-agents',
+    path: '/company/printing',
     name: 'Agentes de impresión',
     element: PrintAgentsPage,
     roles: ['administrador'],

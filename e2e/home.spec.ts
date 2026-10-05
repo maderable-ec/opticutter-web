@@ -17,7 +17,7 @@ test('cada conteo abre su listado filtrado por la sucursal del vendedor', async 
   stubHome(api)
   api.list('/clients/', [client()])
 
-  await page.goto('/inicio')
+  await page.goto('/home')
   const row = page.getByRole('link', { name: /Por cobrar/ })
   await expect(row).toContainText('3')
   await row.click()
@@ -29,13 +29,13 @@ test('el admin pasa todo el Inicio a una sucursal', async ({ page, api, loginAs 
   await loginAs(['administrador'])
   stubHome(api, { admin: true })
 
-  await page.goto('/inicio')
+  await page.goto('/home')
   await expect(page.getByRole('link', { name: /Por despachar/ })).toContainText('1')
   // All branches to start with: the admin has none of their own.
   expect(api.requests('GET', '/orders/').every((r) => !r.url().includes('branchId'))).toBe(true)
 
   await page.getByRole('combobox', { name: 'Sucursal' }).selectOption({ label: 'Norte' })
-  await expect(page).toHaveURL(/\/inicio\?branchId=2$/)
+  await expect(page).toHaveURL(/\/home\?branchId=2$/)
   await expect(page.getByRole('link', { name: /Por despachar/ })).toHaveAttribute(
     'href',
     '/orders?status=finished&branchId=2',
@@ -54,15 +54,15 @@ test.describe('con un despiece abierto en este navegador', () => {
   })
 
   test('«Continuar despiece» lo retoma', async ({ page }) => {
-    await page.goto('/inicio')
+    await page.goto('/home')
     await page.getByRole('link', { name: 'Continuar despiece · 1 pieza ›' }).click()
 
-    await expect(page).toHaveURL(/\/optimizer$/)
+    await expect(page).toHaveURL(/\/preorders\/new$/)
     await expect(page.getByText('Restauramos tu trabajo de la sesión anterior.')).toBeVisible()
   })
 
   test('«Nueva cotización» lo descarta solo si se confirma', async ({ page }) => {
-    await page.goto('/inicio')
+    await page.goto('/home')
     const nueva = page.getByRole('button', { name: 'Nueva cotización' })
     const question = page.getByRole('alertdialog', { name: 'Empezar una cotización nueva' })
 
@@ -74,12 +74,12 @@ test.describe('con un despiece abierto en este navegador', () => {
     await nueva.click()
     await question.getByRole('button', { name: 'Cancelar' }).click()
     await expect(question).toBeHidden()
-    await expect(page).toHaveURL(/\/inicio$/)
+    await expect(page).toHaveURL(/\/home$/)
     expect(await page.evaluate((key) => localStorage.getItem(key), AUTOSAVE)).not.toBeNull()
 
     await nueva.click()
     await question.getByRole('button', { name: 'Descartar y empezar' }).click()
-    await expect(page).toHaveURL(/\/optimizer$/)
+    await expect(page).toHaveURL(/\/preorders\/new$/)
     await expect(page.getByPlaceholder(/720×400×4/)).toBeVisible()
     await expect(page.getByText('Restauramos tu trabajo')).toHaveCount(0)
   })
@@ -92,7 +92,7 @@ test.describe('con un despiece abierto en este navegador', () => {
     const question = page.getByRole('alertdialog', { name: 'Empezar una cotización nueva' })
     await question.getByRole('button', { name: 'Descartar y empezar' }).click()
 
-    await expect(page).toHaveURL(/\/optimizer$/)
+    await expect(page).toHaveURL(/\/preorders\/new$/)
     await expect(page.getByText('Restauramos tu trabajo')).toHaveCount(0)
   })
 
@@ -104,7 +104,7 @@ test.describe('con un despiece abierto en este navegador', () => {
       .getByRole('link', { name: 'Cotizar' })
       .click()
 
-    await expect(page).toHaveURL(/\/optimizer$/)
+    await expect(page).toHaveURL(/\/preorders\/new$/)
     await expect(page.getByText('Restauramos tu trabajo de la sesión anterior.')).toBeVisible()
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
   })
