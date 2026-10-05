@@ -63,10 +63,15 @@ interface LayoutEditorModalProps {
 const dims = (item: { width: number; height: number }) =>
   `${Math.round(item.height)}×${Math.round(item.width)}`
 
+// A piece by the size the seller typed, as the despiece lists it: under a hard tape its cut size is
+// smaller, and that is the editor's geometry, not the piece's name.
+const pieceDims = (piece: EditablePiece) =>
+  dims({ width: piece.originalWidth, height: piece.originalHeight })
+
 const nameOf = (piece: EditablePiece | undefined, pieceId: string) => {
   const label = pieceLabel(pieceId)
   if (label) return label
-  return piece ? dims(piece) : pieceId
+  return piece ? pieceDims(piece) : pieceId
 }
 
 const sheetKind = (bin: SheetBinInfo | undefined, sheet: AdjustedSheet | undefined) => {
@@ -84,7 +89,8 @@ const useStableColors = (pools: { pieces: EditablePiece[] }[]) =>
     const colors = new Map<string, string>()
     for (const pool of pools) {
       for (const p of pool.pieces) {
-        const sig = pieceSig({ originalWidth: p.width, originalHeight: p.height })
+        // The ordered size, the one the sheets' own pieces are signed with (`original*`).
+        const sig = pieceSig(p)
         if (!colors.has(sig)) colors.set(sig, PALETTE[colors.size % PALETTE.length] ?? PALETTE[0])
       }
     }
@@ -275,6 +281,8 @@ const LayoutEditorModal = ({
 
   // The fixed help under the sheet: always what can be done right now, shortcuts included.
   const selectedName = selectedPiece ? nameOf(pieces.get(selectedPiece), selectedPiece) : ''
+  const selectedEditable = selectedPiece ? pieces.get(selectedPiece) : undefined
+  const selectedDims = selectedEditable ? pieceDims(selectedEditable) : ''
   const hint = editor.busy
     ? 'Evaluando…'
     : activeDrag
@@ -421,7 +429,7 @@ const LayoutEditorModal = ({
                     selectedId={selectedPiece}
                     titleFor={(p) => {
                       const piece = pieces.get(p.pieceId)
-                      return `${nameOf(piece, p.pieceId)}${piece ? ` ${dims(piece)}` : ''} · arrástrala para moverla · clic para ver opciones`
+                      return `${nameOf(piece, p.pieceId)}${piece ? ` ${pieceDims(piece)}` : ''} · arrástrala para moverla · clic para ver opciones`
                     }}
                     onBackgroundTap={() => {
                       setSelected(null)
@@ -481,7 +489,7 @@ const LayoutEditorModal = ({
                     <PieceToolbar
                       container={sheetHostRef}
                       pieceId={selectedPiece}
-                      title={`${selectedName} ${dims(pieces.get(selectedPiece) ?? { width: 0, height: 0 })}`}
+                      title={`${selectedName} ${selectedDims}`}
                       canRotate={!!pieces.get(selectedPiece)?.canRotate}
                       busy={editor.busy}
                       onMove={() => {
@@ -540,7 +548,7 @@ const LayoutEditorModal = ({
                   <div className="fw-semibold">
                     {nameOf(handPiece, hand.pieceId)}{' '}
                     <span className="text-body-secondary fw-normal">
-                      {dims(handPiece)}
+                      {pieceDims(handPiece)}
                       {hand.rotated ? ' · girada' : ''}
                     </span>
                   </div>
@@ -698,7 +706,8 @@ const LayoutEditorModal = ({
                           }}
                           disabled={editor.busy}
                         >
-                          {nameOf(p, id)} <span className="opacity-75">{p ? dims(p) : ''}</span>
+                          {nameOf(p, id)}{' '}
+                          <span className="opacity-75">{p ? pieceDims(p) : ''}</span>
                         </CButton>
                       )
                     })}

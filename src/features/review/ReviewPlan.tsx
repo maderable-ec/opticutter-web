@@ -182,6 +182,8 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
                 colorFor={colorFor}
                 labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalHeight}×${p.originalWidth}`}
                 titleFor={pieceTitle}
+                // The client reads the size ordered, never the cut (1 mm short per hard tape).
+                edgeMeasure="final"
               />
             </div>
 

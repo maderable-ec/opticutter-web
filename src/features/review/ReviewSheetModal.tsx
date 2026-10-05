@@ -153,6 +153,8 @@ const ReviewSheetModal = ({
                 onPieceTap={(p) => setSelected((cur) => (cur?.pieceId === p.pieceId ? null : p))}
                 labelFor={(p) => pieceLabel(p.pieceId) || `${p.originalHeight}×${p.originalWidth}`}
                 titleFor={pieceTitle}
+                // The client reads the size ordered, never the cut (1 mm short per hard tape).
+                edgeMeasure="final"
                 // Kept inside the modal's scrollport so the board is never cut off. Reserve covers
                 // the modal chrome (the header takes two rows on a phone, with the pager) plus the
                 // caption under the diagram.

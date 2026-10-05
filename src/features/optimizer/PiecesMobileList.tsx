@@ -72,6 +72,10 @@ const PiecesMobileList = ({
                   {r.dims ? `${r.dims} mm` : 'Sin medidas'}
                   {r.quantity != null && <strong> · ×{r.quantity}</strong>}
                 </span>
+                {/* Its own line, whole: beside the final size it broke in the middle of a measure. */}
+                {r.cutDims && (
+                  <span className="small text-tech text-nowrap">✂ corte {r.cutDims} mm</span>
+                )}
                 {(r.canto || r.specialTapes > 0 || r.codes || incomplete || bandingMissing) && (
                   <span className="piece-row__chips">
                     {incomplete && (

@@ -30,6 +30,7 @@ import {
 import {
   bandingLookup,
   cantoOptions,
+  pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
@@ -50,6 +51,7 @@ import type {
   SortField,
 } from './usePiecesEditor'
 import { WORKSHOP_CODES, WORKSHOP_CODE_MAX_LENGTH } from 'src/shared/utils/workshopCodes'
+import { cutHint } from 'src/shared/utils/hardEdges'
 import { parsePieces } from './piecesCsv'
 import { rowsToRequirements } from './piecesImport'
 
@@ -534,11 +536,11 @@ const PieceRowsTable = ({
               #
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>
-              {renderSort('height', 'Largo', 'Ordenar por largo (mm)')}
+              {renderSort('height', 'Largo', 'Ordenar por largo · medida final de la pieza (mm)')}
               {renderFill('height', 'Igualar largo')}
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>
-              {renderSort('width', 'Ancho', 'Ordenar por ancho (mm)')}
+              {renderSort('width', 'Ancho', 'Ordenar por ancho · medida final de la pieza (mm)')}
               {renderFill('width', 'Igualar ancho')}
             </CTableHeaderCell>
             <CTableHeaderCell style={thStyle}>
@@ -599,6 +601,8 @@ const PieceRowsTable = ({
             const isError = bandingMissing || (!rowValid && !isRequirementEmpty(req))
             const cantoNotation = notationFromSides(req.edgeBanding.sides)
             const cantoBandType = displayedBandType(req.edgeBanding, byId)
+            // The seller types the final size; a hard tape cuts it short, shown under the measure.
+            const cut = pieceCutSize(req, byId)
             // Coordinated with the board and narrowed to the displayed type (see `tapacantoOptions`).
             const options = tapacantoOptions(
               req.edgeBanding,
@@ -662,6 +666,11 @@ const PieceRowsTable = ({
                     onChange={(e) => update(i, 'height', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, local, 0)}
                   />
+                  {cut && cut.heightOff > 0 && (
+                    <div className="piece-cut-hint" title={cutHint(Number(req.height), cut.height)}>
+                      ✂ {cut.height}
+                    </div>
+                  )}
                   {renderHandle(local, 0)}
                 </CTableDataCell>
                 <CTableDataCell style={cellStyle(1, local, DIM_COL_W)}>
@@ -678,6 +687,11 @@ const PieceRowsTable = ({
                     onChange={(e) => update(i, 'width', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, local, 1)}
                   />
+                  {cut && cut.widthOff > 0 && (
+                    <div className="piece-cut-hint" title={cutHint(Number(req.width), cut.width)}>
+                      ✂ {cut.width}
+                    </div>
+                  )}
                   {renderHandle(local, 1)}
                 </CTableDataCell>
                 <CTableDataCell style={cellStyle(2, local, 56)}>
