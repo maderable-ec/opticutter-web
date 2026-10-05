@@ -9,8 +9,7 @@ interface AppBreadcrumbProps {
 }
 
 // Router links, not `href`s: a crumb used to reload the whole app (and drop the optimizer's undo,
-// the query cache and the open sidebar) just to go one list up. Keyed by name: on a hub's first tab
-// the hub's crumb and the screen's share a path («Estadísticas / Resumen» are both `/dashboard`).
+// the query cache and the open sidebar) just to go one list up. Keyed by name, unique along a trail.
 const AppBreadcrumb = ({ crumbs }: AppBreadcrumbProps) => (
   <CBreadcrumb className="my-0">
     {crumbs.map((crumb, index) =>

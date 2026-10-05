@@ -46,7 +46,7 @@ test('una pieza que no entra cierra Cotización y dice por qué', async ({ page,
     ]),
   )
 
-  await page.goto('/optimizer')
+  await page.goto('/preorders/new')
   await page.getByPlaceholder(/720×400×4/).fill('3000x600x1 Lateral')
   await page.keyboard.press('Enter')
 
@@ -85,7 +85,7 @@ test('una pieza que no entra cierra Cotización y dice por qué', async ({ page,
 test('en pantalla completa, el modal del material se abre dentro del workspace', async ({
   page,
 }) => {
-  await page.goto('/optimizer')
+  await page.goto('/preorders/new')
   await page.locator('.optimizer-workspace').evaluate((el) => el.requestFullscreen())
   await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true)
 
@@ -115,7 +115,7 @@ test('la cotización se crea desde la barra fija', async ({ page, api }) => {
     usedAt: null,
   })
 
-  await page.goto('/optimizer?step=costs')
+  await page.goto('/preorders/new?step=costs')
   const footer = page.locator('.action-bar')
   await footer.getByRole('button', { name: /Cotización/ }).click()
 
@@ -139,7 +139,7 @@ test('en el celular, una pieza se corrige en su hoja', { tag: '@movil' }, async 
   await seedOptimizer(page, [boardMaterial()], [piece(720, 560, 2, 'Lateral')])
   api.post('/optimize/', planResponse())
 
-  await page.goto('/optimizer')
+  await page.goto('/preorders/new')
   // A new piece from the quick-entry line, by its button rather than a key a phone hides.
   await page.getByPlaceholder(/720×400×4/).fill('400x300x1 Repisa')
   await page.getByRole('button', { name: 'Agregar', exact: true }).click()
@@ -209,7 +209,7 @@ test('borrar un borrador pregunta encima de Borradores, que sigue abierto', asyn
   ])
   api.delete('/optimization-drafts/7', null)
 
-  await page.goto('/optimizer')
+  await page.goto('/preorders/new')
   await page.getByRole('button', { name: 'Acciones' }).click()
   await page.getByRole('button', { name: 'Borradores…' }).click()
   const drafts = page.getByRole('dialog', { name: 'Borradores guardados' })

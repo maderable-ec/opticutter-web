@@ -223,16 +223,18 @@ const stubOrderDetail = (api: MockApi) => {
 
 // Each part of a detail page on a phone (`Segments`), the part in the URL. «Resumen» is the
 // scenario of the page itself.
+// `parts` maps each scenario's suffix to the part's id in `?view=`: the suffixes stayed in Spanish
+// when the ids went English (October 2026), so the baselines under `e2e/.screens/` still line up.
 const partScenarios = (
   name: string,
   path: string,
   roles: Role[],
-  parts: string[],
+  parts: Record<string, string>,
   setup: (api: MockApi) => void,
 ): Scenario[] =>
-  parts.map((part) => ({
-    name: `${name}-${part}`,
-    path: `${path}?vista=${part}`,
+  Object.entries(parts).map(([suffix, part]) => ({
+    name: `${name}-${suffix}`,
+    path: `${path}?view=${part}`,
     roles,
     ready: '.surface',
     viewports: ['phone'],
@@ -248,7 +250,7 @@ const SCENARIOS: Scenario[] = [
   {
     // With a despiece left open in this browser, so «Continuar despiece» shows next to «Nueva».
     name: 'home-vendedor',
-    path: '/inicio',
+    path: '/home',
     roles: ['vendedor'],
     ready: '.list-cards',
     setup: async (api, page) => {
@@ -258,14 +260,14 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'home-admin',
-    path: '/inicio',
+    path: '/home',
     roles: ['administrador'],
     ready: '.list-cards',
     setup: (api) => stubHome(api, { admin: true }),
   },
   {
     name: 'optimizer-despiece',
-    path: '/optimizer',
+    path: '/preorders/new',
     roles: ['vendedor'],
     ready: '.pieces-pane',
     setup: (api, page) => seedDespiece(api, page),
@@ -273,7 +275,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The phone's way to correct a piece: tap it in the list, edit it in the sheet.
     name: 'optimizer-pieza',
-    path: '/optimizer',
+    path: '/preorders/new',
     roles: ['vendedor'],
     ready: '.pieces-pane',
     viewports: ['phone'],
@@ -286,7 +288,7 @@ const SCENARIOS: Scenario[] = [
   {
     // A question asked from inside a dialog (`ConfirmDialog` over Borradores), on the optimizer.
     name: 'optimizer-borrador-eliminar',
-    path: '/optimizer',
+    path: '/preorders/new',
     roles: ['vendedor'],
     ready: '.pieces-pane',
     setup: async (api, page) => {
@@ -312,14 +314,14 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'optimizer-layout',
-    path: '/optimizer?step=layout',
+    path: '/preorders/new?step=layout',
     roles: ['vendedor'],
     ready: '.plan-canvas svg',
     setup: (api, page) => seedDespiece(api, page),
   },
   {
     name: 'optimizer-costs',
-    path: '/optimizer?step=costs',
+    path: '/preorders/new?step=costs',
     roles: ['vendedor'],
     ready: '.action-bar',
     setup: (api, page) => seedDespiece(api, page),
@@ -327,7 +329,7 @@ const SCENARIOS: Scenario[] = [
   {
     name: 'optimizer-quote',
     // The URL alone lands on Costos: Cotización only opens once a plan exists, so walk there.
-    path: '/optimizer?step=costs',
+    path: '/preorders/new?step=costs',
     roles: ['vendedor'],
     ready: '.action-bar',
     setup: async (api, page) => {
@@ -387,13 +389,13 @@ const SCENARIOS: Scenario[] = [
     'preorder-detail',
     '/preorders/123',
     ['vendedor'],
-    ['piezas', 'plano'],
+    { piezas: 'pieces', plano: 'layout' },
     stubPreorderDetail,
   ),
   {
     // The quote's «Editar despiece» panel shares the optimizer's list, and its sheet.
     name: 'preorder-piezas',
-    path: '/preorders/123?panel=piezas',
+    path: '/preorders/123?panel=pieces',
     roles: ['vendedor'],
     ready: '.pieces-pane',
     viewports: ['phone'],
@@ -417,7 +419,7 @@ const SCENARIOS: Scenario[] = [
     // The plan's sheet viewer, from «Ver diagrama»: the title, «Ajustar distribución» and the
     // `Pager` share its header. On a phone the plan is its own part.
     name: 'preorder-hoja',
-    path: '/preorders/123?vista=plano',
+    path: '/preorders/123?view=layout',
     roles: ['vendedor'],
     ready: '.surface',
     setup: (api) => {
@@ -500,7 +502,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The optimizer has no bar: its «Menú» opens the same sheet with the whole menu.
     name: 'menu-cotizar',
-    path: '/optimizer',
+    path: '/preorders/new',
     roles: ['administrador'],
     ready: '.pieces-pane',
     viewports: ['phone'],
@@ -521,7 +523,7 @@ const SCENARIOS: Scenario[] = [
     'order-detail',
     '/orders/41',
     ['administrador'],
-    ['trabajo', 'cobro', 'historial'],
+    { trabajo: 'work', cobro: 'billing', historial: 'history' },
     stubOrderDetail,
   ),
   {
@@ -541,7 +543,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'workshop-canvas',
-    path: '/orders/41/workshop',
+    path: '/workshop/orders/41',
     roles: ['operador'],
     ready: '.workshop-shell svg',
     setup: (api) => {
@@ -551,7 +553,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The board picker over a plan of three: one cut, one under way, one untouched.
     name: 'workshop-canvas-tableros',
-    path: '/orders/41/workshop',
+    path: '/workshop/orders/41',
     roles: ['operador'],
     ready: '.workshop-shell svg',
     setup: (api) => {
@@ -588,7 +590,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'products',
-    path: '/products',
+    path: '/catalog/products',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -608,7 +610,7 @@ const SCENARIOS: Scenario[] = [
     // The phone's filter sheet over the catalog, with a type ticked in the draft: the count on the
     // apply button is what the capture is about.
     name: 'products-filtros',
-    path: '/products?filtros=1',
+    path: '/catalog/products?filters=1',
     roles: ['administrador'],
     ready: '.filter-sheet .offcanvas-body',
     viewports: ['phone'],
@@ -623,7 +625,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The product form, in its sections: full screen on a phone, a large dialog from `md`.
     name: 'product-form',
-    path: '/products',
+    path: '/catalog/products',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -638,7 +640,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'users',
-    path: '/users',
+    path: '/company/users',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -665,7 +667,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'branches',
-    path: '/branches',
+    path: '/company/branches',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -681,7 +683,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'services',
-    path: '/additional-services',
+    path: '/catalog/services',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -694,7 +696,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'families',
-    path: '/product-families',
+    path: '/catalog/families',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
@@ -741,7 +743,7 @@ const SCENARIOS: Scenario[] = [
     // A family opened from its row: its state, its boards and tapes, and «Editar» inside it (the
     // row only keeps delete beside it). One tape without an alias, so the warning shows.
     name: 'families-familia',
-    path: '/product-families',
+    path: '/catalog/families',
     roles: ['administrador'],
     ready: '.list-table:visible, .list-cards:visible',
     setup: (api) => {
@@ -774,7 +776,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'settings',
-    path: '/settings',
+    path: '/company/settings',
     roles: ['administrador'],
     ready: 'input',
     setup: (api) => {
@@ -816,7 +818,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'dashboard',
-    path: '/dashboard',
+    path: '/analytics/summary',
     roles: ['administrador'],
     ready: 'canvas',
     setup: stubReports,
@@ -824,7 +826,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The phone's filter sheet, with a branch picked: the comparison marks it.
     name: 'dashboard-filtros',
-    path: '/dashboard?branchId=2',
+    path: '/analytics/summary?branchId=2',
     roles: ['administrador'],
     ready: 'canvas',
     viewports: ['phone'],
@@ -843,7 +845,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'productivity',
-    path: '/analytics/users',
+    path: '/analytics/productivity',
     roles: ['administrador'],
     ready: '.list-card:visible, .list-table tbody tr:visible',
     setup: stubReports,
@@ -857,17 +859,17 @@ const SCENARIOS: Scenario[] = [
   },
   {
     name: 'low-stock',
-    path: '/analytics/low-stock',
+    path: '/catalog/low-stock',
     roles: ['administrador'],
     ready: '.surface',
     setup: (api) => {
       api.list('/branches/', [branch()])
-      api.get('/analytics/low-stock', lowStockReport())
+      api.get('/inventory/low-stock', lowStockReport())
     },
   },
   {
     name: 'workshop-board',
-    path: '/workshop-board',
+    path: '/workshop',
     roles: ['operador'],
     ready: '.workshop-card',
     setup: (api) => {
@@ -877,7 +879,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The Taller as the admin enters it: the workspace's header with its «Salir del taller».
     name: 'workshop-board-admin',
-    path: '/workshop-board',
+    path: '/workshop',
     roles: ['administrador'],
     ready: '.workshop-card',
     setup: (api) => {
@@ -887,7 +889,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The materials of the head of the queue, the dialog that pages through the whole board.
     name: 'workshop-board-materiales',
-    path: '/workshop-board',
+    path: '/workshop',
     roles: ['operador'],
     ready: '.workshop-card',
     setup: (api) => {
@@ -902,7 +904,7 @@ const SCENARIOS: Scenario[] = [
   {
     // The shop floor's question: the verb and the order in the title, `lg` buttons.
     name: 'workshop-board-tomar',
-    path: '/workshop-board',
+    path: '/workshop',
     roles: ['operador'],
     ready: '.workshop-card',
     setup: (api) => {

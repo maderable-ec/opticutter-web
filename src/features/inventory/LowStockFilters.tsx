@@ -52,9 +52,9 @@ const LowStockFilterFields = ({
   <>
     <FilterSection label="Sucursal">
       <FilterCheckboxList
-        values={values.branch}
+        values={values.branchId}
         options={branches.map((b) => ({ value: String(b.id), label: b.name }))}
-        onChange={(next) => onChange('branch', next)}
+        onChange={(next) => onChange('branchId', next)}
       />
     </FilterSection>
 
@@ -116,7 +116,7 @@ const LowStockFilters = ({
       onClear={onClear}
       sheet={{ ...sheet, update: updateDraft }}
       onApply={onApply}
-      cleared={() => ({ branch: [], type: [], subtype: [] })}
+      cleared={() => ({ branchId: [], type: [], subtype: [] })}
       activeCount={activeCount}
       resultCount={filterLowStock(items, sheet.draft, search).length}
       noun={{ one: 'producto', other: 'productos' }}
@@ -130,7 +130,7 @@ const LowStockFilters = ({
 export default LowStockFilters
 
 export const activeCount = (values: LowStockFilterValues): number =>
-  values.branch.length + values.type.length + values.subtype.length
+  values.branchId.length + values.type.length + values.subtype.length
 
 // The chips mirror `activeCount` field by field, so what the badge counts is always
 // what the row below it lists.
@@ -139,15 +139,15 @@ export const lowStockFilterChips = (
   branches: Branch[],
   onChange: <K extends keyof LowStockFilterValues>(key: K, value: LowStockFilterValues[K]) => void,
 ): FilterChip[] => {
-  const chips: FilterChip[] = values.branch.map((id) => ({
-    key: `branch:${id}`,
+  const chips: FilterChip[] = values.branchId.map((id) => ({
+    key: `branchId:${id}`,
     // Falls back to the id: a branch filtered in the URL and then deactivated is
     // still filtering, and a chip with no label would be one nobody can remove.
     label: branches.find((b) => String(b.id) === id)?.name ?? `Sucursal ${id}`,
     onRemove: () =>
       onChange(
-        'branch',
-        values.branch.filter((v) => v !== id),
+        'branchId',
+        values.branchId.filter((v) => v !== id),
       ),
   }))
 

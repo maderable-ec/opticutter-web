@@ -5,5 +5,5 @@ const HomePage = lazy(() => import('./HomePage'))
 
 export const homeRoutes: AppRoute[] = [
   // The home of the office roles (`homePathForRoles`); the shop floor's is the workshop board.
-  { path: '/inicio', name: 'Inicio', element: HomePage, roles: ['administrador', 'vendedor'] },
+  { path: '/home', name: 'Inicio', element: HomePage, roles: ['administrador', 'vendedor'] },
 ]

@@ -29,7 +29,7 @@ const REPORT = [
   }),
 ]
 
-const NONE: LowStockFilterValues = { branch: [], type: [], subtype: [] }
+const NONE: LowStockFilterValues = { branchId: [], type: [], subtype: [] }
 const codes = (values: LowStockFilterValues, search = '') =>
   filterLowStock(REPORT, values, search).map((i) => i.code)
 
@@ -39,10 +39,10 @@ describe('filterLowStock', () => {
   })
 
   it('narrows by branch, type and subtype, each one a union and all of them together', () => {
-    expect(codes({ ...NONE, branch: ['2'] })).toEqual(['TC-BL-19'])
+    expect(codes({ ...NONE, branchId: ['2'] })).toEqual(['TC-BL-19'])
     expect(codes({ ...NONE, type: ['board'] })).toEqual(['MEL-BL-18', 'MEL-NG-15'])
     expect(codes({ ...NONE, subtype: ['MDP', 'MDF'] })).toEqual(['MEL-BL-18', 'MEL-NG-15'])
-    expect(codes({ branch: ['1'], type: ['board'], subtype: ['MDF'] })).toEqual(['MEL-NG-15'])
+    expect(codes({ branchId: ['1'], type: ['board'], subtype: ['MDF'] })).toEqual(['MEL-NG-15'])
   })
 
   it('never lets a product with no subtype through a subtype filter', () => {

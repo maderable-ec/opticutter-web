@@ -4,5 +4,10 @@ import type { AppRoute } from 'src/shared/routes'
 const BranchesPage = lazy(() => import('./BranchesPage'))
 
 export const branchesRoutes: AppRoute[] = [
-  { path: '/branches', name: 'Sucursales', element: BranchesPage, roles: ['administrador'] },
+  {
+    path: '/company/branches',
+    name: 'Sucursales',
+    element: BranchesPage,
+    roles: ['administrador'],
+  },
 ]

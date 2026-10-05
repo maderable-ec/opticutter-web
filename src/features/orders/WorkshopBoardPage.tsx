@@ -1,8 +1,8 @@
 // Shared card-grid board for the production floor: multi-order queue for operador (cutting) and
 // canteador (banding), plus administrador. NOT to be confused with:
-//   - WorkshopPage.tsx        → single order's cutting canvas, at /orders/:id/workshop
+//   - WorkshopPage.tsx        → single order's cutting canvas, at /workshop/orders/:id
 //   - WorkshopBoardSvg.tsx    → SVG renderer for ONE physical board/sheet within that canvas
-// This file (WorkshopBoardPage) is the multi-order dashboard at /workshop-board.
+// This file (WorkshopBoardPage) is the multi-order dashboard at /workshop.
 //
 // It is the landing page of `operador` and `canteador` (permissions.ts) — the only screen those two
 // roles have — and it runs on a shop-floor touch panel: controls are `lg`, and nothing may depend on
@@ -110,7 +110,7 @@ const WorkshopBoardPage = () => {
   // order's detail above it in the URL, where the admin never was.
   const fromHere = useFromHere()
   const openCanvas = (orderId: number) =>
-    void navigate(`/orders/${orderId}/workshop`, { state: fromHere })
+    void navigate(`/workshop/orders/${orderId}`, { state: fromHere })
   const { data: items = [], isLoading, error, refetch } = useWorkshopQueue()
   const updateActivity = useUpdateActivity()
   // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).

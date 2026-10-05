@@ -29,7 +29,7 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
   })
 
   test('entra en el panel sin scroll y nombra la orden entera', async ({ page }) => {
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     await expect(page.getByRole('img', { name: /^Tablero 1:/ })).toBeVisible()
 
     const overflow = await page.evaluate(() => ({
@@ -46,12 +46,12 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
   })
 
   test('nombra el material del tablero entero, en su propia franja', async ({ page }) => {
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     await expectWholeMaterial(page)
   })
 
   test('dice de quién es el trabajo y cuál, con la referencia', async ({ page }) => {
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     const who = page.locator('.workshop-identity__who')
     await expect(who).toHaveText('María Fernanda Villavicencio Ortega · Cocina edificio Norte')
     expect(await hiddenPx(page, '.workshop-identity__who')).toBeLessThanOrEqual(1)
@@ -60,13 +60,13 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
   test('«Volver» lleva al operador a la cola del Taller, con ese nombre', async ({ page, api }) => {
     api.get('/orders/workshop-queue', [workshopQueueItem()])
 
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     await page.getByRole('button', { name: 'Volver a Taller' }).click()
-    await expect(page).toHaveURL(/\/workshop-board$/)
+    await expect(page).toHaveURL(/\/workshop$/)
   })
 
   test('cuenta en palabras las piezas que faltan', async ({ page }) => {
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     const { totalPieces, cutPieces } = cuttingPlan().progress
     await expect(page.locator('.workshop-actionbar')).toContainText(
       `Faltan ${totalPieces - cutPieces} piezas por cortar`,
@@ -81,7 +81,7 @@ test(
     await loginAs(['operador'])
     api.get('/orders/41/cutting-plan', cuttingPlan())
 
-    await page.goto('/orders/41/workshop')
+    await page.goto('/workshop/orders/41')
     const identity = page.locator('.workshop-identity__line')
     await expect(identity).toContainText('En proceso')
     expect(await hiddenPx(page, '.workshop-identity__line')).toBeLessThanOrEqual(1)

@@ -21,7 +21,7 @@ export interface SegmentItem<T extends string> {
 // same part. `replace`, so switching parts does not stack history — Back leaves the record.
 export const useSegmentParam = <T extends string>(
   ids: readonly T[],
-  param = 'vista',
+  param = 'view',
 ): [T, (next: T) => void] => {
   const [searchParams, setSearchParams] = useSearchParams()
   const raw = searchParams.get(param)

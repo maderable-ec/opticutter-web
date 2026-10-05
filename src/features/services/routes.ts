@@ -5,7 +5,7 @@ const ServicesPage = lazy(() => import('./ServicesPage'))
 
 export const servicesRoutes: AppRoute[] = [
   {
-    path: '/additional-services',
+    path: '/catalog/services',
     name: 'Servicios adicionales',
     element: ServicesPage,
     roles: ['administrador', 'vendedor'],

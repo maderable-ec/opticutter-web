@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { LowStockItem } from 'src/features/dashboard/types'
+import type { LowStockItem } from 'src/features/inventory/types'
 import type { Order, OrderLine } from 'src/features/orders/types'
 import {
   attentionRows,

@@ -28,7 +28,7 @@ const HomeActions = ({ branchId, onBranchChange }: HomeActionsProps) => {
   return (
     <div className="surface home-actions">
       {draft && (
-        <Link to="/optimizer" className="btn btn-primary btn-lg">
+        <Link to="/preorders/new" className="btn btn-primary btn-lg">
           Continuar despiece
           {pieces > 0 && ` · ${pieces} ${pieces === 1 ? 'pieza' : 'piezas'}`} ›
         </Link>

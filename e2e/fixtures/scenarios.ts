@@ -66,9 +66,9 @@ export const piece = (
 })
 
 /**
- * Opens `/optimizer` on a workspace of our own by writing the autosave before the app boots, which
- * is far cheaper than driving the material modal. It runs on every navigation of the page, so a
- * test that reloads to check what the autosave restored gets this seed back, not its own edits.
+ * Opens `/preorders/new` on a workspace of our own by writing the autosave before the app boots,
+ * which is far cheaper than driving the material modal. It runs on every navigation of the page, so
+ * a test that reloads to check what the autosave restored gets this seed back, not its own edits.
  */
 export const seedOptimizer = async (
   page: Page,
@@ -89,7 +89,7 @@ export const seedOptimizer = async (
   }, JSON.stringify(autosave))
 }
 
-/** `/optimizer` with an empty workspace: one board and one tape in the catalog, no drafts. */
+/** `/preorders/new` with an empty workspace: one board and one tape in the catalog, no drafts. */
 export const stubOptimizer = (api: MockApi) =>
   api
     .list('/branches/', [branch()])
@@ -178,10 +178,10 @@ export const stubHome = (api: MockApi, { admin = false } = {}) => {
       ? (HOME_TOTALS[statuses[0] ?? ''] ?? 0)
       : homeOrders(req).length
   })
-  if (admin) api.get('/analytics/low-stock', lowStockReport())
+  if (admin) api.get('/inventory/low-stock', lowStockReport())
 }
 
-/** The four reports' endpoints (`/dashboard`, `/analytics/*`), and the branches their filter lists. */
+/** The four reports' endpoints (`/analytics/*`), and the branches their filter lists. */
 export const stubReports = (api: MockApi) => {
   api.list('/branches/', [branch(), branch({ id: 2, code: 'NTE', name: 'Norte' })])
   api.get('/analytics/summary', analyticsSummary())
@@ -189,6 +189,6 @@ export const stubReports = (api: MockApi) => {
   api.get('/analytics/breakdown/status', statusBreakdown())
   api.get('/analytics/breakdown/branch', branchBreakdown())
   api.get('/analytics/bottlenecks', bottlenecksReport())
-  api.get('/analytics/users', productivityReport())
+  api.get('/analytics/productivity', productivityReport())
   api.get('/analytics/attendance', attendanceReport())
 }

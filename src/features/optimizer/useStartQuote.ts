@@ -23,7 +23,7 @@ export const useStartQuote = () => {
       // The funnel's "opened the diagram" marks belong to the work just discarded.
       resetOptimizerSession()
     }
-    void navigate('/optimizer')
+    void navigate('/preorders/new')
   }
 
   return { startQuote: () => void start(), dialog }

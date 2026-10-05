@@ -5,7 +5,7 @@ const ProductFamiliesPage = lazy(() => import('./ProductFamiliesPage'))
 
 export const productFamiliesRoutes: AppRoute[] = [
   {
-    path: '/product-families',
+    path: '/catalog/families',
     name: 'Familias',
     element: ProductFamiliesPage,
     roles: ['administrador', 'vendedor'],

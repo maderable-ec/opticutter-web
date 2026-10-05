@@ -33,8 +33,8 @@ export const toggleRole = (current: readonly Role[], role: Role, checked: boolea
 // keeps `/` from bouncing between guards. The office starts on Inicio (what needs doing today); the
 // shop floor on its board. `/profile` is the one route every authenticated user reaches.
 export const homePathForRoles = (roles: readonly Role[] | undefined): string => {
-  if (hasAnyRole(roles, ['administrador', 'vendedor'])) return '/inicio'
+  if (hasAnyRole(roles, ['administrador', 'vendedor'])) return '/home'
   // The shop floor's only shared view, for the operator and the bander alike.
-  if (hasAnyRole(roles, WORKSHOP_ROLES)) return '/workshop-board'
+  if (hasAnyRole(roles, WORKSHOP_ROLES)) return '/workshop'
   return '/profile'
 }

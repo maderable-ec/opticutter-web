@@ -4,13 +4,14 @@ import { CNavItem } from '@coreui/react'
 import type { Role } from 'src/features/auth/types'
 import { hasAnyRole, homePathForRoles } from 'src/features/auth/permissions'
 import { clientsNav } from 'src/features/clients/nav'
-import { REPORT_PARAMS } from 'src/features/dashboard/reportFilters'
 import { homeNav } from 'src/features/home/nav'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { ordersNav, workshopNav } from 'src/features/orders/nav'
 import { preordersNav } from 'src/features/preorders/nav'
 
 import type { NavItem } from './components/AppSidebarNav'
+import { HUBS } from './hubs'
+import type { Hub } from './hubs'
 import { routes } from './routes'
 import type { AppRoute, WorkspaceId } from './routes'
 import type { IconName } from 'src/shared/icons/registry'
@@ -24,77 +25,11 @@ type Roles = readonly Role[] | undefined
 
 const canOpen = (route: AppRoute, roles: Roles) => !route.roles || hasAnyRole(roles, route.roles)
 
-// `matchPath` is exact by default, so `/orders/:id` and `/orders/:id/workshop` never shadow each
-// other whatever their order in the registry.
+// `matchPath` is exact by default, so `/orders` and `/orders/:id` never shadow each other. A dynamic
+// segment does take any word, so the registry lists a static path before the dynamic one it would
+// also match (`/preorders/new` before `/preorders/:id`).
 const routeAt = (pathname: string): AppRoute | undefined =>
   routes.find((route) => matchPath(route.path, pathname))
-
-export type HubId = 'catalogo' | 'estadisticas' | 'empresa'
-
-interface HubTabDef {
-  // A route's path: the tab takes its name and its roles from the route, so a tab never shows to a
-  // role the route would bounce.
-  to: string
-  // Where the route's name would crowd the rail («Servicios adicionales»).
-  label?: string
-}
-
-/**
- * Screens that are one place in the menu and tabs under it. Each one alone was an entry used a few
- * times a month (the admin's menu had eighteen); together they are a single entry, and the tabs
- * move between them without going back to the menu. The routes did not change: a hub is a layer of
- * navigation over them.
- */
-export interface Hub {
-  id: HubId
-  name: string
-  icon: IconName
-  tabs: HubTabDef[]
-  // Query keys a tab hands on to the next. The four reports look through one window (period,
-  // branch…), so moving between them keeps it; the catalog's lists each filter on their own keys.
-  keepParams?: readonly string[]
-}
-
-export const HUBS: Hub[] = [
-  {
-    id: 'catalogo',
-    name: 'Catálogo',
-    icon: 'catalog',
-    // Stock bajo is what the admin reorders from: operational, not a look back, so it sits with
-    // the catalog it is about rather than with the reports. Admin only, like its route.
-    tabs: [
-      { to: '/products' },
-      { to: '/product-families' },
-      { to: '/additional-services', label: 'Servicios' },
-      { to: '/analytics/low-stock' },
-    ],
-  },
-  {
-    id: 'estadisticas',
-    name: 'Estadísticas',
-    icon: 'stats',
-    tabs: [
-      { to: '/dashboard' },
-      { to: '/analytics/bottlenecks' },
-      { to: '/analytics/users' },
-      { to: '/analytics/attendance' },
-    ],
-    keepParams: REPORT_PARAMS,
-  },
-  {
-    // «Empresa», not «Administración»: what the company is (its people, its branches, its printers,
-    // its settings), and short enough for the menu's rail.
-    id: 'empresa',
-    name: 'Empresa',
-    icon: 'admin',
-    tabs: [
-      { to: '/users' },
-      { to: '/branches' },
-      { to: '/print-agents', label: 'Impresión' },
-      { to: '/settings' },
-    ],
-  },
-]
 
 export interface HubTab {
   to: string
@@ -111,6 +46,17 @@ const hubTabs = (hub: Hub, roles: Roles): HubTab[] =>
     const route = routeAt(tab.to)
     return route && canOpen(route, roles) ? [{ to: tab.to, name: tab.label ?? route.name }] : []
   })
+
+/**
+ * Where a hub's own path (`/catalog`) leads these roles: its first tab they may open, or null when
+ * the path is no hub's or none of its tabs is theirs.
+ */
+export const hubLanding = (pathname: string, roles: Roles): string | null => {
+  const hub = HUBS.find((h) => h.path === pathname)
+  return (hub && hubTabs(hub, roles)[0]?.to) ?? null
+}
+
+const isHubPath = (pathname: string) => HUBS.some((hub) => hub.path === pathname)
 
 /**
  * The hub this screen is a tab of, with the tabs these roles may open; null outside a hub, or when
@@ -153,7 +99,7 @@ export interface Workspace {
 }
 
 export const WORKSPACES: Record<WorkspaceId, Workspace> = {
-  taller: { id: 'taller', name: 'Taller', exitLabel: 'Salir del taller' },
+  workshop: { id: 'workshop', name: 'Taller', exitLabel: 'Salir del taller' },
 }
 
 export interface WorkspaceView extends Workspace {
@@ -267,12 +213,12 @@ export interface BottomNavItem {
 // The phone's bar: home, the three places a seller goes all day, and the rest of the menu behind
 // «Más», which opens it in a sheet (`sheetSectionsFor`).
 export const BOTTOM_NAV: BottomNavItem[] = [
-  { label: 'Inicio', icon: 'home', to: '/inicio', roles: ['administrador', 'vendedor'] },
+  { label: 'Inicio', icon: 'home', to: '/home', roles: ['administrador', 'vendedor'] },
   { label: 'Cotizaciones', icon: 'quotes', to: '/preorders', roles: ['administrador', 'vendedor'] },
   {
     label: 'Cotizar',
     icon: 'newQuote',
-    to: '/optimizer',
+    to: '/preorders/new',
     roles: ['administrador', 'vendedor'],
     primary: true,
   },
@@ -341,9 +287,9 @@ export interface RecordLabel {
  * The trail to this screen, a crumb per path prefix that is a route the user may open. A record
  * gets a crumb of its own, so the trail ends where the user is instead of on the list above it: its
  * code once the page has published it (`record`), «Detalle de orden» until then. A hub's tab
- * follows the hub's crumb («Estadísticas / Cuellos de botella»), which opens its first tab: no path
- * says `/estadisticas`, so the prefixes alone cannot find it. «Inicio» leads unless the trail
- * already starts at home.
+ * follows the hub's crumb («Estadísticas / Cuellos de botella»), because the hub is its path's first
+ * segment and a route of its own that opens its first tab. «Inicio» leads unless the trail already
+ * starts at home.
  */
 export const breadcrumbsFor = (
   pathname: string,
@@ -351,15 +297,11 @@ export const breadcrumbsFor = (
   record?: RecordLabel | null,
 ): Crumb[] => {
   const segments = pathname.split('/').filter(Boolean)
-  const hub = hubFor(pathname, roles)
-  const hubTabPaths = new Set(hub?.tabs.map((tab) => tab.to))
   const crumbs = segments.flatMap((_, i) => {
     const to = `/${segments.slice(0, i + 1).join('/')}`
     const route = routeAt(to)
     if (!route || !canOpen(route, roles)) return []
-    const crumb = { to, name: isRecord(route) && record?.path === to ? record.label : route.name }
-    const first = hub?.tabs[0]
-    return first && hubTabPaths.has(to) ? [{ to: first.to, name: hub.name }, crumb] : [crumb]
+    return [{ to, name: isRecord(route) && record?.path === to ? record.label : route.name }]
   })
   const home = homePathForRoles(roles)
   return crumbs[0]?.to === home ? crumbs : [{ to: home, name: 'Inicio' }, ...crumbs]
@@ -439,14 +381,15 @@ const pathOf = (to: string) => to.split(/[?#]/)[0] ?? to
 
 /**
  * The nearest screen above this one the user may open, or their home when there is none (the
- * operador's cutting canvas sits under an order and a list that are not theirs).
+ * seller's cutting canvas sits under a queue that is not theirs). A hub's path is no screen above
+ * its tabs: it opens the first one, so going «up» from a tab would land on a sibling.
  */
 export const parentFor = (pathname: string, roles: Roles): Crumb => {
   const segments = pathname.split('/').filter(Boolean)
   for (let n = segments.length - 1; n > 0; n--) {
     const to = `/${segments.slice(0, n).join('/')}`
     const parent = routeAt(to)
-    if (parent && canOpen(parent, roles)) return { to, name: parent.name }
+    if (parent && canOpen(parent, roles) && !isHubPath(to)) return { to, name: parent.name }
   }
   const home = homePathForRoles(roles)
   return { to: home, name: routeAt(home)?.name ?? 'Inicio' }
@@ -502,7 +445,7 @@ export const exitFor = (pathname: string, roles: Roles, origin?: Origin | null):
  * the role sent the shop floor to a route that bounced them home without a word.
  */
 export const orderPathFor = (orderId: number | string, roles: Roles): string => {
-  const candidates = [`/orders/${orderId}`, `/orders/${orderId}/workshop`]
+  const candidates = [`/orders/${orderId}`, `/workshop/orders/${orderId}`]
   const open = candidates.find((path) => {
     const route = routeAt(path)
     return route && canOpen(route, roles)

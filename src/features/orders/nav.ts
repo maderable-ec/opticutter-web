@@ -17,7 +17,7 @@ export const workshopNav: NavItem[] = [
   {
     component: CNavItem,
     name: 'Taller',
-    to: '/workshop-board',
+    to: '/workshop',
     icon: 'workshop',
     roles: ['administrador', 'operador', 'canteador'],
   },

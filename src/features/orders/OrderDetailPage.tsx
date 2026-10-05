@@ -74,13 +74,13 @@ import type { ConfirmTone } from 'src/shared/components/ConfirmDialog'
 // The order on a phone, in four parts. What the office reads an order for splits cleanly: how it
 // stands (Resumen), what the shop has to cut (Trabajo), what was billed and paid (Cobro) and how it
 // got here (Historial) — the commercial half apart from the productive one.
-const PARTS = ['resumen', 'trabajo', 'cobro', 'historial'] as const
+const PARTS = ['summary', 'work', 'billing', 'history'] as const
 type Part = (typeof PARTS)[number]
 const PART_ITEMS: { id: Part; label: string }[] = [
-  { id: 'resumen', label: 'Resumen' },
-  { id: 'trabajo', label: 'Trabajo' },
-  { id: 'cobro', label: 'Cobro' },
-  { id: 'historial', label: 'Historial' },
+  { id: 'summary', label: 'Resumen' },
+  { id: 'work', label: 'Trabajo' },
+  { id: 'billing', label: 'Cobro' },
+  { id: 'history', label: 'Historial' },
 ]
 
 interface TransitionModalState {
@@ -134,7 +134,7 @@ const OrderDetailPage = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const openPieces = () =>
     setSearchParams((p) => {
-      p.set('panel', 'piezas')
+      p.set('panel', 'pieces')
       return p
     })
   // `replace` so "Listo" does not stack a second history entry on top of the one that opened it.
@@ -365,7 +365,7 @@ const OrderDetailPage = () => {
 
   const pieces = order.pieces ?? []
   const pieceUnits = pieces.reduce((sum, p) => sum + (p.quantity ?? 0), 0)
-  const piecesOpen = pieces.length > 0 && searchParams.get('panel') === 'piezas'
+  const piecesOpen = pieces.length > 0 && searchParams.get('panel') === 'pieces'
 
   // The billing snapshot holds two kinds of line and they are billed by different units: a board
   // by the sheet, a tapacanto by the metre. `linearM` is the server's own discriminant ("Null for
@@ -520,7 +520,7 @@ const OrderDetailPage = () => {
       <Segments items={PART_ITEMS} value={part} onChange={setPart} label="Partes de la orden" />
 
       {!isTerminal(order.status) && (
-        <div className={segmentClass(part, 'resumen', 'trabajo')}>
+        <div className={segmentClass(part, 'summary', 'work')}>
           <StockAlert branchId={order.branch?.id ?? null} items={stockItems} />
         </div>
       )}
@@ -530,7 +530,7 @@ const OrderDetailPage = () => {
           (`segmentClass`); from `md` they all show, in this order. */}
       <div className="surface">
         <div
-          className={`${segmentClass(part, 'resumen', 'trabajo')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
+          className={`${segmentClass(part, 'summary', 'work')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
         >
           <span className="eyebrow">Producción</span>
           {cuttingPlan.isLoading ? (
@@ -559,7 +559,7 @@ const OrderDetailPage = () => {
                 color="primary"
                 variant="outline"
                 className="ms-auto"
-                onClick={() => void navigate(`/orders/${orderId}/workshop`, { state: fromHere })}
+                onClick={() => void navigate(`/workshop/orders/${orderId}`, { state: fromHere })}
               >
                 {/* The workshop is live for these two; in any other status the canvas is a read-only
                     record of the plan. */}
@@ -580,7 +580,7 @@ const OrderDetailPage = () => {
         {/* On a phone the list is inline in «Trabajo», as cards: there is room for nothing else
             in that part, and a panel of a table was two taps to a list that scrolled sideways. */}
         {pieces.length > 0 && (
-          <div className={`${segmentClass(part, 'trabajo')} d-md-none mb-3`}>
+          <div className={`${segmentClass(part, 'work')} d-md-none mb-3`}>
             <div className="eyebrow mb-2">Lista de corte</div>
             <CutListCards groups={orderCutList(pieces, bandingNames)} />
           </div>
@@ -607,7 +607,7 @@ const OrderDetailPage = () => {
         {/* What is billed, one table per unit of sale. They were a single "Líneas de cobro"
             table under the boards' vocabulary, where a tapacanto line read "Cant. 31.5" (metres)
             with an empty "Eficiencia" column beside it. */}
-        <div className={segmentClass(part, 'cobro')}>
+        <div className={segmentClass(part, 'billing')}>
           {boardLines.length > 0 && (
             <>
               <div className="eyebrow mb-2">Materiales</div>
@@ -633,7 +633,7 @@ const OrderDetailPage = () => {
         </div>
 
         <div
-          className={`${segmentClass(part, 'trabajo')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mt-3`}
+          className={`${segmentClass(part, 'work')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mt-3`}
         >
           <span className="eyebrow">Anexos</span>
           <span className="small">
@@ -661,7 +661,7 @@ const OrderDetailPage = () => {
             the price level. Payment is not a status, it is the money: reading "Total $840" and
             "Efectivo $840" in two blocks a screen apart was the old layout's doing. Part of both
             «Resumen» and «Cobro» on a phone: the total is what the summary is for. */}
-        <div className={segmentClass(part, 'resumen', 'cobro')}>
+        <div className={segmentClass(part, 'summary', 'billing')}>
           <hr className="my-4" />
           <div className="d-flex flex-wrap align-items-start gap-3">
             {hasPayment && (
@@ -713,7 +713,7 @@ const OrderDetailPage = () => {
 
         {/* The history inline, as its own part — on a laptop it stays behind the status badge.
             `StatusHistoryTable` is a list below `md`. */}
-        <div className={`${segmentClass(part, 'historial')} d-md-none`}>
+        <div className={`${segmentClass(part, 'history')} d-md-none`}>
           {hasHistory ? (
             <StatusHistoryTable
               entries={order.history ?? []}

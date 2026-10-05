@@ -22,7 +22,7 @@ import UsersFilters, {
 } from './UsersFilters'
 import type { Role, User } from 'src/features/auth/types'
 import type { UserPayload, UserUpdatePayload } from './types'
-import RoleBadge from 'src/features/dashboard/components/RoleBadge'
+import RoleBadge from 'src/features/analytics/components/RoleBadge'
 import SearchInput from 'src/shared/components/SearchInput'
 import EmptyState from 'src/shared/components/EmptyState'
 import ListToolbar from 'src/shared/components/ListToolbar'

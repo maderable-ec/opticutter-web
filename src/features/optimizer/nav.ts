@@ -5,7 +5,7 @@ export const optimizerNav: NavItem[] = [
   {
     component: CNavItem,
     name: 'Cotizar',
-    to: '/optimizer',
+    to: '/preorders/new',
     icon: 'optimizer',
     roles: ['administrador', 'vendedor'],
     // The sidebar's button on top, not a row: the one entry that starts work.

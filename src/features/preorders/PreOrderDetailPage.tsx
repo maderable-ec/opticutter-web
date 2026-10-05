@@ -97,12 +97,12 @@ import { Modal, ModalTitle } from 'src/shared/components/Modal'
 // The quote on a phone, in three parts, the way the client's own review splits it: the money
 // (Resumen), what is being cut (Piezas) and the plan (Plano). The status strip and its share action
 // stay above them — where the quote stands is never a part.
-const PARTS = ['resumen', 'piezas', 'plano'] as const
+const PARTS = ['summary', 'pieces', 'layout'] as const
 type Part = (typeof PARTS)[number]
 const PART_ITEMS: { id: Part; label: string }[] = [
-  { id: 'resumen', label: 'Resumen' },
-  { id: 'piezas', label: 'Piezas' },
-  { id: 'plano', label: 'Plano' },
+  { id: 'summary', label: 'Resumen' },
+  { id: 'pieces', label: 'Piezas' },
+  { id: 'layout', label: 'Plano' },
 ]
 
 // Convert stored API format back to editable form state
@@ -318,10 +318,10 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   // which also makes the browser's Back button close the panel.
   const [searchParams, setSearchParams] = useSearchParams()
   const [part, setPart] = useSegmentParam(PARTS)
-  const piecesOpen = canEdit && searchParams.get('panel') === 'piezas'
+  const piecesOpen = canEdit && searchParams.get('panel') === 'pieces'
   const openPieces = () =>
     setSearchParams((p) => {
-      p.set('panel', 'piezas')
+      p.set('panel', 'pieces')
       return p
     })
   // `replace` so "Listo" does not stack a second history entry on top of the one that opened it.
@@ -842,7 +842,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             confirmed. The two counts that can block the update are badges rather than prose: from
             here you have to be able to tell the quote is stuck without opening anything. */}
         <div
-          className={`${segmentClass(part, 'piezas')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
+          className={`${segmentClass(part, 'pieces')} d-flex flex-wrap align-items-center gap-2 border rounded-3 p-2 mb-3`}
         >
           <span className="eyebrow">Despiece</span>
           <span className="small">
@@ -871,13 +871,13 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
         {/* On a phone the pieces themselves, to read, under the row that opens the editor: the
             grid does not fit there, and a closed quote — which has no editor at all — could not
             show what it cuts. The same words the order will print (`CutListCards`). */}
-        <div className={`${segmentClass(part, 'piezas')} d-md-none`}>
+        <div className={`${segmentClass(part, 'pieces')} d-md-none`}>
           <CutListCards
             groups={requirementCutList(editor.requirements, materials, boards, bandingById)}
           />
         </div>
         {canEdit && (
-          <div className={`${segmentClass(part, 'resumen')} quote-surface__services`}>
+          <div className={`${segmentClass(part, 'summary')} quote-surface__services`}>
             {/* Additional services (perforación, armado, …): billed on top of the cut, default price
                 from the catalog but editable per line. They stay on the summary rather than moving
                 into the despiece panel: they are one or two rows and they belong with the costs. */}
@@ -900,7 +900,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             confirmed quote: its plan is the order's, frozen, and the order's own
             page is where its stock is watched until it is cut. */}
         {!planFrozen && (
-          <div className={`${segmentClass(part, 'resumen')} quote-surface__stock`}>
+          <div className={`${segmentClass(part, 'summary')} quote-surface__stock`}>
             <StockAlert branchId={preOrder.branch?.id ?? null} items={stockItems} />
           </div>
         )}
@@ -928,10 +928,10 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           adjustDisabledReason={adjustDisabledReason}
           partClass={(p) =>
             p === 'plan'
-              ? segmentClass(part, 'plano')
+              ? segmentClass(part, 'layout')
               : p === 'alerts'
-                ? segmentClass(part, 'resumen', 'plano')
-                : segmentClass(part, 'resumen')
+                ? segmentClass(part, 'summary', 'layout')
+                : segmentClass(part, 'summary')
           }
           priceLevel={
             canEdit ? (

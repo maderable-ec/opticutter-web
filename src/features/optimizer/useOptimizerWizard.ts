@@ -9,7 +9,7 @@ import type { LayoutAdjustment, MaterialInput, RequirementInput } from './types'
 // ErrorBoundary on `location.pathname`, so a path change would remount this page and destroy the
 // whole workspace — pieces, undo history, the optimize result (a mutation, not a cached query) and
 // fullscreen. A search param leaves `pathname` untouched, so back/forward walk the steps while the
-// component stays mounted, and the route's `fluid` flag keeps matching `/optimizer`.
+// component stays mounted, and the route's `fluid` flag keeps matching `/preorders/new`.
 //
 // The param and its values are English like the rest of the code; only `label` is user-facing.
 

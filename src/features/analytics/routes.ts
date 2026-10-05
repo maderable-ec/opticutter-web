@@ -1,14 +1,14 @@
 import { lazy } from 'react'
 import type { AppRoute } from 'src/shared/routes'
 
-const DashboardPage = lazy(() => import('./DashboardPage'))
+const SummaryPage = lazy(() => import('./SummaryPage'))
 const BottlenecksPage = lazy(() => import('./BottlenecksPage'))
 const UsersProductivityPage = lazy(() => import('./UsersProductivityPage'))
 const AttendancePage = lazy(() => import('./AttendancePage'))
-const LowStockPage = lazy(() => import('./LowStockPage'))
 
-export const dashboardRoutes: AppRoute[] = [
-  { path: '/dashboard', name: 'Resumen', element: DashboardPage, roles: ['administrador'] },
+// The tabs of the Estadísticas hub (`HUBS`), under its path like the API's `/analytics/*`.
+export const analyticsRoutes: AppRoute[] = [
+  { path: '/analytics/summary', name: 'Resumen', element: SummaryPage, roles: ['administrador'] },
   {
     path: '/analytics/bottlenecks',
     name: 'Cuellos de botella',
@@ -16,7 +16,7 @@ export const dashboardRoutes: AppRoute[] = [
     roles: ['administrador'],
   },
   {
-    path: '/analytics/users',
+    path: '/analytics/productivity',
     name: 'Productividad',
     element: UsersProductivityPage,
     roles: ['administrador'],
@@ -25,12 +25,6 @@ export const dashboardRoutes: AppRoute[] = [
     path: '/analytics/attendance',
     name: 'Asistencia',
     element: AttendancePage,
-    roles: ['administrador'],
-  },
-  {
-    path: '/analytics/low-stock',
-    name: 'Stock bajo',
-    element: LowStockPage,
     roles: ['administrador'],
   },
 ]

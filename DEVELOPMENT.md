@@ -190,7 +190,7 @@ if (error instanceof ApiError) {
 
 The analytics API returns timestamps without timezone offset (`"2026-06-15T08:05:00"`).
 `review/format.ts` interprets these as local time (wrong). For analytics always use
-`dashboard/format.ts`: `asUtc(iso)` appends `Z`, then `fmtLocalTime()` / `localHHMM()` format.
+`analytics/format.ts`: `asUtc(iso)` appends `Z`, then `fmtLocalTime()` / `localHHMM()` format.
 Duration in float hours → `fmtHours()`.
 
 ### `nav.tsx` must be `.tsx`
