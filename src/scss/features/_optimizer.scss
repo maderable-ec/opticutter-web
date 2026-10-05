@@ -747,6 +747,18 @@
   }
 }
 
+// The size the saw cuts, under a measure a hard tape shortens (`✂ 398`). The seller types the
+// final size; this says the discount is already taken, so nobody takes it off by hand. Only on the
+// rows that have one, and small and muted: an annotation about the input, not a second input.
+.piece-cut-hint {
+  margin-top: 0.125rem;
+  font-size: var(--mb-text-xs);
+  line-height: 1.1;
+  color: var(--mb-tech-ink);
+  white-space: nowrap;
+  cursor: help;
+}
+
 // Optimizing overlay. The cut search runs for tens of seconds on a real job, so the wait covers the
 // screen with a board filling up with pieces instead of leaving a stale result and a 12px spinner.
 // Semi-transparent on purpose: the previous result stays legible underneath, so it reads as

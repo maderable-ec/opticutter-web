@@ -22,7 +22,7 @@ import type { PiecesEditor } from './usePiecesEditor'
 import { useBoardEdgeBandings } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
 import PiecesMobileList from './PiecesMobileList'
-import { bandingLookup } from './pieceFields'
+import { anyHardCut, bandingLookup } from './pieceFields'
 import { reresolveSpecialEdges } from './specialEdges'
 
 // Short forms for the summary line; the modal spells them out in full.
@@ -211,6 +211,7 @@ const MaterialGroupCard = ({
     () => bandingLookup(boardEdgeBandings, edgeBandings),
     [boardEdgeBandings, edgeBandings],
   )
+  const hardCut = useMemo(() => anyHardCut(rows, bandingById), [rows, bandingById])
   const prevSpecialBoardId = useRef(boardId)
   useEffect(() => {
     if (prevSpecialBoardId.current === boardId || edgeBandings.length === 0) return
@@ -444,6 +445,15 @@ const MaterialGroupCard = ({
                     : `${incompleteOffcuts} sin completar`}
                 </CBadge>
               )}
+            </div>
+          )}
+          {/* Only while some piece of the group carries a hard tape: the ✂ under its measure is the
+              cut, and this says once why, so nobody takes the millimetre off by hand. Inside the
+              group and not above the pane, which has a fixed height the alerts would push off. */}
+          {hardCut && (
+            <div className="small text-body-secondary mb-2">
+              <span className="text-tech">✂</span> Escribe la medida final. Donde hay canto duro el
+              corte se descuenta solo: 1 mm por lado.
             </div>
           )}
           {/* The grid is for typing a despiece, the list for reading one on a phone and correcting it

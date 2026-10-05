@@ -13,6 +13,7 @@ import {
 } from 'src/shared/utils/cutDrawing'
 import type { SideLine } from 'src/shared/utils/cutDrawing'
 import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
+import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
 import type { EdgeSide, Layout, PlacedPiece } from './types'
 import { fmtM2, fmtMeters, fmtPercent } from 'src/shared/utils/format'
 
@@ -178,6 +179,7 @@ export const PieceDetailCard = ({
   emptyHint = 'Pasa el cursor sobre una pieza del diagrama para ver su detalle.',
 }: PieceDetailCardProps) => {
   const sides = piece ? bandedSides(piece) : []
+  const cut = piece ? placedCut(piece) : null
   return (
     <div className="border rounded p-2 mb-3">
       <div className="eyebrow mb-2">Detalle de pieza</div>
@@ -186,9 +188,16 @@ export const PieceDetailCard = ({
           <PiecePreview piece={piece} colorFor={colorFor} />
           <div className="mt-2">
             <Detail
-              label="Medida nominal"
+              label="Medida final"
               value={`${piece.originalWidth}×${piece.originalHeight} mm`}
             />
+            {/* The size the saw cuts, when a hard tape makes it smaller than the one ordered. */}
+            {cut && isCutShort(cut) && (
+              <Detail
+                label="Corte"
+                value={`${cut.width}×${cut.height} mm · −${cut.heightOff + cut.widthOff} mm canto duro`}
+              />
+            )}
             {piece.rotated && (
               <Detail
                 label="En hoja"

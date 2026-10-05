@@ -28,6 +28,7 @@ import {
 import {
   bandingLookup,
   cantoOptions,
+  pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
@@ -123,6 +124,15 @@ const PieceEditSheet = ({
   const issue = requirementIssues([req], materials)[0]
   const specialTags = specialEdgeTags(req.specialEdges ?? [], byId)
   const codes = workshopCodesLine(req)
+  // The seller types the final size; a hard tape cuts it short, said under the measure it shortens.
+  // Short, in the shop's own CD: the measures share one row of three narrow columns on a phone.
+  const cut = pieceCutSize(req, byId)
+  const cutLine = (off: number, size: number) =>
+    off > 0 ? (
+      <div className="form-text mt-1 text-tech">
+        ✂ Corte {size} mm (−{off} por CD)
+      </div>
+    ) : null
 
   return (
     <BottomSheet
@@ -187,6 +197,7 @@ const PieceEditSheet = ({
             onChange={(e) => update('height', e.target.value)}
             onKeyDown={onEnter(0)}
           />
+          {cut && cutLine(cut.heightOff, cut.height)}
         </div>
         <div>
           <CFormLabel htmlFor={ids.width}>Ancho (mm)</CFormLabel>
@@ -203,6 +214,7 @@ const PieceEditSheet = ({
             onChange={(e) => update('width', e.target.value)}
             onKeyDown={onEnter(1)}
           />
+          {cut && cutLine(cut.widthOff, cut.width)}
         </div>
         <div>
           <CFormLabel htmlFor={ids.quantity}>Cant.</CFormLabel>

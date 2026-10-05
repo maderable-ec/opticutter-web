@@ -2,6 +2,7 @@ import type { SelectOption } from 'src/shared/components/SearchableSelect'
 import type { EdgeBandingProduct } from 'src/features/products/types'
 import { workshopCodesLine } from 'src/shared/utils/workshopCodes'
 import { stripBandingPrefix } from 'src/shared/utils/text'
+import { cutSize, type CutSize, type SideBandTypes } from 'src/shared/utils/hardEdges'
 import type { BandType, EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
   BANDTYPE_ABBR,
@@ -9,6 +10,7 @@ import {
   displayedBandType,
   inferBandingProductId,
   notationFromSides,
+  selectedSides,
   sidesFromNotation,
 } from './optimizerForm'
 import { cantoFits, seatSpecialEdges } from './specialEdges'
@@ -136,6 +138,37 @@ export const withBandingProduct = (
   return { ...eb, productId, bandType }
 }
 
+// --- The cut size ---------------------------------------------------------------------------------
+
+// The size the saw cuts a piece at: its final size minus 1 mm per side with a hard tape
+// (`shared/utils/hardEdges.ts`). Each side's type is read off the PRODUCT it gets — the Canto's
+// tape on its sides, a canto especial's own on its side — exactly as the API reads it; the Tipo
+// toggle is not sent, so a CD with no hard tape behind it takes nothing off there either. null
+// while a measure is not a positive number.
+export const pieceCutSize = (
+  r: RequirementForm,
+  byId: Map<string, EdgeBandingProduct>,
+): CutSize | null => {
+  const height = Number(r.height)
+  const width = Number(r.width)
+  if (!(height > 0) || !(width > 0)) return null
+  const types: SideBandTypes = {}
+  const auto = byId.get(String(r.edgeBanding.productId))?.attributes.bandType
+  for (const side of selectedSides(r.edgeBanding)) types[side] = auto
+  for (const e of r.specialEdges ?? []) types[e.side] = byId.get(e.productId)?.attributes.bandType
+  return cutSize(height, width, types)
+}
+
+// Some row is cut short by a hard tape: the group explains the ✂ once, above its pieces.
+export const anyHardCut = (
+  rows: RequirementForm[],
+  byId: Map<string, EdgeBandingProduct>,
+): boolean =>
+  rows.some((r) => {
+    const cut = pieceCutSize(r, byId)
+    return !!cut && cut.heightOff + cut.widthOff > 0
+  })
+
 // --- Reading a piece (the phone's list) --------------------------------------------------------
 
 export interface PieceReadout {
@@ -151,6 +184,8 @@ export interface PieceReadout {
   specialTapes: number
   // Workshop codes with the service word ("Abis B2 · Ran R1"); '' for none.
   codes: string
+  // "600 × 398" when a hard tape cuts the piece short; null when it is cut at its final size.
+  cutDims: string | null
 }
 
 export const pieceReadout = (
@@ -162,6 +197,7 @@ export const pieceReadout = (
   const qty = Number(r.quantity)
   const notation = notationFromSides(r.edgeBanding.sides)
   const bandType = displayedBandType(r.edgeBanding, byId)
+  const cut = pieceCutSize(r, byId)
   return {
     label: r.label.trim(),
     dims: h || w ? `${h || '?'} × ${w || '?'}` : '',
@@ -169,5 +205,6 @@ export const pieceReadout = (
     canto: notation === '—' ? null : bandType ? `${notation} ${BANDTYPE_ABBR[bandType]}` : notation,
     specialTapes: new Set((r.specialEdges ?? []).map((e) => e.productId)).size,
     codes: workshopCodesLine(r),
+    cutDims: cut && (cut.heightOff || cut.widthOff) ? `${cut.height} × ${cut.width}` : null,
   }
 }

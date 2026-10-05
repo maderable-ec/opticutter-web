@@ -27,6 +27,7 @@ import {
   uprightText,
 } from 'src/shared/utils/cutDrawing'
 import type { DrawableLayout, DrawableRemainder, DrawnPiece } from 'src/shared/utils/cutDrawing'
+import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
 
 interface SheetSvgProps<P extends DrawnPiece> {
   layout: DrawableLayout<P>
@@ -53,6 +54,11 @@ interface SheetSvgProps<P extends DrawnPiece> {
   // measurement largo-first, and a tooltip contradicting the cut list beside it is worse
   // than no tooltip.
   titleFor?: (p: P) => string
+  // Which size the numbers along a piece's edges give. `cut` (the default) is what is drawn and
+  // what the saw cuts — 1 mm short per side with a hard tape. `final` is the size ordered, for the
+  // client's review: the client does not cut, and a 398 on a piece ordered at 400 reads as an error.
+  edgeMeasure?: 'cut' | 'final'
+
   // The layout editor's hooks. `overlay` is drawn inside the rotated board group, on top of
   // everything, in the sheet's own millimetres — so the editor draws its free zones and the piece
   // in hand without a second renderer. `onRemainderTap` makes the offcuts clickable, and
@@ -74,8 +80,20 @@ interface SheetSvgProps<P extends DrawnPiece> {
 const defaultLabel = (p: DrawnPiece) =>
   `${p.originalWidth}×${p.originalHeight}${p.rotated ? ' ↻' : ''}`
 
-const defaultTitle = (p: DrawnPiece) =>
-  `${p.originalWidth}×${p.originalHeight} mm${p.rotated ? ' (rotada 90°)' : ''}`
+// The ordered size, and the cut one when a hard tape makes it smaller («✂ corte 400×598»).
+const defaultTitle = (p: DrawnPiece) => {
+  const cut = placedCut(p)
+  const cutText = isCutShort(cut) ? ` · ✂ corte ${cut.width}×${cut.height} mm` : ''
+  return `${p.originalWidth}×${p.originalHeight} mm${p.rotated ? ' (rotada 90°)' : ''}${cutText}`
+}
+
+// The size along a placed piece's edges, in the sheet's frame: as drawn (`cut`) or as ordered.
+const edgeSize = (p: DrawnPiece, measure: 'cut' | 'final') =>
+  measure === 'cut'
+    ? { width: p.width, height: p.height }
+    : p.rotated
+      ? { width: p.originalHeight, height: p.originalWidth }
+      : { width: p.originalWidth, height: p.originalHeight }
 
 // Renders one sheet of the cutting plan: the board, the hatched leftovers and every placed piece
 // with its edge banding. Shared by the optimizer preview and the client's review diagram.
@@ -93,6 +111,7 @@ const SheetSvg = <P extends DrawnPiece>({
   zoomPlacement,
   labelFor = defaultLabel,
   titleFor = defaultTitle,
+  edgeMeasure = 'cut',
   overlay,
   onRemainderTap,
   selectedRemainder = null,
@@ -332,8 +351,7 @@ const SheetSvg = <P extends DrawnPiece>({
               <EdgeDimensions
                 x={p.x}
                 y={p.y}
-                width={p.width}
-                height={p.height}
+                {...edgeSize(p, edgeMeasure)}
                 boardHeight={H}
                 fontSize={clamp(Math.min(p.width, p.height) / 6, 16, 64)}
                 color={PIECE_LABEL}

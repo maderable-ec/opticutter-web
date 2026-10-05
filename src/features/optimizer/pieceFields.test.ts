@@ -5,6 +5,7 @@ import type { EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
   bandingLookup,
   cantoOptions,
+  pieceCutSize,
   pieceReadout,
   tapacantoOptions,
   withBandTypeToggle,
@@ -162,6 +163,44 @@ describe('pieceReadout', () => {
       groovingCode: ' R1 ',
     })
     expect(pieceReadout(r, BY_ID)).toMatchObject({ specialTapes: 2, codes: 'Abis B2 · Ran R1' })
+  })
+})
+
+describe('pieceCutSize', () => {
+  const req = (over: Partial<RequirementForm> = {}): RequirementForm => ({
+    ...emptyRequirement('m1'),
+    height: 600,
+    width: 400,
+    ...over,
+  })
+
+  it('takes 1 mm off per side whose tape is hard, across that side', () => {
+    // Tape 2 is hard: 2L takes the two millimetres off the width.
+    const r = req({ edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }) })
+    expect(pieceCutSize(r, BY_ID)).toEqual({ height: 600, width: 398, heightOff: 0, widthOff: 2 })
+    expect(pieceReadout(r, BY_ID).cutDims).toBe('600 × 398')
+  })
+
+  it('reads a canto especial off its own tape', () => {
+    // A soft Canto on the long sides and a hard special edge (tape 4) on one short side.
+    const r = req({
+      edgeBanding: banding({ productId: '1', sides: sidesFromNotation('2L') }),
+      specialEdges: [{ side: 'top', productId: '4' }],
+    })
+    expect(pieceCutSize(r, BY_ID)).toMatchObject({ height: 599, width: 400 })
+  })
+
+  it('follows the tape, not the Tipo toggle', () => {
+    // CD on screen but a soft tape assigned: the API takes nothing off, and neither does this.
+    const r = req({
+      edgeBanding: banding({ productId: '1', bandType: 'Hard', sides: sidesFromNotation('2L') }),
+    })
+    expect(pieceCutSize(r, BY_ID)).toMatchObject({ heightOff: 0, widthOff: 0 })
+    expect(pieceReadout(r, BY_ID).cutDims).toBeNull()
+  })
+
+  it('waits for both measures', () => {
+    expect(pieceCutSize(req({ width: '' }), BY_ID)).toBeNull()
   })
 })
 

@@ -270,8 +270,12 @@ export interface AdjustmentSummary {
 export interface EditablePiece {
   pieceId: string
   label: string
+  // The CUT size, the one the piece is placed and checked at: 1 mm short per side with a hard tape.
   width: number
   height: number
+  // The size the seller typed. Equal to the cut one unless a hard tape shortens the piece.
+  originalWidth: number
+  originalHeight: number
   canRotate: boolean
 }
 
