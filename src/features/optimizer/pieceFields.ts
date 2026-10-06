@@ -140,15 +140,12 @@ export const withBandingProduct = (
 
 // --- The cut size ---------------------------------------------------------------------------------
 
-// The size the saw cuts a piece at: its final size minus 1 mm per side with a hard tape
-// (`shared/utils/hardEdges.ts`). Each side's type is read off the PRODUCT it gets — the Canto's
-// tape on its sides, a canto especial's own on its side — exactly as the API reads it; the Tipo
-// toggle is not sent, so a CD with no hard tape behind it takes nothing off there either. null
-// while a measure is not a positive number.
-export const pieceCutSize = (
-  r: RequirementForm,
-  byId: Map<string, EdgeBandingProduct>,
-): CutSize | null => {
+// The size the rule WOULD cut a piece at: its final size minus 1 mm per side with a hard tape
+// (`shared/utils/hardEdges.ts`), whatever «✂ CD» says. Each side's type is read off the PRODUCT it
+// gets — the Canto's tape on its sides, a canto especial's own on its side — exactly as the API
+// reads it; the Tipo toggle is not sent, so a CD with no hard tape behind it takes nothing off there
+// either. null while a measure is not a positive number.
+const ruleCutSize = (r: RequirementForm, byId: Map<string, EdgeBandingProduct>): CutSize | null => {
   const height = Number(r.height)
   const width = Number(r.width)
   if (!(height > 0) || !(width > 0)) return null
@@ -157,6 +154,26 @@ export const pieceCutSize = (
   for (const side of selectedSides(r.edgeBanding)) types[side] = auto
   for (const e of r.specialEdges ?? []) types[e.side] = byId.get(e.productId)?.attributes.bandType
   return cutSize(height, width, types)
+}
+
+// Whether «✂ CD» means anything for this piece: some hard tape would cut it short. A piece with no
+// hard tape is cut at its final size either way, so the grid shows the tick greyed out.
+export const hasHardCut = (r: RequirementForm, byId: Map<string, EdgeBandingProduct>): boolean => {
+  const cut = ruleCutSize(r, byId)
+  return !!cut && cut.heightOff + cut.widthOff > 0
+}
+
+// The size the saw cuts a piece at: the rule's, unless the seller unticked «✂ CD» for the piece —
+// then its final size, as the API does (`requirement_cut_size`). null while a measure is not a
+// positive number.
+export const pieceCutSize = (
+  r: RequirementForm,
+  byId: Map<string, EdgeBandingProduct>,
+): CutSize | null => {
+  if (r.hardEdgeCut !== false) return ruleCutSize(r, byId)
+  const height = Number(r.height)
+  const width = Number(r.width)
+  return height > 0 && width > 0 ? cutSize(height, width, {}) : null
 }
 
 // Some row is cut short by a hard tape: the group explains the ✂ once, above its pieces.

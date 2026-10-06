@@ -265,6 +265,7 @@ const SheetDetailModal = ({
                 maxHeight="calc(100dvh - 9rem)"
                 showDimensions
                 enableZoom
+                pieceNotes
               />
             </CCol>
             <CCol xs={12} lg={5} xxl={4}>

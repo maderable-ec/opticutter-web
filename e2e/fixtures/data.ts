@@ -255,6 +255,15 @@ const PLAN_PIECES: PlacedPiece[] = [
   placed('Travesaño#3', 1376, 1448, 560, 100, tapeEdges(['left'], '1L CS BLN')),
 ]
 
+// The workshop codes of the plan's cut list, by base label. The seller's diagram and the operator's
+// canvas draw the same sheet, so both carry them.
+const PLAN_CODES: Record<string, Pick<PlacedPiece, 'hingingCode' | 'groovingCode'>> = {
+  Lateral: { hingingCode: 'B2' },
+  Puerta: { hingingCode: 'B2' },
+  Fondo: { groovingCode: 'R1' },
+}
+const planCodes = (pieceId: string) => PLAN_CODES[pieceId.replace(/#\d+$/, '')]
+
 const PLAN_LAYOUT: Layout = {
   material: {
     materialKey: 'mat-e2e',
@@ -264,7 +273,7 @@ const PLAN_LAYOUT: Layout = {
     thickness: 18,
     area: 5.246,
   },
-  placedPieces: PLAN_PIECES,
+  placedPieces: PLAN_PIECES.map((p) => ({ ...p, ...planCodes(p.pieceId) })),
   statistics: {
     usedArea: 3.41248,
     wasteArea: 1.83352,
@@ -798,11 +807,6 @@ export const attendanceReport = (days = 12): AttendanceData => {
 
 /** `GET /orders/:id/cutting-plan` for `order()`: the plan above, seven pieces of nine cut. */
 export const cuttingPlan = (overrides: Partial<CuttingPlan> = {}): CuttingPlan => {
-  const codes: Record<string, Partial<CutPiece>> = {
-    Lateral: { hingingCode: 'B2' },
-    Puerta: { hingingCode: 'B2' },
-    Fondo: { groovingCode: 'R1' },
-  }
   const pieces: CutPiece[] = PLAN_PIECES.map((p, i) => ({
     ...p,
     id: i + 1,
@@ -810,7 +814,7 @@ export const cuttingPlan = (overrides: Partial<CuttingPlan> = {}): CuttingPlan =
     cut: i < 7,
     cutAt: i < 7 ? minutesAgo(90 - i * 10) : null,
     cutByLabel: i < 7 ? 'Operador' : null,
-    ...codes[p.pieceId.replace(/#\d+$/, '')],
+    ...planCodes(p.pieceId),
   }))
   return {
     orderId: 41,

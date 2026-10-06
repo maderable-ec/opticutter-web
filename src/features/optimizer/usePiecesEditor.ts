@@ -17,6 +17,7 @@ export type FillableField =
   | 'quantity'
   | 'label'
   | 'canRotate'
+  | 'hardEdgeCut'
   | 'edgeBanding'
   | 'edgeBandingSides'
   | 'edgeBandingProductId'
@@ -154,6 +155,10 @@ export const applyField = (
         productId: src.edgeBanding.productId,
       },
     }
+  }
+  if (field === 'hardEdgeCut') {
+    // Read as the rest of the editor reads it: a row from before the column has no key and is on.
+    return { ...r, hardEdgeCut: src.hardEdgeCut !== false }
   }
   return { ...r, [field]: src[field] }
 }

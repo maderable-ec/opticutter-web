@@ -448,6 +448,7 @@ const LayoutEditorModal = ({
                     maxHeight="calc(100dvh - 17rem)"
                     showDimensions
                     enableZoom
+                    pieceNotes
                     overlay={
                       <EditorOverlay
                         sheetWidth={drawable.material.width}

@@ -234,6 +234,7 @@ const LayoutStep = ({
               maxHeight="100%"
               showDimensions
               enableZoom
+              pieceNotes
             />
           </div>
 
