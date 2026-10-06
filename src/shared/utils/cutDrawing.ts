@@ -4,6 +4,7 @@
 // import from a feature.
 
 import { fmtM2 } from './format'
+import type { WorkshopCodes } from './workshopCodes'
 
 // Geometric side of a piece as drawn (post-rotation).
 export type EdgeSide = 'top' | 'bottom' | 'left' | 'right'
@@ -110,8 +111,9 @@ export interface DrawableEdges {
 
 // Minimal structural shape shared by PlacedPiece (optimizer), CutPiece (orders) and
 // ReviewPlacedPiece (review): enough to draw the scaled rectangle, its signature color, and the
-// edge banding strips.
-export interface DrawablePiece {
+// edge banding strips. The workshop codes ride along where the plan carries them (the seller's and
+// the operator's, never the client's review), for the stack `pieceTextStack` prints.
+export interface DrawablePiece extends WorkshopCodes {
   x: number
   y: number
   width: number
@@ -219,6 +221,101 @@ export const notationTapes = (notation?: string | null): string[] =>
     .split(' · ')
     .map((tape) => tape.trim())
     .filter(Boolean)
+
+export interface StackLine {
+  key: string
+  text: string
+  // Font size and baseline centre, in the sheet's millimetres.
+  size: number
+  y: number
+}
+
+// The text stacked over a piece's centre, top to bottom: its edge-banding notation and, under it,
+// its workshop codes (`codes`, bare: "B2 · R1"). Worked out here once for both renderers — the
+// operator's canvas (`WorkshopBoardSvg`) and the seller's diagram (`SheetSvg`) — so the seller sees
+// on the sheet exactly what the shop will. `hidden` empties it (a piece the operator already cut
+// belongs to its ✓). Both draw the board through `boardRotation`, so the frame below holds in both.
+export const pieceTextStack = (
+  piece: Pick<DrawablePiece, 'x' | 'y' | 'width' | 'height' | 'edges'>,
+  { scale, codes, hidden = false }: { scale: number; codes: string; hidden?: boolean },
+): { cx: number; cy: number; lines: StackLine[] } => {
+  const minSide = Math.min(piece.width, piece.height)
+  // Edge-banding notation, printed VERBATIM: the server computes it from the piece's nominal
+  // sides, so it survives rotation. Recomputing it from `edges.sides` (which is rotated into the
+  // drawing's frame) would turn every 1L into a 1C.
+  const tapes = notationTapes(piece.edges?.notation)
+  const [notation, bandNote] = splitNotation(tapes[0])
+  // On screen the piece's y axis runs horizontally and its x axis vertically, because of
+  // `boardRotation` — the same frame `EdgeDimensions` documents. So the room a horizontal label
+  // has is `piece.height` wide by `piece.width` tall.
+  //
+  // Same rate as the measurements (`Math.min(w, h) / 6`), with a ceiling just under theirs. It
+  // used to be set at nearly twice their size, which made a qualifier shout over the numbers it
+  // qualifies; dropping it to `/7` overcorrected and left the canto reading as a footnote.
+  // Matching the rate and separating them by position — canto in the middle, measurements on the
+  // edges — is the hierarchy that actually works. The second term is what keeps a long notation
+  // inside a narrow piece.
+  const noteSize = clamp(
+    Math.min(minSide / 6, piece.height / Math.max(notation.length * 0.62, 1)),
+    14,
+    56,
+  )
+  // Revealed earlier than the measurements (a 4-character string needs far less room), and the
+  // qualifier only once the piece is big enough for two lines.
+  const roomy = !hidden && piece.width * scale > 60 && piece.height * scale > 60
+  const showNote = roomy && !!notation
+  const showBandNote = showNote && !!bandNote && showPieceDims(piece.width, piece.height, scale)
+  // With cantos especiales the piece carries several tapes, and each one gets a line of its own —
+  // `2L1C CS CSH` over `1C CS BNL` — instead of the count/qualifier pair a single tape uses. Where
+  // the qualifier would not fit either, each line keeps its count alone (`2L1C` over `1C`).
+  // Sized off the longest line, the way a single notation is sized off its own length.
+  const tapeLines = tapes.map((tape) => (showBandNote ? tape : (splitNotation(tape)[0] ?? '')))
+  const tapeSize = clamp(
+    Math.min(
+      minSide / 6,
+      piece.height / Math.max(Math.max(...tapeLines.map((t) => t.length)) * 0.62, 1),
+    ),
+    14,
+    56,
+  )
+  // The workshop codes ("B2 · R1", bare: the shop knows its own codes, and the service word only
+  // cost room on a small piece) go UNDER the canto: they are what the operator sets
+  // aside for the bander, so they are revealed as early as the canto itself rather than with the
+  // qualifier. Sized off their own length, like the notation, so a long line stays inside a
+  // narrow piece.
+  const codesSize = clamp(
+    Math.min(minSide / 7, piece.height / Math.max(codes.length * 0.58, 1)),
+    12,
+    44,
+  )
+  const cx = piece.x + piece.width / 2
+  const cy = piece.y + piece.height / 2
+  // The lines stacked over the piece's centre. A piece's on-screen height is `piece.width` (see
+  // above), so when the stack would not fit it is shrunk as a whole: every line stays, just
+  // smaller — zooming in brings it back.
+  const bandingLines =
+    tapes.length > 1
+      ? tapeLines.map((text, k) => (showNote ? { key: `tape-${k}`, text, size: tapeSize } : null))
+      : [
+          showNote ? { key: 'note', text: notation, size: noteSize } : null,
+          showBandNote ? { key: 'band', text: bandNote, size: noteSize * 0.75 } : null,
+        ]
+  const stack = [
+    ...bandingLines,
+    roomy && codes ? { key: 'codes', text: codes, size: codesSize } : null,
+  ].filter((line): line is { key: string; text: string; size: number } => !!line)
+  const LINE_PITCH = 1.1
+  const stackHeight = stack.reduce((h, line) => h + line.size * LINE_PITCH, 0)
+  const fit = stackHeight > 0 ? Math.min(1, (piece.width * 0.85) / stackHeight) : 1
+  let top = cy - (stackHeight * fit) / 2
+  const lines = stack.map((line) => {
+    const size = line.size * fit
+    const y = top + (size * LINE_PITCH) / 2
+    top += size * LINE_PITCH
+    return { ...line, size, y }
+  })
+  return { cx, cy, lines }
+}
 
 export interface SideLine {
   x1: number

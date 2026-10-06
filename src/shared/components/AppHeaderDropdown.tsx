@@ -12,6 +12,7 @@ import Icon from 'src/shared/icons/Icon'
 import { useNavigate } from 'react-router-dom'
 import { useCurrentUser, useLogout } from 'src/features/auth/useAuth'
 import { rolesLabel } from 'src/features/auth/roleLabels'
+import PoweredBy from './PoweredBy'
 import { THEME_OPTIONS } from './themeOptions'
 import { useFromHere } from 'src/shared/hooks/useShellNav'
 
@@ -94,7 +95,9 @@ const AppHeaderDropdown = ({ colorMode, onColorModeChange }: AppHeaderDropdownPr
         </CDropdownItem>
         {/* Moved here from the footer the layout no longer has. */}
         <CDropdownDivider />
-        <div className="px-3 pb-1 small text-body-secondary">Powered by Denis Siavichay</div>
+        <div className="px-3 pb-1 small text-body-secondary">
+          <PoweredBy />
+        </div>
       </CDropdownMenu>
     </CDropdown>
   )

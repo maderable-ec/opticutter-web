@@ -53,6 +53,7 @@ export const piece = (
   quantity,
   label,
   canRotate: false,
+  hardEdgeCut: true,
   edgeBanding: {
     productId: '',
     sides: { left: false, right: false, top: false, bottom: false, ...canto },

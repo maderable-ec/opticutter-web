@@ -92,6 +92,10 @@ export interface RequirementForm {
   quantity: number | string
   label: string
   canRotate: boolean
+  // The hard-edge rule (`shared/utils/hardEdges.ts`): each side with a hard tape cut 1 mm short.
+  // On unless the seller unticks «✂ CD». Read with `!== false`: an autosave, a draft or a pre-order
+  // from before the column existed comes back without the key, and those were all cut under it.
+  hardEdgeCut: boolean
   edgeBanding: EdgeBandingForm
   // Cantos especiales, at most one per side. Read with `?? []`: an autosave, a draft or a pre-order
   // from before the column existed comes back without the key.
@@ -229,6 +233,7 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   quantity: 0,
   label: '',
   canRotate: false,
+  hardEdgeCut: true,
   edgeBanding: emptyEdgeBanding(),
   specialEdges: [],
   hingingCode: '',
@@ -573,6 +578,9 @@ export const buildPayload = (
       priority: 0,
       label: r.label.trim() || undefined,
       canRotate: r.canRotate,
+      // Only when the seller turned it off: on is the API's default, so every other piece ships —
+      // and signs the staleness check — exactly as it did before the column existed.
+      ...(r.hardEdgeCut === false ? { hardEdgeCut: false } : {}),
       ...(edgeBanding ? { edgeBanding } : {}),
       ...(specialEdges.length ? { specialEdges } : {}),
       ...codes,

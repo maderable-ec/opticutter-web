@@ -30,6 +30,7 @@ import {
 import {
   bandingLookup,
   cantoOptions,
+  hasHardCut,
   pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
@@ -152,9 +153,11 @@ const stepCol = (col: number, delta: 1 | -1): number =>
 // title for the same reason.
 const CODE_COL_W = 64
 // Every header cell: checkbox, #, Largo, Ancho, Cant., Etiqueta, Rotar, Canto, Tipo, Tapacanto,
-// Cantos especiales, one per workshop code, and the actions gutter. Derived so the empty-group row
-// keeps spanning the whole table when a code is added.
-const COLUMN_COUNT = 11 + WORKSHOP_CODES.length + 1
+// ✂ CD, Cantos especiales, one per workshop code, and the actions gutter. Derived so the
+// empty-group row keeps spanning the whole table when a code is added.
+const COLUMN_COUNT = 12 + WORKSHOP_CODES.length + 1
+// What «✂ CD» does, on its header and on every tick.
+const HARD_EDGE_CUT_TITLE = 'Cortar 1 mm menos por lado con canto duro'
 // Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
 // Tipo is a pair of buttons that should move rows like every other cell.
 const SELECT_COLS = new Set([4])
@@ -568,6 +571,12 @@ const PieceRowsTable = ({
               Tapacanto
               {renderFill('edgeBandingProductId', 'Igualar tapacanto')}
             </CTableHeaderCell>
+            {/* After the tapes it depends on: whether a hard tape cuts the piece short is decided by
+                the Canto and Tapacanto to its left. */}
+            <CTableHeaderCell className="text-center" style={thStyle} title={HARD_EDGE_CUT_TITLE}>
+              ✂ CD
+              {renderFill('hardEdgeCut', 'Igualar descuento de canto duro')}
+            </CTableHeaderCell>
             {/* Abbreviated like Cant. and the codes, and for the same reason: the header is `nowrap`,
                 and «Cantos especiales» plus its fill-down button measured 24px past SPECIAL_COL_W on
                 a row that already runs past a 1280 pane. «C. especiales» fits inside it. */}
@@ -603,6 +612,9 @@ const PieceRowsTable = ({
             const cantoBandType = displayedBandType(req.edgeBanding, byId)
             // The seller types the final size; a hard tape cuts it short, shown under the measure.
             const cut = pieceCutSize(req, byId)
+            // «✂ CD» only means something where a hard tape would cut the piece short; elsewhere
+            // the tick is shown on and greyed out, since the piece is cut at its final size anyway.
+            const hardCutApplies = hasHardCut(req, byId)
             // Coordinated with the board and narrowed to the displayed type (see `tapacantoOptions`).
             const options = tapacantoOptions(
               req.edgeBanding,
@@ -861,6 +873,22 @@ const PieceRowsTable = ({
                     />
                   </div>
                   {renderHandle(local, 6)}
+                </CTableDataCell>
+                <CTableDataCell
+                  className="text-center"
+                  style={{ minWidth: 60 }}
+                  title={
+                    hardCutApplies
+                      ? HARD_EDGE_CUT_TITLE
+                      : 'Sin canto duro: se corta a la medida final'
+                  }
+                >
+                  <CFormCheck
+                    checked={!hardCutApplies || req.hardEdgeCut !== false}
+                    disabled={!hardCutApplies}
+                    onChange={(e) => update(i, 'hardEdgeCut', e.target.checked)}
+                    aria-label={`${HARD_EDGE_CUT_TITLE} en la pieza ${i + 1}`}
+                  />
                 </CTableDataCell>
                 <CTableDataCell
                   style={cellStyle(SPECIAL_COL, local, SPECIAL_COL_W)}

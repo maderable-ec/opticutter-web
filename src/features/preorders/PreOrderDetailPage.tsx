@@ -204,6 +204,9 @@ function formFromPreOrderData(
     quantity: r.quantity,
     label: r.label ?? '',
     canRotate: r.canRotate,
+    // The API stores the whole requirement (`hardEdgeCut: true` included); a quote saved before
+    // the column existed has no key, and was cut under the rule.
+    hardEdgeCut: r.hardEdgeCut !== false,
     edgeBanding: r.edgeBanding
       ? {
           productId: String(r.edgeBanding.productId),

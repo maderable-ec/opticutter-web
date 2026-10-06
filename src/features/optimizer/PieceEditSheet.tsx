@@ -28,6 +28,7 @@ import {
 import {
   bandingLookup,
   cantoOptions,
+  hasHardCut,
   pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
@@ -127,6 +128,8 @@ const PieceEditSheet = ({
   // The seller types the final size; a hard tape cuts it short, said under the measure it shortens.
   // Short, in the shop's own CD: the measures share one row of three narrow columns on a phone.
   const cut = pieceCutSize(req, byId)
+  // Greyed out where no hard tape would cut anything, as in the grid.
+  const hardCutApplies = hasHardCut(req, byId)
   const cutLine = (off: number, size: number) =>
     off > 0 ? (
       <div className="form-text mt-1 text-tech">
@@ -256,6 +259,18 @@ const PieceEditSheet = ({
         label="Rotar: la pieza puede girarse al acomodarla en el tablero"
         checked={req.canRotate}
         onChange={(e) => update('canRotate', e.target.checked)}
+      />
+      <CFormSwitch
+        className="mt-2"
+        id={`piece-hard-cut-${flat}`}
+        label={
+          hardCutApplies
+            ? '✂ CD: cortar 1 mm menos por lado con canto duro'
+            : '✂ CD: sin canto duro, se corta a la medida final'
+        }
+        checked={!hardCutApplies || req.hardEdgeCut !== false}
+        disabled={!hardCutApplies}
+        onChange={(e) => update('hardEdgeCut', e.target.checked)}
       />
 
       <CFormLabel htmlFor={ids.canto} className="mt-3">

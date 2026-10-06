@@ -1,8 +1,10 @@
 import type { OptimizePayload } from 'src/features/optimizer/types'
 import type { PreOrderCreate } from 'src/features/preorders/types'
+import type { Product } from 'src/features/products/types'
 import {
   branch,
   client,
+  edgeBandingProduct,
   minutesAgo,
   planResponse,
   preOrder,
@@ -131,6 +133,57 @@ test('la cotización se crea desde la barra fija', async ({ page, api }) => {
   await expect(page).toHaveURL(/\/preorders\/123$/)
   const sent = api.requests('POST', '/preorders/')[0]?.postDataJSON() as PreOrderCreate
   expect(sent).toMatchObject({ clientId: 1, priceLevel: 1, source: 'dashboard' })
+})
+
+// A hard tape cuts its piece 1 mm short per side, unless the seller unticks «✂ CD» for the piece: then
+// the hint under the measure goes and the search gets the piece at the size typed.
+test('«✂ CD» apaga el descuento de canto duro de una pieza', async ({ page, api }) => {
+  const hard = edgeBandingProduct({
+    id: '21',
+    code: 'TC-BL-19-CD',
+    name: 'TAPACANTO BLANCO 19X1MM',
+    attributes: { bandType: 'Hard', width: 19, thickness: 1 },
+  })
+  api
+    .list<Product>('/products/', (req) =>
+      new URL(req.url()).searchParams.get('type') === 'edge_banding' ? [TAPE, hard] : [BOARD],
+    )
+    .get(`/products/${BOARD.id}/edge-bandings`, [TAPE, hard])
+  api.post('/optimize/', planResponse())
+  const twoLong = piece(720, 400, 1, 'Lateral', { left: true, right: true })
+  const soft = piece(720, 560, 1, 'Fondo', { left: true })
+  await seedOptimizer(
+    page,
+    [boardMaterial()],
+    [
+      { ...twoLong, edgeBanding: { ...twoLong.edgeBanding, productId: hard.id, bandType: 'Hard' } },
+      { ...soft, edgeBanding: { ...soft.edgeBanding, productId: TAPE.id } },
+    ],
+  )
+
+  await page.goto('/preorders/new')
+  const rows = page.locator('.pieces-table tbody tr')
+  const tick = (row: number) => rows.nth(row).getByLabel(/Cortar 1 mm menos por lado/)
+  // 2L CD on 400: cut at 398, and the tick is on.
+  await expect(rows.nth(0).locator('.piece-cut-hint')).toContainText('398')
+  await expect(tick(0)).toBeChecked()
+  await expect(tick(0)).toBeEnabled()
+  // A soft tape cuts nothing: the tick has nothing to turn off.
+  await expect(tick(1)).toBeChecked()
+  await expect(tick(1)).toBeDisabled()
+
+  await tick(0).uncheck()
+  await expect(rows.nth(0).locator('.piece-cut-hint')).toHaveCount(0)
+
+  await page
+    .locator('.action-bar')
+    .getByRole('button', { name: /Optimización/ })
+    .click()
+  await expect.poll(() => api.requests('POST', '/optimize/').length).toBe(1)
+  const payload = api.requests('POST', '/optimize/')[0]?.postDataJSON() as OptimizePayload
+  expect(payload.requirements[0]).toMatchObject({ label: 'Lateral', hardEdgeCut: false })
+  // On is the API's default: a piece left alone ships without the key.
+  expect(payload.requirements[1]).not.toHaveProperty('hardEdgeCut')
 })
 
 // On a phone the despiece is a list to read, and a piece is corrected in a sheet. The edits are the

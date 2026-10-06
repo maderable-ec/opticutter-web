@@ -21,6 +21,7 @@ import {
   clamp,
   insetSideLine,
   pieceSig,
+  pieceTextStack,
   remainderTitle,
   showPieceDims,
   showRemainderDims,
@@ -28,6 +29,7 @@ import {
 } from 'src/shared/utils/cutDrawing'
 import type { DrawableLayout, DrawableRemainder, DrawnPiece } from 'src/shared/utils/cutDrawing'
 import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
+import { workshopCodesBare } from 'src/shared/utils/workshopCodes'
 
 interface SheetSvgProps<P extends DrawnPiece> {
   layout: DrawableLayout<P>
@@ -58,6 +60,10 @@ interface SheetSvgProps<P extends DrawnPiece> {
   // what the saw cuts — 1 mm short per side with a hard tape. `final` is the size ordered, for the
   // client's review: the client does not cut, and a 398 on a piece ordered at 400 reads as an error.
   edgeMeasure?: 'cut' | 'final'
+  // Prints over each piece what the workshop canvas prints: the edge-banding notation, one line per
+  // tape, and the workshop codes under it (`pieceTextStack`). The seller's views; the client's
+  // review prints the piece's name instead (`labelFor`), and a view does one or the other.
+  pieceNotes?: boolean
 
   // The layout editor's hooks. `overlay` is drawn inside the rotated board group, on top of
   // everything, in the sheet's own millimetres — so the editor draws its free zones and the piece
@@ -112,6 +118,7 @@ const SheetSvg = <P extends DrawnPiece>({
   labelFor = defaultLabel,
   titleFor = defaultTitle,
   edgeMeasure = 'cut',
+  pieceNotes = false,
   overlay,
   onRemainderTap,
   selectedRemainder = null,
@@ -287,19 +294,46 @@ const SheetSvg = <P extends DrawnPiece>({
         {/* The sheet's grain, over everything on it: it belongs to the board, not to the pieces. */}
         <BoardGrain boardWidth={W} boardHeight={H} />
 
-        {/* Piece names, ABOVE the grain — the measurements were always safe, since they live in the
-            screen-space group below, which paints after this one. Left inside the piece groups the
-            texture ran straight through the client's own labels. `pointerEvents: none`, so hover
-            and tap still land on the piece rect underneath. */}
+        {/* Piece text, ABOVE the grain — the seller's canto and codes, or the client's piece names.
+            The measurements were always safe, since they live in the screen-space group below,
+            which paints after this one. Left inside the piece groups the texture ran straight
+            through the client's own labels. `pointerEvents: none`, so hover and tap still land on
+            the piece rect underneath. */}
         {placedPieces.map((p) => {
           const sig = pieceSig(p)
+          const dimmed =
+            highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
+          if (pieceNotes) {
+            // The workshop canvas's stack, in its plain text: same colour and weight as the
+            // measurements, no halo — the hierarchy is position (canto in the middle, measurements
+            // on the edges), not size.
+            const { cx, cy, lines } = pieceTextStack(p, { scale, codes: workshopCodesBare(p) })
+            if (lines.length === 0) return null
+            return (
+              <text
+                key={`label-${p.pieceId}`}
+                x={cx}
+                y={cy}
+                opacity={dimmed ? 0.35 : 1}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill={PIECE_LABEL}
+                transform={uprightText(cx, cy)}
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {lines.map((line) => (
+                  <tspan key={line.key} x={cx} y={line.y} fontSize={line.size}>
+                    {line.text}
+                  </tspan>
+                ))}
+              </text>
+            )
+          }
           const text = labelFor(p)
           // Only a real piece name (the client review), never the dimension fallback: the
           // measurements live on the edges.
           const centeredLabel = text === defaultLabel(p) || text === pieceSig(p) ? '' : text
           if (!centeredLabel || !showPieceDims(p.width, p.height, scale)) return null
-          const dimmed =
-            highlightId != null ? p.pieceId !== highlightId : dimSig != null && sig !== dimSig
           const cx = p.x + p.width / 2
           const cy = p.y + p.height / 2
           return (

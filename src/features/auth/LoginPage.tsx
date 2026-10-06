@@ -18,6 +18,7 @@ import Icon from 'src/shared/icons/Icon'
 import { useLogin } from './useAuth'
 import { ApiError } from 'src/shared/api/types'
 import PasswordInput from 'src/shared/components/PasswordInput'
+import PoweredBy from 'src/shared/components/PoweredBy'
 import Spinner from 'src/shared/components/Spinner'
 import { useDocumentTitle } from 'src/shared/hooks/useDocumentTitle'
 
@@ -107,7 +108,7 @@ const LoginPage = () => {
             </CCard>
             {/* The credit that used to sit in a footer under every screen: here it costs nothing. */}
             <p className="text-center text-body-secondary small mt-4 mb-0">
-              Powered by Denis Siavichay
+              <PoweredBy />
             </p>
           </CCol>
         </CRow>

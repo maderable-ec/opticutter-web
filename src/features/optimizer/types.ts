@@ -1,6 +1,7 @@
 import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { EdgeSide } from 'src/shared/utils/cutDrawing'
+import type { WorkshopCodes } from 'src/shared/utils/workshopCodes'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 
 // Response types for POST /api/v1/optimize/. The contract is deterministic and cached by
@@ -57,7 +58,10 @@ export interface PlacedSpecialEdge {
   alias: string | null
 }
 
-export interface PlacedPiece {
+// The workshop codes ride along on the pieces that carry any: the API lays them over the response
+// from the request's own cut list (they are never in the cached plan), for the diagram to print
+// under the canto as the workshop canvas does.
+export interface PlacedPiece extends WorkshopCodes {
   pieceId: string
   x: number
   y: number
@@ -424,6 +428,8 @@ export interface RequirementInput {
   priority: number
   label?: string
   canRotate: boolean
+  // false = cut at the final size whatever the tapes (the API's default is true). Sent only when false.
+  hardEdgeCut?: boolean
   edgeBanding?: EdgeBandingSpec
   // Per-side tapes that win over `edgeBanding` on the sides they name. Omitted when empty.
   specialEdges?: SpecialEdgeSpec[]

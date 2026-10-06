@@ -5,6 +5,7 @@ import type { EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
   bandingLookup,
   cantoOptions,
+  hasHardCut,
   pieceCutSize,
   pieceReadout,
   tapacantoOptions,
@@ -201,6 +202,31 @@ describe('pieceCutSize', () => {
 
   it('waits for both measures', () => {
     expect(pieceCutSize(req({ width: '' }), BY_ID)).toBeNull()
+  })
+
+  it('cuts at the final size once «✂ CD» is unticked, and the ✂ goes', () => {
+    const r = req({
+      edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }),
+      hardEdgeCut: false,
+    })
+    expect(pieceCutSize(r, BY_ID)).toEqual({ height: 600, width: 400, heightOff: 0, widthOff: 0 })
+    expect(pieceReadout(r, BY_ID).cutDims).toBeNull()
+    // The tape is still hard: the tick still applies, it is just off.
+    expect(hasHardCut(r, BY_ID)).toBe(true)
+  })
+
+  it('reads a row saved before the column existed as cut under the rule', () => {
+    const legacy: Partial<RequirementForm> = req({
+      edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }),
+    })
+    delete legacy.hardEdgeCut
+    expect(pieceCutSize(legacy as RequirementForm, BY_ID)).toMatchObject({ width: 398 })
+  })
+
+  it('greys the tick out where no hard tape would cut anything', () => {
+    const soft = req({ edgeBanding: banding({ productId: '1', sides: sidesFromNotation('2L') }) })
+    expect(hasHardCut(soft, BY_ID)).toBe(false)
+    expect(hasHardCut(req(), BY_ID)).toBe(false)
   })
 })
 
