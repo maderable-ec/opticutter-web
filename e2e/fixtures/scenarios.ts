@@ -144,7 +144,7 @@ const homeOrders = (req: Request) => {
       }),
     ]
   // The admin's «Hoy»: two orders born today, one of them with a half board.
-  if (q.get('createdFrom'))
+  if (q.get('dateFrom'))
     return [
       order({
         id: '46',

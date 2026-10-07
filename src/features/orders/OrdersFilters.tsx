@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { CFormInput, CFormSelect } from '@coreui/react'
+import { useQuery } from '@tanstack/react-query'
 
 import FilterMenu, { FilterSection } from 'src/shared/components/FilterMenu'
 import FilterSheet from 'src/shared/components/FilterSheet'
@@ -11,9 +12,25 @@ import { clientName } from 'src/shared/utils/format'
 import { fmtDay } from 'src/shared/utils/date'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import { useClient, useClientsMin } from 'src/features/clients/useClients'
+import { usersApi } from 'src/features/users/usersApi'
+import type { UserListParams } from 'src/features/users/types'
+import {
+  DEFAULT_EVENT,
+  EVENT_OPTIONS,
+  eventFilterParams,
+  eventOption,
+  type EventFilterValues,
+} from './orderEvents'
 import { ORDER_STATUS_VALUES, statusLabel } from './status'
 import { useOrdersTotal } from './useOrders'
-import type { ActivityStatus, ActivityType, OrderListParams, OrderSort, OrderStatus } from './types'
+import type {
+  ActivityStatus,
+  ActivityType,
+  OrderEvent,
+  OrderListParams,
+  OrderSort,
+  OrderStatus,
+} from './types'
 
 const STATUS_OPTIONS = ORDER_STATUS_VALUES.map((value) => ({ value, label: statusLabel(value) }))
 
@@ -55,12 +72,34 @@ const ACTIVITY_STATUS_OPTIONS: { value: ActivityStatus | ''; label: string }[] =
 const OPTION_LABEL = (options: { value: string; label: string }[], value: string): string =>
   options.find((o) => o.value === value)?.label ?? value
 
-export interface OrdersFilterValues {
+// Everyone, inactive included: whoever closed a cut last month may have left since, and that cut
+// is exactly what gets checked. A handful of people, so one page and no search.
+const STAFF_PARAMS: UserListParams = { limit: 100 }
+
+/**
+ * The staff for «Hecho por», by name. Off unless asked: only the admin gets the field (and
+ * `GET /users` is theirs alone), and even for them the panel is mounted while closed, so fetching
+ * on mount would cost every visit to Órdenes a request almost nobody uses. Same key as the Users
+ * page, so either one warms the other.
+ */
+const useStaff = (enabled: boolean) =>
+  useQuery({
+    queryKey: ['users', STAFF_PARAMS],
+    queryFn: () => usersApi.list(STAFF_PARAMS),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    select: (res) =>
+      res.items
+        .map((u) => ({ value: String(u.id), label: u.fullName || u.email }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+  })
+
+// The event filter (`dateField` + range + «Hecho por») is `orderEvents.ts`'s: `dateField` is always
+// set, like `sort`, and on its own filters nothing.
+export interface OrdersFilterValues extends EventFilterValues {
   status: OrderStatus[]
   clientId: string
   branchId: string
-  createdFrom: string
-  createdTo: string
   sort: OrderSort
   // '' = all; 'true'/'false' narrow to prioritized / regular. A string, like clientId and branchId,
   // so it rides the URL without a third representation of "unset".
@@ -82,12 +121,24 @@ interface OrdersFilterFieldsProps {
   // Global roles (admin/vendedor) choose a branch; the operador is scoped to theirs by the backend,
   // so for them the field is not disabled — it does not exist, and never counts as a filter.
   showBranch: boolean
+  // «Hecho por» is the admin's: it is how a figure somebody disputes gets checked, and the staff
+  // list behind it is theirs alone.
+  showActor: boolean
+  // Whether to fetch that list yet: once the panel has been opened, or an actor is already chosen.
+  loadStaff: boolean
 }
 
 // The fields alone, with no panel around them: the desktop dropdown binds them to the URL, the
 // phone's sheet to a draft. One set of fields so the two can never offer different filters.
-const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFieldsProps) => {
+const OrdersFilterFields = ({
+  values,
+  onChange,
+  showBranch,
+  showActor,
+  loadStaff,
+}: OrdersFilterFieldsProps) => {
   const [clientTerm, setClientTerm] = useState('')
+  const { data: staff = [] } = useStaff(showActor && loadStaff)
 
   const { data: branches = [] } = useActiveBranches()
   const { data: clientsData, isLoading: clientsLoading } = useClientsMin(clientTerm)
@@ -137,7 +188,23 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
         />
       </FilterSection>
 
-      <FilterSection label="Creada entre">
+      <FilterSection label="Fecha">
+        {/* Which moment the range reads: when the order was created, paid, finished... Picking
+            one alone filters nothing — it says what the dates below (and «Hecho por») mean. */}
+        <div className="px-3 pt-1">
+          <CFormSelect
+            size="sm"
+            aria-label="Fecha de"
+            value={values.dateField}
+            onChange={(e) => onChange('dateField', e.target.value as OrderEvent)}
+          >
+            {EVENT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </CFormSelect>
+        </div>
         {/* The visible "Desde"/"Hasta" are for the phone's sheet: an empty native date field
             there shows no placeholder at all, so two blank boxes side by side said nothing about
             which end was which. The dropdown keeps its tighter look. */}
@@ -148,9 +215,9 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
               size="sm"
               type="date"
               aria-label="Desde"
-              value={values.createdFrom}
-              max={values.createdTo || undefined}
-              onChange={(e) => onChange('createdFrom', e.target.value)}
+              value={values.dateFrom}
+              max={values.dateTo || undefined}
+              onChange={(e) => onChange('dateFrom', e.target.value)}
             />
           </label>
           <label className="d-block flex-grow-1" style={{ flexBasis: 0, minWidth: 0 }}>
@@ -159,13 +226,38 @@ const OrdersFilterFields = ({ values, onChange, showBranch }: OrdersFilterFields
               size="sm"
               type="date"
               aria-label="Hasta"
-              value={values.createdTo}
-              min={values.createdFrom || undefined}
-              onChange={(e) => onChange('createdTo', e.target.value)}
+              value={values.dateTo}
+              min={values.dateFrom || undefined}
+              onChange={(e) => onChange('dateTo', e.target.value)}
             />
           </label>
         </div>
       </FilterSection>
+
+      {showActor && (
+        <FilterSection label="Hecho por">
+          <div className="px-3 py-1">
+            <CFormSelect
+              size="sm"
+              aria-label="Hecho por"
+              value={values.actorId}
+              onChange={(e) => onChange('actorId', e.target.value)}
+            >
+              <option value="">Cualquiera</option>
+              {staff.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </CFormSelect>
+            {/* Who that is changes with the event: the seller of a created order, whoever
+                closed the cut of a «Corte terminado». */}
+            <div className="small text-body-secondary mt-1">
+              {eventOption(values.dateField).actor}
+            </div>
+          </div>
+        </FilterSection>
+      )}
 
       <FilterSection label="Estado">
         <FilterCheckboxList
@@ -246,8 +338,10 @@ const cleared = (values: OrdersFilterValues): OrdersFilterValues => ({
   status: [],
   clientId: '',
   branchId: '',
-  createdFrom: '',
-  createdTo: '',
+  dateField: DEFAULT_EVENT,
+  dateFrom: '',
+  dateTo: '',
+  actorId: '',
   sort: values.sort,
   isPriority: '',
   activity: '',
@@ -264,8 +358,7 @@ export const orderFilterParams = (values: OrdersFilterValues, search: string): O
   status: values.status.length ? values.status : undefined,
   clientId: values.clientId ? Number(values.clientId) : undefined,
   branchId: values.branchId ? Number(values.branchId) : undefined,
-  createdFrom: values.createdFrom || undefined,
-  createdTo: values.createdTo || undefined,
+  ...eventFilterParams(values),
   // '' means "both", and `false` is a real filter — so map through the empty string explicitly
   // rather than leaning on a falsy check, which would swallow "Solo normales".
   isPriority: values.isPriority === '' ? undefined : values.isPriority === 'true',
@@ -283,6 +376,7 @@ interface OrdersFiltersProps {
   onApply: (values: OrdersFilterValues) => void
   onClear: () => void
   showBranch: boolean
+  showActor: boolean
 }
 
 // The filter panel for /orders plus the chips describing it. Kept out of OrdersPage so the page
@@ -297,15 +391,29 @@ const OrdersFilters = ({
   onApply,
   onClear,
   showBranch,
+  showActor,
 }: OrdersFiltersProps) => {
   const sheet = useFilterSheet(values)
   const total = useOrdersTotal(orderFilterParams(sheet.draft, search), sheet.visible)
+  // The staff list waits for the panel (see `useStaff`); once opened it stays loaded.
+  const [opened, setOpened] = useState(false)
+  const loadStaff = opened || sheet.visible || values.actorId !== ''
 
   return (
     <>
       <div className="d-none d-md-block">
-        <FilterMenu activeCount={activeCount(values, showBranch)} onClear={onClear}>
-          <OrdersFilterFields values={values} onChange={onChange} showBranch={showBranch} />
+        <FilterMenu
+          activeCount={activeCount(values, showBranch)}
+          onClear={onClear}
+          onOpen={() => setOpened(true)}
+        >
+          <OrdersFilterFields
+            values={values}
+            onChange={onChange}
+            showBranch={showBranch}
+            showActor={showActor}
+            loadStaff={loadStaff}
+          />
         </FilterMenu>
       </div>
       <div className="d-md-none">
@@ -325,6 +433,8 @@ const OrdersFilters = ({
             values={sheet.draft}
             onChange={sheet.update}
             showBranch={showBranch}
+            showActor={showActor}
+            loadStaff={loadStaff}
           />
         </FilterSheet>
       </div>
@@ -334,13 +444,14 @@ const OrdersFilters = ({
 
 export default OrdersFilters
 
-// `sort` is excluded on purpose: it is always set to something, so counting it would leave the
-// toggle permanently badged "1" and say nothing about how narrow the listing is.
+// `sort` and `dateField` are excluded on purpose: both are always set to something, so counting
+// them would leave the toggle permanently badged and say nothing about how narrow the listing is.
 export const activeCount = (values: OrdersFilterValues, showBranch: boolean): number =>
   (showBranch && values.branchId ? 1 : 0) +
   (values.clientId ? 1 : 0) +
-  (values.createdFrom ? 1 : 0) +
-  (values.createdTo ? 1 : 0) +
+  (values.dateFrom ? 1 : 0) +
+  (values.dateTo ? 1 : 0) +
+  (values.actorId ? 1 : 0) +
   values.status.length +
   (values.isPriority ? 1 : 0) +
   (values.activity ? 1 : 0) +
@@ -353,10 +464,13 @@ export const activeCount = (values: OrdersFilterValues, showBranch: boolean): nu
 export const useOrdersFilterChips = (
   values: OrdersFilterValues,
   showBranch: boolean,
+  showActor: boolean,
   onChange: <K extends keyof OrdersFilterValues>(key: K, value: OrdersFilterValues[K]) => void,
 ): FilterChip[] => {
   const { data: branches = [] } = useActiveBranches()
   const { data: selectedClient } = useClient(values.clientId || undefined)
+  const { data: staff = [] } = useStaff(showActor && values.actorId !== '')
+  const event = eventOption(values.dateField).label
 
   const chips: FilterChip[] = []
 
@@ -376,18 +490,31 @@ export const useOrdersFilterChips = (
       private: true,
     })
   }
-  if (values.createdFrom) {
+  // The chips name the event: «Desde: 28/09» alone would not say whether that is when the orders
+  // came in or when they were finished. The day goes first, because the chip truncates (220 px)
+  // and the day is what it removes; the event is on the column header and in the panel anyway.
+  // A created range reads as it always did.
+  const ofEvent = values.dateField === DEFAULT_EVENT ? '' : ` · ${event}`
+  if (values.dateFrom) {
     chips.push({
-      key: 'createdFrom',
-      label: `Desde: ${fmtDay(values.createdFrom)}`,
-      onRemove: () => onChange('createdFrom', ''),
+      key: 'dateFrom',
+      label: `Desde: ${fmtDay(values.dateFrom)}${ofEvent}`,
+      onRemove: () => onChange('dateFrom', ''),
     })
   }
-  if (values.createdTo) {
+  if (values.dateTo) {
     chips.push({
-      key: 'createdTo',
-      label: `Hasta: ${fmtDay(values.createdTo)}`,
-      onRemove: () => onChange('createdTo', ''),
+      key: 'dateTo',
+      label: `Hasta: ${fmtDay(values.dateTo)}${ofEvent}`,
+      onRemove: () => onChange('dateTo', ''),
+    })
+  }
+  if (values.actorId) {
+    const person = staff.find((u) => u.value === values.actorId)
+    chips.push({
+      key: 'actorId',
+      label: `Hecho por: ${person?.label ?? values.actorId}`,
+      onRemove: () => onChange('actorId', ''),
     })
   }
   values.status.forEach((s) => {

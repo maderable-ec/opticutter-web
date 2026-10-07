@@ -163,6 +163,9 @@ export interface Order {
   pieces?: OrderPiece[]
   history?: OrderHistoryEntry[]
   createdAt: string
+  // The seller the order belongs to: who raised the quote. The name is null when that user is gone.
+  createdBy?: number | null
+  createdByName?: string | null
   confirmedAt?: string
   // When the order entered its CURRENT status: what the listing's "hace 3 h" counts from.
   // Not moved by prioritizing or reassigning the branch — neither is a status change.
@@ -209,10 +212,16 @@ export interface OrderListParams {
   clientId?: number
   // Order code or id, or the client's identifier / first / last name.
   search?: string
-  // Inclusive day bounds on createdAt, as `YYYY-MM-DD`. The backend compares them against a
-  // UTC-naive column, so the cut is a UTC day (see "UTC-naive timestamps" in CLAUDE.md).
-  createdFrom?: string
-  createdTo?: string
+  // The moment the range and `actorId` read (see `orderEvents.ts`): when the order was created,
+  // paid, finished... The backend defaults to `created`, and the event alone filters nothing.
+  dateField?: OrderEvent
+  // Inclusive bounds as `YYYY-MM-DD`, in the shop's local days (the backend cuts on Ecuador's
+  // midnight, not UTC's).
+  dateFrom?: string
+  dateTo?: string
+  // Only orders whose `dateField` was done by this user — the seller for `created`, who closed
+  // the activity for a `*_done`. Works without dates.
+  actorId?: number
   // The backend defaults to `oldest` (the workshop reads the listing FIFO); the list page asks for
   // `recent` because the back office wants the last order first.
   sort?: OrderSort
@@ -226,6 +235,20 @@ export interface OrderListParams {
   offset?: number
   limit?: number
 }
+
+// The moments of an order's life the listing filters by. Each one is read where the backend writes
+// it (`orders/order_events.py`): a column of the order, a history row that really moved the status,
+// or an activity's close.
+export type OrderEvent =
+  | 'created'
+  | 'paid'
+  | 'in_process'
+  | 'cut_done'
+  | 'banding_done'
+  | 'additional_done'
+  | 'finished'
+  | 'dispatched'
+  | 'cancelled'
 
 // `stalest` = longest sitting in its current status first, closed orders last. Unlike
 // `isPriority` (which filters and never reorders), this one IS an ordering: "what has

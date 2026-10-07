@@ -90,8 +90,9 @@ describe('todayRange', () => {
   it('asks for the local day at both ends, even late in the evening', () => {
     // 19:30 in Ecuador is already tomorrow in UTC; the listing cuts by the local day now.
     expect(todayRange(new Date(2026, 9, 6, 19, 30))).toEqual({
-      createdFrom: '2026-10-06',
-      createdTo: '2026-10-06',
+      dateField: 'created',
+      dateFrom: '2026-10-06',
+      dateTo: '2026-10-06',
     })
   })
 })

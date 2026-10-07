@@ -124,15 +124,15 @@ export interface TodayFigures {
 }
 
 /**
- * The `createdFrom`/`createdTo` of today: the listing cuts by the shop's local day, so today is one
- * day at both ends. It used to cut by UTC day, and a local day straddles two of those (in Ecuador it
- * runs 05:00 to 05:00 UTC), which is why `todayFigures` still keeps only the local day itself.
+ * The orders created today: the listing cuts by the shop's local day, so today is one day at both
+ * ends. It used to cut by UTC day, and a local day straddles two of those (in Ecuador it runs 05:00
+ * to 05:00 UTC), which is why `todayFigures` still keeps only the local day itself.
  */
 export const todayRange = (
   now = new Date(),
-): Pick<OrderListParams, 'createdFrom' | 'createdTo'> => {
+): Pick<OrderListParams, 'dateField' | 'dateFrom' | 'dateTo'> => {
   const today = localDateKey(now)
-  return { createdFrom: today, createdTo: today }
+  return { dateField: 'created', dateFrom: today, dateTo: today }
 }
 
 /**
