@@ -1,5 +1,8 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 
+import { localDateKey } from 'src/shared/utils/date'
+
+import { useBranchComparison } from 'src/features/analytics/useAnalytics'
 import { useLowStock } from 'src/features/inventory/useLowStock'
 import { useOrders, useOrdersTotal } from 'src/features/orders/useOrders'
 import { usePreOrders, usePreOrdersTotal } from 'src/features/preorders/usePreOrders'
@@ -19,7 +22,8 @@ import {
 import type { AttentionKey, ProductionKey } from './home'
 
 // The home screen's queries, one hook per block. Every count is an existing listing asked for one
-// row (`use*Total`), so nothing here needs an endpoint of its own.
+// row (`use*Total`). The two exceptions read what no listing can filter by: the day's sales (the
+// payments registered today, off the branch comparison) and the saw's live state.
 
 // The API's page cap. The quotes about to lapse are the oldest open ones, so a hundred of them is
 // every quote that can expire this week in any shop this size.
@@ -69,6 +73,19 @@ export const useToday = (branchId?: number) => {
     figures: today.data ? todayFigures(today.data.items) : undefined,
     ...settle([today]),
   }
+}
+
+// What was sold today, split by how it was paid: the payments registered today (an order is sold
+// when it is collected and sent to the queue), the same rule as Estadísticas — so the two never
+// disagree. Read off the branch comparison of today alone: the branch picked, or the total. Admin
+// only, like the block that shows it.
+export const useTodaySales = (branchId?: number) => {
+  const today = localDateKey()
+  const comparison = useBranchComparison(today, today)
+  const data = comparison.data
+  const figures =
+    branchId === undefined ? data?.total : data?.branches.find((b) => b.branchId === branchId)
+  return { sales: figures?.sales, ...settle([comparison]) }
 }
 
 export const useStock = (branchId?: number) => {

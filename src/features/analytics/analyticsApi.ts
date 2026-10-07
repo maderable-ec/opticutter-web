@@ -1,13 +1,14 @@
 import { httpClient } from 'src/shared/api/httpClient'
 import type { Role } from 'src/features/auth/types'
 import type {
-  AnalyticsSummary,
   AttendanceData,
+  BanderReport,
   BottlenecksData,
+  BranchComparison,
   Granularity,
-  StatusBreakdownData,
-  Timeseries,
-  UsersProductivityData,
+  OperatorReport,
+  ProductionReport,
+  SellerReport,
 } from './types'
 
 type QsParams = Record<string, string | number | null | undefined>
@@ -21,36 +22,26 @@ const buildQs = (params: QsParams) => {
   return s ? `?${s}` : ''
 }
 
+const BASE = '/api/v1/analytics'
+
 export const analyticsApi = {
-  summary: (from?: string, to?: string, branchId?: number) =>
-    httpClient.get<AnalyticsSummary>(`/api/v1/analytics/summary${buildQs({ from, to, branchId })}`),
-  timeseries: (from?: string, to?: string, granularity: Granularity = 'day', branchId?: number) =>
-    httpClient.get<Timeseries>(
-      `/api/v1/analytics/timeseries${buildQs({ from, to, granularity, branchId })}`,
-    ),
-  statusBreakdown: (from?: string, to?: string, branchId?: number) =>
-    httpClient.get<StatusBreakdownData>(
-      `/api/v1/analytics/breakdown/status${buildQs({ from, to, branchId })}`,
-    ),
-  // Per-branch comparison (same shape as the status breakdown), always over every branch.
-  branchBreakdown: (from?: string, to?: string) =>
-    httpClient.get<StatusBreakdownData>(
-      `/api/v1/analytics/breakdown/branch${buildQs({ from, to })}`,
-    ),
-  // Bottlenecks (#1): stages (median/p90) + per-stage timeseries.
+  // Every branch against every other, plus the total: always all of them, so no `branchId`.
+  branchComparison: (from?: string, to?: string) =>
+    httpClient.get<BranchComparison>(`${BASE}/branch-comparison${buildQs({ from, to })}`),
+  production: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<ProductionReport>(`${BASE}/production${buildQs({ from, to, branchId })}`),
   bottlenecks: (from?: string, to?: string, branchId?: number, granularity: Granularity = 'day') =>
     httpClient.get<BottlenecksData>(
-      `/api/v1/analytics/bottlenecks${buildQs({ from, to, branchId, granularity })}`,
+      `${BASE}/bottlenecks${buildQs({ from, to, branchId, granularity })}`,
     ),
-  // User productivity (#2).
-  users: (from?: string, to?: string, branchId?: number, role?: Role) =>
-    httpClient.get<UsersProductivityData>(
-      `/api/v1/analytics/productivity${buildQs({ from, to, branchId, role })}`,
+  sellers: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<SellerReport>(`${BASE}/productivity/sellers${buildQs({ from, to, branchId })}`),
+  operators: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<OperatorReport>(
+      `${BASE}/productivity/operators${buildQs({ from, to, branchId })}`,
     ),
-  // Low stock (#4). No date range: stock is a state, not a series.
-  // Attendance / check-in time (#3).
+  banders: (from?: string, to?: string, branchId?: number) =>
+    httpClient.get<BanderReport>(`${BASE}/productivity/banders${buildQs({ from, to, branchId })}`),
   attendance: (from?: string, to?: string, branchId?: number, role?: Role) =>
-    httpClient.get<AttendanceData>(
-      `/api/v1/analytics/attendance${buildQs({ from, to, branchId, role })}`,
-    ),
+    httpClient.get<AttendanceData>(`${BASE}/attendance${buildQs({ from, to, branchId, role })}`),
 }

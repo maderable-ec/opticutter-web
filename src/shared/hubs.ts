@@ -52,10 +52,12 @@ export const HUBS: Hub[] = [
     path: '/analytics',
     name: 'Estadísticas',
     icon: 'stats',
+    // The comparison first, then what it is made of: the shop's workday, each team, the process.
     tabs: [
       { to: '/analytics/summary' },
-      { to: '/analytics/bottlenecks' },
+      { to: '/analytics/production' },
       { to: '/analytics/productivity' },
+      { to: '/analytics/bottlenecks' },
       { to: '/analytics/attendance' },
     ],
     keepParams: REPORT_PARAMS,

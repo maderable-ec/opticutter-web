@@ -469,3 +469,26 @@ export interface MarkPieceResponse {
   progress: CutProgress
   boardProgress: CutProgress
 }
+
+// --- Live production state (GET /orders/production-status) -----------------------------------
+// Only the cut is measured. `cutting`: a cutting event (a piece marked, a cut taken or closed)
+// within `idleMinutes`; `stopped`: nothing for that long while there is work (an order queued or a
+// cut in progress); `idle`: nothing, and nothing to do.
+export type ProductionState = 'cutting' | 'stopped' | 'idle'
+
+export interface BranchProductionStatus {
+  branchId: number
+  branchName: string
+  state: ProductionState
+  // When the current state began: the start of the run while cutting, the last event otherwise
+  // (null: the branch never cut).
+  since: string | null
+  lastEventAt: string | null
+  queuedCount: number
+  cuttingOrderCodes: string[]
+}
+
+export interface ProductionStatusReport {
+  idleMinutes: number
+  branches: BranchProductionStatus[]
+}

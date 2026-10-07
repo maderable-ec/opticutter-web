@@ -7,6 +7,7 @@ import { expect, test } from './fixtures/test'
 // are unit-tested in src/features/home/home.test.ts.
 
 const AUTOSAVE = 'cutter:optimizer:autosave:v1'
+const param = (url: string, key: string) => (url ? new URL(url).searchParams.get(key) : null)
 
 test('cada conteo abre su listado filtrado por la sucursal del vendedor', async ({
   page,
@@ -23,6 +24,41 @@ test('cada conteo abre su listado filtrado por la sucursal del vendedor', async 
   await row.click()
 
   await expect(page).toHaveURL(/\/orders\?status=confirmed&branchId=1$/)
+})
+
+test('el vendedor ve si la sierra de su sucursal está cortando', async ({ page, api, loginAs }) => {
+  await loginAs(['vendedor'], { user: { branchId: 1 } })
+  stubHome(api)
+  api.list('/clients/', [client()])
+
+  await page.goto('/home')
+  await expect(page.locator('.production-status')).toContainText('Cortando')
+  await expect
+    .poll(() => api.requests('GET', '/orders/production-status').map((r) => r.url().split('?')[1]))
+    .toContain('branchId=1')
+})
+
+test('«Hoy» desglosa lo vendido en efectivo y crédito, de la sucursal elegida', async ({
+  page,
+  api,
+  loginAs,
+}) => {
+  await loginAs(['administrador'])
+  stubHome(api, { admin: true })
+
+  await page.goto('/home')
+  const tile = (label: string) => page.locator('.stat-tile', { hasText: label })
+  await expect(tile('Vendido')).toContainText('$18.450,80')
+  await expect(tile('Efectivo')).toContainText('$13.630,50')
+  await expect(tile('Crédito')).toContainText('$4.820,30')
+  // Only today, whatever the period of Estadísticas.
+  const [first] = api.requests('GET', '/analytics/branch-comparison')
+  expect(param(first?.url() ?? '', 'from')).toBe(param(first?.url() ?? '', 'to'))
+
+  await page.getByRole('combobox', { name: 'Sucursal' }).selectOption({ label: 'Norte' })
+  await expect(tile('Vendido')).toContainText('$6.350,30')
+  await expect(tile('Efectivo')).toContainText('$4.210,00')
+  await expect(tile('Crédito')).toContainText('$2.140,30')
 })
 
 test('el admin pasa todo el Inicio a una sucursal', async ({ page, api, loginAs }) => {

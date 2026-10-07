@@ -79,8 +79,9 @@ describe('the menu by role', () => {
       to: '/analytics/summary',
       matches: [
         '/analytics/summary',
-        '/analytics/bottlenecks',
+        '/analytics/production',
         '/analytics/productivity',
+        '/analytics/bottlenecks',
         '/analytics/attendance',
       ],
     })
@@ -131,8 +132,9 @@ describe('the hubs', () => {
     expect(hubFor('/analytics/bottlenecks', ['administrador'])?.name).toBe('Estadísticas')
     expect(tabs('/analytics/bottlenecks', ['administrador'])).toEqual([
       'Resumen',
-      'Cuellos de botella',
+      'Producción',
       'Productividad',
+      'Cuellos de botella',
       'Asistencia',
     ])
     // Stock bajo is the admin's, like its route.

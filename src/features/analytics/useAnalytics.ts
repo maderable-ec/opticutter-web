@@ -3,38 +3,19 @@ import type { Role } from 'src/features/auth/types'
 import { analyticsApi } from './analyticsApi'
 import type { Granularity } from './types'
 
-export const useSummary = (from?: string, to?: string, branchId?: number) =>
+// The comparison is always every branch, which is what makes it one: the key leaves the branch
+// filter out, so picking a branch on another tab does not refetch it.
+export const useBranchComparison = (from?: string, to?: string) =>
   useQuery({
-    queryKey: ['analytics', 'summary', { from, to, branchId }],
-    queryFn: () => analyticsApi.summary(from, to, branchId),
+    queryKey: ['analytics', 'branch-comparison', { from, to }],
+    queryFn: () => analyticsApi.branchComparison(from, to),
     placeholderData: keepPreviousData,
   })
 
-export const useTimeseries = (
-  from?: string,
-  to?: string,
-  granularity?: Granularity,
-  branchId?: number,
-) =>
+export const useProduction = (from?: string, to?: string, branchId?: number) =>
   useQuery({
-    queryKey: ['analytics', 'timeseries', { from, to, granularity, branchId }],
-    queryFn: () => analyticsApi.timeseries(from, to, granularity, branchId),
-    placeholderData: keepPreviousData,
-  })
-
-export const useStatusBreakdown = (from?: string, to?: string, branchId?: number) =>
-  useQuery({
-    queryKey: ['analytics', 'status-breakdown', { from, to, branchId }],
-    queryFn: () => analyticsApi.statusBreakdown(from, to, branchId),
-    placeholderData: keepPreviousData,
-  })
-
-// Per-branch comparison (#5). Always every branch: the API ignores a branch filter here, which is
-// what makes it a comparison, so the key leaves it out and picking a branch does not refetch it.
-export const useBranchBreakdown = (from?: string, to?: string) =>
-  useQuery({
-    queryKey: ['analytics', 'branch-breakdown', { from, to }],
-    queryFn: () => analyticsApi.branchBreakdown(from, to),
+    queryKey: ['analytics', 'production', { from, to, branchId }],
+    queryFn: () => analyticsApi.production(from, to, branchId),
     placeholderData: keepPreviousData,
   })
 
@@ -50,11 +31,44 @@ export const useBottlenecks = (
     placeholderData: keepPreviousData,
   })
 
-export const useUsersProductivity = (from?: string, to?: string, branchId?: number, role?: Role) =>
+// Productividad asks only for the role on screen: each tab of it is one report.
+export const useSellers = (
+  from: string,
+  to: string,
+  branchId: number | undefined,
+  enabled = true,
+) =>
   useQuery({
-    queryKey: ['analytics', 'users', { from, to, branchId, role }],
-    queryFn: () => analyticsApi.users(from, to, branchId, role),
+    queryKey: ['analytics', 'sellers', { from, to, branchId }],
+    queryFn: () => analyticsApi.sellers(from, to, branchId),
     placeholderData: keepPreviousData,
+    enabled,
+  })
+
+export const useOperators = (
+  from: string,
+  to: string,
+  branchId: number | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'operators', { from, to, branchId }],
+    queryFn: () => analyticsApi.operators(from, to, branchId),
+    placeholderData: keepPreviousData,
+    enabled,
+  })
+
+export const useBanders = (
+  from: string,
+  to: string,
+  branchId: number | undefined,
+  enabled = true,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'banders', { from, to, branchId }],
+    queryFn: () => analyticsApi.banders(from, to, branchId),
+    placeholderData: keepPreviousData,
+    enabled,
   })
 
 export const useAttendance = (from?: string, to?: string, branchId?: number, role?: Role) =>

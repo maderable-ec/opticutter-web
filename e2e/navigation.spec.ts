@@ -508,8 +508,9 @@ test.describe('los hubs', () => {
     await expect(page.locator('.side-nav__link')).toHaveCount(8)
     await expect(tabs(page, 'Estadísticas').getByRole('link')).toHaveText([
       'Resumen',
-      'Cuellos de botella',
+      'Producción',
       'Productividad',
+      'Cuellos de botella',
       'Asistencia',
     ])
 

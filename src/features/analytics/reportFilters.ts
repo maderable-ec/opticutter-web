@@ -1,5 +1,5 @@
 import type { Role } from 'src/features/auth/types'
-import { fmtDay, formatDate, subDays } from 'src/shared/utils/date'
+import { fmtDay, localDateKey, subDays } from 'src/shared/utils/date'
 import type { Granularity } from './types'
 
 // The window every report looks through, read off the URL. Four screens each kept the same four
@@ -8,20 +8,22 @@ import type { Granularity } from './types'
 //
 // A preset is stored as itself (`?period=7d`), not as the two dates it covers: a bookmark of «the
 // last 7 days» has to mean the last 7 days on the day it is opened. A hand-picked range is stored as
-// its two days (`?from=…&to=…`). With neither, the report shows the last 30 days, as it always did.
+// its two days (`?from=…&to=…`). With neither, the report shows this month.
 //
-// Days are UTC calendar days (`formatDate`), the same days the API cuts `created_at` by.
+// Days are the shop's LOCAL calendar days (`localDateKey`), the same days the API cuts by
+// (`America/Guayaquil`). They used to be UTC days, and a UTC day runs 19:00 to 19:00 in Ecuador:
+// «Este mes» opened after 19:00 started on the 2nd.
 
 export type PeriodPreset = '7d' | '30d' | '90d' | 'month'
 
 export const PERIOD_PRESETS: { id: PeriodPreset; label: string; summary: string }[] = [
+  { id: 'month', label: 'Este mes', summary: 'Este mes' },
   { id: '7d', label: '7 días', summary: 'Últimos 7 días' },
   { id: '30d', label: '30 días', summary: 'Últimos 30 días' },
   { id: '90d', label: '90 días', summary: 'Últimos 90 días' },
-  { id: 'month', label: 'Este mes', summary: 'Este mes' },
 ]
 
-export const DEFAULT_PRESET: PeriodPreset = '30d'
+export const DEFAULT_PRESET: PeriodPreset = 'month'
 
 export const GRANULARITIES: { id: Granularity; label: string }[] = [
   { id: 'day', label: 'Día' },
@@ -54,18 +56,18 @@ const startOfMonth = (now: Date) => {
   return d
 }
 
-// The two days a preset covers today. The same arithmetic the presets always did.
+// The two local days a preset covers today.
 export const presetRange = (preset: PeriodPreset, now = new Date()) => {
-  const to = formatDate(now)
+  const to = localDateKey(now)
   switch (preset) {
     case '7d':
-      return { from: formatDate(subDays(now, 7)), to }
+      return { from: localDateKey(subDays(now, 7)), to }
+    case '30d':
+      return { from: localDateKey(subDays(now, 30)), to }
     case '90d':
-      return { from: formatDate(subDays(now, 90)), to }
-    case 'month':
-      return { from: formatDate(startOfMonth(now)), to }
+      return { from: localDateKey(subDays(now, 90)), to }
     default:
-      return { from: formatDate(subDays(now, 30)), to }
+      return { from: localDateKey(startOfMonth(now)), to }
   }
 }
 
@@ -110,7 +112,7 @@ export const withRangeEnd = (
   return { from: day < range.from ? day : range.from, to: day }
 }
 
-// «Últimos 30 días», or the two days of a hand-picked range.
+// «Este mes», or the two days of a hand-picked range.
 export const periodSummary = (period: ResolvedPeriod): string => {
   const preset = PERIOD_PRESETS.find((p) => p.id === period.preset)
   return preset ? preset.summary : `${fmtDay(period.from)} – ${fmtDay(period.to)}`
@@ -119,7 +121,8 @@ export const periodSummary = (period: ResolvedPeriod): string => {
 // The filters the phone's «Filtros» badge counts: those away from their default among the fields
 // this report shows. The period is left out, since its presets are on screen beside the button. A
 // report counts only its own fields because the tabs of Estadísticas carry every key: a role picked
-// on Productividad rides along to Resumen, which has no role field to clear it from.
+// on Productividad rides along to Resumen, which has no role field to clear it from — nor a branch
+// one, since it compares every branch.
 export const activeFilterCount = (
   filters: {
     preset: PeriodPreset | null
@@ -127,11 +130,11 @@ export const activeFilterCount = (
     granularity: Granularity
     role?: Role
   },
-  shown: { granularity?: boolean; role?: boolean },
+  shown: { granularity?: boolean; role?: boolean; branch?: boolean },
 ): number =>
   [
     filters.preset === null,
-    filters.branchId !== undefined,
+    shown.branch !== false && filters.branchId !== undefined,
     shown.granularity === true && filters.granularity !== DEFAULT_GRANULARITY,
     shown.role === true && filters.role !== undefined,
   ].filter(Boolean).length

@@ -1,5 +1,5 @@
 import type { StatusTone } from 'src/shared/components/StatusBadge'
-import { formatDate } from 'src/shared/utils/date'
+import { localDateKey } from 'src/shared/utils/date'
 import type { LowStockItem } from 'src/features/inventory/types'
 import { ORDER_STATUS_CONFIG } from 'src/features/orders/status'
 import type { Order, OrderListParams } from 'src/features/orders/types'
@@ -115,43 +115,37 @@ const sameLocalDay = (iso: string, now: Date) => {
   )
 }
 
+// What sold today is not here: it is the payments registered today (`useTodaySales`), which the
+// order listing cannot filter by.
 export interface TodayFigures {
   orders: number
-  // The orders' totals, tax included, as the client confirmed them.
-  sold: number
   // Sheets, a half board counting as half.
   boards: number
 }
 
 /**
- * The `createdFrom`/`createdTo` that cover today in local time. The listing cuts by UTC day, and a
- * local day straddles two of them (in Ecuador it runs 05:00 to 05:00 UTC), so this asks for both
- * and `todayFigures` keeps the local day.
+ * The `createdFrom`/`createdTo` of today: the listing cuts by the shop's local day, so today is one
+ * day at both ends. It used to cut by UTC day, and a local day straddles two of those (in Ecuador it
+ * runs 05:00 to 05:00 UTC), which is why `todayFigures` still keeps only the local day itself.
  */
 export const todayRange = (
   now = new Date(),
 ): Pick<OrderListParams, 'createdFrom' | 'createdTo'> => {
-  const start = new Date(now)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(now)
-  end.setHours(23, 59, 59, 999)
-  return { createdFrom: formatDate(start), createdTo: formatDate(end) }
+  const today = localDateKey(now)
+  return { createdFrom: today, createdTo: today }
 }
 
 /**
- * The day so far, from the orders born today (an order is born when the client confirms the quote).
- * Computed here and not read off `analytics/summary`: its revenue and boards count only orders
- * that are already finished or dispatched, so for "today" they read zero almost always. Local day,
- * and cancelled orders left out.
+ * The orders born today (an order is born when the client confirms the quote) and the boards they
+ * carry. Local day, and cancelled orders left out.
  */
 export const todayFigures = (
-  orders: Pick<Order, 'createdAt' | 'status' | 'total' | 'lines'>[],
+  orders: Pick<Order, 'createdAt' | 'status' | 'lines'>[],
   now = new Date(),
 ): TodayFigures => {
   const today = orders.filter((o) => o.status !== 'cancelled' && sameLocalDay(o.createdAt, now))
   return {
     orders: today.length,
-    sold: today.reduce((sum, o) => sum + o.total, 0),
     boards: today.reduce(
       (sum, o) =>
         sum +

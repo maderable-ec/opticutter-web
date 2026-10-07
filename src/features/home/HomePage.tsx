@@ -9,11 +9,12 @@ import { useListParams } from 'src/shared/hooks/useListParams'
 import { fmtMoney, fmtNumber } from 'src/shared/utils/format'
 import { useCurrentUser, useHasRole } from 'src/features/auth/useAuth'
 import OrderCard from 'src/features/orders/OrderCard'
+import ProductionStatus from 'src/features/orders/ProductionStatus'
 
 import HomeActions from './HomeActions'
 import HomeRow from './HomeRow'
 import { attentionRows, lowStockLink, productionRows, stalestLink } from './home'
-import { useAttention, useProduction, useStock, useToday } from './useHome'
+import { useAttention, useProduction, useStock, useToday, useTodaySales } from './useHome'
 
 // The seller's and the admin's first screen: what to do next, not how the month went (that is
 // Resumen). Every block is a count that opens the listing already filtered, so the screen is a
@@ -52,6 +53,10 @@ const ProductionSection = ({ branchId }: { branchId?: number }) => {
       failed={failed}
       onRetry={retry}
     >
+      {/* Is the saw cutting right now: the seller's own branch, every branch for the admin. */}
+      <div className="mb-3">
+        <ProductionStatus branchId={branchId} />
+      </div>
       <div className="home-rows">
         <HomeRow spec={rows.queued} count={counts.queued} loading={!failed} />
         <HomeRow spec={rows.inProcess} count={counts.inProcess} loading={!failed} />
@@ -80,14 +85,16 @@ const dayLabel = new Intl.DateTimeFormat('es-EC', {
 })
 
 const TodaySection = ({ branchId }: { branchId?: number }) => {
-  const { figures, failed, retry } = useToday(branchId)
+  const { figures, failed: ordersFailed, retry: retryOrders } = useToday(branchId)
+  const { sales, failed: salesFailed, retry: retrySales } = useTodaySales(branchId)
   const value = (n: number | undefined, format: (n: number) => string = String) =>
     n === undefined ? '—' : format(n)
   return (
     <Section
       title={`Hoy · ${dayLabel.format(new Date())}`}
       action={
-        // The branch the admin is looking at here is the one Resumen opens on.
+        // Resumen compares every branch; the one picked here rides along to the tabs that filter
+        // by it (Producción, Productividad).
         <Link
           to={branchId ? `/analytics/summary?branchId=${branchId}` : '/analytics/summary'}
           className="small"
@@ -95,17 +102,43 @@ const TodaySection = ({ branchId }: { branchId?: number }) => {
           Resumen ›
         </Link>
       }
-      failed={failed}
-      onRetry={retry}
+      failed={ordersFailed || salesFailed}
+      onRetry={() => {
+        retryOrders()
+        retrySales()
+      }}
     >
+      {/* Sold = the payments registered today, split as Estadísticas splits them: cash in hand
+          (cash and bank transfer) and credit. */}
       <CRow className="g-2">
-        <CCol xs={12} sm={4}>
-          <StatTile emphasis label="Vendido" value={value(figures?.sold, fmtMoney)} />
+        <CCol xs={12}>
+          <StatTile
+            emphasis
+            label="Vendido"
+            value={value(sales?.total, fmtMoney)}
+            hint={
+              sales
+                ? `${sales.paidOrders} ${sales.paidOrders === 1 ? 'cobrada' : 'cobradas'}`
+                : undefined
+            }
+          />
         </CCol>
-        <CCol xs={6} sm={4}>
+        {/* Half a row each: the block is five twelfths of the page from `lg`, and three money
+            tiles side by side ran their figures into the border. */}
+        <CCol xs={6}>
+          <StatTile
+            label="Efectivo"
+            value={value(sales?.cash, fmtMoney)}
+            hint="Incluye transferencia"
+          />
+        </CCol>
+        <CCol xs={6}>
+          <StatTile label="Crédito" value={value(sales?.credit, fmtMoney)} />
+        </CCol>
+        <CCol xs={6}>
           <StatTile label="Órdenes nuevas" value={value(figures?.orders)} />
         </CCol>
-        <CCol xs={6} sm={4}>
+        <CCol xs={6}>
           <StatTile label="Tableros" value={value(figures?.boards, (n) => fmtNumber(n, 1, 0))} />
         </CCol>
       </CRow>
