@@ -474,3 +474,58 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+// --- The detail behind a person's row in Productividad (`components/Ledger.tsx`) ---
+
+// The name in a row that opens something: a button, with the row's own ink.
+.rank-table__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: start;
+  white-space: normal;
+}
+
+// A row with nothing to open, in a table whose rows open something.
+.list-table > tbody > tr.is-static {
+  cursor: default;
+}
+
+.ledger__summary {
+  margin-bottom: 0.25rem;
+  font-size: var(--mb-text-base);
+}
+
+.ledger__rule {
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}
+
+.ledger__section + .ledger__section {
+  margin-top: 1rem;
+}
+
+.ledger__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger__item {
+  display: grid;
+  gap: 0.125rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid var(--cui-border-color);
+}
+
+.ledger__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+}
+
+.ledger__figure {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+}

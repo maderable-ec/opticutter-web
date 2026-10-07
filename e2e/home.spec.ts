@@ -26,13 +26,14 @@ test('cada conteo abre su listado filtrado por la sucursal del vendedor', async 
   await expect(page).toHaveURL(/\/orders\?status=confirmed&branchId=1$/)
 })
 
-test('el vendedor ve si la sierra de su sucursal está cortando', async ({ page, api, loginAs }) => {
+test('el vendedor ve si su sucursal está cortando y canteando', async ({ page, api, loginAs }) => {
   await loginAs(['vendedor'], { user: { branchId: 1 } })
   stubHome(api)
   api.list('/clients/', [client()])
 
   await page.goto('/home')
   await expect(page.locator('.production-status')).toContainText('Cortando')
+  await expect(page.locator('.production-status')).toContainText('Canteando')
   await expect
     .poll(() => api.requests('GET', '/orders/production-status').map((r) => r.url().split('?')[1]))
     .toContain('branchId=1')

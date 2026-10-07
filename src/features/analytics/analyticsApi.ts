@@ -2,12 +2,15 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type { Role } from 'src/features/auth/types'
 import type {
   AttendanceData,
+  BanderOrdersReport,
   BanderReport,
   BottlenecksData,
   BranchComparison,
   Granularity,
+  OperatorBoardsReport,
   OperatorReport,
   ProductionReport,
+  SellerOrdersReport,
   SellerReport,
 } from './types'
 
@@ -36,12 +39,26 @@ export const analyticsApi = {
     ),
   sellers: (from?: string, to?: string, branchId?: number) =>
     httpClient.get<SellerReport>(`${BASE}/productivity/sellers${buildQs({ from, to, branchId })}`),
+  // What is behind one person's row, to check it against what they say: a seller's orders, an
+  // operator's sheets, a bander's work.
+  sellerOrders: (userId: number, from?: string, to?: string, branchId?: number) =>
+    httpClient.get<SellerOrdersReport>(
+      `${BASE}/productivity/sellers/${userId}/orders${buildQs({ from, to, branchId })}`,
+    ),
   operators: (from?: string, to?: string, branchId?: number) =>
     httpClient.get<OperatorReport>(
       `${BASE}/productivity/operators${buildQs({ from, to, branchId })}`,
     ),
+  operatorBoards: (userId: number, from?: string, to?: string, branchId?: number) =>
+    httpClient.get<OperatorBoardsReport>(
+      `${BASE}/productivity/operators/${userId}/boards${buildQs({ from, to, branchId })}`,
+    ),
   banders: (from?: string, to?: string, branchId?: number) =>
     httpClient.get<BanderReport>(`${BASE}/productivity/banders${buildQs({ from, to, branchId })}`),
+  banderOrders: (userId: number, from?: string, to?: string, branchId?: number) =>
+    httpClient.get<BanderOrdersReport>(
+      `${BASE}/productivity/banders/${userId}/orders${buildQs({ from, to, branchId })}`,
+    ),
   attendance: (from?: string, to?: string, branchId?: number, role?: Role) =>
     httpClient.get<AttendanceData>(`${BASE}/attendance${buildQs({ from, to, branchId, role })}`),
 }

@@ -107,7 +107,7 @@ src/
 A URL says which part of the product a screen belongs to:
 
 - **English, kebab-case, plural collections**, with the API's resource name where the screen shows
-  one (`/orders` ↔ `/api/v1/orders`, `/analytics/productivity` ↔ `/api/v1/analytics/productivity`).
+  one (`/orders` ↔ `/api/v1/orders`, `/analytics/productivity` ↔ `/api/v1/analytics/productivity/*`).
 - **A place in the menu is a first segment.** A hub (`HUBS` in `src/shared/hubs.ts`) is a prefix and
   its tabs are the second segment (`/catalog/low-stock`); the hub's own path opens its first tab the
   user may open, and the breadcrumb finds the hub by that prefix. A workspace is a prefix too
