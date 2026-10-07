@@ -58,6 +58,43 @@ export const useOperators = (
     enabled,
   })
 
+// What is behind one person's row: asked for only while its detail is open.
+export const useSellerOrders = (
+  userId: number | undefined,
+  from: string,
+  to: string,
+  branchId: number | undefined,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'seller-orders', { userId, from, to, branchId }],
+    queryFn: () => analyticsApi.sellerOrders(userId as number, from, to, branchId),
+    enabled: userId != null,
+  })
+
+export const useOperatorBoards = (
+  userId: number | undefined,
+  from: string,
+  to: string,
+  branchId: number | undefined,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'operator-boards', { userId, from, to, branchId }],
+    queryFn: () => analyticsApi.operatorBoards(userId as number, from, to, branchId),
+    enabled: userId != null,
+  })
+
+export const useBanderOrders = (
+  userId: number | undefined,
+  from: string,
+  to: string,
+  branchId: number | undefined,
+) =>
+  useQuery({
+    queryKey: ['analytics', 'bander-orders', { userId, from, to, branchId }],
+    queryFn: () => analyticsApi.banderOrders(userId as number, from, to, branchId),
+    enabled: userId != null,
+  })
+
 export const useBanders = (
   from: string,
   to: string,

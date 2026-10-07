@@ -471,10 +471,25 @@ export interface MarkPieceResponse {
 }
 
 // --- Live production state (GET /orders/production-status) -----------------------------------
-// Only the cut is measured. `cutting`: a cutting event (a piece marked, a cut taken or closed)
-// within `idleMinutes`; `stopped`: nothing for that long while there is work (an order queued or a
-// cut in progress); `idle`: nothing, and nothing to do.
+// The saw is read off its events. `cutting`: a cutting event (a piece marked, a cut taken or
+// closed) within `idleMinutes`; `stopped`: nothing for that long while there is work (an order
+// queued or a cut in progress); `idle`: nothing, and nothing to do.
 export type ProductionState = 'cutting' | 'stopped' | 'idle'
+
+// The banding and the additional work mark no pieces: they are read off their activities, as the
+// shop registers them. `working`: one in progress; `waiting`: none in progress, some ready (a piece
+// of theirs already cut); `idle`: neither.
+export type ActivityLiveState = 'working' | 'waiting' | 'idle'
+
+export interface ActivityLiveStatus {
+  state: ActivityLiveState
+  // Working: the start of the oldest in progress. Waiting: when the oldest ready one became ready.
+  // Idle: the last close (null: never closed).
+  since: string | null
+  orderCodes: string[]
+  waitingCount: number
+  lastFinishedAt: string | null
+}
 
 export interface BranchProductionStatus {
   branchId: number
@@ -486,6 +501,8 @@ export interface BranchProductionStatus {
   lastEventAt: string | null
   queuedCount: number
   cuttingOrderCodes: string[]
+  banding: ActivityLiveStatus
+  additional: ActivityLiveStatus
 }
 
 export interface ProductionStatusReport {

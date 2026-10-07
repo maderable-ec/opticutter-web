@@ -14,11 +14,14 @@ import {
   edgeBandingProduct,
   lowStockReport,
   minutesAgo,
+  banderOrders,
+  operatorBoards,
   operatorReport,
   order,
   preOrderSummary,
   productionReport,
   productionStatus,
+  sellerOrders,
   sellerReport,
 } from './data'
 
@@ -196,7 +199,10 @@ export const stubReports = (api: MockApi) => {
   api.get('/analytics/production', productionReport())
   api.get('/analytics/bottlenecks', bottlenecksReport())
   api.get('/analytics/productivity/sellers', sellerReport())
+  api.get(/^\/analytics\/productivity\/sellers\/\d+\/orders$/, sellerOrders())
   api.get('/analytics/productivity/operators', operatorReport())
+  api.get(/^\/analytics\/productivity\/operators\/\d+\/boards$/, operatorBoards())
   api.get('/analytics/productivity/banders', banderReport())
+  api.get(/^\/analytics\/productivity\/banders\/\d+\/orders$/, banderOrders())
   api.get('/analytics/attendance', attendanceReport())
 }

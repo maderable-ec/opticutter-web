@@ -78,6 +78,18 @@ const ROWS = {
     format: (n) => fmtMeters(n, 0),
     better: 'higher',
   },
+  ordersBanded: {
+    label: 'Órdenes canteadas',
+    value: (f) => f.production.ordersBanded,
+    format: fmtInt,
+    better: 'higher',
+  },
+  ordersAdditional: {
+    label: 'Adicionales terminados',
+    value: (f) => f.production.ordersAdditional,
+    format: fmtInt,
+    better: 'higher',
+  },
   effective: {
     label: 'Horas efectivas',
     value: (f) => f.production.effectiveHours,
@@ -138,6 +150,8 @@ export const SUMMARY_GROUPS: ComparisonGroup[] = [
       ROWS.boards,
       ROWS.meters,
       ROWS.banded,
+      ROWS.ordersBanded,
+      ROWS.ordersAdditional,
       ROWS.effective,
       ROWS.metersPerHour,
       ROWS.boardsPerHour,
@@ -147,7 +161,17 @@ export const SUMMARY_GROUPS: ComparisonGroup[] = [
 
 // Producción: the workday behind those figures.
 export const PRODUCTION_GROUPS: ComparisonGroup[] = [
-  { title: 'Producción', rows: [ROWS.boards, ROWS.meters, ROWS.banded, ROWS.finished] },
+  {
+    title: 'Producción',
+    rows: [
+      ROWS.boards,
+      ROWS.meters,
+      ROWS.banded,
+      ROWS.ordersBanded,
+      ROWS.ordersAdditional,
+      ROWS.finished,
+    ],
+  },
   {
     title: 'Jornada',
     rows: [ROWS.effective, ROWS.paused, ROWS.worked, ROWS.start, ROWS.end, ROWS.days],

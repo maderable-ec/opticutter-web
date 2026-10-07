@@ -3,12 +3,16 @@ import type { Branch, BranchRef } from 'src/features/branches/types'
 import type { Client } from 'src/features/clients/types'
 import type {
   AttendanceData,
+  BanderOrdersReport,
   BanderReport,
   BottlenecksData,
   BranchComparison,
   BranchFigures,
+  OperatorBoard,
+  OperatorBoardsReport,
   OperatorReport,
   ProductionReport,
+  SellerOrdersReport,
   SellerReport,
 } from 'src/features/analytics/types'
 import type { Role } from 'src/features/auth/types'
@@ -595,6 +599,8 @@ const branchFigures = (overrides: Partial<BranchFigures> = {}): BranchFigures =>
     boards: 118.5,
     cutLinearM: 3310,
     bandedLinearM: 2210.6,
+    ordersBanded: 33,
+    ordersAdditional: 9,
     effectiveHours: 61.4,
     pausedHours: 28.2,
     boardsPerHour: 1.93,
@@ -620,6 +626,8 @@ export const branchComparison = (): BranchComparison => ({
         boards: 96,
         cutLinearM: 2760.4,
         bandedLinearM: 1874.2,
+        ordersBanded: 28,
+        ordersAdditional: 4,
         effectiveHours: 55.1,
         pausedHours: 17.6,
         boardsPerHour: 1.74,
@@ -639,6 +647,8 @@ export const branchComparison = (): BranchComparison => ({
       boards: 214.5,
       cutLinearM: 6070.4,
       bandedLinearM: 4084.8,
+      ordersBanded: 61,
+      ordersAdditional: 13,
       effectiveHours: 116.5,
       pausedHours: 45.8,
       boardsPerHour: 1.84,
@@ -650,11 +660,13 @@ export const branchComparison = (): BranchComparison => ({
   }),
 })
 
-// A local time on a business day, as the API sends it (UTC with `Z`).
+// A wall-clock time on a business day in Ecuador, as the API sends it (UTC with `Z`). Built from the
+// fixed offset (UTC-5, no daylight saving), never from the runner's clock: the browser is pinned to
+// America/Guayaquil (playwright.config.ts) and CI runs in UTC, so a `setHours` on the runner's
+// local time drew every hour five hours early there.
 const localAt = (day: string, hh: number, mm: number) => {
-  const d = new Date(`${day}T00:00:00`)
-  d.setHours(hh, mm)
-  return d.toISOString()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return new Date(`${day}T${pad(hh)}:${pad(mm)}:00-05:00`).toISOString()
 }
 
 export const productionReport = (days = 5): ProductionReport => {
@@ -677,6 +689,8 @@ export const productionReport = (days = 5): ProductionReport => {
         boards: 9.5 + i,
         cutLinearM: 260 + i * 18,
         bandedLinearM: 180 + i * 12,
+        ordersBanded: 4 + (i % 2),
+        ordersAdditional: i % 3,
         ordersFinished: 3 + (i % 3),
         boardsPerHour: 1.8,
         metersPerHour: 50.2,
@@ -729,6 +743,20 @@ export const productionStatus = (): ProductionStatusReport => ({
       lastEventAt: minutesAgo(3),
       queuedCount: 2,
       cuttingOrderCodes: ['ORD-000131'],
+      banding: {
+        state: 'working',
+        since: minutesAgo(30),
+        orderCodes: ['ORD-000128'],
+        waitingCount: 1,
+        lastFinishedAt: minutesAgo(120),
+      },
+      additional: {
+        state: 'waiting',
+        since: minutesAgo(40),
+        orderCodes: [],
+        waitingCount: 2,
+        lastFinishedAt: null,
+      },
     },
     {
       branchId: 2,
@@ -738,6 +766,20 @@ export const productionStatus = (): ProductionStatusReport => ({
       lastEventAt: minutesAgo(45),
       queuedCount: 3,
       cuttingOrderCodes: [],
+      banding: {
+        state: 'idle',
+        since: minutesAgo(200),
+        orderCodes: [],
+        waitingCount: 0,
+        lastFinishedAt: minutesAgo(200),
+      },
+      additional: {
+        state: 'idle',
+        since: null,
+        orderCodes: [],
+        waitingCount: 0,
+        lastFinishedAt: null,
+      },
     },
   ],
 })
@@ -893,6 +935,19 @@ export const operatorReport = (): OperatorReport => ({
       metersPerHour: 50.1,
       ordersCut: 22,
     },
+    {
+      // The work of a user deleted since: listed, so the total matches the Resumen.
+      userId: null,
+      fullName: 'Sin usuario',
+      branchName: null,
+      piecesCut: 0,
+      boards: 0,
+      cutLinearM: 0,
+      effectiveHours: 0,
+      boardsPerHour: 0,
+      metersPerHour: 0,
+      ordersCut: 0,
+    },
   ],
   total: {
     piecesCut: 700,
@@ -905,6 +960,201 @@ export const operatorReport = (): OperatorReport => ({
   },
 })
 
+// Carlos's sheets: two that count, one Luis closed and one still missing a piece.
+export const operatorBoards = (): OperatorBoardsReport => {
+  const [today = '', yesterday = ''] = lastDays(2).reverse()
+  const sheet = (overrides: Partial<OperatorBoard>): OperatorBoard => ({
+    boardId: 1,
+    orderId: 131,
+    orderCode: 'ORD-000131',
+    clientName: 'Carpintería Andes',
+    branchName: 'Matriz',
+    sheetNumber: 1,
+    materialName: 'MDP BLANCO 15 MM',
+    width: 2440,
+    height: 2140,
+    kind: 'whole',
+    weight: 1,
+    day: today,
+    piecesTotal: 12,
+    piecesMine: 12,
+    piecesMineInRange: 12,
+    piecesByOthers: 0,
+    piecesPending: 0,
+    otherCutters: [],
+    myLastCutAt: localAt(today, 10, 5),
+    doneAt: localAt(today, 10, 5),
+    closedBy: 'Carlos Guamán',
+    status: 'credited',
+    ...overrides,
+  })
+  return {
+    userId: 3,
+    fullName: 'Carlos Guamán',
+    boards: 1.5,
+    creditedCount: 2,
+    piecesCut: 29,
+    sheets: [
+      sheet({
+        boardId: 4,
+        sheetNumber: 4,
+        piecesMine: 3,
+        piecesMineInRange: 3,
+        piecesPending: 9,
+        myLastCutAt: localAt(today, 11, 40),
+        doneAt: null,
+        closedBy: null,
+        status: 'incomplete',
+      }),
+      sheet({ boardId: 1 }),
+      sheet({
+        boardId: 2,
+        sheetNumber: 2,
+        kind: 'half',
+        weight: 0.5,
+        width: 1220,
+        day: yesterday,
+        piecesTotal: 6,
+        piecesMine: 6,
+        piecesMineInRange: 6,
+        myLastCutAt: localAt(yesterday, 15, 20),
+        doneAt: localAt(yesterday, 15, 20),
+      }),
+      sheet({
+        boardId: 3,
+        sheetNumber: 3,
+        day: yesterday,
+        piecesMine: 8,
+        piecesMineInRange: 8,
+        piecesByOthers: 4,
+        otherCutters: ['Luis Morocho Tenesaca'],
+        myLastCutAt: localAt(yesterday, 14, 2),
+        doneAt: localAt(yesterday, 14, 30),
+        closedBy: 'Luis Morocho Tenesaca',
+        status: 'credited_to_other',
+      }),
+    ],
+  }
+}
+
+// Andrea's orders: one paid today, one confirmed in an earlier month and paid yesterday (the sale
+// that moves), and one still to collect.
+export const sellerOrders = (): SellerOrdersReport => {
+  const [today = '', yesterday = ''] = lastDays(2).reverse()
+  return {
+    userId: 2,
+    fullName: 'Andrea Palacios',
+    figures: {
+      paidOrders: 2,
+      cash: 260,
+      credit: 120,
+      total: 380,
+      averageTicket: 190,
+      pendingCount: 1,
+      pendingAmount: 75.5,
+    },
+    paid: [
+      {
+        orderId: 131,
+        orderCode: 'ORD-000131',
+        clientName: 'Carpintería Andes',
+        branchName: 'Matriz',
+        createdAt: localAt(today, 9, 15),
+        paidAt: localAt(today, 10, 5),
+        day: today,
+        cash: 200,
+        transfer: 0,
+        credit: 0,
+        total: 200,
+        invoice: '001-002-000123',
+      },
+      {
+        orderId: 120,
+        orderCode: 'ORD-000120',
+        clientName: 'Muebles Paute',
+        branchName: 'Matriz',
+        createdAt: '2026-08-28T15:00:00Z',
+        paidAt: localAt(yesterday, 16, 40),
+        day: yesterday,
+        cash: 40,
+        transfer: 20,
+        credit: 120,
+        total: 180,
+        invoice: null,
+      },
+    ],
+    pending: [
+      {
+        orderId: 140,
+        orderCode: 'ORD-000140',
+        clientName: 'Cocinas del Sur',
+        branchName: 'Matriz',
+        confirmedAt: localAt(yesterday, 11, 0),
+        total: 75.5,
+      },
+    ],
+  }
+}
+
+// Rosa's work: a clocked banding, one tapped in after the work and an additional one.
+export const banderOrders = (): BanderOrdersReport => {
+  const [today = ''] = lastDays(1)
+  return {
+    userId: 5,
+    fullName: 'Rosa Quizhpi',
+    figures: {
+      ordersBanded: 2,
+      ordersBandedUnclocked: 1,
+      bandingHours: 2,
+      bandedLinearM: 42.2,
+      bandingMetersPerHour: 13.62,
+      averageBandingHours: 2,
+      ordersAdditional: 1,
+      ordersAdditionalUnclocked: 0,
+      additionalHours: 0.5,
+      averageAdditionalHours: 0.5,
+    },
+    orders: [
+      {
+        orderId: 131,
+        orderCode: 'ORD-000131',
+        clientName: 'Carpintería Andes',
+        branchName: 'Matriz',
+        kind: 'additional',
+        startedAt: localAt(today, 16, 0),
+        finishedAt: localAt(today, 16, 30),
+        day: today,
+        hours: 0.5,
+        bandedLinearM: 0,
+      },
+      {
+        orderId: 131,
+        orderCode: 'ORD-000131',
+        clientName: 'Carpintería Andes',
+        branchName: 'Matriz',
+        kind: 'banding',
+        startedAt: localAt(today, 15, 40),
+        finishedAt: localAt(today, 15, 40),
+        day: today,
+        hours: null,
+        bandedLinearM: 15,
+      },
+      {
+        orderId: 128,
+        orderCode: 'ORD-000128',
+        clientName: 'Muebles Paute',
+        branchName: 'Matriz',
+        kind: 'banding',
+        startedAt: localAt(today, 9, 0),
+        finishedAt: localAt(today, 11, 0),
+        day: today,
+        hours: 2,
+        bandedLinearM: 27.2,
+      },
+    ],
+  }
+}
+
 export const banderReport = (): BanderReport => ({
   banders: [
     {
@@ -912,22 +1162,26 @@ export const banderReport = (): BanderReport => ({
       fullName: 'Rosa Quizhpi',
       branchName: 'Matriz',
       ordersBanded: 22,
+      ordersBandedUnclocked: 13,
       bandingHours: 17.5,
       bandedLinearM: 812.4,
       bandingMetersPerHour: 46.42,
       averageBandingHours: 0.8,
       ordersAdditional: 4,
+      ordersAdditionalUnclocked: 3,
       additionalHours: 3.2,
       averageAdditionalHours: 0.8,
     },
   ],
   total: {
     ordersBanded: 22,
+    ordersBandedUnclocked: 13,
     bandingHours: 17.5,
     bandedLinearM: 812.4,
     bandingMetersPerHour: 46.42,
     averageBandingHours: 0.8,
     ordersAdditional: 4,
+    ordersAdditionalUnclocked: 3,
     additionalHours: 3.2,
     averageAdditionalHours: 0.8,
   },

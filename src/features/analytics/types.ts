@@ -20,13 +20,16 @@ export interface OrderFigures {
 }
 
 // The shop's work. `boards` weighs a whole board 1, a half 0.5 and a retazo 0; `bandedLinearM` is the
-// net tape of every banding closed (no waste factor). Hours — the saw's only — split each day
+// net tape of every banding closed (no waste factor); `ordersBanded`/`ordersAdditional` count the
+// bandings and additional works closed in range. Hours — the saw's only — split each day
 // between its first and last cutting event into effective and paused by `idleMinutes`. The averages
 // are minutes after local midnight over `daysWorked`; 0 when there is no day.
 export interface ProductionFigures {
   boards: number
   cutLinearM: number
   bandedLinearM: number
+  ordersBanded: number
+  ordersAdditional: number
   effectiveHours: number
   pausedHours: number
   boardsPerHour: number
@@ -63,6 +66,8 @@ export interface ProductionDay {
   boards: number
   cutLinearM: number
   bandedLinearM: number // bandings closed that day
+  ordersBanded: number // bandings closed that day
+  ordersAdditional: number // additional works closed that day
   ordersFinished: number
   boardsPerHour: number
   metersPerHour: number
@@ -153,6 +158,42 @@ export interface SellerReport {
   total: SellerFigures
 }
 
+// The orders behind one seller's row (GET /productivity/sellers/{id}/orders). A sale is dated by its
+// payment (`paidAt`, entering the queue), not by the order's creation; `invoice` is the accounting
+// system's number, to check the figure there.
+export interface SellerOrder {
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  createdAt: string
+  paidAt: string
+  day: string // YYYY-MM-DD, the business day of the payment
+  cash: number
+  transfer: number
+  credit: number
+  total: number // cash + transfer + credit
+  invoice: string | null
+}
+
+export interface SellerPendingOrder {
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  confirmedAt: string | null
+  total: number
+}
+
+// `figures` IS the row: it adds up from `paid` and `pending`.
+export interface SellerOrdersReport {
+  userId: number
+  fullName: string
+  figures: SellerFigures
+  paid: SellerOrder[]
+  pending: SellerPendingOrder[]
+}
+
 // A sheet is credited to whoever marked its last piece; the hours are the workday rule over the
 // operator's own events.
 export interface OperatorFigures {
@@ -166,7 +207,9 @@ export interface OperatorFigures {
 }
 
 export interface OperatorRow extends OperatorFigures {
-  userId: number
+  // null: the work of users deleted since, in one «Sin usuario» row so the total still matches the
+  // Resumen.
+  userId: number | null
   fullName: string
   branchName: string | null
 }
@@ -177,21 +220,65 @@ export interface OperatorReport {
   total: OperatorFigures
 }
 
+// The sheets behind one operator's row (GET /productivity/operators/{id}/boards). A sheet counts
+// once every piece is marked, on the day of its last mark, for whoever made that mark.
+export type SheetKind = 'whole' | 'half' | 'offcut'
+export type SheetCredit = 'credited' | 'credited_to_other' | 'incomplete' | 'outside_range'
+
+export interface OperatorBoard {
+  boardId: number
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  sheetNumber: number
+  materialName: string | null // null: a retazo or a hand-measured sheet
+  width: number
+  height: number
+  kind: SheetKind
+  weight: number // what it adds to `boards` when credited: 1, 0.5 or 0
+  day: string // YYYY-MM-DD: of its last mark, or of the operator's last one while incomplete
+  piecesTotal: number
+  piecesMine: number
+  piecesMineInRange: number // they add up to the report's `piecesCut`
+  piecesByOthers: number
+  piecesPending: number
+  otherCutters: string[]
+  myLastCutAt: string
+  doneAt: string | null
+  closedBy: string | null
+  status: SheetCredit
+}
+
+// `boards` and `piecesCut` are the operator's row, and add up from `sheets`.
+export interface OperatorBoardsReport {
+  userId: number
+  fullName: string
+  boards: number
+  creditedCount: number
+  piecesCut: number
+  sheets: OperatorBoard[]
+}
+
 // Hours from the activity's start to its close: banding marks no pieces, so its stops are in. The
-// metres are the order's NET tape (no waste factor), special edges included.
+// metres are the order's NET tape (no waste factor), special edges included. Every closed activity
+// counts as work, but only the CLOCKED ones carry time: one started and closed under a minute
+// apart was registered after the work (`*Unclocked`), so hours, averages and m/h leave it out.
 export interface BanderFigures {
   ordersBanded: number
+  ordersBandedUnclocked: number
   bandingHours: number
   bandedLinearM: number
   bandingMetersPerHour: number
   averageBandingHours: number
   ordersAdditional: number
+  ordersAdditionalUnclocked: number
   additionalHours: number
   averageAdditionalHours: number
 }
 
 export interface BanderRow extends BanderFigures {
-  userId: number
+  userId: number | null // null: closed by a user deleted since («Sin usuario»)
   fullName: string
   branchName: string | null
 }
@@ -199,6 +286,29 @@ export interface BanderRow extends BanderFigures {
 export interface BanderReport {
   banders: BanderRow[]
   total: BanderFigures
+}
+
+// The work behind one bander's row (GET /productivity/banders/{id}/orders), credited to whoever
+// closed it. `hours` is null when it was not clocked: started and closed under a minute apart.
+export interface BanderOrder {
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  kind: 'banding' | 'additional'
+  startedAt: string | null
+  finishedAt: string
+  day: string // YYYY-MM-DD, the business day of the close
+  hours: number | null
+  bandedLinearM: number // the order's net tape; 0 for the additional work
+}
+
+// `figures` IS the row: it adds up from `orders`.
+export interface BanderOrdersReport {
+  userId: number
+  fullName: string
+  figures: BanderFigures
+  orders: BanderOrder[]
 }
 
 // --- Attendance / check-in time (#3) -----------------------------------------

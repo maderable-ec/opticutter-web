@@ -858,6 +858,40 @@ const SCENARIOS: Scenario[] = [
     setup: stubReports,
   },
   {
+    // The banders' report: what was registered after the work carries no time.
+    name: 'productivity-banders',
+    path: '/analytics/productivity?role=canteador',
+    roles: ['administrador'],
+    ready: '.list-card:visible, .list-table tbody tr:visible',
+    setup: stubReports,
+  },
+  {
+    // The detail behind a person's row, one per team: the orders a seller collected, the sheets
+    // that count for an operator, the work of a bander.
+    name: 'seller-orders',
+    path: '/analytics/productivity?user=2',
+    roles: ['administrador'],
+    ready: '.ledger__item',
+    setup: stubReports,
+    act: modalSettled,
+  },
+  {
+    name: 'operator-boards',
+    path: '/analytics/productivity?role=operador&user=3',
+    roles: ['administrador'],
+    ready: '.ledger__item',
+    setup: stubReports,
+    act: modalSettled,
+  },
+  {
+    name: 'bander-orders',
+    path: '/analytics/productivity?role=canteador&user=5',
+    roles: ['administrador'],
+    ready: '.ledger__item',
+    setup: stubReports,
+    act: modalSettled,
+  },
+  {
     name: 'attendance',
     path: '/analytics/attendance',
     roles: ['administrador'],

@@ -439,33 +439,65 @@
   font-size: var(--mb-text-sm);
 }
 
-// --- The live state of each branch's saw (`ProductionStatus`, on Inicio and Resumen) ---
+// --- The live state of each branch's shop floor (`ProductionStatus`, on Inicio and Resumen) ---
 
 .production-status__list {
   display: grid;
-  gap: 0.5rem;
+  gap: 0.875rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 // Branch and badge on one line, what it means beside them from `sm` and under them on a phone.
+.production-status__branch-group {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.production-status__tracks {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// The track, its badge and the line beside it. On a phone the line drops under the badge, aligned
+// with it rather than with the track's name, so the three tracks still read as columns.
 .production-status__row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 6.25rem minmax(0, 1fr);
   align-items: center;
-  gap: 0.25rem 0.625rem;
+  gap: 0.125rem 0.625rem;
+
+  > .status-pill {
+    justify-self: start;
+  }
+
+  @media (min-width: 576px) {
+    grid-template-columns: 6.25rem auto minmax(0, 1fr);
+  }
 }
 
 .production-status__branch {
-  min-width: 5.5rem;
   font-weight: 600;
 }
 
-.production-status__detail {
-  flex: 1 1 12rem;
+// Wide enough for «Adicionales» (the grid's first column), so the badges line up.
+.production-status__track {
   color: var(--cui-secondary-color);
   font-size: var(--mb-text-md);
+}
+
+.production-status__detail {
+  grid-column: 2;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+
+  @media (min-width: 576px) {
+    grid-column: auto;
+  }
 }
 
 .production-status__note {

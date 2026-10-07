@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import {
   CTable,
   CTableBody,
@@ -29,12 +30,33 @@ const fmtBoards = (n: number) => fmtNumber(n, 1, 0)
 const span = (day: ProductionDay) =>
   day.firstEventAt ? `${fmtLocalTime(day.firstEventAt)} – ${fmtLocalTime(day.lastEventAt)}` : '—'
 
-const DAY_COLUMNS: { label: string; value: (d: ProductionDay) => string }[] = [
+// The day has to fit a laptop without scrolling sideways: `head` is a short header for a long label
+// (the label stays its accessible name), and `wide` columns only show from `xl` — below it the
+// phone card and the comparison above still carry the figure.
+const DAY_COLUMNS: {
+  label: string
+  head?: ReactNode
+  wide?: boolean
+  value: (d: ProductionDay) => string
+}[] = [
   { label: 'Efectivas', value: (d) => fmtH(d.effectiveHours) },
   { label: 'Paradas', value: (d) => fmtH(d.pausedHours) },
   { label: 'Tableros', value: (d) => fmtBoards(d.boards) },
   { label: 'Corte', value: (d) => fmtMeters(d.cutLinearM, 0) },
-  { label: 'Canteo', value: (d) => fmtMeters(d.bandedLinearM, 0) },
+  // The tape and, beside it, how many orders it took: «180 m (4)».
+  {
+    label: 'Canteo',
+    value: (d) =>
+      d.ordersBanded > 0
+        ? `${fmtMeters(d.bandedLinearM, 0)} (${fmtInt(d.ordersBanded)})`
+        : fmtMeters(d.bandedLinearM, 0),
+  },
+  {
+    label: 'Adicionales',
+    head: <abbr title="Adicionales terminados">Adic.</abbr>,
+    wide: true,
+    value: (d) => fmtInt(d.ordersAdditional),
+  },
   { label: 'Terminadas', value: (d) => fmtInt(d.ordersFinished) },
   { label: 'Tabl/h', value: (d) => fmtRate(d.boardsPerHour) },
   { label: 'm/h', value: (d) => fmtDecimal(d.metersPerHour) },
@@ -109,6 +131,8 @@ const ProductionPage = () => {
                         <span>{fmtBoards(d.boards)} tableros</span>
                         <span>{fmtMeters(d.cutLinearM, 0)} de corte</span>
                         <span>{fmtMeters(d.bandedLinearM, 0)} de canteo</span>
+                        <span>{fmtInt(d.ordersBanded)} canteadas</span>
+                        <span>{fmtInt(d.ordersAdditional)} con adicionales</span>
                         <span>{fmtInt(d.ordersFinished)} terminadas</span>
                       </div>
                     </ListCard>
@@ -127,8 +151,12 @@ const ProductionPage = () => {
                         <CTableHeaderCell scope="col">Sucursal</CTableHeaderCell>
                         <CTableHeaderCell scope="col">Jornada</CTableHeaderCell>
                         {DAY_COLUMNS.map((c) => (
-                          <CTableHeaderCell key={c.label} scope="col" className="text-end">
-                            {c.label}
+                          <CTableHeaderCell
+                            key={c.label}
+                            scope="col"
+                            className={`text-end${c.wide ? ' d-none d-xl-table-cell' : ''}`}
+                          >
+                            {c.head ?? c.label}
                           </CTableHeaderCell>
                         ))}
                       </CTableRow>
@@ -140,7 +168,10 @@ const ProductionPage = () => {
                           <CTableDataCell>{d.branchName}</CTableDataCell>
                           <CTableDataCell>{span(d)}</CTableDataCell>
                           {DAY_COLUMNS.map((c) => (
-                            <CTableDataCell key={c.label} className="text-end">
+                            <CTableDataCell
+                              key={c.label}
+                              className={`text-end${c.wide ? ' d-none d-xl-table-cell' : ''}`}
+                            >
                               {c.value(d)}
                             </CTableDataCell>
                           ))}
