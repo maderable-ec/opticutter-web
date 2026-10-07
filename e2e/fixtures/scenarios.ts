@@ -4,21 +4,22 @@ import type { OptimizerAutosave } from 'src/features/optimizer/optimizerStorage'
 import type { Product } from 'src/features/products/types'
 import type { MockApi } from './api'
 import {
-  analyticsSummary,
-  analyticsTimeseries,
   attendanceReport,
+  banderReport,
   boardProduct,
   bottlenecksReport,
   branch,
-  branchBreakdown,
+  branchComparison,
   client,
   edgeBandingProduct,
   lowStockReport,
-  productivityReport,
-  statusBreakdown,
   minutesAgo,
+  operatorReport,
   order,
   preOrderSummary,
+  productionReport,
+  productionStatus,
+  sellerReport,
 } from './data'
 
 // The stubs a whole screen needs to load, shared by the specs and the UX captures.
@@ -179,17 +180,23 @@ export const stubHome = (api: MockApi, { admin = false } = {}) => {
       ? (HOME_TOTALS[statuses[0] ?? ''] ?? 0)
       : homeOrders(req).length
   })
-  if (admin) api.get('/inventory/low-stock', lowStockReport())
+  api.get('/orders/production-status', productionStatus())
+  if (admin) {
+    api.get('/inventory/low-stock', lowStockReport())
+    // «Hoy»: today's payments, read off the branch comparison of today alone.
+    api.get('/analytics/branch-comparison', branchComparison())
+  }
 }
 
-/** The four reports' endpoints (`/analytics/*`), and the branches their filter lists. */
+/** The reports' endpoints (`/analytics/*`), the live state and the branches the filter lists. */
 export const stubReports = (api: MockApi) => {
   api.list('/branches/', [branch(), branch({ id: 2, code: 'NTE', name: 'Norte' })])
-  api.get('/analytics/summary', analyticsSummary())
-  api.get('/analytics/timeseries', analyticsTimeseries())
-  api.get('/analytics/breakdown/status', statusBreakdown())
-  api.get('/analytics/breakdown/branch', branchBreakdown())
+  api.get('/orders/production-status', productionStatus())
+  api.get('/analytics/branch-comparison', branchComparison())
+  api.get('/analytics/production', productionReport())
   api.get('/analytics/bottlenecks', bottlenecksReport())
-  api.get('/analytics/productivity', productivityReport())
+  api.get('/analytics/productivity/sellers', sellerReport())
+  api.get('/analytics/productivity/operators', operatorReport())
+  api.get('/analytics/productivity/banders', banderReport())
   api.get('/analytics/attendance', attendanceReport())
 }

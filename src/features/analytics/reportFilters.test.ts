@@ -7,8 +7,8 @@ import {
   withRangeEnd,
 } from './reportFilters'
 
-// Noon UTC, so the UTC day the presets count from is the same in any time zone the suite runs in.
-const NOW = new Date('2026-09-29T12:00:00Z')
+// Local time, like the days the presets count: noon on 29 Sep 2026 wherever the suite runs.
+const NOW = new Date(2026, 8, 29, 12, 0)
 const params = (overrides: Partial<{ period: string; from: string; to: string }> = {}) => ({
   period: '',
   from: '',
@@ -17,12 +17,23 @@ const params = (overrides: Partial<{ period: string; from: string; to: string }>
 })
 
 describe('the reports window', () => {
-  it('is the last 30 days when the URL says nothing', () => {
+  it('is this month when the URL says nothing', () => {
     expect(resolvePeriod(params(), NOW)).toEqual({
-      from: '2026-08-30',
+      from: '2026-09-01',
       to: '2026-09-29',
-      preset: '30d',
+      preset: 'month',
     })
+  })
+
+  it('counts local days, so an evening never moves the window to tomorrow', () => {
+    // 19:30 in Ecuador is already the next day in UTC: «Este mes» used to start on the 2nd then.
+    const evening = new Date(2026, 9, 6, 19, 30)
+    expect(resolvePeriod(params({ period: 'month' }), evening)).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-06',
+      preset: 'month',
+    })
+    expect(presetRange('7d', evening)).toEqual({ from: '2026-09-29', to: '2026-10-06' })
   })
 
   it('computes a preset on the day it is opened, not the day it was saved', () => {
@@ -31,7 +42,7 @@ describe('the reports window', () => {
       to: '2026-09-29',
       preset: '7d',
     })
-    expect(resolvePeriod(params({ period: 'month' }), NOW).from).toBe('2026-09-01')
+    expect(resolvePeriod(params({ period: '30d' }), NOW).from).toBe('2026-08-30')
     expect(resolvePeriod(params({ period: '90d' }), NOW).from).toBe('2026-07-01')
   })
 
@@ -55,7 +66,7 @@ describe('the reports window', () => {
       { from: 'ayer', to: '2026-09-01' },
       { period: 'semana' },
     ]) {
-      expect(resolvePeriod(params(bad), NOW).preset, JSON.stringify(bad)).toBe('30d')
+      expect(resolvePeriod(params(bad), NOW).preset, JSON.stringify(bad)).toBe('month')
     }
   })
 
@@ -84,12 +95,17 @@ describe('the reports window', () => {
 })
 
 describe('the phone’s «Filtros» badge', () => {
-  const window = { preset: '30d' as const, granularity: 'day' as const }
+  const window = { preset: 'month' as const, granularity: 'day' as const }
 
   it('counts the filters away from their default, leaving the presets out', () => {
     expect(activeFilterCount(window, { granularity: true })).toBe(0)
     expect(activeFilterCount({ ...window, preset: '7d' }, { granularity: true })).toBe(0)
     expect(activeFilterCount({ ...window, preset: null, branchId: 2 }, {})).toBe(2)
+  })
+
+  it('leaves the branch out where the report compares every branch', () => {
+    expect(activeFilterCount({ ...window, branchId: 2 }, {})).toBe(1)
+    expect(activeFilterCount({ ...window, branchId: 2 }, { branch: false })).toBe(0)
   })
 
   it('counts only the fields the report shows', () => {

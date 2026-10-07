@@ -13,6 +13,7 @@ import type {
   Order,
   OrderListParams,
   PiecesExportFormat,
+  ProductionStatusReport,
   UpdateStatusPayload,
   SetPriorityPayload,
   WorkshopQueueItem,
@@ -21,6 +22,11 @@ import type {
 const BASE = '/api/v1/orders'
 
 export const ordersApi = {
+  // Live state of each branch's saw. A global role gets every branch, or the one in `branchId`.
+  productionStatus: (branchId?: number) =>
+    httpClient.get<ProductionStatusReport>(
+      `${BASE}/production-status${branchId ? `?branchId=${branchId}` : ''}`,
+    ),
   // `status` may be an array → repeated params (?status=a&status=b); `toQuery` handles that.
   // Every param must be named in this destructure or `toQuery` never sees it.
   list: ({

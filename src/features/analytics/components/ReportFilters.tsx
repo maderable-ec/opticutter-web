@@ -5,7 +5,7 @@ import { CBadge, CButton, CFormInput, CFormLabel, CFormSelect } from '@coreui/re
 import BottomSheet from 'src/shared/components/BottomSheet'
 import { useActiveBranches } from 'src/features/branches/useBranches'
 import type { Role } from 'src/features/auth/types'
-import { formatDate } from 'src/shared/utils/date'
+import { localDateKey } from 'src/shared/utils/date'
 import {
   GRANULARITIES,
   PERIOD_PRESETS,
@@ -22,13 +22,21 @@ interface ReportFiltersProps {
   granularity?: boolean
   // Only the people reports filter by role.
   role?: boolean
+  // Off where the report compares every branch side by side (Resumen): a filter would hide a column.
+  branch?: boolean
 }
 
 type FieldsProps = ReportFiltersProps & { branches: { id: number; name: string }[] }
 
 // The fields past the presets: the range by hand, the branch, and what the report adds. The same
 // set on both widths, laid on one row from `md` and stacked in the phone's sheet.
-const Fields = ({ filters, branches, granularity = false, role = false }: FieldsProps) => {
+const Fields = ({
+  filters,
+  branches,
+  granularity = false,
+  role = false,
+  branch = true,
+}: FieldsProps) => {
   const id = useId()
   return (
     <>
@@ -38,7 +46,7 @@ const Fields = ({ filters, branches, granularity = false, role = false }: Fields
           id={`${id}-from`}
           type="date"
           value={filters.from}
-          max={formatDate(new Date())}
+          max={localDateKey()}
           onChange={(e) => filters.setRangeEnd('from', e.target.value)}
         />
       </div>
@@ -48,25 +56,29 @@ const Fields = ({ filters, branches, granularity = false, role = false }: Fields
           id={`${id}-to`}
           type="date"
           value={filters.to}
-          max={formatDate(new Date())}
+          max={localDateKey()}
           onChange={(e) => filters.setRangeEnd('to', e.target.value)}
         />
       </div>
-      <div className="report-filters__field">
-        <CFormLabel htmlFor={`${id}-branch`}>Sucursal</CFormLabel>
-        <CFormSelect
-          id={`${id}-branch`}
-          value={filters.branchId ?? ''}
-          onChange={(e) => filters.setBranchId(e.target.value ? Number(e.target.value) : undefined)}
-        >
-          <option value="">Todas</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </CFormSelect>
-      </div>
+      {branch && (
+        <div className="report-filters__field">
+          <CFormLabel htmlFor={`${id}-branch`}>Sucursal</CFormLabel>
+          <CFormSelect
+            id={`${id}-branch`}
+            value={filters.branchId ?? ''}
+            onChange={(e) =>
+              filters.setBranchId(e.target.value ? Number(e.target.value) : undefined)
+            }
+          >
+            <option value="">Todas</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </CFormSelect>
+        </div>
+      )}
       {role && (
         <div className="report-filters__field">
           <CFormLabel htmlFor={`${id}-role`}>Rol</CFormLabel>
@@ -140,7 +152,8 @@ const ReportFilters = (props: ReportFiltersProps) => {
         {presets}
         <div className="report-filters__summary">
           <span className="report-filters__scope">
-            {periodSummary(filters)} · {branchName ?? 'Todas las sucursales'}
+            {periodSummary(filters)}
+            {props.branch !== false && ` · ${branchName ?? 'Todas las sucursales'}`}
           </span>
           <CButton
             color="secondary"

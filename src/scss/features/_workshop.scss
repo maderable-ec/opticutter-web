@@ -438,3 +438,38 @@
   color: var(--cui-secondary-color);
   font-size: var(--mb-text-sm);
 }
+
+// --- The live state of each branch's saw (`ProductionStatus`, on Inicio and Resumen) ---
+
+.production-status__list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// Branch and badge on one line, what it means beside them from `sm` and under them on a phone.
+.production-status__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.625rem;
+}
+
+.production-status__branch {
+  min-width: 5.5rem;
+  font-weight: 600;
+}
+
+.production-status__detail {
+  flex: 1 1 12rem;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-md);
+}
+
+.production-status__note {
+  margin: 0.625rem 0 0;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+}

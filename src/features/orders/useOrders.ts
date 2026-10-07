@@ -15,6 +15,15 @@ import type {
 
 const WORKSHOP_QUEUE_KEY = ['orders', 'workshop-queue'] as const
 
+// Every minute, like the listing: «hace 12 min» reads the clock at render, and a saw that stopped
+// should turn red without a reload.
+export const useProductionStatus = (branchId?: number) =>
+  useQuery({
+    queryKey: ['orders', 'production-status', { branchId }],
+    queryFn: () => ordersApi.productionStatus(branchId),
+    refetchInterval: 60_000,
+  })
+
 export const useOrders = (params?: OrderListParams) =>
   useQuery({
     queryKey: ['orders', params],

@@ -820,15 +820,22 @@ const SCENARIOS: Scenario[] = [
     name: 'dashboard',
     path: '/analytics/summary',
     roles: ['administrador'],
-    ready: 'canvas',
+    ready: '.comparison__value:visible',
     setup: stubReports,
   },
   {
-    // The phone's filter sheet, with a branch picked: the comparison marks it.
-    name: 'dashboard-filtros',
-    path: '/analytics/summary?branchId=2',
+    name: 'production',
+    path: '/analytics/production',
     roles: ['administrador'],
-    ready: 'canvas',
+    ready: '.production-stops',
+    setup: stubReports,
+  },
+  {
+    // The phone's filter sheet, with a branch picked: it narrows the production detail.
+    name: 'dashboard-filtros',
+    path: '/analytics/production?branchId=2',
+    roles: ['administrador'],
+    ready: '.production-stops',
     viewports: ['phone'],
     setup: stubReports,
     act: async (page) => {

@@ -2,14 +2,16 @@ import type { User } from 'src/features/auth/types'
 import type { Branch, BranchRef } from 'src/features/branches/types'
 import type { Client } from 'src/features/clients/types'
 import type {
-  AnalyticsSummary,
   AttendanceData,
+  BanderReport,
   BottlenecksData,
-  StatusBreakdownData,
-  Timeseries,
-  UserProductivity,
-  UsersProductivityData,
+  BranchComparison,
+  BranchFigures,
+  OperatorReport,
+  ProductionReport,
+  SellerReport,
 } from 'src/features/analytics/types'
+import type { Role } from 'src/features/auth/types'
 import type { LowStockReport, StockCheckResult } from 'src/features/inventory/types'
 import type {
   Layout,
@@ -17,7 +19,13 @@ import type {
   PlacedPiece,
   UnplacedPiece,
 } from 'src/features/optimizer/types'
-import type { CutPiece, CuttingPlan, Order, WorkshopQueueItem } from 'src/features/orders/types'
+import type {
+  CutPiece,
+  CuttingPlan,
+  Order,
+  ProductionStatusReport,
+  WorkshopQueueItem,
+} from 'src/features/orders/types'
 import type { PreOrder, PreOrderSummary } from 'src/features/preorders/types'
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import type { ReviewPreOrder } from 'src/features/review/types'
@@ -577,46 +585,160 @@ const wave = (n: number, base: number, amp: number) =>
     Math.round(base + amp * Math.sin(i / 3) + (i % 7) * (amp / 5)),
   )
 
-export const analyticsSummary = (overrides: Partial<AnalyticsSummary> = {}): AnalyticsSummary => ({
-  orderCount: 64,
-  realizedRevenue: 18450.3,
-  averageTicket: 288.29,
-  activeClientsCount: 41,
-  pendingOrdersCount: 9,
-  cancellationRate: 0.047,
-  totalBoardsConsumed: 212,
-  totalAreaCutM2: 781.4,
-  wasteEstimateM2: 132.8,
-  averageEfficiency: 83.6,
+// A branch's figures: Matriz sells and cuts more, Norte stops less — so each side leads some row.
+const branchFigures = (overrides: Partial<BranchFigures> = {}): BranchFigures => ({
+  branchId: 1,
+  branchName: 'Matriz',
+  sales: { cash: 9420.5, credit: 2680, total: 12100.5, paidOrders: 41 },
+  orders: { entered: 44, finished: 39 },
+  production: {
+    boards: 118.5,
+    cutLinearM: 3310,
+    bandedLinearM: 2210.6,
+    effectiveHours: 61.4,
+    pausedHours: 28.2,
+    boardsPerHour: 1.93,
+    metersPerHour: 53.9,
+    daysWorked: 5,
+    averageStartMinute: 8 * 60 + 12,
+    averageEndMinute: 16 * 60 + 5,
+  },
   ...overrides,
 })
 
-export const analyticsTimeseries = (days = 31): Timeseries => ({
-  buckets: lastDays(days),
-  series: {
-    revenue: wave(days, 600, 250),
-    orderCount: wave(days, 2, 1),
-    boardsConsumed: wave(days, 7, 3),
-    newClients: wave(days, 1, 1),
-  },
-})
-
-export const statusBreakdown = (): StatusBreakdownData => ({
-  items: [
-    { key: 'confirmed', label: 'Confirmada', orderCount: 5, revenue: 1310 },
-    { key: 'queued', label: 'En cola', orderCount: 3, revenue: 870 },
-    { key: 'in_process', label: 'En proceso', orderCount: 4, revenue: 1502 },
-    { key: 'finished', label: 'Terminada', orderCount: 6, revenue: 1730 },
-    { key: 'dispatched', label: 'Despachada', orderCount: 43, revenue: 12410 },
-    { key: 'cancelled', label: 'Cancelada', orderCount: 3, revenue: 628 },
+export const branchComparison = (): BranchComparison => ({
+  range: { dateFrom: lastDays(6)[0] ?? '', dateTo: lastDays(1)[0] ?? '' },
+  idleMinutes: 15,
+  branches: [
+    branchFigures(),
+    branchFigures({
+      branchId: 2,
+      branchName: 'Norte',
+      sales: { cash: 4210, credit: 2140.3, total: 6350.3, paidOrders: 23 },
+      orders: { entered: 25, finished: 21 },
+      production: {
+        boards: 96,
+        cutLinearM: 2760.4,
+        bandedLinearM: 1874.2,
+        effectiveHours: 55.1,
+        pausedHours: 17.6,
+        boardsPerHour: 1.74,
+        metersPerHour: 50.1,
+        daysWorked: 5,
+        averageStartMinute: 8 * 60 + 41,
+        averageEndMinute: 15 * 60 + 58,
+      },
+    }),
   ],
+  total: branchFigures({
+    branchId: null,
+    branchName: 'Total',
+    sales: { cash: 13630.5, credit: 4820.3, total: 18450.8, paidOrders: 64 },
+    orders: { entered: 69, finished: 60 },
+    production: {
+      boards: 214.5,
+      cutLinearM: 6070.4,
+      bandedLinearM: 4084.8,
+      effectiveHours: 116.5,
+      pausedHours: 45.8,
+      boardsPerHour: 1.84,
+      metersPerHour: 52.11,
+      daysWorked: 5,
+      averageStartMinute: 8 * 60 + 26,
+      averageEndMinute: 16 * 60 + 2,
+    },
+  }),
 })
 
-/** Every branch, keyed by id as the API keys them. */
-export const branchBreakdown = (): StatusBreakdownData => ({
-  items: [
-    { key: '1', label: 'Matriz', orderCount: 41, revenue: 12100 },
-    { key: '2', label: 'Norte', orderCount: 23, revenue: 6350 },
+// A local time on a business day, as the API sends it (UTC with `Z`).
+const localAt = (day: string, hh: number, mm: number) => {
+  const d = new Date(`${day}T00:00:00`)
+  d.setHours(hh, mm)
+  return d.toISOString()
+}
+
+export const productionReport = (days = 5): ProductionReport => {
+  const dates = lastDays(days).reverse() // newest first, like the API
+  return {
+    range: { dateFrom: dates[dates.length - 1] ?? '', dateTo: dates[0] ?? '' },
+    idleMinutes: 15,
+    days: dates.flatMap((date, i) =>
+      [
+        { branchId: 1, branchName: 'Matriz', start: 8, end: 16 },
+        { branchId: 2, branchName: 'Norte', start: 8, end: 15 },
+      ].map((b) => ({
+        date,
+        branchId: b.branchId,
+        branchName: b.branchName,
+        firstEventAt: localAt(date, b.start, (i * 7 + b.branchId * 9) % 60),
+        lastEventAt: localAt(date, b.end, (i * 11) % 60),
+        effectiveHours: 5.2 + (i % 3) * 0.6,
+        pausedHours: 2.1 + (i % 2) * 0.9,
+        boards: 9.5 + i,
+        cutLinearM: 260 + i * 18,
+        bandedLinearM: 180 + i * 12,
+        ordersFinished: 3 + (i % 3),
+        boardsPerHour: 1.8,
+        metersPerHour: 50.2,
+      })),
+    ),
+    stops: [
+      {
+        branchId: 2,
+        branchName: 'Norte',
+        startedAt: localAt(dates[1] ?? '', 10, 2),
+        endedAt: localAt(dates[1] ?? '', 12, 15),
+        minutes: 133,
+      },
+      {
+        branchId: 1,
+        branchName: 'Matriz',
+        startedAt: localAt(dates[0] ?? '', 12, 30),
+        endedAt: localAt(dates[0] ?? '', 13, 41),
+        minutes: 71,
+      },
+    ],
+    material: [
+      {
+        branchId: 1,
+        branchName: 'Matriz',
+        averageEfficiency: 84.2,
+        areaCutM2: 412.6,
+        wasteEstimateM2: 65.2,
+      },
+      {
+        branchId: 2,
+        branchName: 'Norte',
+        averageEfficiency: 81.4,
+        areaCutM2: 355.1,
+        wasteEstimateM2: 66.1,
+      },
+    ],
+  }
+}
+
+/** The live state of the saw: Matriz cutting, Norte stopped with work waiting. */
+export const productionStatus = (): ProductionStatusReport => ({
+  idleMinutes: 15,
+  branches: [
+    {
+      branchId: 1,
+      branchName: 'Matriz',
+      state: 'cutting',
+      since: minutesAgo(95),
+      lastEventAt: minutesAgo(3),
+      queuedCount: 2,
+      cuttingOrderCodes: ['ORD-000131'],
+    },
+    {
+      branchId: 2,
+      branchName: 'Norte',
+      state: 'stopped',
+      since: minutesAgo(45),
+      lastEventAt: minutesAgo(45),
+      queuedCount: 3,
+      cuttingOrderCodes: [],
+    },
   ],
 })
 
@@ -706,65 +828,109 @@ export const bottlenecksReport = (days = 31): BottlenecksData => {
   }
 }
 
-const productivity = (overrides: Partial<UserProductivity>): UserProductivity => ({
-  userId: 1,
-  fullName: 'Usuario',
-  roles: ['operador'],
-  branchName: 'Matriz',
-  piecesCut: 0,
-  areaCutM2: 0,
-  ordersCut: 0,
-  cuttingHours: 0,
-  piecesPerHour: 0,
-  boardsCut: 0,
-  ordersBanded: 0,
-  bandingHours: 0,
-  ordersCreated: 0,
-  revenueGenerated: 0,
-  ...overrides,
-})
-
-export const productivityReport = (): UsersProductivityData => ({
-  users: [
-    productivity({
-      userId: 3,
-      fullName: 'Carlos Guamán',
-      piecesCut: 412,
-      areaCutM2: 96.4,
-      ordersCut: 31,
-      cuttingHours: 38.5,
-      piecesPerHour: 10.7,
-      boardsCut: 118,
-    }),
-    productivity({
-      userId: 4,
-      fullName: 'Luis Morocho Tenesaca',
-      roles: ['operador', 'canteador'],
-      piecesCut: 188,
-      areaCutM2: 41.2,
-      ordersCut: 14,
-      cuttingHours: 20.25,
-      piecesPerHour: 9.28,
-      boardsCut: 52,
-      ordersBanded: 22,
-      bandingHours: 17.5,
-    }),
-    productivity({
+export const sellerReport = (): SellerReport => ({
+  sellers: [
+    {
       userId: 2,
       fullName: 'Andrea Palacios',
-      roles: ['vendedor'],
-      ordersCreated: 38,
-      revenueGenerated: 11240.5,
-    }),
-    productivity({
+      branchName: 'Matriz',
+      paidOrders: 38,
+      cash: 8760.5,
+      credit: 2480,
+      total: 11240.5,
+      averageTicket: 295.8,
+      pendingCount: 2,
+      pendingAmount: 380.4,
+    },
+    {
       userId: 1,
       fullName: 'Usuario E2E',
-      roles: ['administrador'],
       branchName: null,
-      ordersCreated: 26,
-      revenueGenerated: 7209.8,
-    }),
+      paidOrders: 26,
+      cash: 4870,
+      credit: 2340.3,
+      total: 7210.3,
+      averageTicket: 277.3,
+      pendingCount: 0,
+      pendingAmount: 0,
+    },
   ],
+  total: {
+    paidOrders: 64,
+    cash: 13630.5,
+    credit: 4820.3,
+    total: 18450.8,
+    averageTicket: 288.29,
+    pendingCount: 2,
+    pendingAmount: 380.4,
+  },
+})
+
+export const operatorReport = (): OperatorReport => ({
+  idleMinutes: 15,
+  operators: [
+    {
+      userId: 3,
+      fullName: 'Carlos Guamán',
+      branchName: 'Matriz',
+      piecesCut: 412,
+      boards: 118.5,
+      cutLinearM: 3310,
+      effectiveHours: 61.4,
+      boardsPerHour: 1.93,
+      metersPerHour: 53.9,
+      ordersCut: 31,
+    },
+    {
+      userId: 4,
+      fullName: 'Luis Morocho Tenesaca',
+      branchName: 'Norte',
+      piecesCut: 288,
+      boards: 96,
+      cutLinearM: 2760.4,
+      effectiveHours: 55.1,
+      boardsPerHour: 1.74,
+      metersPerHour: 50.1,
+      ordersCut: 22,
+    },
+  ],
+  total: {
+    piecesCut: 700,
+    boards: 214.5,
+    cutLinearM: 6070.4,
+    effectiveHours: 116.5,
+    boardsPerHour: 1.84,
+    metersPerHour: 52.11,
+    ordersCut: 53,
+  },
+})
+
+export const banderReport = (): BanderReport => ({
+  banders: [
+    {
+      userId: 5,
+      fullName: 'Rosa Quizhpi',
+      branchName: 'Matriz',
+      ordersBanded: 22,
+      bandingHours: 17.5,
+      bandedLinearM: 812.4,
+      bandingMetersPerHour: 46.42,
+      averageBandingHours: 0.8,
+      ordersAdditional: 4,
+      additionalHours: 3.2,
+      averageAdditionalHours: 0.8,
+    },
+  ],
+  total: {
+    ordersBanded: 22,
+    bandingHours: 17.5,
+    bandedLinearM: 812.4,
+    bandingMetersPerHour: 46.42,
+    averageBandingHours: 0.8,
+    ordersAdditional: 4,
+    additionalHours: 3.2,
+    averageAdditionalHours: 0.8,
+  },
 })
 
 // First logins at a local time: `firstLoginAt` is UTC naive, so the local hour is shifted back.
@@ -776,12 +942,7 @@ const loginAt = (day: string, hh: number, mm: number) => {
 
 export const attendanceReport = (days = 12): AttendanceData => {
   const dates = lastDays(days)
-  const person = (
-    userId: number,
-    fullName: string,
-    roles: UserProductivity['roles'],
-    lateEvery: number,
-  ) => ({
+  const person = (userId: number, fullName: string, roles: Role[], lateEvery: number) => ({
     userId,
     fullName,
     roles,

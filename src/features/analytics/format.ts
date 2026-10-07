@@ -75,3 +75,26 @@ export const localHHMM = (iso: string): string => {
   const mm = String(d.getMinutes()).padStart(2, '0')
   return `${hh}:${mm}`
 }
+
+// Minutes after local midnight (the API's average start/end of the workday) → «08:24».
+export const fmtMinuteOfDay = (minutes: number): string => {
+  const hh = String(Math.floor(minutes / 60)).padStart(2, '0')
+  const mm = String(Math.round(minutes % 60)).padStart(2, '0')
+  return `${hh}:${mm}`
+}
+
+// A business day 'YYYY-MM-DD' → «mar 06/10», read in local parts: `new Date('2026-10-06')` is UTC
+// midnight, which in Ecuador is still the 5th.
+const weekdayFmt = new Intl.DateTimeFormat('es-EC', {
+  weekday: 'short',
+  day: '2-digit',
+  month: '2-digit',
+})
+export const fmtWeekday = (day: string): string => {
+  const [y, m, d] = day.split('-').map(Number)
+  return y && m && d ? weekdayFmt.format(new Date(y, m - 1, d)) : day
+}
+
+// One part of a whole as a percentage with no decimals («58 %»); nothing when the whole is zero.
+export const fmtShare = (part: number, whole: number): string | undefined =>
+  whole > 0 ? fmtPercent((part / whole) * 100, 0) : undefined

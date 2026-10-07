@@ -9,6 +9,7 @@ import {
   productionRows,
   stockCounts,
   todayFigures,
+  todayRange,
 } from './home'
 
 // The home screen's counts. Each row opens a listing already filtered, and the filter in the link
@@ -85,6 +86,16 @@ describe('Producción', () => {
   })
 })
 
+describe('todayRange', () => {
+  it('asks for the local day at both ends, even late in the evening', () => {
+    // 19:30 in Ecuador is already tomorrow in UTC; the listing cuts by the local day now.
+    expect(todayRange(new Date(2026, 9, 6, 19, 30))).toEqual({
+      createdFrom: '2026-10-06',
+      createdTo: '2026-10-06',
+    })
+  })
+})
+
 describe('todayFigures', () => {
   const line = (overrides: Partial<OrderLine>): OrderLine => ({
     id: '1',
@@ -97,22 +108,25 @@ describe('todayFigures', () => {
   })
   const order = (
     createdAt: Date,
-    total: number,
     lines: OrderLine[] = [],
     status: Order['status'] = 'confirmed',
-  ) => ({ createdAt: createdAt.toISOString(), total, lines, status })
+  ) => ({
+    createdAt: createdAt.toISOString(),
+    lines,
+    status,
+  })
 
   it('adds up the orders born today, local time, and none cancelled', () => {
     const morning = new Date(2026, 8, 29, 8, 30)
     const lastNight = new Date(2026, 8, 28, 23, 45)
     expect(
       todayFigures([
-        order(morning, 100, [line({ quantity: 3 }), line({ quantity: 11, linearM: 11 })]),
-        order(morning, 50, [line({ quantity: 1, halfBoard: true })], 'queued'),
-        order(morning, 70, [line({ quantity: 2 })], 'cancelled'),
-        order(lastNight, 999, [line({ quantity: 9 })]),
+        order(morning, [line({ quantity: 3 }), line({ quantity: 11, linearM: 11 })]),
+        order(morning, [line({ quantity: 1, halfBoard: true })], 'queued'),
+        order(morning, [line({ quantity: 2 })], 'cancelled'),
+        order(lastNight, [line({ quantity: 9 })]),
       ]),
-    ).toEqual({ orders: 2, sold: 150, boards: 3.5 })
+    ).toEqual({ orders: 2, boards: 3.5 })
   })
 })
 
