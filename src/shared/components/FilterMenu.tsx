@@ -8,6 +8,9 @@ interface FilterMenuProps {
   // their state must still be visible without opening it.
   activeCount: number
   onClear: () => void
+  // The menu's fields are mounted while it is closed; a field that has to fetch its options can
+  // wait for this instead of costing every visit to the list a request.
+  onOpen?: () => void
   children: ReactNode
 }
 
@@ -16,8 +19,8 @@ interface FilterMenuProps {
 // dropdown per field cluttering the toolbar. Meant for list pages whose
 // filters have outgrown a couple of inline controls; the search box stays
 // outside it, on the toolbar, since that's the one every visit uses.
-const FilterMenu = ({ activeCount, onClear, children }: FilterMenuProps) => (
-  <CDropdown variant="dropdown" autoClose="outside">
+const FilterMenu = ({ activeCount, onClear, onOpen, children }: FilterMenuProps) => (
+  <CDropdown variant="dropdown" autoClose="outside" onShow={onOpen}>
     <CDropdownToggle
       color="secondary"
       variant="outline"

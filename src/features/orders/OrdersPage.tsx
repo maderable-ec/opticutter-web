@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CBadge,
@@ -27,13 +28,14 @@ import { useFromHere } from 'src/shared/hooks/useShellNav'
 import { useStartQuote } from 'src/features/optimizer/useStartQuote'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
 import { useHasRole, useIsGlobalBranchRole } from 'src/features/auth/useAuth'
-import { clientName, fmtDate, fmtMoney } from 'src/shared/utils/format'
+import { clientName, fmtDate, fmtDateTime, fmtMoney } from 'src/shared/utils/format'
 
 import OrderStatusBadge from './OrderStatusBadge'
 import OrderCard from './OrderCard'
 import ActivityBadge from './ActivityBadge'
 import ElapsedNote from './ElapsedNote'
 import { activityClock, statusClock } from './elapsed'
+import { DEFAULT_EVENT, eventOption, orderEvent, readEventFilter } from './orderEvents'
 import OrdersFilters, {
   activeCount,
   orderFilterParams,
@@ -50,6 +52,11 @@ const FILTER_KEYS = [
   'status',
   'clientId',
   'branchId',
+  'dateField',
+  'dateFrom',
+  'dateTo',
+  'actorId',
+  // The old spelling of a `created` range: rewritten on arrival, but «Limpiar» must drop it too.
   'createdFrom',
   'createdTo',
   'isPriority',
@@ -64,6 +71,8 @@ const OrdersList = () => {
   const fromHere = useFromHere()
   // Operador can view orders but cannot create quotes (that belongs to the optimizer).
   const canCreate = useHasRole('administrador', 'vendedor')
+  // «Hecho por» is the admin's tool for checking who did what.
+  const isAdmin = useHasRole('administrador')
   const isGlobalBranch = useIsGlobalBranchRole()
   const {
     getParam,
@@ -82,8 +91,7 @@ const OrdersList = () => {
     status: getParams('status') as OrderStatus[],
     clientId: getParam('clientId'),
     branchId: getParam('branchId'),
-    createdFrom: getParam('createdFrom'),
-    createdTo: getParam('createdTo'),
+    ...readEventFilter(getParam),
     // The backend defaults to FIFO for the workshop; this page is the back office's.
     sort: (getParam('sort') || 'recent') as OrderSort,
     isPriority: getParam('isPriority'),
@@ -103,15 +111,36 @@ const OrdersList = () => {
     setParams(
       {
         ...next,
-        // The default order stays out of the URL, as it does when nobody touches the select.
+        // The default order and event stay out of the URL, as they do when nobody touches them.
         sort: next.sort === 'recent' ? undefined : next.sort,
+        dateField: next.dateField === DEFAULT_EVENT ? undefined : next.dateField,
         [FILTER_SHEET_PARAM]: undefined,
       },
       { replace: true },
     )
   const handleClear = () => clearParams(FILTER_KEYS)
 
-  const chips = useOrdersFilterChips(values, isGlobalBranch, handleChange)
+  // Links and remembered lists from before the event filter say `createdFrom`/`createdTo`. They are
+  // already READ as a `created` range (`readEventFilter`); this rewrites the URL once so the panel
+  // edits the new pair and the old one does not linger behind it.
+  const legacyFrom = getParam('createdFrom')
+  const legacyTo = getParam('createdTo')
+  useEffect(() => {
+    if (!legacyFrom && !legacyTo) return
+    setParams(
+      {
+        dateFrom: values.dateFrom || undefined,
+        dateTo: values.dateTo || undefined,
+        createdFrom: undefined,
+        createdTo: undefined,
+      },
+      { replace: true },
+    )
+    // Only when the old pair shows up; `values` is derived from the same URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [legacyFrom, legacyTo])
+
+  const chips = useOrdersFilterChips(values, isGlobalBranch, isAdmin, handleChange)
   const filterCount = activeCount(values, isGlobalBranch)
   const isFiltered = filterCount > 0 || search !== ''
 
@@ -160,6 +189,7 @@ const OrdersList = () => {
           onApply={handleApply}
           onClear={handleClear}
           showBranch={isGlobalBranch}
+          showActor={isAdmin}
         />
         {/* From `md` up: on a phone the bottom nav's «Cotizar» is the same button, one thumb away. */}
         {canCreate && (
@@ -207,7 +237,13 @@ const OrdersList = () => {
                   <CTableHeaderCell>Estado</CTableHeaderCell>
                   <CTableHeaderCell>Actividades</CTableHeaderCell>
                   <CTableHeaderCell className="text-end">Total</CTableHeaderCell>
-                  <CTableHeaderCell className="d-none d-lg-table-cell">Creado</CTableHeaderCell>
+                  {/* The moment the listing is filtered by, and who did it: how a disputed figure
+                      gets checked row by row. Plain «Creado» until another one is picked. */}
+                  <CTableHeaderCell className="d-none d-lg-table-cell">
+                    {values.dateField === 'created'
+                      ? 'Creado'
+                      : eventOption(values.dateField).label}
+                  </CTableHeaderCell>
                 </CTableRow>
               </CTableHead>
               <CTableBody>
@@ -220,6 +256,10 @@ const OrdersList = () => {
                 ) : (
                   orders.map((o) => {
                     const activities = orderedActivities(o.activities)
+                    const mark = orderEvent(o, values.dateField, {
+                      from: values.dateFrom,
+                      to: values.dateTo,
+                    })
                     return (
                       <CTableRow
                         key={o.id}
@@ -285,7 +325,12 @@ const OrdersList = () => {
                           {fmtMoney(o.total)}
                         </CTableDataCell>
                         <CTableDataCell className="d-none d-lg-table-cell text-nowrap">
-                          {fmtDate(o.createdAt)}
+                          {/* The time matters once the moment is a shop-floor one: a cut closed at
+                              23:30 belongs to its own day, and that is what gets disputed. */}
+                          {values.dateField === 'created'
+                            ? fmtDate(mark?.at)
+                            : fmtDateTime(mark?.at)}
+                          {mark?.by && <div className="small text-body-secondary">{mark.by}</div>}
                         </CTableDataCell>
                       </CTableRow>
                     )
