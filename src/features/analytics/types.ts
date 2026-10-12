@@ -1,4 +1,5 @@
 import type { Role } from 'src/features/auth/types'
+import type { ActivityType, PauseReason, PaymentMethod } from 'src/features/orders/types'
 
 export type Granularity = 'day' | 'week' | 'month'
 
@@ -6,12 +7,20 @@ export type Granularity = 'day' | 'week' | 'month'
 // Every figure is placed in the period by WHEN IT HAPPENED, on Ecuador's days: a sale by its
 // payment (entering the queue), a sheet by its last piece cut, a closing by its history row.
 
-// Collected sales. `cash` is money already received — cash AND bank transfer — and `credit` is owed.
+// The sales of the range as they were SOLD: `cash` is what came in on the spot — cash AND bank
+// transfer — and `credit` what was sold on credit; the two add up to `total`.
+//
+// `creditCollected` is the credit paid back IN the range, whenever its order was sold: dated by
+// when the money came in, like everything here. `creditOutstanding` is not a figure of the period:
+// it is what clients owe RIGHT NOW over every order, and it comes down with each payment.
 export interface SalesFigures {
   cash: number
   credit: number
   total: number
   paidOrders: number
+  creditCollected: number
+  creditOutstanding: number
+  creditOutstandingOrders: number
 }
 
 export interface OrderFigures {
@@ -21,16 +30,23 @@ export interface OrderFigures {
 
 // The shop's work. `boards` weighs a whole board 1, a half 0.5 and a retazo 0; `bandedLinearM` is the
 // net tape of every banding closed (no waste factor); `ordersBanded`/`ordersAdditional` count the
-// bandings and additional works closed in range. Hours — the saw's only — split each day
-// between its first and last cutting event into effective and paused by `idleMinutes`. The averages
-// are minutes after local midnight over `daysWorked`; 0 when there is no day.
+// bandings and additional works closed in range.
+//
+// The cut's time — the saw's only — runs from taking an order to its last piece: `loadingHours` up
+// to the first piece (pulling the sheets and loading the saw), `sawingHours` from there on, and
+// `workHours` their sum, which is what the rates divide by. A registered pause is out, and so is the
+// time off the work ran across (the night, the lunch hour); `pausedHours` is the working time the
+// cut spent in a registered pause. The averages are minutes after local midnight over `daysWorked`;
+// 0 when there is no day.
 export interface ProductionFigures {
   boards: number
   cutLinearM: number
   bandedLinearM: number
   ordersBanded: number
   ordersAdditional: number
-  effectiveHours: number
+  workHours: number
+  loadingHours: number
+  sawingHours: number
   pausedHours: number
   boardsPerHour: number
   metersPerHour: number
@@ -61,8 +77,10 @@ export interface ProductionDay {
   branchName: string
   firstEventAt: string | null
   lastEventAt: string | null
-  effectiveHours: number
-  pausedHours: number
+  workHours: number // loading + sawing: the cut's time that day
+  loadingHours: number
+  sawingHours: number
+  pausedHours: number // working time in a registered pause of the cut
   boards: number
   cutLinearM: number
   bandedLinearM: number // bandings closed that day
@@ -73,12 +91,30 @@ export interface ProductionDay {
   metersPerHour: number
 }
 
-export interface ProductionStop {
+// One registered pause that overlaps the range, of any activity. `hours` is the working time it
+// took — a pause from 16:00 to 10:00 the next morning stopped the work four hours — up to now when
+// it is still in force (`endedAt` null).
+export interface ProductionPause {
+  id: number
   branchId: number
   branchName: string
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  activity: ActivityType
+  reason: PauseReason
+  note: string | null
   startedAt: string
-  endedAt: string
-  minutes: number
+  startedBy: string | null
+  endedAt: string | null
+  endedBy: string | null
+  hours: number
+}
+
+export interface PauseTotal {
+  reason: PauseReason
+  count: number
+  hours: number
 }
 
 export interface BranchMaterial {
@@ -93,7 +129,8 @@ export interface ProductionReport {
   range: { dateFrom: string; dateTo: string }
   idleMinutes: number
   days: ProductionDay[] // newest first
-  stops: ProductionStop[] // longest first, at most 20
+  pauses: ProductionPause[] // newest first
+  pauseTotals: PauseTotal[] // by reason, the one that took longest first
   material: BranchMaterial[]
 }
 
@@ -136,7 +173,8 @@ export interface BottlenecksData {
 
 // --- Productivity by role (Productividad) --------------------------------------
 // `pendingCount`/`pendingAmount`: the seller's orders confirmed and not paid yet, TODAY — a snapshot,
-// not a figure of the period.
+// not a figure of the period. `creditCollected` is the credit paid back in the range on their orders,
+// whenever they were sold; `creditOutstanding`, what their clients owe today (a snapshot too).
 export interface SellerFigures {
   paidOrders: number
   cash: number
@@ -145,6 +183,8 @@ export interface SellerFigures {
   averageTicket: number
   pendingCount: number
   pendingAmount: number
+  creditCollected: number
+  creditOutstanding: number
 }
 
 export interface SellerRow extends SellerFigures {
@@ -174,6 +214,38 @@ export interface SellerOrder {
   credit: number
   total: number // cash + transfer + credit
   invoice: string | null
+  // Of that credit, what the client has paid since (to date) and still owes.
+  creditCollected: number
+  creditBalance: number
+}
+
+// A payment received in range on one of the seller's orders, dated by when the money came in:
+// credit sold in September and paid in October is October's money.
+export interface SellerCollection {
+  paymentId: number
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  soldAt: string | null
+  paidAt: string
+  day: string // YYYY-MM-DD, the business day the money came in
+  method: PaymentMethod
+  amount: number
+  receivedBy: string | null
+  note: string | null
+}
+
+// An order of the seller the client still owes on, today.
+export interface SellerOutstandingOrder {
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  soldAt: string | null
+  credit: number
+  creditCollected: number
+  creditBalance: number
 }
 
 export interface SellerPendingOrder {
@@ -185,22 +257,29 @@ export interface SellerPendingOrder {
   total: number
 }
 
-// `figures` IS the row: it adds up from `paid` and `pending`.
+// `figures` IS the row: it adds up from `paid`, `pending`, `collections` and `outstanding`.
 export interface SellerOrdersReport {
   userId: number
   fullName: string
   figures: SellerFigures
   paid: SellerOrder[]
   pending: SellerPendingOrder[]
+  collections: SellerCollection[] // newest payment first
+  outstanding: SellerOutstandingOrder[] // oldest sale first
 }
 
-// A sheet is credited to whoever marked its last piece; the hours are the workday rule over the
-// operator's own events.
+// A sheet is credited to whoever marked its last piece, and a stretch of the cut's time to whoever
+// closed it (the mark, or the pause, at its end). The hours split like the branch's: loading, sawing
+// and their sum. `pausedHours`/`pauses`: the pauses they registered on the cut.
 export interface OperatorFigures {
   piecesCut: number
   boards: number
   cutLinearM: number
-  effectiveHours: number
+  workHours: number
+  loadingHours: number
+  sawingHours: number
+  pausedHours: number
+  pauses: number
   boardsPerHour: number
   metersPerHour: number
   ordersCut: number
@@ -250,7 +329,26 @@ export interface OperatorBoard {
   status: SheetCredit
 }
 
-// `boards` and `piecesCut` are the operator's row, and add up from `sheets`.
+// The time one operator put into one order's cut, in range: `loadingHours` up to the order's first
+// piece, `sawingHours` after it, where THEY closed the stretch. `pausedHours` is the working time
+// the order's cut spent in a registered pause, whoever registered it.
+export interface OperatorOrderTime {
+  orderId: number
+  orderCode: string | null
+  clientName: string
+  branchName: string
+  takenAt: string | null // null: cut before the activities had clocks
+  firstPieceAt: string
+  lastPieceAt: string
+  loadingHours: number
+  sawingHours: number
+  workHours: number
+  pausedHours: number
+  pauseReasons: PauseReason[]
+}
+
+// `boards` and `piecesCut` are the operator's row, and add up from `sheets`. `orders` does the same
+// for the hours — except where two orders were open at once, which the row counts a single time.
 export interface OperatorBoardsReport {
   userId: number
   fullName: string
@@ -258,9 +356,11 @@ export interface OperatorBoardsReport {
   creditedCount: number
   piecesCut: number
   sheets: OperatorBoard[]
+  orders: OperatorOrderTime[] // newest last piece first
 }
 
-// Hours from the activity's start to its close: banding marks no pieces, so its stops are in. The
+// Hours from the activity's start to its close, less its registered pauses and the time off it ran
+// across (the night, the lunch hour); `pausedHours` is the working time those pauses took. The
 // metres are the order's NET tape (no waste factor), special edges included. Every closed activity
 // counts as work, but only the CLOCKED ones carry time: one started and closed under a minute
 // apart was registered after the work (`*Unclocked`), so hours, averages and m/h leave it out.
@@ -275,6 +375,7 @@ export interface BanderFigures {
   ordersAdditionalUnclocked: number
   additionalHours: number
   averageAdditionalHours: number
+  pausedHours: number
 }
 
 export interface BanderRow extends BanderFigures {
@@ -300,6 +401,7 @@ export interface BanderOrder {
   finishedAt: string
   day: string // YYYY-MM-DD, the business day of the close
   hours: number | null
+  pausedHours: number // working time in its registered pauses
   bandedLinearM: number // the order's net tape; 0 for the additional work
 }
 

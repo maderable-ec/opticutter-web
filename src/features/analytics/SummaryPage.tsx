@@ -62,9 +62,9 @@ const SummaryPage = () => {
                 hint="Sin desperdicio"
               />
               <StatTile
-                label="Horas producidas"
-                value={`${fmtDecimal(total.production.effectiveHours)} h`}
-                hint="De corte, sin paradas"
+                label="Tiempo de corte"
+                value={`${fmtDecimal(total.production.workHours)} h`}
+                hint={`${fmtDecimal(total.production.loadingHours)} h de carga · ${fmtDecimal(total.production.sawingHours)} h de sierra`}
               />
               <StatTile label="Órdenes terminadas" value={fmtInt(total.orders.finished)} />
             </div>
@@ -74,8 +74,9 @@ const SummaryPage = () => {
             title="Comparativo"
             caption={
               <>
-                Ventas por fecha de cobro (efectivo incluye transferencia). Producción por el corte
-                marcado: más de {data.idleMinutes} min sin marcar es una parada.
+                Ventas por fecha de cobro («al contado» incluye transferencia); los abonos, el día
+                en que entran. El tiempo de corte va de tomar la orden a su última pieza, sin las
+                pausas registradas ni lo que cae fuera del horario laboral.
               </>
             }
             refreshing={isPlaceholderData}

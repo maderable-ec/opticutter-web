@@ -4,6 +4,7 @@ import { fmtDateTime } from 'src/shared/utils/format'
 import ActivityBadge from './ActivityBadge'
 import ElapsedNote from './ElapsedNote'
 import { activityClock } from './elapsed'
+import PauseNote from './PauseNote'
 import { orderedActivities } from './activities'
 import type { OrderActivity, OrderStatus } from './types'
 
@@ -148,6 +149,7 @@ const OrderStatusStrip = ({
                     red one, which is the signal that matters, still reads. Neither is the only
                     carrier: the note says the number. */}
                 <ElapsedNote iso={activityClock(activity)} />
+                <PauseNote activity={activity} className="text-nowrap" />
                 {progress && progress.totalPieces > 0 && (
                   <span className="text-nowrap">
                     {progress.cutPieces}/{progress.totalPieces} piezas

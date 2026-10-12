@@ -2,7 +2,7 @@ import { ACTIVITY_LABEL } from 'src/features/orders/activities'
 import EmptyState from 'src/shared/components/EmptyState'
 import StatusBadge from 'src/shared/components/StatusBadge'
 import { fmtMeters } from 'src/shared/utils/format'
-import { UNCLOCKED, workHours, workSpan } from './banderOrders'
+import { UNCLOCKED, workHours, workPause, workSpan } from './banderOrders'
 import { LedgerItem, LedgerModal, LedgerSection, LedgerSummary } from './components/Ledger'
 import { fmtInt, fmtWeekday } from './format'
 import { groupByDay } from './ledger'
@@ -38,7 +38,7 @@ const BanderOrdersModal = ({ userId, from, to, branchId, onClose }: BanderOrders
     >
       {data && f && (
         <>
-          <LedgerSummary rule="Cuenta para quien pulsó «Terminar», el día del cierre. Los metros son netos, sin el desperdicio que se factura. «Sin tiempo»: iniciada y terminada en menos de un minuto, registrada al final; cuenta como trabajo, pero no suma horas.">
+          <LedgerSummary rule="Cuenta para quien pulsó «Terminar», el día del cierre. Los metros son netos, sin el desperdicio que se factura. Las horas van del inicio al cierre, sin las pausas registradas ni lo que cae fuera del horario laboral. «Sin tiempo»: iniciada y terminada en menos de un minuto, registrada al final; cuenta como trabajo, pero no suma horas.">
             <strong>
               {fmtInt(f.ordersBanded)} {f.ordersBanded === 1 ? 'canteada' : 'canteadas'}
             </strong>{' '}
@@ -72,6 +72,7 @@ const BanderOrdersModal = ({ userId, from, to, branchId, onClose }: BanderOrders
                       <>
                         {o.kind === 'banding' && <span>{fmtMeters(o.bandedLinearM, 0)} netos</span>}
                         <span>{workSpan(o)}</span>
+                        {workPause(o) && <span>{workPause(o)}</span>}
                       </>
                     }
                   />

@@ -8,10 +8,12 @@ import {
   CTableRow,
 } from '@coreui/react'
 
+import { ACTIVITY_LABEL, pauseReasonLabel } from 'src/features/orders/activities'
 import EmptyState from 'src/shared/components/EmptyState'
 import ListCard from 'src/shared/components/ListCard'
 import LoadingBlock from 'src/shared/components/LoadingBlock'
 import { ErrorState } from 'src/shared/components/QueryState'
+import RecordLink from 'src/shared/components/RecordLink'
 import { localDateKey } from 'src/shared/utils/date'
 import { fmtM2, fmtMeters, fmtNumber, fmtPercent } from 'src/shared/utils/format'
 import BranchComparisonTable from './components/BranchComparisonTable'
@@ -19,7 +21,7 @@ import ReportFilters from './components/ReportFilters'
 import ReportSection from './components/ReportSection'
 import { PRODUCTION_GROUPS } from './comparisonRows'
 import { fmtDecimal, fmtHours, fmtInt, fmtLocalTime, fmtRate, fmtWeekday } from './format'
-import type { ProductionDay } from './types'
+import type { ProductionDay, ProductionPause } from './types'
 import { useBranchComparison, useProduction } from './useAnalytics'
 import { useReportFilters } from './useReportFilters'
 
@@ -31,18 +33,33 @@ const span = (day: ProductionDay) =>
   day.firstEventAt ? `${fmtLocalTime(day.firstEventAt)} – ${fmtLocalTime(day.lastEventAt)}` : '—'
 
 // The day has to fit a laptop without scrolling sideways: `head` is a short header for a long label
-// (the label stays its accessible name), and `wide` columns only show from `xl` — below it the
-// phone card and the comparison above still carry the figure.
+// (the label stays its accessible name), and a column with `from` only shows from that width — below
+// it the phone card and the comparison above still carry the figure.
+const FROM_CLASS = {
+  xl: ' d-none d-xl-table-cell',
+  xxl: ' d-none d-xxl-table-cell',
+} as const
+
 const DAY_COLUMNS: {
   label: string
   head?: ReactNode
-  wide?: boolean
+  from?: keyof typeof FROM_CLASS
   value: (d: ProductionDay) => string
 }[] = [
-  { label: 'Efectivas', value: (d) => fmtH(d.effectiveHours) },
-  { label: 'Paradas', value: (d) => fmtH(d.pausedHours) },
+  // The cut's time — what the rates at the end divide by — and, of it, the load. The sawing is
+  // the rest, so it and the pauses (which have their own section below) wait for a wide screen:
+  // with all four the table ran off a laptop.
+  { label: 'Tiempo de corte', head: 'Tiempo', value: (d) => fmtH(d.workHours) },
+  { label: 'Carga', value: (d) => fmtH(d.loadingHours) },
+  { label: 'Sierra', from: 'xxl', value: (d) => fmtH(d.sawingHours) },
+  {
+    label: 'En pausa',
+    from: 'xxl',
+    value: (d) => (d.pausedHours > 0 ? fmtH(d.pausedHours) : '—'),
+  },
   { label: 'Tableros', value: (d) => fmtBoards(d.boards) },
-  { label: 'Corte', value: (d) => fmtMeters(d.cutLinearM, 0) },
+  // «Metros»: «Corte» beside «Tiempo de corte» read as the same thing in two units.
+  { label: 'Metros de corte', head: 'Metros', value: (d) => fmtMeters(d.cutLinearM, 0) },
   // The tape and, beside it, how many orders it took: «180 m (4)».
   {
     label: 'Canteo',
@@ -54,7 +71,7 @@ const DAY_COLUMNS: {
   {
     label: 'Adicionales',
     head: <abbr title="Adicionales terminados">Adic.</abbr>,
-    wide: true,
+    from: 'xl',
     value: (d) => fmtInt(d.ordersAdditional),
   },
   { label: 'Terminadas', value: (d) => fmtInt(d.ordersFinished) },
@@ -62,11 +79,25 @@ const DAY_COLUMNS: {
   { label: 'm/h', value: (d) => fmtDecimal(d.metersPerHour) },
 ]
 
+// «mié 10 jun · 08:30 – 10:00», «… – jue 11 jun 10:00» across days, «… · sigue en pausa» while open.
+const pauseSpan = (p: ProductionPause): string => {
+  const startDay = localDateKey(new Date(p.startedAt))
+  const start = `${fmtWeekday(startDay)} · ${fmtLocalTime(p.startedAt)}`
+  if (!p.endedAt) return `${start} · sigue en pausa`
+  const endDay = localDateKey(new Date(p.endedAt))
+  const end =
+    endDay === startDay
+      ? fmtLocalTime(p.endedAt)
+      : `${fmtWeekday(endDay)} ${fmtLocalTime(p.endedAt)}`
+  return `${start} – ${end}`
+}
+
 /**
- * Producción: the workday behind the Resumen's figures. Everything comes off the pieces the shop
- * marks as it cuts: the start is the first mark (or taking an order), and every gap longer than
- * the idle gap is a stop. The comparison is every branch; the branch filter narrows the days, the
- * stops and the material.
+ * Producción: the workday behind the Resumen's figures. Everything comes off what the shop
+ * registers as it cuts: the cut's time runs from taking an order to its last piece — the load up
+ * to the first one, the sawing after — and what stops it is a pause the shop registered with its
+ * reason. The comparison is every branch; the branch filter narrows the days, the pauses and the
+ * material.
  */
 const ProductionPage = () => {
   const filters = useReportFilters()
@@ -74,7 +105,6 @@ const ProductionPage = () => {
   const comparison = useBranchComparison(from, to)
   const report = useProduction(from, to, branchId)
   const data = report.data
-  const idleMinutes = comparison.data?.idleMinutes ?? data?.idleMinutes
 
   return (
     <div className="report">
@@ -82,7 +112,7 @@ const ProductionPage = () => {
 
       <ReportSection
         title="Rendimiento por sucursal"
-        caption={`Una parada es más de ${idleMinutes ?? 15} min sin marcar una pieza durante la jornada.`}
+        caption="El tiempo de corte va de tomar la orden a su última pieza: carga hasta la primera, sierra después. No cuentan las pausas registradas ni lo que cae fuera del horario laboral."
         refreshing={comparison.isPlaceholderData}
       >
         {comparison.isLoading ? (
@@ -126,8 +156,11 @@ const ProductionPage = () => {
                       meta={<span>{span(d)}</span>}
                     >
                       <div className="list-card__meta">
-                        <span>{fmtH(d.effectiveHours)} efectivas</span>
-                        <span>{fmtH(d.pausedHours)} paradas</span>
+                        <span>{fmtH(d.workHours)} de corte</span>
+                        <span>
+                          {fmtH(d.loadingHours)} de carga · {fmtH(d.sawingHours)} de sierra
+                        </span>
+                        {d.pausedHours > 0 && <span>{fmtH(d.pausedHours)} en pausa</span>}
                         <span>{fmtBoards(d.boards)} tableros</span>
                         <span>{fmtMeters(d.cutLinearM, 0)} de corte</span>
                         <span>{fmtMeters(d.bandedLinearM, 0)} de canteo</span>
@@ -154,7 +187,7 @@ const ProductionPage = () => {
                           <CTableHeaderCell
                             key={c.label}
                             scope="col"
-                            className={`text-end${c.wide ? ' d-none d-xl-table-cell' : ''}`}
+                            className={`text-end${c.from ? FROM_CLASS[c.from] : ''}`}
                           >
                             {c.head ?? c.label}
                           </CTableHeaderCell>
@@ -170,7 +203,7 @@ const ProductionPage = () => {
                           {DAY_COLUMNS.map((c) => (
                             <CTableDataCell
                               key={c.label}
-                              className={`text-end${c.wide ? ' d-none d-xl-table-cell' : ''}`}
+                              className={`text-end${c.from ? FROM_CLASS[c.from] : ''}`}
                             >
                               {c.value(d)}
                             </CTableDataCell>
@@ -185,28 +218,48 @@ const ProductionPage = () => {
           </ReportSection>
 
           <ReportSection
-            title="Paradas largas"
-            caption="Las más largas del período, dentro de la jornada."
+            title="Pausas"
+            caption="Las que registró el taller con su motivo, de cualquier actividad. Las horas son las laborables que duró cada una."
             className="report__half"
             refreshing={report.isPlaceholderData}
           >
-            {data.stops.length === 0 ? (
-              <EmptyState title="Sin paradas en el período" />
+            {data.pauses.length === 0 ? (
+              <EmptyState title="Sin pausas en el período" />
             ) : (
-              <ol className="production-stops">
-                {data.stops.map((s) => (
-                  <li key={`${s.branchId}-${s.startedAt}`} className="production-stops__row">
-                    <span className="production-stops__when">
-                      <span className="fw-semibold">{s.branchName}</span>
+              <>
+                {/* Why the shop stopped, before each time it did: the answer the office acts on
+                    (buy boards, buy tape, call the technician) is the total, not the list. */}
+                <ul className="pause-totals">
+                  {data.pauseTotals.map((t) => (
+                    <li key={t.reason} className="pause-totals__item">
+                      <span className="fw-semibold">{pauseReasonLabel(t.reason)}</span>
                       <span>
-                        {fmtWeekday(localDateKey(new Date(s.startedAt)))} ·{' '}
-                        {fmtLocalTime(s.startedAt)} – {fmtLocalTime(s.endedAt)}
+                        {fmtInt(t.count)} {t.count === 1 ? 'pausa' : 'pausas'} · {fmtHours(t.hours)}
                       </span>
-                    </span>
-                    <span className="production-stops__length">{fmtHours(s.minutes / 60)}</span>
-                  </li>
-                ))}
-              </ol>
+                    </li>
+                  ))}
+                </ul>
+                <ol className="production-stops">
+                  {data.pauses.map((p) => (
+                    <li key={p.id} className="production-stops__row">
+                      <span className="production-stops__when">
+                        <span className="fw-semibold">
+                          {pauseReasonLabel(p.reason)} · {ACTIVITY_LABEL[p.activity]}{' '}
+                          <RecordLink to={`/orders/${p.orderId}`}>
+                            {p.orderCode ?? `#${p.orderId}`}
+                          </RecordLink>
+                        </span>
+                        <span>
+                          {p.branchName} · {pauseSpan(p)}
+                          {p.startedBy && ` · ${p.startedBy}`}
+                          {p.note && ` · ${p.note}`}
+                        </span>
+                      </span>
+                      <span className="production-stops__length">{fmtHours(p.hours)}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
             )}
           </ReportSection>
 

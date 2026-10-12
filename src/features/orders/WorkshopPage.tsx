@@ -15,14 +15,16 @@ import { MASK } from 'src/shared/analytics'
 import AppToaster from 'src/shared/components/AppToaster'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { clientName } from 'src/shared/utils/format'
+import { fmtLocalTime } from 'src/features/analytics/format'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
-import { findActivity, orderedActivities } from './activities'
+import PauseDialog from './PauseDialog'
+import { findActivity, isPaused, orderedActivities, pauseReasonLabel } from './activities'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import WorkshopBoardPicker from './WorkshopBoardPicker'
 import BoardName from './BoardName'
 import { cutBarColor, cutPct } from './progress'
-import { useCuttingPlan, useMarkPiece, useUpdateActivity } from './useOrders'
+import { useCuttingPlan, useMarkPiece, usePauseActivity, useUpdateActivity } from './useOrders'
 import type { CutPiece, CutProgress } from './types'
 import { ErrorState } from 'src/shared/components/QueryState'
 import EmptyState from 'src/shared/components/EmptyState'
@@ -49,10 +51,12 @@ const WorkshopPage = () => {
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
   const markPiece = useMarkPiece(id ?? '')
   const updateActivity = useUpdateActivity()
+  const pauseActivity = usePauseActivity()
   const printLabel = usePrintLabel()
   const addToast = useToastStore((s) => s.addToast)
 
   const [cutModal, setCutModal] = useState(false)
+  const [pauseModal, setPauseModal] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   // Board currently on screen (one at a time). Identified by persistent id to survive refetches.
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
@@ -107,7 +111,10 @@ const WorkshopPage = () => {
   // The order status can no longer answer this: `cutting` and `cut` are one state, so what
   // decides whether the canvas is live is the CUT's own status.
   const cutActivity = findActivity(plan?.activities, 'cutting')
-  const interactive = cutActivity?.status === 'in_progress'
+  // A paused cut is still `in_progress`, and takes no marks until it is resumed: the pause is out
+  // of the operator's time, so a piece marked inside it would be work nobody is charged for.
+  const cutPaused = isPaused(cutActivity)
+  const interactive = cutActivity?.status === 'in_progress' && !cutPaused
 
   // Single tap marks a piece as cut; tapping an already-cut piece does nothing (double-tap unmarks it).
   // Once the cut is confirmed server-side, dispatch its label to the branch's thermal printer —
@@ -149,6 +156,14 @@ const WorkshopPage = () => {
         onSuccess: () => onDone?.(),
         onError: (e) => addToast(e?.message || 'Error al registrar el corte.', 'danger'),
       },
+    )
+  }
+
+  const resumeCut = () => {
+    if (!id) return
+    pauseActivity.mutate(
+      { id, activity: 'cutting' },
+      { onError: (e) => addToast(e?.message || 'No se pudo reanudar el corte.', 'danger') },
     )
   }
 
@@ -343,18 +358,72 @@ const WorkshopPage = () => {
         Disponible en la cola. Toma la orden para empezar a cortar.
       </span>
     )
+  } else if (cutPaused) {
+    // Why the saw is stopped, since when, and the one thing to do about it. A time and not «hace
+    // 25 min»: this screen does not refresh itself, and a stale interval would be a wrong one.
+    actionBar = (
+      <>
+        <Icon name="paused" size="lg" />
+        <span>
+          Corte en pausa · {pauseReasonLabel(cutActivity?.pauseReason)}
+          {cutActivity?.pausedAt && (
+            <span className="workshop-actionbar__since">
+              {' '}
+              · desde {fmtLocalTime(cutActivity.pausedAt)}
+            </span>
+          )}
+        </span>
+        {isAdminOrOperator && (
+          <CButton
+            color="primary"
+            size="lg"
+            className="ms-auto"
+            disabled={pauseActivity.isPending}
+            onClick={resumeCut}
+          >
+            {pauseActivity.isPending ? (
+              <Spinner size="sm" />
+            ) : (
+              <>
+                <Icon name="start" className="me-1" />
+                Reanudar corte
+              </>
+            )}
+          </CButton>
+        )}
+      </>
+    )
   } else if (interactive) {
-    actionBar = nextTarget ? (
+    // The way out of the cut, always in the same corner: no boards, no tape, a machine down.
+    const pauseButton = isAdminOrOperator && (
       <CButton
-        color="success"
+        color="secondary"
+        variant="outline"
         size="lg"
-        className="ms-auto"
-        onClick={() => setSelectedBoardId(nextTarget.id)}
+        onClick={() => {
+          pauseActivity.reset()
+          setPauseModal(true)
+        }}
       >
-        Tablero {current.sheetNumber} completo — Ir al Tablero {nextTarget.sheetNumber} →
+        <Icon name="paused" className="me-1" />
+        Pausar
       </CButton>
+    )
+    actionBar = nextTarget ? (
+      <>
+        {pauseButton}
+        <CButton
+          color="success"
+          size="lg"
+          className="ms-auto"
+          onClick={() => setSelectedBoardId(nextTarget.id)}
+        >
+          Tablero {current.sheetNumber} completo — Ir al Tablero {nextTarget.sheetNumber} →
+        </CButton>
+      </>
     ) : (
       <>
+        {pauseButton}
         {pendingCount > 0 && (
           <span className="text-warning-emphasis">
             {pendingCount === 1 ? 'Falta 1 pieza' : `Faltan ${pendingCount} piezas`} por cortar
@@ -406,7 +475,11 @@ const WorkshopPage = () => {
       </div>
 
       {/* A read-only order has nothing to act on, so the bar goes and the diagram takes its height. */}
-      {actionBar && <div className="workshop-actionbar">{actionBar}</div>}
+      {actionBar && (
+        <div className={`workshop-actionbar${cutPaused ? ' workshop-actionbar--paused' : ''}`}>
+          {actionBar}
+        </div>
+      )}
 
       <WorkshopBoardPicker
         visible={pickerOpen}
@@ -418,6 +491,23 @@ const WorkshopPage = () => {
           setPickerOpen(false)
         }}
         onClose={() => setPickerOpen(false)}
+      />
+
+      <PauseDialog
+        visible={pauseModal}
+        activity="cutting"
+        orderCode={plan.orderCode}
+        container={modalContainer}
+        pending={pauseActivity.isPending}
+        error={pauseActivity.isError ? pauseActivity.error?.message : undefined}
+        onConfirm={(pause) => {
+          if (!id) return
+          pauseActivity.mutate(
+            { id, activity: 'cutting', pause },
+            { onSuccess: () => setPauseModal(false) },
+          )
+        }}
+        onClose={() => setPauseModal(false)}
       />
 
       {/* Confirm cut close (order → cortada) */}

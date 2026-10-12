@@ -64,8 +64,16 @@ test('Producción muestra la jornada por día y la sucursal acota el detalle', a
   stubReports(api)
 
   await page.goto('/analytics/production')
-  await expect(page.locator('.comparison-table')).toContainText('Horas paradas')
-  await expect(page.locator('.production-stops')).toContainText('2h 13m')
+  // The cut's time, split: the load and the sawing, and what the shop registered as paused.
+  const comparison = page.locator('.comparison-table')
+  await expect(comparison).toContainText('Tiempo de corte')
+  await expect(comparison).toContainText('Carga')
+  await expect(comparison).toContainText('Sierra')
+  await expect(comparison).toContainText('En pausa')
+  // Why the shop stopped, by reason, and each pause with its order.
+  await expect(page.locator('.pause-totals')).toContainText('Sin canto')
+  await expect(page.locator('.production-stops')).toContainText('Sin tableros · Corte ORD-000131')
+  await expect(page.locator('.production-stops')).toContainText('sigue en pausa')
 
   await page.getByRole('combobox', { name: 'Sucursal' }).selectOption({ label: 'Norte' })
   await expect(page).toHaveURL(/\/analytics\/production\?branchId=2$/)
@@ -153,11 +161,16 @@ test('un vendedor abre sus ventas, con la fecha de cobro y la factura', async ({
   await page.locator('.list-table').getByRole('button', { name: 'Andrea Palacios' }).click()
   await expect(page).toHaveURL(/\/analytics\/productivity\?user=2$/)
   const dialog = page.getByRole('dialog', { name: 'Ventas de Andrea Palacios' })
-  await expect(dialog).toContainText('Cobró $380,00 en 2 órdenes')
+  await expect(dialog).toContainText('Vendió $380,00 en 2 órdenes')
   await expect(dialog).toContainText('factura 001-002-000123')
   // The sale that moved: confirmed in August, paid in the period.
   await expect(dialog).toContainText('orden del 28/08/2026')
   await expect(dialog).toContainText('efectivo $40,00 · transferencia $20,00 · crédito $120,00')
+  // The credit of that sale, still owed; and credit paid back in the period on an older one.
+  await expect(dialog).toContainText('debe $120,00 de $120,00')
+  await expect(dialog).toContainText('abonos recibidos $60,00')
+  await expect(dialog).toContainText('transferencia · venta del 21/08/2026')
+  await expect(dialog).toContainText('Crédito pendiente hoy · $120,00')
   await expect(dialog).toContainText('Por cobrar hoy · $75,50')
 
   // Switching teams closes the detail in the same write.

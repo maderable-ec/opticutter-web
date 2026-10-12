@@ -17,12 +17,14 @@ import { useCurrentUser } from 'src/features/auth/useAuth'
 import OrderStatusBadge from './OrderStatusBadge'
 import WorkshopQueueCard from './WorkshopQueueCard'
 import WorkshopMaterialsModal from './WorkshopMaterialsModal'
-import { useUpdateActivity, useWorkshopQueue } from './useOrders'
+import PauseDialog from './PauseDialog'
+import { usePauseActivity, useUpdateActivity, useWorkshopQueue } from './useOrders'
 import {
   ACTIVITY_LABEL,
   activitiesForRoles,
-  activityAction,
+  activityActions,
   findActivity,
+  isPaused,
   orderedActivities,
 } from './activities'
 import type { ActivityType, BoardAction, CardAction, WorkshopQueueItem } from './types'
@@ -50,6 +52,9 @@ const ACTION_COPY: Record<
   open: { verb: 'Abrir', label: 'Abrir corte', color: 'primary' },
   start: { verb: 'Iniciar', label: 'Iniciar', color: 'primary' },
   finish: { verb: 'Terminar', label: 'Terminar', color: 'success' },
+  // `pause` never reaches the confirm dialog: it has its own, which asks for the reason.
+  pause: { verb: 'Pausar', label: 'Pausar', color: 'primary' },
+  resume: { verb: 'Reanudar', label: 'Reanudar', color: 'primary' },
 }
 
 // The confirm dialog's title, verb and object: «Terminar canteado de ORD-000043», «Tomar ORD-…».
@@ -113,9 +118,12 @@ const WorkshopBoardPage = () => {
     void navigate(`/workshop/orders/${orderId}`, { state: fromHere })
   const { data: items = [], isLoading, error, refetch } = useWorkshopQueue()
   const updateActivity = useUpdateActivity()
+  const pauseActivity = usePauseActivity()
   // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).
   const allowed = activitiesForRoles(useCurrentUser()?.roles)
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
+  // Pausing asks WHY, so it has a dialog of its own; the card and the activity it was opened for.
+  const [pausing, setPausing] = useState<ConfirmState | null>(null)
   // One dialog for the whole board rather than one per card: only one can be open at a time, and it
   // pages through the queue. State is the ORDER ID, not the index the dialog's API speaks: the queue
   // polls, so an index would keep pointing at a slot after the order in it was completed elsewhere —
@@ -141,6 +149,10 @@ const WorkshopBoardPage = () => {
       return
     }
     if (!action.activity) return
+    if (action.kind === 'resume') {
+      pauseActivity.mutate({ id, activity: action.activity })
+      return
+    }
     updateActivity.mutate({
       id,
       activity: action.activity,
@@ -176,8 +188,7 @@ const WorkshopBoardPage = () => {
               // reason, so the card can grey out and SAY why instead of bouncing the tap.
               const actions: CardAction[] = orderedActivities(item.activities)
                 .filter((activity) => allowed.includes(activity.type))
-                .map((activity) => activityAction(activity))
-                .filter((action): action is CardAction => action !== null)
+                .flatMap((activity) => activityActions(activity))
                 // Starting the cut of a QUEUED order is `take`: it also takes the order out of
                 // the queue and opens the canvas, which is one gesture on a touch panel.
                 .map((action) =>
@@ -188,11 +199,15 @@ const WorkshopBoardPage = () => {
                     : action,
                 )
 
-              // Once the cut is running, the operator's way back into the canvas.
+              // Once the cut is running, the operator's way back into the canvas. Not while it is
+              // paused: «Reanudar corte» is the one thing to do there, and the canvas would open
+              // on pieces that take no taps.
+              const cut = findActivity(item.activities, 'cutting')
               if (
                 item.status === 'in_process' &&
                 allowed.includes('cutting') &&
-                findActivity(item.activities, 'cutting')?.status === 'in_progress'
+                cut?.status === 'in_progress' &&
+                !isPaused(cut)
               ) {
                 actions.unshift({
                   kind: 'open',
@@ -206,10 +221,13 @@ const WorkshopBoardPage = () => {
               // shared by the whole page, so an unscoped `isPending` froze the buttons of every
               // other order on the board while one request was in flight.
               const acting = updateActivity.variables?.id === idStr
+              const resuming = pauseActivity.variables?.id === idStr
               const error =
                 updateActivity.isError && acting
                   ? updateActivity.error?.message || 'No se pudo registrar el trabajo.'
-                  : null
+                  : pauseActivity.isError && resuming && !pausing
+                    ? pauseActivity.error?.message || 'No se pudo reanudar el trabajo.'
+                    : null
 
               return (
                 <CCol key={item.orderId} xs={12} md={6} xxl={4}>
@@ -217,10 +235,19 @@ const WorkshopBoardPage = () => {
                     item={item}
                     isNext={item.orderId === nextId}
                     actions={actions}
-                    pending={updateActivity.isPending && acting}
+                    pending={
+                      (updateActivity.isPending && acting) || (pauseActivity.isPending && resuming)
+                    }
                     error={error}
                     onAction={(action) => {
                       if (action.nav) openCanvas(item.orderId)
+                      else if (action.kind === 'pause') {
+                        pauseActivity.reset()
+                        setPausing({ action, item })
+                      }
+                      // Lifting a pause asks nothing: it is one tap to undo, and the question
+                      // «¿Reanudar?» only stands between the operator and the saw.
+                      else if (action.kind === 'resume') runAction(action, item)
                       else setConfirm({ action, item })
                     }}
                     onShowMaterials={() => setMaterialsId(item.orderId)}
@@ -237,6 +264,22 @@ const WorkshopBoardPage = () => {
         index={materialsIndex < 0 ? null : materialsIndex}
         onIndexChange={(next) => setMaterialsId(items[next]?.orderId ?? null)}
         onClose={() => setMaterialsId(null)}
+      />
+
+      <PauseDialog
+        visible={!!pausing}
+        activity={pausing?.action.activity ?? 'cutting'}
+        orderCode={pausing?.item.orderCode ?? `la orden ${pausing?.item.orderId ?? ''}`}
+        pending={pauseActivity.isPending}
+        error={pauseActivity.isError ? pauseActivity.error?.message : undefined}
+        onConfirm={(pause) => {
+          if (!pausing?.action.activity) return
+          pauseActivity.mutate(
+            { id: String(pausing.item.orderId), activity: pausing.action.activity, pause },
+            { onSuccess: () => setPausing(null) },
+          )
+        }}
+        onClose={() => setPausing(null)}
       />
 
       {/* The verb on the button, not a generic «Confirmar»: on a touch panel the button you are

@@ -5,6 +5,7 @@ import type {
   ActivityPayload,
   ActivityResult,
   ActivityType,
+  AddPaymentPayload,
   AssociateInvoicePayload,
   Attachment,
   ChangeBranchPayload,
@@ -12,6 +13,7 @@ import type {
   MarkPieceResponse,
   Order,
   OrderListParams,
+  PauseActivityPayload,
   PiecesExportFormat,
   ProductionStatusReport,
   UpdateStatusPayload,
@@ -42,6 +44,8 @@ export const ordersApi = {
     isPriority,
     activity,
     activityStatus,
+    paused,
+    hasBalance,
     offset = 0,
     limit = 20,
   }: OrderListParams = {}) =>
@@ -59,6 +63,8 @@ export const ordersApi = {
         isPriority,
         activity,
         activityStatus,
+        paused,
+        hasBalance,
         offset,
         limit,
       })}`,
@@ -82,6 +88,18 @@ export const ordersApi = {
   // closing the last activity finishes it).
   patchActivity: (id: string, activity: ActivityType, data: ActivityPayload) =>
     httpClient.patch<ActivityResult>(`${BASE}/${id}/activities/${activity}`, data),
+  // Pauses an activity in progress with the reason it cannot go on (no boards, no edge banding,
+  // a machine down) and lifts that pause. Both idempotent; the status stays `in_progress`.
+  pauseActivity: (id: string, activity: ActivityType, data: PauseActivityPayload) =>
+    httpClient.post<ActivityResult>(`${BASE}/${id}/activities/${activity}/pause`, data),
+  resumeActivity: (id: string, activity: ActivityType) =>
+    httpClient.post<ActivityResult>(`${BASE}/${id}/activities/${activity}/resume`, {}),
+  // Money received after the sale, against the order's credit. Works in every status after the
+  // queue, dispatched included. Voiding one is the admin's alone, and keeps the row.
+  addPayment: (id: string, data: AddPaymentPayload) =>
+    httpClient.post<Order>(`${BASE}/${id}/payments`, data),
+  voidPayment: (id: string, paymentId: number, reason: string) =>
+    httpClient.post<Order>(`${BASE}/${id}/payments/${paymentId}/void`, { reason }),
   // The order's ONLY document: ORDEN DE PEDIDO (with the delivery block the client
   // signs) + the cut diagram + every annex, merged server-side into one PDF. The
   // production and dispatch sheets are gone — their content lives in this one.

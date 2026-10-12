@@ -12,3 +12,109 @@
     border-top: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
   }
 }
+
+// --- The credit of an order ---------------------------------------------------------------------
+// `CreditPaymentModal`: what is owed, on top of the form that brings it down. The number is the
+// reason the dialog was opened, so it is the largest thing in it.
+.credit-balance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 1rem;
+  border: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-tertiary-bg);
+}
+
+.credit-balance__amount {
+  font-size: var(--mb-text-xl);
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+// The payments received after the sale, on the order's detail: amount first (it is what is being
+// added up), then how and when. A voided one stays, struck through, with why — a ledger that drops
+// rows cannot be checked against the till.
+.credit-ledger__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.5rem;
+  }
+}
+
+.credit-ledger__amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.credit-ledger__voided {
+  .credit-ledger__amount,
+  .text-body-secondary {
+    text-decoration: line-through;
+  }
+}
+
+.credit-ledger__note {
+  color: var(--cui-danger-text-emphasis);
+}
+
+// --- The shop's working hours (`WorkScheduleSettingsCard`) ---------------------------------------
+// Seven rows, the day on the left and its stretches beside it. The stretches wrap under each other
+// on a phone rather than scrolling sideways: two time inputs and a button are already the width of
+// one.
+.work-schedule {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-schedule__day {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  align-items: start;
+  padding: 0.6rem 0;
+  border-bottom: var(--cui-border-width) var(--cui-border-style) var(--cui-border-color);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  @media (max-width: 575.98px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.work-schedule__name {
+  padding-top: 0.25rem;
+  font-weight: 600;
+}
+
+.work-schedule__windows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-height: 2rem;
+}
+
+.work-schedule__window {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .form-control {
+    width: 7.25rem;
+  }
+}

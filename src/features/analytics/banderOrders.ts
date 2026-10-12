@@ -11,6 +11,10 @@ export const UNCLOCKED: StatusConfigEntry = { tone: 'progress', icon: 'late', la
 export const workHours = (o: BanderOrder): string =>
   o.hours == null ? '—' : `${fmtDecimal(o.hours)} h`
 
+// «1,0 h en pausa», only when it was paused: time that is NOT in its hours.
+export const workPause = (o: BanderOrder): string | undefined =>
+  o.pausedHours > 0 ? `${fmtDecimal(o.pausedHours)} h en pausa` : undefined
+
 // «09:00 – 11:00», or when it was registered when it carries no time.
 export const workSpan = (o: BanderOrder): string =>
   o.hours == null || !o.startedAt

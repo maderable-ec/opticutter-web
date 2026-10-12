@@ -108,8 +108,9 @@ const TodaySection = ({ branchId }: { branchId?: number }) => {
         retrySales()
       }}
     >
-      {/* Sold = the payments registered today, split as Estadísticas splits them: cash in hand
-          (cash and bank transfer) and credit. */}
+      {/* Sold = the payments registered today, split as Estadísticas splits them: on the spot
+          (cash and bank transfer) and on credit. Under them, the credit's own two figures: what
+          was paid back today, whenever it was sold, and what clients owe right now. */}
       <CRow className="g-2">
         <CCol xs={12}>
           <StatTile
@@ -127,13 +128,33 @@ const TodaySection = ({ branchId }: { branchId?: number }) => {
             tiles side by side ran their figures into the border. */}
         <CCol xs={6}>
           <StatTile
-            label="Efectivo"
+            label="Al contado"
             value={value(sales?.cash, fmtMoney)}
             hint="Incluye transferencia"
           />
         </CCol>
         <CCol xs={6}>
-          <StatTile label="Crédito" value={value(sales?.credit, fmtMoney)} />
+          <StatTile label="A crédito" value={value(sales?.credit, fmtMoney)} />
+        </CCol>
+        <CCol xs={6}>
+          <StatTile
+            label="Abonos de hoy"
+            value={value(sales?.creditCollected, fmtMoney)}
+            hint="Crédito cobrado hoy"
+          />
+        </CCol>
+        <CCol xs={6}>
+          <StatTile
+            label="Crédito pendiente"
+            value={value(sales?.creditOutstanding, fmtMoney)}
+            hint={
+              sales
+                ? `${sales.creditOutstandingOrders} ${
+                    sales.creditOutstandingOrders === 1 ? 'orden' : 'órdenes'
+                  } por cobrar`
+                : undefined
+            }
+          />
         </CCol>
         <CCol xs={6}>
           <StatTile label="Órdenes nuevas" value={value(figures?.orders)} />

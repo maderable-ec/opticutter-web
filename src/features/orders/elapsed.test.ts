@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { activityClock, elapsedTone, statusClock } from './elapsed'
+import { activityClock, elapsedTone, pauseClock, statusClock } from './elapsed'
 
 const CREATED = '2026-09-29T08:00:00Z'
 const QUEUED = '2026-09-29T09:00:00Z'
@@ -61,6 +61,20 @@ describe('activityClock', () => {
 
   it('stops once the activity is done', () => {
     expect(activityClock({ type: 'cutting', status: 'done', startedAt: CHANGED })).toBeNull()
+  })
+
+  it('goes quiet while the activity is paused: nobody doing the work is late', () => {
+    const paused = {
+      type: 'cutting',
+      status: 'in_progress',
+      startedAt: QUEUED,
+      pausedAt: CHANGED,
+      pauseReason: 'no_boards',
+    } as const
+    expect(activityClock(paused)).toBeNull()
+    // What runs instead is the pause's own clock.
+    expect(pauseClock(paused)).toBe(CHANGED)
+    expect(pauseClock({ type: 'cutting', status: 'in_progress', startedAt: QUEUED })).toBeNull()
   })
 })
 

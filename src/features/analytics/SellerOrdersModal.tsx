@@ -4,7 +4,14 @@ import { fmtMoney } from 'src/shared/utils/format'
 import { LedgerItem, LedgerModal, LedgerSection, LedgerSummary } from './components/Ledger'
 import { fmtInt, fmtLocalTime, fmtWeekday } from './format'
 import { groupByDay } from './ledger'
-import { invoiceLabel, orderDate, paymentBreakdown } from './sellerOrders'
+import {
+  collectionLine,
+  creditStatus,
+  invoiceLabel,
+  orderDate,
+  outstandingLine,
+  paymentBreakdown,
+} from './sellerOrders'
 import { useSellerOrders } from './useAnalytics'
 
 interface SellerOrdersModalProps {
@@ -17,8 +24,9 @@ interface SellerOrdersModalProps {
 
 /**
  * The orders behind one seller's row: each sale collected in the period, by the day it was paid,
- * with its invoice to cross-check in the accounting system, and what is still to collect today. The
- * sales add up to the row by construction.
+ * with its invoice to cross-check in the accounting system; the credit paid back in the period,
+ * by the day the money came in; and what is still to collect today — confirmed and unpaid, and
+ * sold on credit and still owed. Each list adds up to its figure of the row by construction.
  */
 const SellerOrdersModal = ({ userId, from, to, branchId, onClose }: SellerOrdersModalProps) => {
   const query = useSellerOrders(userId, from, to, branchId)
@@ -37,10 +45,10 @@ const SellerOrdersModal = ({ userId, from, to, branchId, onClose }: SellerOrders
     >
       {data && f && (
         <>
-          <LedgerSummary rule="Una venta cuenta el día de su cobro (cuando la orden pasa a la cola) para quien hizo la cotización, aunque la orden sea de otro día. Efectivo incluye transferencia; las canceladas no cuentan.">
-            Cobró <strong>{fmtMoney(f.total)}</strong> en {fmtInt(f.paidOrders)}{' '}
-            {f.paidOrders === 1 ? 'orden' : 'órdenes'} · efectivo {fmtMoney(f.cash)} · crédito{' '}
-            {fmtMoney(f.credit)}
+          <LedgerSummary rule="Una venta cuenta el día de su cobro (cuando la orden pasa a la cola) para quien hizo la cotización, aunque la orden sea de otro día. «Al contado» incluye transferencia; las canceladas no cuentan. Un abono al crédito cuenta el día en que entra, sea de la venta que sea.">
+            Vendió <strong>{fmtMoney(f.total)}</strong> en {fmtInt(f.paidOrders)}{' '}
+            {f.paidOrders === 1 ? 'orden' : 'órdenes'} · al contado {fmtMoney(f.cash)} · a crédito{' '}
+            {fmtMoney(f.credit)} · abonos recibidos {fmtMoney(f.creditCollected)}
           </LedgerSummary>
           {data.paid.length === 0 ? (
             <EmptyState title="Sin cobros en el período" />
@@ -57,6 +65,7 @@ const SellerOrdersModal = ({ userId, from, to, branchId, onClose }: SellerOrders
                     meta={
                       <>
                         <span>{paymentBreakdown(o)}</span>
+                        {creditStatus(o) && <span>{creditStatus(o)}</span>}
                         <span>cobrada {fmtLocalTime(o.paidAt)}</span>
                         {orderDate(o) && <span>{orderDate(o)}</span>}
                         <span>{invoiceLabel(o)}</span>
@@ -66,6 +75,45 @@ const SellerOrdersModal = ({ userId, from, to, branchId, onClose }: SellerOrders
                 ))}
               </LedgerSection>
             ))
+          )}
+          {data.collections.length > 0 &&
+            groupByDay(data.collections, (c) => c.amount).map((day) => (
+              <LedgerSection
+                key={`abonos-${day.day}`}
+                title={`Abonos · ${fmtWeekday(day.day)} · ${fmtMoney(day.sum)}`}
+              >
+                {day.items.map((c) => (
+                  <LedgerItem
+                    key={c.paymentId}
+                    orderId={c.orderId}
+                    orderCode={c.orderCode}
+                    figure={fmtMoney(c.amount)}
+                    clientName={c.clientName}
+                    meta={
+                      <>
+                        <span>{collectionLine(c)}</span>
+                        <span>recibido {fmtLocalTime(c.paidAt)}</span>
+                        {c.receivedBy && <span>{c.receivedBy}</span>}
+                        {c.note && <span>{c.note}</span>}
+                      </>
+                    }
+                  />
+                ))}
+              </LedgerSection>
+            ))}
+          {data.outstanding.length > 0 && (
+            <LedgerSection title={`Crédito pendiente hoy · ${fmtMoney(f.creditOutstanding)}`}>
+              {data.outstanding.map((o) => (
+                <LedgerItem
+                  key={o.orderId}
+                  orderId={o.orderId}
+                  orderCode={o.orderCode}
+                  figure={fmtMoney(o.creditBalance)}
+                  clientName={o.clientName}
+                  meta={<span>{outstandingLine(o)}</span>}
+                />
+              ))}
+            </LedgerSection>
           )}
           {data.pending.length > 0 && (
             <LedgerSection title={`Por cobrar hoy · ${fmtMoney(f.pendingAmount)}`}>

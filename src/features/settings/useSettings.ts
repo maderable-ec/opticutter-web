@@ -13,12 +13,14 @@ import type {
   TaxPayload,
   TaxSettings,
 } from './types'
+import type { WorkSchedule } from './workSchedule'
 
 const CUTTING_KEY = ['settings', 'cutting']
 const COMPANY_KEY = ['settings', 'company']
 const PREORDER_KEY = ['settings', 'preorders']
 const TAX_KEY = ['settings', 'taxes']
 const STOCK_KEY = ['settings', 'stock']
+const WORK_SCHEDULE_KEY = ['settings', 'work-schedule']
 
 export const useCuttingSettings = () =>
   useQuery({
@@ -97,6 +99,25 @@ export const useUpdateStockSettings = () => {
       // The low-stock report is measured against these very numbers, so it is
       // stale the instant they change.
       void qc.invalidateQueries({ queryKey: ['analytics', 'lowStock'] })
+    },
+  })
+}
+
+export const useWorkSchedule = () =>
+  useQuery({
+    queryKey: WORK_SCHEDULE_KEY,
+    queryFn: settingsApi.getWorkSchedule,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+
+export const useUpdateWorkSchedule = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: WorkSchedule) => settingsApi.updateWorkSchedule(data),
+    onSuccess: (data: WorkSchedule) => {
+      qc.setQueryData(WORK_SCHEDULE_KEY, data)
+      // Every hour the statistics report is read against this schedule, past periods included.
+      void qc.invalidateQueries({ queryKey: ['analytics'] })
     },
   })
 }

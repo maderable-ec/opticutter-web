@@ -40,10 +40,13 @@ import OrderPiecesTable from './OrderPiecesTable'
 import { orderCutList } from './cutList'
 import { cutBarColor, cutPct } from './progress'
 import OrderAttachmentsModal from './OrderAttachmentsModal'
+import CreditPaymentModal from './CreditPaymentModal'
+import { PAYMENT_METHOD_LABEL, creditBalance } from './payments'
 import { attachmentsLocked, isTerminal, transitionsFor } from './status'
 import { ACTIVITY_LABEL, orderedActivities } from './activities'
 import type { StatusTransition } from './status'
 import {
+  useAddPayment,
   useAssociateInvoice,
   useAttachments,
   useChangeOrderBranch,
@@ -51,9 +54,10 @@ import {
   useCuttingPlan,
   useOrder,
   useUpdateOrderStatus,
+  useVoidPayment,
 } from './useOrders'
 import { ordersApi } from './ordersApi'
-import type { OrderStatus } from './types'
+import type { AddPaymentPayload, OrderPayment, OrderStatus } from './types'
 import LoadingBlock from 'src/shared/components/LoadingBlock'
 import { ErrorState } from 'src/shared/components/QueryState'
 import Spinner from 'src/shared/components/Spinner'
@@ -111,6 +115,8 @@ const OrderDetailPage = () => {
   const backLabel = `Volver a ${back.name}`
   const fromHere = useFromHere()
   const canManage = useHasRole('administrador', 'vendedor')
+  // Voiding a payment takes money back off the books: the admin's alone, like the API.
+  const isAdmin = useHasRole('administrador')
   const currentUser = useCurrentUser()
   const { data: order, isLoading, isError, refetch } = useOrder(id)
   // The trail and the tab say «ORD-2026-0041», and so does the «Volver» of what is opened from here.
@@ -120,6 +126,8 @@ const OrderDetailPage = () => {
   // checks what the shop actually cut when a client disputes it.
   const cuttingPlan = useCuttingPlan(id, !!order)
   const updateStatus = useUpdateOrderStatus()
+  const addPayment = useAddPayment()
+  const voidPayment = useVoidPayment()
   const associateInvoice = useAssociateInvoice()
   const changeBranch = useChangeOrderBranch()
   const setPriority = useSetOrderPriority()
@@ -156,6 +164,7 @@ const OrderDetailPage = () => {
   })
   const [transitionNote, setTransitionNote] = useState('')
   const noteId = useId()
+  const voidId = useId()
   const [invoiceModal, setInvoiceModal] = useState(false)
   const [invoiceId, setInvoiceId] = useState('')
   const [branchModal, setBranchModal] = useState(false)
@@ -163,6 +172,10 @@ const OrderDetailPage = () => {
   const [branchNote, setBranchNote] = useState('')
   const [priorityModal, setPriorityModal] = useState(false)
   const [priorityNote, setPriorityNote] = useState('')
+  // The credit's own dialog: registering a payment, or dispatching (which collects on the way).
+  const [creditModal, setCreditModal] = useState<'payment' | 'dispatch' | null>(null)
+  const [voiding, setVoiding] = useState<OrderPayment | null>(null)
+  const [voidReason, setVoidReason] = useState('')
   const [paymentModal, setPaymentModal] = useState(false)
   const [cashInput, setCashInput] = useState('')
   const [transferInput, setTransferInput] = useState('')
@@ -183,6 +196,37 @@ const OrderDetailPage = () => {
   const closeTransition = () => {
     setTransitionModal({ visible: false, transition: null })
     updateStatus.reset()
+  }
+
+  const closeCredit = () => {
+    setCreditModal(null)
+    updateStatus.reset()
+    addPayment.reset()
+  }
+  // One form, two destinations: a payment on its own, or the dispatch carrying it.
+  const confirmCredit = ({ note, ...payment }: AddPaymentPayload) => {
+    if (!id) return
+    if (creditModal === 'dispatch') {
+      const collects = !!payment.cashAmount || !!payment.transferAmount
+      updateStatus.mutate(
+        { id, data: { status: 'dispatched', note, payment: collects ? payment : undefined } },
+        { onSuccess: closeCredit },
+      )
+      return
+    }
+    addPayment.mutate({ id, data: { ...payment, note } }, { onSuccess: closeCredit })
+  }
+  const closeVoid = () => {
+    setVoiding(null)
+    setVoidReason('')
+    voidPayment.reset()
+  }
+  const confirmVoid = () => {
+    if (!id || !voiding || voidReason.trim().length === 0) return
+    voidPayment.mutate(
+      { id, paymentId: voiding.id, reason: voidReason.trim() },
+      { onSuccess: closeVoid },
+    )
   }
 
   // Trimmed, because the server trims too: a note of three spaces is a 422, not a reason.
@@ -394,6 +438,11 @@ const OrderDetailPage = () => {
   const transfer = order.paymentTransferAmount ?? 0
   const credit = order.paymentCreditAmount ?? 0
   const hasPayment = cash > 0 || transfer > 0 || credit > 0
+  // What is still owed of that credit, and what came in since the sale. The three amounts above
+  // never change: they are how the order was sold.
+  const balance = creditBalance(order)
+  const payments = order.payments ?? []
+  const canCollect = canManage && balance > 0 && order.status !== 'cancelled'
   const hasHistory = !!order.history && order.history.length > 0
   // Why it was cancelled, off the transition's own history row — the last one, because an order
   // reaches `cancelled` once and nothing follows it. The server makes that note mandatory, so it is
@@ -685,6 +734,70 @@ const OrderDetailPage = () => {
                     <strong>{fmtMoney(credit)}</strong>
                   </div>
                 )}
+                {/* The credit's own ledger: what came in since the sale, and what is left. It sits
+                    under the terms of the sale, which never change — «A crédito $80» stays true of
+                    how the order was sold even once nothing is owed. */}
+                {credit > 0 && order.status !== 'cancelled' && (
+                  <div className="credit-ledger mt-3">
+                    <div className="eyebrow mb-1">Abonos al crédito</div>
+                    {payments.length === 0 ? (
+                      <div className="text-body-secondary fst-italic">Sin abonos todavía.</div>
+                    ) : (
+                      <ul className="credit-ledger__list">
+                        {payments.map((payment) => (
+                          <li
+                            key={payment.id}
+                            className={payment.voidedAt ? 'credit-ledger__voided' : undefined}
+                          >
+                            <span className="credit-ledger__amount">
+                              {fmtMoney(payment.amount)}
+                            </span>
+                            <span className="text-body-secondary">
+                              {PAYMENT_METHOD_LABEL[payment.method]} · {fmtDateTime(payment.paidAt)}
+                              {payment.receivedByLabel && ` · ${payment.receivedByLabel}`}
+                              {payment.note && ` · ${payment.note}`}
+                            </span>
+                            {payment.voidedAt ? (
+                              <span className="credit-ledger__note">
+                                Anulado{payment.voidReason && `: ${payment.voidReason}`}
+                              </span>
+                            ) : (
+                              isAdmin && (
+                                <button
+                                  type="button"
+                                  className="btn btn-link btn-sm p-0"
+                                  onClick={() => setVoiding(payment)}
+                                >
+                                  Anular
+                                </button>
+                              )
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <div className="d-flex flex-wrap align-items-center gap-2 mt-2">
+                      {balance > 0 ? (
+                        <strong className="text-warning-emphasis">
+                          Crédito pendiente: {fmtMoney(balance)}
+                        </strong>
+                      ) : (
+                        <strong className="text-success-emphasis">Crédito pagado</strong>
+                      )}
+                      {canCollect && (
+                        <CButton
+                          size="sm"
+                          color="primary"
+                          variant="outline"
+                          onClick={() => setCreditModal('payment')}
+                        >
+                          <Icon name="payment" className="me-1" />
+                          Registrar abono
+                        </CButton>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {/* `ms-auto` on the block itself: with payment absent it is the only child of the row and
@@ -733,10 +846,13 @@ const OrderDetailPage = () => {
         backInHeader
         onNext={
           primary
-            ? () =>
-                order.status === 'confirmed' && primary.to === 'queued'
-                  ? openPayment()
-                  : openTransition(primary)
+            ? () => {
+                if (order.status === 'confirmed' && primary.to === 'queued') openPayment()
+                // Delivering is when the credit usually gets paid, so a dispatch with a balance
+                // opens the payment form instead of a bare «¿Despachar?».
+                else if (primary.to === 'dispatched' && balance > 0) setCreditModal('dispatch')
+                else openTransition(primary)
+              }
             : undefined
         }
         nextLabel={primary?.label}
@@ -961,6 +1077,44 @@ const OrderDetailPage = () => {
           </CButton>
         </CModalFooter>
       </Modal>
+
+      {/* The credit: a payment on its own, or the dispatch that collects it */}
+      <CreditPaymentModal
+        visible={creditModal !== null}
+        orderCode={order.code}
+        balance={balance}
+        mode={creditModal ?? 'payment'}
+        pending={updateStatus.isPending || addPayment.isPending}
+        error={creditModal === 'dispatch' ? updateStatus.error : addPayment.error}
+        onConfirm={confirmCredit}
+        onClose={closeCredit}
+      />
+
+      {/* Voiding a payment registered by mistake (admin) */}
+      <ConfirmDialog
+        visible={!!voiding}
+        fullscreen="md"
+        title={voiding ? `Anular abono de ${fmtMoney(voiding.amount)}` : ''}
+        confirmLabel="Anular abono"
+        cancelLabel="No anular"
+        tone="danger"
+        pending={voidPayment.isPending}
+        disabled={voidReason.trim().length === 0}
+        error={voidPayment.error && (voidPayment.error.message || 'No se pudo anular el abono.')}
+        note="El abono queda en la lista, marcado como anulado, y el saldo vuelve a subir."
+        onConfirm={confirmVoid}
+        onClose={closeVoid}
+      >
+        <CFormLabel htmlFor={voidId}>Motivo</CFormLabel>
+        <CFormTextarea
+          id={voidId}
+          rows={2}
+          maxLength={255}
+          value={voidReason}
+          onChange={(e) => setVoidReason(e.target.value)}
+          placeholder="Por qué se anula…"
+        />
+      </ConfirmDialog>
 
       {/* Transition confirmation */}
       <ConfirmDialog

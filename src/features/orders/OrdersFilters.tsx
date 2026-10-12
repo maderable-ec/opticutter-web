@@ -62,11 +62,24 @@ const ACTIVITY_OPTIONS: { value: ActivityType | ''; label: string }[] = [
   { value: 'additional', label: 'Adicionales' },
 ]
 
-const ACTIVITY_STATUS_OPTIONS: { value: ActivityStatus | ''; label: string }[] = [
+// `paused` is not a status of the activity (a paused one is still `in_progress`), but it is a
+// stage the office asks for the same way — «every cut waiting on boards» — so it rides this select
+// and `orderFilterParams` turns it into the API's own `paused` flag.
+export type ActivityStageFilter = ActivityStatus | 'paused'
+
+const ACTIVITY_STATUS_OPTIONS: { value: ActivityStageFilter | ''; label: string }[] = [
   { value: '', label: 'Cualquier etapa' },
   { value: 'pending', label: 'Pendiente' },
   { value: 'in_progress', label: 'En curso' },
+  { value: 'paused', label: 'En pausa' },
   { value: 'done', label: 'Listo' },
+]
+
+// What the client still owes of the credit the order was sold on.
+const BALANCE_OPTIONS = [
+  { value: '', label: 'Todas' },
+  { value: 'true', label: 'Con saldo pendiente' },
+  { value: 'false', label: 'Sin saldo pendiente' },
 ]
 
 const OPTION_LABEL = (options: { value: string; label: string }[], value: string): string =>
@@ -107,7 +120,9 @@ export interface OrdersFilterValues extends EventFilterValues {
   // '' = every activity. Pairs with `activityStatus` to narrow the listing to one of the
   // three tracks at one stage — the same pair the Actividades column shows per row.
   activity: ActivityType | ''
-  activityStatus: ActivityStatus | ''
+  activityStatus: ActivityStageFilter | ''
+  // '' = all; 'true'/'false' narrow to the orders still owed on / the settled ones.
+  hasBalance: string
 }
 
 type OnFilterChange = <K extends keyof OrdersFilterValues>(
@@ -302,9 +317,26 @@ const OrdersFilterFields = ({
             size="sm"
             aria-label="Estado del trabajo"
             value={values.activityStatus}
-            onChange={(e) => onChange('activityStatus', e.target.value as ActivityStatus | '')}
+            onChange={(e) => onChange('activityStatus', e.target.value as ActivityStageFilter | '')}
           >
             {ACTIVITY_STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </CFormSelect>
+        </div>
+      </FilterSection>
+
+      <FilterSection label="Cobro">
+        <div className="px-3 py-1">
+          <CFormSelect
+            size="sm"
+            aria-label="Cobro"
+            value={values.hasBalance}
+            onChange={(e) => onChange('hasBalance', e.target.value)}
+          >
+            {BALANCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
@@ -346,6 +378,7 @@ const cleared = (values: OrdersFilterValues): OrdersFilterValues => ({
   isPriority: '',
   activity: '',
   activityStatus: '',
+  hasBalance: '',
 })
 
 /**
@@ -363,7 +396,10 @@ export const orderFilterParams = (values: OrdersFilterValues, search: string): O
   // rather than leaning on a falsy check, which would swallow "Solo normales".
   isPriority: values.isPriority === '' ? undefined : values.isPriority === 'true',
   activity: values.activity || undefined,
-  activityStatus: values.activityStatus || undefined,
+  activityStatus:
+    values.activityStatus && values.activityStatus !== 'paused' ? values.activityStatus : undefined,
+  paused: values.activityStatus === 'paused' ? true : undefined,
+  hasBalance: values.hasBalance === '' ? undefined : values.hasBalance === 'true',
 })
 
 interface OrdersFiltersProps {
@@ -455,7 +491,8 @@ export const activeCount = (values: OrdersFilterValues, showBranch: boolean): nu
   values.status.length +
   (values.isPriority ? 1 : 0) +
   (values.activity ? 1 : 0) +
-  (values.activityStatus ? 1 : 0)
+  (values.activityStatus ? 1 : 0) +
+  (values.hasBalance ? 1 : 0)
 
 // The chips mirror `activeCount` field by field, so what the badge counts is always what the row
 // below it lists. A hook rather than a pure function because two of the labels have to be looked
@@ -547,6 +584,13 @@ export const useOrdersFilterChips = (
       key: 'activityStatus',
       label: `Etapa: ${OPTION_LABEL(ACTIVITY_STATUS_OPTIONS, values.activityStatus)}`,
       onRemove: () => onChange('activityStatus', ''),
+    })
+  }
+  if (values.hasBalance) {
+    chips.push({
+      key: 'hasBalance',
+      label: OPTION_LABEL(BALANCE_OPTIONS, values.hasBalance),
+      onRemove: () => onChange('hasBalance', ''),
     })
   }
   return chips

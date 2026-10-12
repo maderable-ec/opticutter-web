@@ -34,17 +34,20 @@ import OrderStatusBadge from './OrderStatusBadge'
 import OrderCard from './OrderCard'
 import ActivityBadge from './ActivityBadge'
 import ElapsedNote from './ElapsedNote'
+import PauseNote from './PauseNote'
+import { creditBalance } from './payments'
 import { activityClock, statusClock } from './elapsed'
 import { DEFAULT_EVENT, eventOption, orderEvent, readEventFilter } from './orderEvents'
 import OrdersFilters, {
   activeCount,
   orderFilterParams,
   useOrdersFilterChips,
+  type ActivityStageFilter,
   type OrdersFilterValues,
 } from './OrdersFilters'
 import { useOrders } from './useOrders'
 import { orderedActivities } from './activities'
-import type { ActivityStatus, ActivityType, OrderSort, OrderStatus } from './types'
+import type { ActivityType, OrderSort, OrderStatus } from './types'
 
 // Filter fields that live in the URL. `q` is the search box; the rest are the panel's.
 const FILTER_KEYS = [
@@ -62,6 +65,7 @@ const FILTER_KEYS = [
   'isPriority',
   'activity',
   'activityStatus',
+  'hasBalance',
 ]
 
 const OrdersList = () => {
@@ -96,7 +100,8 @@ const OrdersList = () => {
     sort: (getParam('sort') || 'recent') as OrderSort,
     isPriority: getParam('isPriority'),
     activity: getParam('activity') as ActivityType | '',
-    activityStatus: getParam('activityStatus') as ActivityStatus | '',
+    activityStatus: getParam('activityStatus') as ActivityStageFilter | '',
+    hasBalance: getParam('hasBalance'),
   }
 
   const handleChange = <K extends keyof OrdersFilterValues>(
@@ -314,6 +319,7 @@ const OrdersList = () => {
                                 >
                                   <ActivityBadge activity={activity} />
                                   <ElapsedNote iso={activityClock(activity)} />
+                                  <PauseNote activity={activity} />
                                 </div>
                               ))}
                             </div>
@@ -323,6 +329,13 @@ const OrdersList = () => {
                         </CTableDataCell>
                         <CTableDataCell className="text-end text-nowrap">
                           {fmtMoney(o.total)}
+                          {/* What the client still owes of the credit it was sold on: the figure
+                              the office chases, under the one it was sold for. */}
+                          {creditBalance(o) > 0 && (
+                            <div className="small text-warning-emphasis fw-semibold">
+                              Saldo {fmtMoney(creditBalance(o))}
+                            </div>
+                          )}
                         </CTableDataCell>
                         <CTableDataCell className="d-none d-lg-table-cell text-nowrap">
                           {/* The time matters once the moment is a shop-floor one: a cut closed at

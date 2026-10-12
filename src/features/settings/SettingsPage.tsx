@@ -3,6 +3,7 @@ import PreorderSettingsCard from './PreorderSettingsCard'
 import CompanySettingsCard from './CompanySettingsCard'
 import TaxSettingsCard from './TaxSettingsCard'
 import StockSettingsCard from './StockSettingsCard'
+import WorkScheduleSettingsCard from './WorkScheduleSettingsCard'
 
 // Each card loads and saves its own section independently (separate GET/PATCH).
 const SettingsPage = () => (
@@ -11,6 +12,7 @@ const SettingsPage = () => (
     <PreorderSettingsCard />
     <TaxSettingsCard />
     <StockSettingsCard />
+    <WorkScheduleSettingsCard />
     <CompanySettingsCard />
   </>
 )

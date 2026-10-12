@@ -39,7 +39,7 @@ test('el vendedor ve si su sucursal está cortando y canteando', async ({ page, 
     .toContain('branchId=1')
 })
 
-test('«Hoy» desglosa lo vendido en efectivo y crédito, de la sucursal elegida', async ({
+test('«Hoy» desglosa lo vendido al contado y a crédito, de la sucursal elegida', async ({
   page,
   api,
   loginAs,
@@ -50,16 +50,20 @@ test('«Hoy» desglosa lo vendido en efectivo y crédito, de la sucursal elegida
   await page.goto('/home')
   const tile = (label: string) => page.locator('.stat-tile', { hasText: label })
   await expect(tile('Vendido')).toContainText('$18.450,80')
-  await expect(tile('Efectivo')).toContainText('$13.630,50')
-  await expect(tile('Crédito')).toContainText('$4.820,30')
+  await expect(tile('Al contado')).toContainText('$13.630,50')
+  await expect(tile('A crédito')).toContainText('$4.820,30')
+  // The credit's own figures: what came in today and what is owed right now.
+  await expect(tile('Abonos de hoy')).toContainText('$850,50')
+  await expect(tile('Crédito pendiente')).toContainText('$2.760,40')
+  await expect(tile('Crédito pendiente')).toContainText('9 órdenes por cobrar')
   // Only today, whatever the period of Estadísticas.
   const [first] = api.requests('GET', '/analytics/branch-comparison')
   expect(param(first?.url() ?? '', 'from')).toBe(param(first?.url() ?? '', 'to'))
 
   await page.getByRole('combobox', { name: 'Sucursal' }).selectOption({ label: 'Norte' })
   await expect(tile('Vendido')).toContainText('$6.350,30')
-  await expect(tile('Efectivo')).toContainText('$4.210,00')
-  await expect(tile('Crédito')).toContainText('$2.140,30')
+  await expect(tile('Al contado')).toContainText('$4.210,00')
+  await expect(tile('A crédito')).toContainText('$2.140,30')
 })
 
 test('el admin pasa todo el Inicio a una sucursal', async ({ page, api, loginAs }) => {

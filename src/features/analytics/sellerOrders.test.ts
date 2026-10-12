@@ -16,6 +16,8 @@ const order = (overrides: Partial<SellerOrder> = {}): SellerOrder => ({
   credit: 0,
   total: 50,
   invoice: '001-002-000123',
+  creditCollected: 0,
+  creditBalance: 0,
   ...overrides,
 })
 

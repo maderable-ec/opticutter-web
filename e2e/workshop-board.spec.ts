@@ -107,6 +107,88 @@ test.describe('la cola del Taller', { tag: '@taller' }, () => {
     await expect(page).toHaveURL(/\/workshop$/)
   })
 
+  test('«Pausar» pregunta el motivo y lo manda; la tarjeta en pausa solo ofrece reanudar', async ({
+    page,
+    api,
+  }) => {
+    const cutting = {
+      type: 'cutting' as const,
+      status: 'in_progress' as const,
+      readyAt: minutesAgo(200),
+      startedAt: minutesAgo(95),
+      progress: { cutPieces: 7, totalPieces: 18 },
+    }
+    const card = (activity: typeof cutting & { pausedAt?: string; pauseReason?: 'no_boards' }) =>
+      workshopQueueItem({
+        orderId: 2,
+        orderCode: 'ORD-000002',
+        status: 'in_process',
+        statusChangedAt: minutesAgo(95),
+        progress: { cutPieces: 7, totalPieces: 18 },
+        activities: [activity],
+      })
+    // The board reads the queue again after each write: running, then paused, then running.
+    let paused = false
+    api.get('/orders/workshop-queue', () => [
+      card(paused ? { ...cutting, pausedAt: minutesAgo(1), pauseReason: 'no_boards' } : cutting),
+    ])
+    api.post('/orders/2/activities/cutting/pause', () => {
+      paused = true
+      return { orderId: 2, orderCode: 'ORD-000002', orderStatus: 'in_process', activity: cutting }
+    })
+    api.post('/orders/2/activities/cutting/resume', () => {
+      paused = false
+      return { orderId: 2, orderCode: 'ORD-000002', orderStatus: 'in_process', activity: cutting }
+    })
+
+    await page.goto('/workshop')
+    await page.getByRole('button', { name: 'Pausar corte' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Pausar corte de ORD-000002' })
+    // The reason is the point: the button waits for one.
+    const confirm = dialog.getByRole('button', { name: 'Pausar corte' })
+    await expect(confirm).toBeDisabled()
+    await expect(dialog.getByRole('radio')).toHaveText([
+      'Sin tableros',
+      'Sin canto',
+      'Daño de máquina',
+    ])
+    await dialog.getByRole('radio', { name: 'Sin tableros' }).click()
+    await confirm.click()
+
+    const [sent] = api.requests('POST', '/orders/2/activities/cutting/pause')
+    expect(sent?.postDataJSON()).toEqual({ reason: 'no_boards' })
+    // Paused: why and since when, and the one thing to do about it.
+    const paused_card = page.locator('.workshop-card')
+    await expect(paused_card.locator('.workshop-pause')).toContainText(
+      'Corte en pausa · Sin tableros',
+    )
+    await expect(paused_card.getByRole('button')).toHaveText([/Materiales/, 'Reanudar corte'])
+
+    // Lifting it asks nothing: one tap.
+    await paused_card.getByRole('button', { name: 'Reanudar corte' }).click()
+    await expect(paused_card.locator('.workshop-pause')).toHaveCount(0)
+    await expect(paused_card.getByRole('button', { name: 'Pausar corte' })).toBeVisible()
+    expect(api.requests('POST', '/orders/2/activities/cutting/resume')).toHaveLength(1)
+  })
+
+  test('una tarjeta en pausa también entra entera en el panel del taller', async ({
+    page,
+    api,
+  }) => {
+    const [queued, running] = tallestRow()
+    const [cut, banding] = running?.activities ?? []
+    api.get('/orders/workshop-queue', [
+      queued,
+      {
+        ...running,
+        activities: [{ ...cut, pausedAt: minutesAgo(40), pauseReason: 'machine_failure' }, banding],
+      },
+    ])
+    await page.goto('/workshop')
+    await expect(page.locator('.workshop-pause')).toContainText('Daño de máquina')
+    await expectFirstRowInView(page)
+  })
+
   test('los materiales pasan de orden con ‹ ›, con las flechas y nunca con Alt+←', async ({
     page,
     api,
