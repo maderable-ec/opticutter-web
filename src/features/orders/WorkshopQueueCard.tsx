@@ -7,8 +7,8 @@ import { relativeTime } from 'src/shared/utils/date'
 import { fmtDateTime, fmtMeters } from 'src/shared/utils/format'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
-import { ACTIVITY_LABEL, orderedActivities } from './activities'
-import { activityClock, elapsedTone, queueStatusClock, TONE_CLASS } from './elapsed'
+import { ACTIVITY_LABEL, isPaused, orderedActivities, pauseReasonLabel } from './activities'
+import { activityClock, elapsedTone, pauseClock, queueStatusClock, TONE_CLASS } from './elapsed'
 import { cutBarColor, cutPct, isCutDone } from './progress'
 import { statusLabel } from './status'
 import type { CardAction, WorkshopQueueItem } from './types'
@@ -28,6 +28,8 @@ const ACTION_ICON: Record<CardAction['kind'], IconName> = {
   open: 'arrowRight',
   start: 'start',
   finish: 'check',
+  pause: 'paused',
+  resume: 'start',
 }
 
 // Elapsed time comes from the shared rule in `elapsed.ts`, which the orders listing reads too.
@@ -99,12 +101,16 @@ const WorkshopQueueCard = ({
   // Only the first reason is shown: stacking three would push the card taller than the ones
   // beside it, and the shop acts on one button at a time.
   const blockedReason = actions.find((a) => a.reason)?.reason
+  // Everybody on the board sees a pause, whoever may lift it: the canteador reading that the cut
+  // is waiting on boards is what tells them why no piece is coming.
+  const paused = showActivities ? activities.filter(isPaused) : []
 
   return (
     <CCard
       className="workshop-card h-100"
       data-status={item.status}
       data-priority={item.isPriority ? 'true' : undefined}
+      data-paused={paused.length > 0 ? 'true' : undefined}
     >
       <CCardBody className="workshop-card__body">
         <div className="d-flex justify-content-between align-items-start gap-2 flex-wrap">
@@ -191,6 +197,26 @@ const WorkshopQueueCard = ({
           ) : null,
         )}
 
+        {/* One line per paused activity: what, why and since when. In words — the badge above says
+            it with two bars, and at arm's length the reason is what the shop reads. */}
+        {paused.map((activity) => {
+          const since = pauseClock(activity)
+          return (
+            <div key={activity.type} className="workshop-pause">
+              <Icon name="paused" className="workshop-pause__icon" />
+              <span>
+                {ACTIVITY_LABEL[activity.type]} en pausa · {pauseReasonLabel(activity.pauseReason)}
+                {since && (
+                  <span className="workshop-pause__since" title={fmtDateTime(since)}>
+                    {' '}
+                    · {relativeTime(since)}
+                  </span>
+                )}
+              </span>
+            </div>
+          )
+        })}
+
         <div className="d-flex flex-column">
           <ElapsedLine label={statusLabel(item.status)} iso={queueStatusClock(item)} />
           {/* One clock per activity. Silent while an activity is blocked (nothing of its own
@@ -210,6 +236,7 @@ const WorkshopQueueCard = ({
             <CButton
               key={`${action.kind}:${action.activity ?? ''}`}
               color={action.color}
+              variant={action.outline ? 'outline' : undefined}
               size="lg"
               className="flex-fill"
               disabled={action.disabled || pending}

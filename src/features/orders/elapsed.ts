@@ -60,8 +60,16 @@ export const statusClock = (
  */
 export const activityClock = (activity: OrderActivity): string | null => {
   if (ACTIVITY_CLOCK_MUTE.includes(activity.status)) return null
+  // Paused: nobody is late. The stretch is out of the worker's time, and a clock in amber over
+  // an order waiting on boards would point at the one person who cannot do anything about it.
+  // `pauseClock` says how long the pause itself has lasted.
+  if (activity.pausedAt) return null
   return (activity.status === 'pending' ? activity.readyAt : activity.startedAt) ?? null
 }
+
+/** Since when the activity is paused, or `null` when it is not. */
+export const pauseClock = (activity: OrderActivity): string | null =>
+  activity.status === 'in_progress' ? (activity.pausedAt ?? null) : null
 
 /** Same rule, for the shop-floor card (a different shape, never a different answer). */
 export const queueStatusClock = (item: WorkshopQueueItem): string | null =>

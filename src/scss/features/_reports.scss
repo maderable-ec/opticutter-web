@@ -475,6 +475,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+// Why the shop stopped, by reason, over the list of each pause.
+.pause-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.pause-totals__item {
+  display: grid;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-tertiary-bg);
+  font-size: var(--mb-text-md);
+
+  > span:last-child {
+    color: var(--cui-secondary-color);
+  }
+}
+
 // --- The detail behind a person's row in Productividad (`components/Ledger.tsx`) ---
 
 // The name in a row that opens something: a button, with the row's own ink.

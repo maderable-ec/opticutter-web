@@ -21,9 +21,9 @@ interface ProductionStatusProps {
  *
  * Shared by Inicio (the seller sees theirs) and the Resumen of Estadísticas (every branch). The saw
  * is read off the pieces it marks: «Detenida» after `idleMinutes` with no piece marked while it has
- * work, the same rule the statistics use to split effective from stopped hours. The banding and the
- * additional work mark no pieces, so they read as the shop registers them: «Canteando» from
- * «Iniciar» to «Terminar».
+ * work — unless its only cut open is registered as paused, which reads «En pausa» with the reason.
+ * The banding and the additional work mark no pieces, so they read as the shop registers them:
+ * «Canteando» from «Iniciar» to «Terminar».
  */
 const ProductionStatus = ({ branchId }: ProductionStatusProps) => {
   // «hace 12 min» counts from when the state was read, which the minute's refetch moves along — and
@@ -64,7 +64,8 @@ const ProductionStatus = ({ branchId }: ProductionStatusProps) => {
       </ul>
       <p className="production-status__note">
         Corte: «Detenida» es más de {data.idleMinutes} min sin marcar una pieza con trabajo
-        pendiente. Canteado y adicionales: según «Iniciar» y «Terminar» en el tablero del taller.
+        pendiente; «En pausa», que el taller la registró con su motivo. Canteado y adicionales:
+        según «Iniciar» y «Terminar» en el tablero del taller.
       </p>
     </div>
   )

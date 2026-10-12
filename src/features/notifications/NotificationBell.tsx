@@ -40,6 +40,7 @@ const VISUALS: Record<NotificationType, NotificationVisual> = {
   'order.branch_arrived': { icon: 'branchArrived', className: 'text-info' },
   'order.branch_left': { icon: 'branchLeft', className: 'text-body-secondary' },
   'order.cancelled': { icon: 'cancelled', className: 'text-danger' },
+  'order.activity_paused': { icon: 'paused', className: 'text-warning' },
 }
 
 /** A type this build doesn't know about still renders, with the bell. The map is

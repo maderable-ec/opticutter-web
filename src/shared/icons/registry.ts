@@ -9,6 +9,7 @@ import {
   ArrowUpNarrowWide,
   BadgeCheck,
   Ban,
+  Banknote,
   Bell,
   CalendarClock,
   CalendarX,
@@ -60,6 +61,7 @@ import {
   OctagonAlert,
   Package,
   PanelRight,
+  Pause,
   Pencil,
   Play,
   Plus,
@@ -85,6 +87,7 @@ import {
   UserPlus,
   Users,
   Warehouse,
+  Wrench,
   X,
   Zap,
   ZoomIn,
@@ -150,6 +153,9 @@ export const ICONS = {
   active: CircleCheck,
   inactive: CircleMinus,
   stopped: CirclePause,
+  // Work under way that somebody stopped with a reason. Two bars, not the circled ones of
+  // `stopped`: that one is the saw quiet with nobody saying why.
+  paused: Pause,
   priority: Zap,
   late: Clock,
   ok: CircleCheck,
@@ -162,6 +168,8 @@ export const ICONS = {
   cut: SawBlade,
   offcut: Offcut,
   grain: Grain,
+  // Why work stops: with `board` and `edgeBand`, the three reasons of a pause.
+  machine: Wrench,
 
   // --- Actions ---
   add: Plus,
@@ -178,6 +186,7 @@ export const ICONS = {
   link: Link,
   external: ExternalLink,
   invoice: ReceiptText,
+  payment: Banknote,
   print: Printer,
   start: Play,
   alternative: Shuffle,

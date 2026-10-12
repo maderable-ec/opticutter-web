@@ -6,6 +6,10 @@ import { groupByDay } from './ledger'
 import {
   SHEET_KIND_LABEL,
   fmtWeight,
+  fmtWorkHours,
+  orderPause,
+  orderSpan,
+  orderSplit,
   sheetBadge,
   sheetMaterial,
   sheetPieces,
@@ -25,7 +29,8 @@ interface OperatorBoardsModalProps {
  * The sheets behind one operator's row: every one they marked a piece on in the period, and why
  * it counts for them or not. It is how a figure gets checked against what the operator says they
  * cut — the credited sheets add up to the row's «Tableros», by construction, and the rest name who
- * closed them or what is still missing.
+ * closed them or what is still missing. Under them, the same for the hours: order by order, when
+ * it was taken, its first and last piece, and how its time splits into load and sawing.
  */
 const OperatorBoardsModal = ({ userId, from, to, branchId, onClose }: OperatorBoardsModalProps) => {
   const query = useOperatorBoards(userId, from, to, branchId)
@@ -80,6 +85,34 @@ const OperatorBoardsModal = ({ userId, from, to, branchId, onClose }: OperatorBo
                 ))}
               </LedgerSection>
             ))
+          )}
+          {data.orders.length > 0 && (
+            <>
+              <p className="ledger__rule mt-4">
+                El tiempo de corte va de tomar la orden a su última pieza: carga hasta la primera,
+                sierra después. Cuenta para quien marcó la pieza que cierra cada tramo. No cuentan
+                las pausas registradas ni lo que cae fuera del horario laboral, y si dos órdenes
+                estuvieron abiertas a la vez, ese tramo cuenta una sola vez en la fila.
+              </p>
+              <LedgerSection title="Tiempo de corte por orden">
+                {data.orders.map((o) => (
+                  <LedgerItem
+                    key={o.orderId}
+                    orderId={o.orderId}
+                    orderCode={o.orderCode}
+                    figure={fmtWorkHours(o.workHours)}
+                    line={orderSplit(o)}
+                    clientName={o.clientName}
+                    meta={
+                      <>
+                        <span>{orderSpan(o)}</span>
+                        {orderPause(o) && <span>{orderPause(o)}</span>}
+                      </>
+                    }
+                  />
+                ))}
+              </LedgerSection>
+            </>
           )}
         </>
       )}

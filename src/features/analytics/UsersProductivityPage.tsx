@@ -36,17 +36,18 @@ const SELLER_COLUMNS: RankColumn<SellerFigures>[] = [
   },
   {
     id: 'cash',
-    label: 'Efectivo',
+    label: 'Al contado',
     value: (r) => r.cash,
     format: money,
-    unit: (n) => `${money(n)} efectivo`,
+    unit: (n) => `${money(n)} al contado`,
   },
   {
     id: 'credit',
-    label: 'Crédito',
+    label: 'Vendido a crédito',
+    head: 'A crédito',
     value: (r) => r.credit,
     format: money,
-    unit: (n) => `${money(n)} crédito`,
+    unit: (n) => `${money(n)} a crédito`,
   },
   {
     id: 'total',
@@ -70,6 +71,23 @@ const SELLER_COLUMNS: RankColumn<SellerFigures>[] = [
     format: (n, r) => (r.pendingCount > 0 ? `${money(n)} (${fmtInt(r.pendingCount)})` : '—'),
     unit: (n, r) =>
       r.pendingCount > 0 ? `${money(n)} por cobrar (${fmtInt(r.pendingCount)})` : 'nada por cobrar',
+  },
+  {
+    // Credit paid back in the period on their orders, whenever they were sold.
+    id: 'creditCollected',
+    label: 'Abonos recibidos',
+    head: 'Abonos',
+    value: (r) => r.creditCollected,
+    format: (n) => (n > 0 ? money(n) : '—'),
+    unit: (n) => (n > 0 ? `${money(n)} en abonos` : 'sin abonos'),
+  },
+  {
+    // What their clients owe right now: a snapshot, like «Por cobrar».
+    id: 'creditOutstanding',
+    label: 'Crédito pendiente (hoy)',
+    value: (r) => r.creditOutstanding,
+    format: (n) => (n > 0 ? money(n) : '—'),
+    unit: (n) => (n > 0 ? `${money(n)} de crédito pendiente` : 'sin crédito pendiente'),
   },
 ]
 
@@ -96,12 +114,29 @@ const OPERATOR_COLUMNS: RankColumn<OperatorFigures>[] = [
     format: (n) => fmtMeters(n, 0),
     unit: (n) => `${fmtMeters(n, 0)} de corte`,
   },
+  // The cut's time and its two parts: the load (taking the order to its first piece) and the
+  // sawing (first piece to last). «Tiempo» is what the two rates divide by.
   {
-    id: 'effectiveHours',
-    label: 'Horas efectivas',
-    value: (r) => r.effectiveHours,
+    id: 'loadingHours',
+    label: 'Carga',
+    value: (r) => r.loadingHours,
     format: fmtH,
-    unit: (n) => `${fmtH(n)} efectivas`,
+    unit: (n) => `${fmtH(n)} de carga`,
+  },
+  {
+    id: 'sawingHours',
+    label: 'Sierra',
+    value: (r) => r.sawingHours,
+    format: fmtH,
+    unit: (n) => `${fmtH(n)} de sierra`,
+  },
+  {
+    id: 'workHours',
+    label: 'Tiempo de corte',
+    head: 'Tiempo',
+    value: (r) => r.workHours,
+    format: fmtH,
+    unit: (n) => `${fmtH(n)} de corte`,
   },
   {
     id: 'boardsPerHour',
@@ -130,6 +165,15 @@ const OPERATOR_COLUMNS: RankColumn<OperatorFigures>[] = [
     value: (r) => r.ordersCut,
     format: fmtInt,
     unit: count('orden', 'órdenes'),
+  },
+  {
+    // The pauses they registered on the cut, and the working hours those took: time that is NOT
+    // in «Tiempo».
+    id: 'pausedHours',
+    label: 'En pausa',
+    value: (r) => r.pausedHours,
+    format: (n, r) => (r.pauses > 0 ? `${fmtH(n)} (${fmtInt(r.pauses)})` : '—'),
+    unit: (n, r) => (r.pauses > 0 ? `${fmtH(n)} en pausa (${fmtInt(r.pauses)})` : 'sin pausas'),
   },
 ]
 
@@ -192,6 +236,13 @@ const BANDER_COLUMNS: RankColumn<BanderFigures>[] = [
     unit: (n) => `${fmtH(n)} de adicionales`,
   },
   {
+    id: 'pausedHours',
+    label: 'En pausa',
+    value: (r) => r.pausedHours,
+    format: (n) => (n > 0 ? fmtH(n) : '—'),
+    unit: (n) => (n > 0 ? `${fmtH(n)} en pausa` : 'sin pausas'),
+  },
+  {
     // Iniciar and Terminar tapped together after the work: it counts, but it has no time. Kept in
     // sight because the hours and the live «Canteando» are only as good as this is low.
     id: 'unclocked',
@@ -208,11 +259,11 @@ const BANDER_COLUMNS: RankColumn<BanderFigures>[] = [
 
 const CAPTIONS: Record<Team, string> = {
   vendedor:
-    'Por fecha de cobro, a quien hizo la cotización. Efectivo incluye transferencia. «Por cobrar» es de hoy: confirmadas sin pago. Toca un vendedor para ver sus órdenes, con su factura.',
+    'Por fecha de cobro, a quien hizo la cotización. «Al contado» incluye transferencia. «Abonos» es el crédito cobrado en el período, se haya vendido cuando sea. «Por cobrar» y «Crédito pendiente» son de hoy: confirmadas sin pago, y lo que aún deben sus clientes. Toca un vendedor para ver sus órdenes, con su factura.',
   operador:
-    'Cada tablero cuenta para quien marcó su última pieza. Las horas efectivas salen de sus propias marcas, sin las paradas. Toca un operador para ver hoja por hoja qué le cuenta y qué no.',
+    'Cada tablero cuenta para quien marcó su última pieza. El tiempo de corte va de tomar la orden a su última pieza: carga hasta la primera, sierra después. No cuentan las pausas registradas ni lo que cae fuera del horario laboral. Toca un operador para ver hoja por hoja y orden por orden.',
   canteador:
-    'Por la fecha en que se cerró el canteado. Metros netos de cinta pegada (sin desperdicio), con los cantos especiales. Las horas van del inicio al cierre: el canteado no marca piezas, así que sus pausas no se separan. «Sin tiempo»: iniciadas y terminadas en menos de un minuto, registradas al final; cuentan como trabajo, pero no suman horas. Toca un canteador para ver orden por orden.',
+    'Por la fecha en que se cerró el canteado. Metros netos de cinta pegada (sin desperdicio), con los cantos especiales. Las horas van del inicio al cierre, sin las pausas registradas ni lo que cae fuera del horario laboral. «Sin tiempo»: iniciadas y terminadas en menos de un minuto, registradas al final; cuentan como trabajo, pero no suman horas. Toca un canteador para ver orden por orden.',
 }
 
 // What each team did in the period, one report per role: what a seller sells is nothing like what

@@ -13,6 +13,10 @@ export type NotificationType =
    *  of the queue — that is the case where a card vanishes off their board, and the body says so.
    *  `data.fromStatus` is what the server's copy turns on. */
   | 'order.cancelled'
+  /** The shop floor paused an activity it cannot go on with (no boards, no edge banding, a
+   *  machine down): to the administrators and the seller the order belongs to. `data.reason` and
+   *  `data.activity` say which. */
+  | 'order.activity_paused'
 
 export interface Notification {
   id: number

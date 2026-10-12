@@ -13,6 +13,7 @@ const work = (overrides: Partial<BanderOrder> = {}): BanderOrder => ({
   finishedAt: new Date(2026, 9, 6, 11, 0).toISOString(),
   day: '2026-10-06',
   hours: 2,
+  pausedHours: 0,
   bandedLinearM: 27.23,
   ...overrides,
 })

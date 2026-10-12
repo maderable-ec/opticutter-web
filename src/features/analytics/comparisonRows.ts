@@ -1,4 +1,4 @@
-import { fmtMeters, fmtMoney, fmtNumber, fmtPercent } from 'src/shared/utils/format'
+import { fmtMeters, fmtMoney, fmtNumber } from 'src/shared/utils/format'
 import type { ComparisonGroup, ComparisonRow } from './components/BranchComparisonTable'
 import { fmtDecimal, fmtInt, fmtMinuteOfDay, fmtRate, fmtShare } from './format'
 import type { BranchFigures } from './types'
@@ -9,12 +9,11 @@ import type { BranchFigures } from './types'
 const fmtH = (n: number) => `${fmtDecimal(n)} h`
 const fmtBoards = (n: number) => fmtNumber(n, 1, 0)
 
-// Of a branch's whole workday, how much the saw was cutting.
-const workedShare = (f: BranchFigures) => {
-  const { effectiveHours, pausedHours } = f.production
-  const span = effectiveHours + pausedHours
-  return span > 0 ? (effectiveHours / span) * 100 : 0
-}
+// Of the cut's time, how much went to pulling the sheets and loading the saw.
+const loadingShare = (f: BranchFigures) =>
+  f.production.workHours > 0
+    ? fmtShare(f.production.loadingHours, f.production.workHours)
+    : undefined
 
 // An average time of day means nothing over no day at all.
 const timeOfDay =
@@ -23,20 +22,42 @@ const timeOfDay =
     f.production.daysWorked > 0 ? fmtMinuteOfDay(pick(f)) : '—'
 
 const ROWS = {
+  // The sale as it was sold: on the spot (cash and transfer) and on credit. The two add up to the
+  // total below.
   cash: {
-    label: 'Efectivo',
+    label: 'Al contado',
     value: (f) => f.sales.cash,
     format: (n) => fmtMoney(n),
     detail: (f) => fmtShare(f.sales.cash, f.sales.total),
     better: 'higher',
   },
   credit: {
-    label: 'Crédito',
+    label: 'Vendido a crédito',
     value: (f) => f.sales.credit,
     format: (n) => fmtMoney(n),
     detail: (f) => fmtShare(f.sales.credit, f.sales.total),
     // Selling more on credit is not doing better: it is money still owed.
     better: 'none',
+  },
+  // Credit paid back in the period, whenever it was sold: the day the money came in.
+  collected: {
+    label: 'Abonos recibidos',
+    value: (f) => f.sales.creditCollected,
+    format: (n) => fmtMoney(n),
+    better: 'higher',
+  },
+  // Not a figure of the period: what clients owe right now, which comes down with each payment.
+  outstanding: {
+    label: 'Crédito pendiente (hoy)',
+    value: (f) => f.sales.creditOutstanding,
+    format: (n) => fmtMoney(n),
+    detail: (f) =>
+      f.sales.creditOutstandingOrders > 0
+        ? `${fmtInt(f.sales.creditOutstandingOrders)} ${
+            f.sales.creditOutstandingOrders === 1 ? 'orden' : 'órdenes'
+          }`
+        : undefined,
+    better: 'lower',
   },
   sold: {
     label: 'Total vendido',
@@ -90,23 +111,33 @@ const ROWS = {
     format: fmtInt,
     better: 'higher',
   },
-  effective: {
-    label: 'Horas efectivas',
-    value: (f) => f.production.effectiveHours,
+  // From taking an order to its last piece: the load and the sawing together. It is what the two
+  // rates below divide by, so it is no better high or low on its own.
+  work: {
+    label: 'Tiempo de corte',
+    value: (f) => f.production.workHours,
     format: fmtH,
-    better: 'higher',
+    better: 'none',
   },
+  loading: {
+    label: 'Carga',
+    value: (f) => f.production.loadingHours,
+    format: fmtH,
+    detail: loadingShare,
+    better: 'none',
+  },
+  sawing: {
+    label: 'Sierra',
+    value: (f) => f.production.sawingHours,
+    format: fmtH,
+    better: 'none',
+  },
+  // Working hours the cut spent in a pause the shop registered: no boards, no tape, a machine down.
   paused: {
-    label: 'Horas paradas',
+    label: 'En pausa',
     value: (f) => f.production.pausedHours,
     format: fmtH,
     better: 'lower',
-  },
-  worked: {
-    label: 'Jornada cortando',
-    value: workedShare,
-    format: (n) => fmtPercent(n, 0),
-    better: 'higher',
   },
   metersPerHour: {
     label: 'Metros por hora',
@@ -142,7 +173,10 @@ const ROWS = {
 
 // Resumen: who sells more, who produces more and who does it faster.
 export const SUMMARY_GROUPS: ComparisonGroup[] = [
-  { title: 'Ventas', rows: [ROWS.cash, ROWS.credit, ROWS.sold] },
+  {
+    title: 'Ventas',
+    rows: [ROWS.cash, ROWS.credit, ROWS.sold, ROWS.collected, ROWS.outstanding],
+  },
   { title: 'Órdenes', rows: [ROWS.entered, ROWS.finished] },
   {
     title: 'Producción',
@@ -152,7 +186,7 @@ export const SUMMARY_GROUPS: ComparisonGroup[] = [
       ROWS.banded,
       ROWS.ordersBanded,
       ROWS.ordersAdditional,
-      ROWS.effective,
+      ROWS.work,
       ROWS.metersPerHour,
       ROWS.boardsPerHour,
     ],
@@ -173,8 +207,9 @@ export const PRODUCTION_GROUPS: ComparisonGroup[] = [
     ],
   },
   {
-    title: 'Jornada',
-    rows: [ROWS.effective, ROWS.paused, ROWS.worked, ROWS.start, ROWS.end, ROWS.days],
+    title: 'Tiempo de corte',
+    rows: [ROWS.work, ROWS.loading, ROWS.sawing, ROWS.paused],
   },
+  { title: 'Jornada', rows: [ROWS.start, ROWS.end, ROWS.days] },
   { title: 'Rendimiento', rows: [ROWS.boardsPerHour, ROWS.metersPerHour] },
 ]

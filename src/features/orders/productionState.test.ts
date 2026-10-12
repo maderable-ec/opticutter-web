@@ -46,6 +46,21 @@ describe('the live state’s line', () => {
     ).toBe('desde 08:12 · ORD-000131')
   })
 
+  it('says why a paused branch is quiet, since when and on which order', () => {
+    expect(
+      statusDetail(
+        branch({
+          state: 'paused',
+          since: minutesAgo(40),
+          pauseReason: 'no_boards',
+          pausedOrderCodes: ['ORD-000131'],
+          queuedCount: 3,
+        }),
+        NOW,
+      ),
+    ).toBe('Sin tableros · hace 40 min · ORD-000131 · 3 en cola')
+  })
+
   it('says how long a stopped branch has been quiet and what is waiting', () => {
     const at = minutesAgo(45)
     expect(
@@ -117,5 +132,22 @@ describe('the banding and additional work’s line', () => {
     )
     expect(activityDetail('banding', track(), NOW)).toBe('sin canteados registrados')
     expect(activityDetail('additional', track(), NOW)).toBe('sin adicionales registrados')
+  })
+})
+
+describe('a paused banding', () => {
+  it('reads with its reason, never as waiting', () => {
+    expect(
+      activityDetail(
+        'banding',
+        track({
+          state: 'paused',
+          since: minutesAgo(25),
+          pauseReason: 'no_edge_banding',
+          pausedOrderCodes: ['ORD-000128'],
+        }),
+        NOW,
+      ),
+    ).toBe('Sin canto · hace 25 min · ORD-000128')
   })
 })

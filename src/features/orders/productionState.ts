@@ -2,6 +2,7 @@ import type { StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import { fmtLocalTime } from 'src/features/analytics/format'
 import { localDateKey, relativeTime } from 'src/shared/utils/date'
 import { fmtDate } from 'src/shared/utils/format'
+import { pauseReasonLabel } from './activities'
 import type {
   ActivityLiveState,
   ActivityLiveStatus,
@@ -13,6 +14,8 @@ import type {
 // kept for the one state somebody has to act on — work waiting and nothing cut.
 export const PRODUCTION_STATE_CONFIG: Record<ProductionState, StatusConfigEntry> = {
   cutting: { tone: 'success', icon: 'cut', label: 'Cortando' },
+  // Quiet WITH a reason somebody registered: not red, the office already knows why.
+  paused: { tone: 'progress', icon: 'paused', label: 'En pausa' },
   stopped: { tone: 'danger', icon: 'stopped', label: 'Detenida' },
   idle: { tone: 'neutral', icon: 'inactive', label: 'Sin pendientes' },
 }
@@ -21,6 +24,7 @@ export const PRODUCTION_STATE_CONFIG: Record<ProductionState, StatusConfigEntry>
  * The line beside the badge: since when, and what is waiting.
  *
  * - Cortando: «desde 08:12 · ORD-000131».
+ * - En pausa: «Sin tableros · hace 40 min · ORD-000131 · 3 en cola».
  * - Detenida: «hace 45 min · 3 en cola · 1 en corte».
  * - Sin pendientes: «último corte 16:05», or its day when it was not today.
  */
@@ -28,6 +32,16 @@ export const statusDetail = (branch: BranchProductionStatus, now = new Date()): 
   const { state, since, lastEventAt, queuedCount, cuttingOrderCodes } = branch
   if (state === 'cutting') {
     return [since && `desde ${fmtLocalTime(since)}`, cuttingOrderCodes.join(', ')]
+      .filter(Boolean)
+      .join(' · ')
+  }
+  if (state === 'paused') {
+    return [
+      pauseReasonLabel(branch.pauseReason),
+      since && relativeTime(since, now.getTime()),
+      (branch.pausedOrderCodes ?? []).join(', '),
+      queuedCount > 0 && `${queuedCount} en cola`,
+    ]
       .filter(Boolean)
       .join(' · ')
   }
@@ -52,6 +66,7 @@ export type LiveActivity = (typeof LIVE_ACTIVITIES)[number]
 // Waiting is not red: with the tracks in parallel, ready work sits for a while as a matter of
 // course while the saw releases more. Only the saw's «Detenida» asks somebody to act.
 const WAITING: StatusConfigEntry = { tone: 'progress', icon: 'queued', label: 'En espera' }
+const PAUSED: StatusConfigEntry = { tone: 'progress', icon: 'paused', label: 'En pausa' }
 const IDLE: StatusConfigEntry = { tone: 'neutral', icon: 'inactive', label: 'Sin pendientes' }
 
 export const ACTIVITY_LIVE_STATE_CONFIG: Record<
@@ -60,11 +75,13 @@ export const ACTIVITY_LIVE_STATE_CONFIG: Record<
 > = {
   banding: {
     working: { tone: 'success', icon: 'edgeBand', label: 'Canteando' },
+    paused: PAUSED,
     waiting: WAITING,
     idle: IDLE,
   },
   additional: {
     working: { tone: 'success', icon: 'inProgress', label: 'En curso' },
+    paused: PAUSED,
     waiting: WAITING,
     idle: IDLE,
   },
@@ -80,6 +97,7 @@ const CLOSED_NOUN: Record<LiveActivity, { one: string; many: string }> = {
  * The line beside a banding or additional badge.
  *
  * - Working: «desde 10:20 · ORD-000131».
+ * - Paused: «Sin canto · hace 25 min · ORD-000131».
  * - Waiting: «2 órdenes listas · hace 40 min» (since the oldest one became ready).
  * - Idle: «último canteado 16:05», or its day when it was not today.
  */
@@ -91,6 +109,15 @@ export const activityDetail = (
   const { state, since, orderCodes, waitingCount, lastFinishedAt } = status
   if (state === 'working') {
     return [since && `desde ${fmtLocalTime(since)}`, orderCodes.join(', ')]
+      .filter(Boolean)
+      .join(' · ')
+  }
+  if (state === 'paused') {
+    return [
+      pauseReasonLabel(status.pauseReason),
+      since && relativeTime(since, now.getTime()),
+      (status.pausedOrderCodes ?? []).join(', '),
+    ]
       .filter(Boolean)
       .join(' · ')
   }

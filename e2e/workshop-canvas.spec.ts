@@ -65,6 +65,72 @@ test.describe('lienzo de corte', { tag: '@taller' }, () => {
     await expect(page).toHaveURL(/\/workshop$/)
   })
 
+  test('un corte en pausa dice por qué, no deja marcar piezas y ofrece reanudar', async ({
+    page,
+    api,
+  }) => {
+    const plan = cuttingPlan()
+    const [cut, ...others] = plan.activities
+    let paused = true
+    api.get('/orders/41/cutting-plan', () =>
+      paused
+        ? {
+            ...plan,
+            activities: [
+              { ...cut, pausedAt: '2026-10-12T15:42:00Z', pauseReason: 'no_boards' },
+              ...others,
+            ],
+          }
+        : plan,
+    )
+    api.post('/orders/41/activities/cutting/resume', () => {
+      paused = false
+      return { orderId: 41, orderCode: 'ORD-000041', orderStatus: 'in_process', activity: cut }
+    })
+
+    await page.goto('/workshop/orders/41')
+    const bar = page.locator('.workshop-actionbar')
+    await expect(bar).toContainText('Corte en pausa · Sin tableros · desde 10:42')
+    // A paused cut takes no marks: tapping a pending piece asks the API for nothing.
+    await page.getByRole('img', { name: /^Tablero 1:/ }).click()
+    expect(api.requests('PATCH', /\/orders\/41\/cutting-plan\/pieces\//)).toHaveLength(0)
+    await expect(bar.getByRole('button')).toHaveText(['Reanudar corte'])
+    // And it still fits the panel: the pause rides the action row, not a row of its own.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollHeight - window.innerHeight,
+    )
+    expect(overflow).toBe(0)
+
+    await bar.getByRole('button', { name: 'Reanudar corte' }).click()
+    await expect(bar.getByRole('button', { name: 'Pausar' })).toBeVisible()
+    await expect(bar).not.toContainText('en pausa')
+  })
+
+  test('«Pausar» pide el motivo sobre el lienzo y lo registra', async ({ page, api }) => {
+    const plan = cuttingPlan()
+    api.post('/orders/41/activities/cutting/pause', {
+      orderId: 41,
+      orderCode: 'ORD-000041',
+      orderStatus: 'in_process',
+      activity: plan.activities[0],
+    })
+
+    await page.goto('/workshop/orders/41')
+    await page.locator('.workshop-actionbar').getByRole('button', { name: 'Pausar' }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Pausar corte de ORD-000041' })
+    await dialog.getByRole('radio', { name: 'Daño de máquina' }).click()
+    await dialog.getByRole('button', { name: 'Agregar un detalle' }).click()
+    await dialog.getByLabel('Detalle (opcional)').fill('Se rompió la correa')
+    await dialog.getByRole('button', { name: 'Pausar corte' }).click()
+
+    await expect(dialog).toBeHidden()
+    const [sent] = api.requests('POST', '/orders/41/activities/cutting/pause')
+    expect(sent?.postDataJSON()).toEqual({
+      reason: 'machine_failure',
+      note: 'Se rompió la correa',
+    })
+  })
+
   test('cuenta en palabras las piezas que faltan', async ({ page }) => {
     await page.goto('/workshop/orders/41')
     const { totalPieces, cutPieces } = cuttingPlan().progress

@@ -28,6 +28,21 @@ export type ActivityType = 'cutting' | 'banding' | 'additional'
 
 export type ActivityStatus = 'pending' | 'in_progress' | 'done'
 
+// Why an activity in progress was stopped by something outside whoever does it. Any reason is
+// valid for any activity: the canteador runs out of pieces when the saw runs out of boards.
+export type PauseReason = 'no_boards' | 'no_edge_banding' | 'machine_failure'
+
+// One pause of an activity. `endedAt` null: the pause in force.
+export interface ActivityPause {
+  id: number
+  reason: PauseReason
+  note?: string | null
+  startedAt: string
+  startedByLabel?: string | null
+  endedAt?: string | null
+  endedByLabel?: string | null
+}
+
 export interface OrderActivity {
   type: ActivityType
   status: ActivityStatus
@@ -42,6 +57,13 @@ export interface OrderActivity {
   finishedAt?: string | null
   finishedBy?: number | null
   finishedByLabel?: string | null
+  // Since when the activity is paused; null when it is not. The status stays `in_progress`
+  // throughout: no piece can be marked and the activity cannot be finished until it is resumed,
+  // and the stretch stays out of the worker's time.
+  pausedAt?: string | null
+  pauseReason?: PauseReason | null
+  // Every pause registered, oldest first.
+  pauses?: ActivityPause[]
   // Cut pieces out of THIS activity's set (every piece for cut/additional, only the banded
   // ones for banding): the gate signal, and how the card says what is missing. Filled by the
   // three shop-floor surfaces (board, cutting plan, activity result), null on the order
@@ -57,6 +79,24 @@ export interface Attachment {
   sizeBytes: number
   createdAt: string
   createdBy: number | null
+}
+
+// How money arrived AFTER the sale. Credit is not one: it is what is owed.
+export type PaymentMethod = 'cash' | 'transfer'
+
+// One payment received after the sale, against the order's credit (on dispatch or later).
+// `voidedAt` set: registered by mistake, it no longer counts — the row stays as the record.
+export interface OrderPayment {
+  id: number
+  method: PaymentMethod
+  amount: number
+  paidAt: string
+  note?: string | null
+  receivedBy?: number | null
+  receivedByLabel?: string | null
+  voidedAt?: string | null
+  voidedByLabel?: string | null
+  voidReason?: string | null
 }
 
 export interface OrderLine {
@@ -202,6 +242,12 @@ export interface Order {
   paymentCashAmount?: number | null
   paymentTransferAmount?: number | null
   paymentCreditAmount?: number | null
+  // What came in AFTER the sale against that credit, and what the client still owes: the credit
+  // sold less the payments standing. The three amounts above never change — they are how the
+  // order was sold. A cancelled order owes nothing.
+  payments?: OrderPayment[]
+  creditCollected?: number
+  creditBalance?: number
 }
 
 export interface OrderListParams {
@@ -232,6 +278,11 @@ export interface OrderListParams {
   // works: the type on its own means "orders that carry this activity at all".
   activity?: ActivityType
   activityStatus?: ActivityStatus
+  // Only orders with an activity paused right now (true) or with none (false). Reads `activity`
+  // too: "every cut waiting on boards".
+  paused?: boolean
+  // Only orders the client still owes on (true) or the settled ones (false).
+  hasBalance?: boolean
   offset?: number
   limit?: number
 }
@@ -257,7 +308,10 @@ export type OrderSort = 'oldest' | 'recent' | 'stalest'
 
 export interface UpdateStatusPayload {
   status: OrderStatus
+  // Required when dispatching with a balance left: whose decision it was and when it gets paid.
   note?: string
+  // `confirmed → queued`: how the order is paid for (required). `finished → dispatched`: what the
+  // client pays of the credit on delivery — cash and/or transfer, never more than the balance.
   payment?: { cashAmount?: number; transferAmount?: number; creditAmount?: number }
   // Required by the server on `confirmed → queued`, unless the order already
   // carries one: entering the queue is where the sale is collected. Same field
@@ -279,6 +333,14 @@ export interface SetPriorityPayload {
   note?: string
 }
 
+// --- Payments after the sale ---
+// POST /orders/{id}/payments: cash and/or transfer, at least one > 0, together within the balance.
+export interface AddPaymentPayload {
+  cashAmount?: number
+  transferAmount?: number
+  note?: string
+}
+
 // --- Activities (the shop floor's only write) ---
 // PATCH body advances one activity forward-only (pending → in_progress → done).
 export interface ActivityPayload {
@@ -295,6 +357,12 @@ export interface ActivityResult {
   orderCode: string | null
   orderStatus: OrderStatus
   activity: OrderActivity
+}
+
+// POST /orders/{id}/activities/{type}/pause. Resuming takes no body.
+export interface PauseActivityPayload {
+  reason: PauseReason
+  note?: string
 }
 
 export type BandType = 'Soft' | 'Hard'
@@ -358,9 +426,9 @@ export interface WorkshopQueueItem {
 
 // What a card's button does. `take` starts the cut AND opens the canvas (one gesture, because
 // `Tomar` is tapped precisely when the cut is about to start); `open` only navigates; the rest
-// start or finish the activity named in `activity`. There is no `complete`: the order finishes
-// itself when the last activity closes.
-export type BoardAction = 'take' | 'open' | 'start' | 'finish'
+// start, finish, pause or resume the activity named in `activity`. There is no `complete`: the
+// order finishes itself when the last activity closes.
+export type BoardAction = 'take' | 'open' | 'start' | 'finish' | 'pause' | 'resume'
 
 // One button on a queue card, derived per item from the viewer's roles and the order's
 // activities. `nav` means the button navigates to the cutting canvas instead of confirming.
@@ -369,7 +437,9 @@ export interface CardAction {
   // Which activity the `start`/`finish` applies to (unused by `take`/`open`).
   activity?: ActivityType
   label: string
-  color: 'primary' | 'success'
+  color: 'primary' | 'success' | 'secondary'
+  // Drawn as an outline: a way out of the work (pausing it), never the card's main move.
+  outline?: boolean
   // Optional: the derivation lives in `activities.ts`, which is icon-free on purpose. The card
   // picks a default per `kind` when this is absent.
   icon?: IconName
@@ -497,18 +567,24 @@ export interface MarkPieceResponse {
 // The saw is read off its events. `cutting`: a cutting event (a piece marked, a cut taken or
 // closed) within `idleMinutes`; `stopped`: nothing for that long while there is work (an order
 // queued or a cut in progress); `idle`: nothing, and nothing to do.
-export type ProductionState = 'cutting' | 'stopped' | 'idle'
+// `paused`: nothing within the gap, and the only cut open is registered as paused — a quiet saw
+// with a reason, which says it instead of asking somebody to act.
+export type ProductionState = 'cutting' | 'paused' | 'stopped' | 'idle'
 
 // The banding and the additional work mark no pieces: they are read off their activities, as the
 // shop registers them. `working`: one in progress; `waiting`: none in progress, some ready (a piece
 // of theirs already cut); `idle`: neither.
-export type ActivityLiveState = 'working' | 'waiting' | 'idle'
+// `paused`: none being worked, some registered as paused.
+export type ActivityLiveState = 'working' | 'paused' | 'waiting' | 'idle'
 
 export interface ActivityLiveStatus {
   state: ActivityLiveState
-  // Working: the start of the oldest in progress. Waiting: when the oldest ready one became ready.
-  // Idle: the last close (null: never closed).
+  // Working: the start of the oldest in progress. Paused: the oldest pause in force. Waiting: when
+  // the oldest ready one became ready. Idle: the last close (null: never closed).
   since: string | null
+  // Paused: why (the reason of the oldest pause in force) and which orders.
+  pauseReason?: PauseReason | null
+  pausedOrderCodes?: string[]
   orderCodes: string[]
   waitingCount: number
   lastFinishedAt: string | null
@@ -518,9 +594,12 @@ export interface BranchProductionStatus {
   branchId: number
   branchName: string
   state: ProductionState
-  // When the current state began: the start of the run while cutting, the last event otherwise
-  // (null: the branch never cut).
+  // When the current state began: the start of the run while cutting, the oldest pause in force
+  // while paused, the last event otherwise (null: the branch never cut).
   since: string | null
+  // Paused: why, and which orders' cut is paused (oldest pause first).
+  pauseReason?: PauseReason | null
+  pausedOrderCodes?: string[]
   lastEventAt: string | null
   queuedCount: number
   cuttingOrderCodes: string[]

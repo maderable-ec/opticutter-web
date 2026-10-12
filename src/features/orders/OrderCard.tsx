@@ -8,6 +8,7 @@ import ActivityBadge from './ActivityBadge'
 import ElapsedNote from './ElapsedNote'
 import { statusClock } from './elapsed'
 import { orderedActivities } from './activities'
+import { creditBalance } from './payments'
 import type { Order } from './types'
 
 // One order of the listing on a phone, where the seven-column table scrolled sideways and put the
@@ -48,6 +49,11 @@ const OrderCard = ({ order }: OrderCardProps) => {
       meta={
         <>
           <ElapsedNote iso={statusClock(order)} status={order.status} />
+          {creditBalance(order) > 0 && (
+            <span className="text-warning-emphasis fw-semibold">
+              Saldo {fmtMoney(creditBalance(order))}
+            </span>
+          )}
           <span>{order.branch.name}</span>
           <span>{fmtDate(order.createdAt)}</span>
         </>

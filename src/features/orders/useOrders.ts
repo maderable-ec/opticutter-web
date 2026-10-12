@@ -4,9 +4,11 @@ import { ordersApi } from './ordersApi'
 import type {
   OrderListParams,
   UpdateStatusPayload,
+  AddPaymentPayload,
   AssociateInvoicePayload,
   ActivityPayload,
   ActivityType,
+  PauseActivityPayload,
   ChangeBranchPayload,
   CuttingPlan,
   MarkPieceResponse,
@@ -170,6 +172,57 @@ export const useUpdateActivity = () => {
     onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
       void qc.invalidateQueries({ queryKey: cuttingPlanKey(id) })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+// Pauses an activity (with `pause`) or lifts its pause (without). One mutation for the two so the
+// board keeps a single pending/error state per card, like `useUpdateActivity`.
+export const usePauseActivity = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      activity,
+      pause,
+    }: {
+      id: string
+      activity: ActivityType
+      // Absent: resume.
+      pause?: PauseActivityPayload
+    }) =>
+      pause ? ordersApi.pauseActivity(id, activity, pause) : ordersApi.resumeActivity(id, activity),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: WORKSHOP_QUEUE_KEY })
+      void qc.invalidateQueries({ queryKey: cuttingPlanKey(id) })
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+// --- Payments after the sale ---
+
+export const useAddPayment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: AddPaymentPayload }) =>
+      ordersApi.addPayment(id, data),
+    onSuccess: (_data, { id }) => {
+      void qc.invalidateQueries({ queryKey: ['orders', id] })
+      void qc.invalidateQueries({ queryKey: ['orders'] })
+    },
+  })
+}
+
+export const useVoidPayment = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, paymentId, reason }: { id: string; paymentId: number; reason: string }) =>
+      ordersApi.voidPayment(id, paymentId, reason),
+    onSuccess: (_data, { id }) => {
       void qc.invalidateQueries({ queryKey: ['orders', id] })
       void qc.invalidateQueries({ queryKey: ['orders'] })
     },

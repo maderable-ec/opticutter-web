@@ -505,3 +505,98 @@
   color: var(--cui-secondary-color);
   font-size: var(--mb-text-sm);
 }
+
+// --- Pausing work that cannot go on -----------------------------------------------------------
+// `PauseDialog`: why the work stops, as three targets for a gloved hand. Each carries its own
+// drawing, so the reason is picked by shape from where the operator stands; the chosen one is told
+// by its ground and its border as well as by `aria-checked`, never by colour alone.
+.pause-reasons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+
+  // On a phone the three stack, each as a row: stacked columns would push the button under the
+  // fold of a dialog that also has to fit a keyboard when the detail is open.
+  @media (max-width: 575.98px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pause-reason {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 6.5rem;
+  padding: 0.75rem 0.5rem;
+  border: 2px solid var(--cui-border-color);
+  border-radius: var(--cui-border-radius);
+  background-color: var(--cui-body-bg);
+  color: inherit;
+  font-size: var(--mb-text-base);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--cui-primary);
+  }
+
+  &[aria-checked='true'] {
+    border-color: var(--cui-primary);
+    background-color: var(--cui-primary-bg-subtle);
+    color: var(--cui-primary-text-emphasis);
+  }
+
+  @media (max-width: 575.98px) {
+    flex-direction: row;
+    justify-content: flex-start;
+    min-height: 3.5rem;
+    padding: 0.5rem 0.75rem;
+    text-align: start;
+  }
+}
+
+.pause-reason__icon {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+}
+
+// A paused activity on the queue card: why and since when, in the tone of work that needs a look
+// (the same as the «En proceso» badge). Not red — nobody on the shop floor is late, the stretch is
+// out of their time; the one who has to act is the office, which gets its own notice.
+.workshop-pause {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--cui-border-radius);
+  background-color: var(--mb-tone-progress-bg);
+  color: var(--mb-tone-progress-fg);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.workshop-pause__icon {
+  flex: 0 0 auto;
+}
+
+.workshop-pause__since {
+  font-weight: 400;
+}
+
+// The same on the cutting canvas, in its action row: the cut is paused, why, and the one thing to
+// do about it. The pieces above take no taps until it is lifted.
+.workshop-actionbar--paused {
+  background-color: var(--mb-tone-progress-bg);
+  color: var(--mb-tone-progress-fg);
+  font-weight: 600;
+}
+
+.workshop-actionbar__since {
+  font-weight: 400;
+}
