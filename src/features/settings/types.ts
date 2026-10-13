@@ -60,3 +60,14 @@ export interface StockSettings {
 }
 
 export type StockPayload = Partial<StockSettings>
+
+/**
+ * The shop's consumables. `glueLoadKg` is the standard load of the edge bander's glue pot: what
+ * the bander's control starts at. Every load keeps the kg it actually took, so changing this
+ * never rewrites a past one.
+ */
+export interface ConsumableSettings {
+  glueLoadKg: number
+}
+
+export type ConsumablePayload = Partial<ConsumableSettings>

@@ -16,6 +16,14 @@ import type {
   SellerReport,
 } from 'src/features/analytics/types'
 import type { Role } from 'src/features/auth/types'
+import type {
+  BranchConsumables,
+  ConsumableChange,
+  ConsumableLife,
+  ConsumableReport,
+  ConsumableStatus,
+  ConsumableSummary,
+} from 'src/features/consumables/types'
 import type { LowStockReport, StockCheckResult } from 'src/features/inventory/types'
 import type {
   Layout,
@@ -1368,6 +1376,7 @@ export const cuttingPlan = (overrides: Partial<CuttingPlan> = {}): CuttingPlan =
   return {
     orderId: 41,
     orderCode: 'ORD-000041',
+    branchId: 1,
     status: 'in_process',
     client: client({ firstName: 'María Fernanda', lastName: 'Villavicencio Ortega' }),
     notes: 'Cocina edificio Norte',
@@ -1422,6 +1431,204 @@ export const stockCheck = (overrides: Partial<StockCheckResult> = {}): StockChec
       belowThreshold: true,
       insufficient: false,
     },
+  ],
+  ...overrides,
+})
+
+// --- The shop's consumables (the blades and the glue) ---
+
+export const consumableChange = (overrides: Partial<ConsumableChange> = {}): ConsumableChange => ({
+  id: 7,
+  branchId: 1,
+  type: 'saw_blade',
+  changedAt: minutesAgo(6 * 24 * 60),
+  changedByLabel: 'Luis Operador',
+  condition: 'sharpened',
+  quantity: null,
+  reason: null,
+  note: null,
+  ...overrides,
+})
+
+/** One consumable of a branch: a blade six days on the saw, free to be changed. */
+export const consumableStatus = (overrides: Partial<ConsumableStatus> = {}): ConsumableStatus => ({
+  type: 'saw_blade',
+  gate: 'free',
+  lastChange: consumableChange(),
+  meters: 1240.4,
+  boards: 86,
+  orders: null,
+  workedHours: 52.5,
+  canUndo: false,
+  standardQuantity: null,
+  ...overrides,
+})
+
+export const scoringStatus = (overrides: Partial<ConsumableStatus> = {}): ConsumableStatus =>
+  consumableStatus({
+    type: 'scoring_blade',
+    lastChange: consumableChange({
+      id: 8,
+      type: 'scoring_blade',
+      condition: 'new',
+      changedAt: minutesAgo(14 * 24 * 60),
+    }),
+    meters: 2980,
+    boards: 201.5,
+    ...overrides,
+  })
+
+export const glueStatus = (overrides: Partial<ConsumableStatus> = {}): ConsumableStatus =>
+  consumableStatus({
+    type: 'glue',
+    lastChange: consumableChange({
+      id: 9,
+      type: 'glue',
+      condition: null,
+      quantity: 5,
+      changedByLabel: 'Ana Canteadora',
+      changedAt: minutesAgo(3 * 24 * 60),
+    }),
+    meters: 310,
+    boards: null,
+    orders: 4,
+    standardQuantity: 5,
+    ...overrides,
+  })
+
+/** `GET /consumables/status` for one branch: what the operator sees, the saw's two blades. */
+export const branchConsumables = (
+  items: ConsumableStatus[] = [consumableStatus(), scoringStatus()],
+  overrides: Partial<BranchConsumables> = {},
+): BranchConsumables => ({ branchId: 1, branchName: 'Matriz', items, ...overrides })
+
+export const consumableLife = (overrides: Partial<ConsumableLife> = {}): ConsumableLife => ({
+  changeId: 7,
+  branchId: 1,
+  branchName: 'Matriz',
+  type: 'saw_blade',
+  startedAt: minutesAgo(6 * 24 * 60),
+  startedByLabel: 'Luis Operador',
+  condition: 'sharpened',
+  quantity: null,
+  endedAt: null,
+  endedByLabel: null,
+  endReason: null,
+  endNote: null,
+  meters: 1240.4,
+  boards: 86,
+  orders: null,
+  workedHours: 52.5,
+  inUse: true,
+  ...overrides,
+})
+
+const consumableSummary = (overrides: Partial<ConsumableSummary> = {}): ConsumableSummary => ({
+  type: 'saw_blade',
+  changes: 3,
+  newCount: 1,
+  sharpenedCount: 2,
+  quantity: null,
+  closedLives: 3,
+  damagedLives: 1,
+  avgMeters: 1180,
+  avgBoards: 79.5,
+  new: { lives: 1, avgMeters: 1420, avgBoards: 96 },
+  sharpened: { lives: 1, avgMeters: 940, avgBoards: 63 },
+  metersPerKg: null,
+  current: consumableLife(),
+  ...overrides,
+})
+
+/** `GET /analytics/consumables`: a month of one branch, with a blade that broke. */
+export const consumableReport = (overrides: Partial<ConsumableReport> = {}): ConsumableReport => ({
+  branches: [
+    {
+      branchId: 1,
+      branchName: 'Matriz',
+      items: [
+        consumableSummary(),
+        consumableSummary({
+          type: 'scoring_blade',
+          changes: 1,
+          newCount: 1,
+          sharpenedCount: 0,
+          closedLives: 0,
+          damagedLives: 0,
+          avgMeters: null,
+          avgBoards: null,
+          new: { lives: 0, avgMeters: null, avgBoards: null },
+          sharpened: { lives: 0, avgMeters: null, avgBoards: null },
+          current: consumableLife({
+            changeId: 8,
+            type: 'scoring_blade',
+            condition: 'new',
+            meters: 2980,
+            boards: 201.5,
+          }),
+        }),
+        consumableSummary({
+          type: 'glue',
+          changes: 2,
+          newCount: null,
+          sharpenedCount: null,
+          quantity: 9.5,
+          closedLives: 2,
+          damagedLives: 0,
+          avgMeters: 1010,
+          avgBoards: null,
+          new: null,
+          sharpened: null,
+          metersPerKg: 212.6,
+          current: consumableLife({
+            changeId: 9,
+            type: 'glue',
+            condition: null,
+            quantity: 5,
+            startedByLabel: 'Ana Canteadora',
+            meters: 310,
+            boards: null,
+            orders: 4,
+          }),
+        }),
+      ],
+    },
+  ],
+  lives: [
+    consumableLife(),
+    consumableLife({
+      changeId: 9,
+      type: 'glue',
+      condition: null,
+      quantity: 5,
+      startedByLabel: 'Ana Canteadora',
+      meters: 310,
+      boards: null,
+      orders: 4,
+    }),
+    consumableLife({
+      changeId: 6,
+      startedAt: minutesAgo(6 * 24 * 60 + 95),
+      endedAt: minutesAgo(6 * 24 * 60),
+      endedByLabel: 'Luis Operador',
+      endReason: 'damaged',
+      endNote: 'Diente roto',
+      meters: 42,
+      boards: 3,
+      workedHours: 1.5,
+      inUse: false,
+    }),
+    consumableLife({
+      changeId: 5,
+      condition: 'new',
+      startedAt: minutesAgo(20 * 24 * 60),
+      endedAt: minutesAgo(6 * 24 * 60 + 95),
+      endedByLabel: 'Luis Operador',
+      meters: 1420,
+      boards: 96,
+      workedHours: 118,
+      inUse: false,
+    }),
   ],
   ...overrides,
 })

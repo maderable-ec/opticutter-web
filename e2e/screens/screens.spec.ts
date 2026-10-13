@@ -7,9 +7,13 @@ import type { MockApi } from '../fixtures/api'
 import {
   boardProduct,
   branch,
+  branchConsumables,
   client,
+  consumableChange,
+  consumableStatus,
   cuttingPlan,
   edgeBandingProduct,
+  glueStatus,
   lowStockReport,
   minutesAgo,
   order,
@@ -17,6 +21,7 @@ import {
   preOrder,
   preOrderSummary,
   reviewPreOrder,
+  scoringStatus,
   stockCheck,
   user,
   workshopQueueItem,
@@ -564,6 +569,126 @@ const SCENARIOS: Scenario[] = [
       await page.locator('.workshop-picker').waitFor()
       await modalSettled(page)
     },
+  },
+  {
+    // «Insumos» from the queue: the saw's two blades, as the operator finds them.
+    name: 'workshop-insumos',
+    path: '/workshop',
+    roles: ['operador'],
+    ready: '.workshop-card',
+    setup: (api) => {
+      api.get('/orders/workshop-queue', WORKSHOP_QUEUE)
+      api.get('/consumables/status', [
+        branchConsumables([
+          consumableStatus(),
+          scoringStatus({
+            gate: 'blocked',
+            canUndo: true,
+            meters: 0,
+            boards: 0,
+            lastChange: consumableChange({
+              id: 20,
+              type: 'scoring_blade',
+              condition: 'new',
+              changedAt: minutesAgo(0),
+            }),
+          }),
+        ]),
+      ])
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Insumos/ }).click()
+      await page.locator('.consumable').first().waitFor()
+      await sheetSettled(page)
+    },
+  },
+  {
+    // An early change: the fact it is asked against and the three reasons, one of them picked.
+    name: 'workshop-insumos-temprano',
+    path: '/workshop',
+    roles: ['operador'],
+    ready: '.workshop-card',
+    setup: (api) => {
+      api.get('/orders/workshop-queue', WORKSHOP_QUEUE)
+      api.get('/consumables/status', [
+        branchConsumables([
+          consumableStatus({
+            gate: 'early',
+            meters: 85,
+            boards: 6,
+            lastChange: consumableChange({ changedAt: minutesAgo(120) }),
+          }),
+          scoringStatus(),
+        ]),
+      ])
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Insumos/ }).click()
+      await page.getByRole('button', { name: 'Puse una nueva' }).click()
+      await page.getByRole('radio', { name: 'Se dañó' }).click()
+      await sheetSettled(page)
+    },
+  },
+  {
+    // The bander's sheet: the glue alone, its control on the standard load.
+    name: 'workshop-insumos-goma',
+    path: '/workshop',
+    roles: ['canteador'],
+    ready: '.workshop-card',
+    setup: (api) => {
+      api.get('/orders/workshop-queue', WORKSHOP_QUEUE)
+      api.get('/consumables/status', [branchConsumables([glueStatus()])])
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Insumos/ }).click()
+      await page.locator('.consumable').first().waitFor()
+      await sheetSettled(page)
+    },
+  },
+  {
+    // The admin's: every branch to pick from and the three consumables.
+    name: 'workshop-insumos-admin',
+    path: '/workshop',
+    roles: ['administrador'],
+    ready: '.workshop-card',
+    setup: (api) => {
+      api.get('/orders/workshop-queue', WORKSHOP_QUEUE)
+      api.get('/consumables/status', [
+        branchConsumables([consumableStatus(), scoringStatus(), glueStatus()]),
+        branchConsumables([consumableStatus({ lastChange: null, meters: null, boards: null })], {
+          branchId: 2,
+          branchName: 'Norte',
+        }),
+      ])
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Insumos/ }).click()
+      await page.locator('.consumable').first().waitFor()
+      await sheetSettled(page)
+    },
+  },
+  {
+    // The way in from the cutting canvas, and the sheet over it.
+    name: 'workshop-canvas-insumos',
+    path: '/workshop/orders/41',
+    roles: ['operador'],
+    ready: '.workshop-shell svg',
+    setup: (api) => {
+      api.get('/orders/41/cutting-plan', cuttingPlan())
+      api.get('/consumables/status', [branchConsumables()])
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Insumos/ }).click()
+      await page.locator('.consumable').first().waitFor()
+      await sheetSettled(page)
+    },
+  },
+  {
+    name: 'analytics-insumos',
+    path: '/analytics/consumables',
+    roles: ['administrador'],
+    ready: '.list-card:visible, .list-table tbody tr:visible',
+    setup: stubReports,
   },
   {
     name: 'clients',

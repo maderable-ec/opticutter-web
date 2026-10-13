@@ -509,6 +509,7 @@ test.describe('los hubs', () => {
     await expect(tabs(page, 'Estadísticas').getByRole('link')).toHaveText([
       'Resumen',
       'Producción',
+      'Insumos',
       'Productividad',
       'Cuellos de botella',
       'Asistencia',

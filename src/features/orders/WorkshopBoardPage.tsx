@@ -13,7 +13,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CCol, CRow } from '@coreui/react'
+import { hasAnyRole } from 'src/features/auth/permissions'
 import { useCurrentUser } from 'src/features/auth/useAuth'
+import ConsumablesButton from 'src/features/consumables/ConsumablesButton'
+import ConsumablesSheet from 'src/features/consumables/ConsumablesSheet'
+import { CONSUMABLE_USER_ROLES } from 'src/features/consumables/consumables'
 import OrderStatusBadge from './OrderStatusBadge'
 import WorkshopQueueCard from './WorkshopQueueCard'
 import WorkshopMaterialsModal from './WorkshopMaterialsModal'
@@ -32,6 +36,7 @@ import LoadingBlock from 'src/shared/components/LoadingBlock'
 import { ErrorState } from 'src/shared/components/QueryState'
 import EmptyState from 'src/shared/components/EmptyState'
 import ConfirmDialog from 'src/shared/components/ConfirmDialog'
+import WorkspaceActions from 'src/shared/components/WorkspaceActions'
 import { MASK } from 'src/shared/analytics'
 import { clientName } from 'src/shared/utils/format'
 import { useFromHere } from 'src/shared/hooks/useShellNav'
@@ -120,7 +125,12 @@ const WorkshopBoardPage = () => {
   const updateActivity = useUpdateActivity()
   const pauseActivity = usePauseActivity()
   // Which activities this viewer may register at all (ACTIVITY_ROLES, mirrored from the API).
-  const allowed = activitiesForRoles(useCurrentUser()?.roles)
+  const roles = useCurrentUser()?.roles
+  const allowed = activitiesForRoles(roles)
+  // «Insumos» lives in the Taller's header: a blade is changed between two orders as often as in
+  // the middle of one, so it cannot hang off a card — and an empty queue still has a saw.
+  const usesConsumables = hasAnyRole(roles, CONSUMABLE_USER_ROLES)
+  const [consumablesOpen, setConsumablesOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   // Pausing asks WHY, so it has a dialog of its own; the card and the activity it was opened for.
   const [pausing, setPausing] = useState<ConfirmState | null>(null)
@@ -166,10 +176,27 @@ const WorkshopBoardPage = () => {
     setConfirm(null)
   }
 
-  if (isLoading) return <LoadingBlock variant="cards" rows={4} label="Cargando el taller…" />
+  const consumables = usesConsumables && (
+    <>
+      <WorkspaceActions>
+        <ConsumablesButton onClick={() => setConsumablesOpen(true)} />
+      </WorkspaceActions>
+      <ConsumablesSheet visible={consumablesOpen} onClose={() => setConsumablesOpen(false)} />
+    </>
+  )
+
+  if (isLoading) {
+    return (
+      <>
+        {consumables}
+        <LoadingBlock variant="cards" rows={4} label="Cargando el taller…" />
+      </>
+    )
+  }
 
   return (
     <>
+      {consumables}
       {error ? (
         <ErrorState title="No se pudo cargar la cola del taller." onRetry={() => void refetch()} />
       ) : items.length === 0 ? (

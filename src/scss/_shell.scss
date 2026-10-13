@@ -486,3 +486,16 @@ main:focus {
   font-weight: 600;
   white-space: nowrap;
 }
+
+// The screen's own controls, before the bell (`WorkspaceActions`). Empty on most screens, where it
+// takes no room at all.
+.workspace-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  align-items: center;
+
+  &:not(:empty) {
+    margin-inline-end: 0.5rem;
+  }
+}

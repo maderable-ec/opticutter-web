@@ -542,6 +542,8 @@ export type PiecesExportFormat = 'csv' | 'xml'
 export interface CuttingPlan {
   orderId: number
   orderCode: string
+  // Whose saw it is on: the branch a blade changed from the canvas is registered to.
+  branchId: number
   status: OrderStatus
   // Whose job is on the saw: the reference alone does not say it.
   client: Client

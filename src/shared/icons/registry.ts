@@ -11,6 +11,7 @@ import {
   Ban,
   Banknote,
   Bell,
+  BrushCleaning,
   CalendarClock,
   CalendarX,
   ChartColumn,
@@ -23,6 +24,7 @@ import {
   CircleArrowLeft,
   CircleArrowRight,
   CircleCheck,
+  CircleEllipsis,
   CircleMinus,
   CirclePause,
   CircleX,
@@ -31,6 +33,8 @@ import {
   Compass,
   Copy,
   Download,
+  Droplet,
+  DropletOff,
   EllipsisVertical,
   ExternalLink,
   Eye,
@@ -78,6 +82,7 @@ import {
   Store,
   Sun,
   SunMoon,
+  ThumbsDown,
   Trash2,
   TriangleAlert,
   Truck,
@@ -97,6 +102,7 @@ import {
 import {
   AdjustLayout,
   Board,
+  Consumables,
   CutPlan,
   CutPlanPlus,
   EdgeBand,
@@ -104,6 +110,7 @@ import {
   Offcut,
   RotatePiece,
   SawBlade,
+  ScoringBlade,
 } from './craft'
 
 /**
@@ -170,6 +177,19 @@ export const ICONS = {
   grain: Grain,
   // Why work stops: with `board` and `edgeBand`, the three reasons of a pause.
   machine: Wrench,
+  // The shop's consumables (`features/consumables`): the entry is a blade beside a drop of glue,
+  // and each one is drawn as the thing it is. The saw blade is the cut's own glyph: it IS the blade.
+  consumables: Consumables,
+  sawBlade: SawBlade,
+  scoringBlade: ScoringBlade,
+  glue: Droplet,
+  // Why one came off early. `damaged` is the wrench of a machine down, the same fact one size
+  // smaller; the two never meet on a screen.
+  damaged: Wrench,
+  poorCut: ThumbsDown,
+  ranOut: DropletOff,
+  cleaning: BrushCleaning,
+  otherReason: CircleEllipsis,
 
   // --- Actions ---
   add: Plus,

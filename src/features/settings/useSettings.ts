@@ -4,6 +4,8 @@ import { settingsApi } from './settingsApi'
 import type {
   CompanyPayload,
   CompanySettings,
+  ConsumablePayload,
+  ConsumableSettings,
   CuttingPayload,
   CuttingSettings,
   PreorderPayload,
@@ -21,6 +23,7 @@ const PREORDER_KEY = ['settings', 'preorders']
 const TAX_KEY = ['settings', 'taxes']
 const STOCK_KEY = ['settings', 'stock']
 const WORK_SCHEDULE_KEY = ['settings', 'work-schedule']
+const CONSUMABLES_KEY = ['settings', 'consumables']
 
 export const useCuttingSettings = () =>
   useQuery({
@@ -118,6 +121,25 @@ export const useUpdateWorkSchedule = () => {
       qc.setQueryData(WORK_SCHEDULE_KEY, data)
       // Every hour the statistics report is read against this schedule, past periods included.
       void qc.invalidateQueries({ queryKey: ['analytics'] })
+    },
+  })
+}
+
+export const useConsumableSettings = () =>
+  useQuery({
+    queryKey: CONSUMABLES_KEY,
+    queryFn: settingsApi.getConsumables,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+
+export const useUpdateConsumableSettings = () => {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: ConsumablePayload) => settingsApi.updateConsumables(data),
+    onSuccess: (data: ConsumableSettings) => {
+      qc.setQueryData(CONSUMABLES_KEY, data)
+      // The shop floor's control starts at this value: its cached status is now stale.
+      void qc.invalidateQueries({ queryKey: ['consumables'] })
     },
   })
 }
