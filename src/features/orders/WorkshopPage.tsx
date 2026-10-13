@@ -22,7 +22,13 @@ import { CONSUMABLE_USER_ROLES } from 'src/features/consumables/consumables'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
 import PauseDialog from './PauseDialog'
-import { findActivity, isPaused, orderedActivities, pauseReasonLabel } from './activities'
+import {
+  findActivity,
+  isPaused,
+  orderedActivities,
+  pauseReasonLabel,
+  pauseReasonsOf,
+} from './activities'
 import WorkshopBoardSvg from './WorkshopBoardSvg'
 import WorkshopBoardPicker from './WorkshopBoardPicker'
 import BoardName from './BoardName'
@@ -519,6 +525,7 @@ const WorkshopPage = () => {
       <PauseDialog
         visible={pauseModal}
         activity="cutting"
+        reasons={pauseReasonsOf(cutActivity)}
         orderCode={plan.orderCode}
         container={modalContainer}
         pending={pauseActivity.isPending}

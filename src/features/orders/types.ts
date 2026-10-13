@@ -28,9 +28,11 @@ export type ActivityType = 'cutting' | 'banding' | 'additional'
 
 export type ActivityStatus = 'pending' | 'in_progress' | 'done'
 
-// Why an activity in progress was stopped by something outside whoever does it. Any reason is
-// valid for any activity: the canteador runs out of pieces when the saw runs out of boards.
-export type PauseReason = 'no_boards' | 'no_edge_banding' | 'machine_failure'
+// Why an activity in progress was stopped by something outside whoever does it. Each activity
+// pauses only for what can stop IT, and the API says which (`OrderActivity.pauseReasons`): the saw
+// runs out of boards, the canteador out of tape — or `waiting_for_pieces`, the station before not
+// handing over more. That last one the API lifts by itself the moment a piece arrives.
+export type PauseReason = 'no_boards' | 'no_edge_banding' | 'machine_failure' | 'waiting_for_pieces'
 
 // One pause of an activity. `endedAt` null: the pause in force.
 export interface ActivityPause {
@@ -64,6 +66,10 @@ export interface OrderActivity {
   pauseReason?: PauseReason | null
   // Every pause registered, oldest first.
   pauses?: ActivityPause[]
+  // The reasons THIS activity may pause for right now, in the order to offer them. Bounded by the
+  // API against the pieces (no «Esperando piezas» once none is owed), so nothing here mirrors the
+  // table. Filled where `progress` is; null on the order detail.
+  pauseReasons?: PauseReason[] | null
   // Cut pieces out of THIS activity's set (every piece for cut/additional, only the banded
   // ones for banding): the gate signal, and how the card says what is missing. Filled by the
   // three shop-floor surfaces (board, cutting plan, activity result), null on the order

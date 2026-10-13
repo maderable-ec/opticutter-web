@@ -30,6 +30,7 @@ import {
   findActivity,
   isPaused,
   orderedActivities,
+  pauseReasonsOf,
 } from './activities'
 import type { ActivityType, BoardAction, CardAction, WorkshopQueueItem } from './types'
 import LoadingBlock from 'src/shared/components/LoadingBlock'
@@ -296,6 +297,9 @@ const WorkshopBoardPage = () => {
       <PauseDialog
         visible={!!pausing}
         activity={pausing?.action.activity ?? 'cutting'}
+        reasons={pauseReasonsOf(
+          findActivity(pausing?.item.activities, pausing?.action.activity ?? 'cutting'),
+        )}
         orderCode={pausing?.item.orderCode ?? `la orden ${pausing?.item.orderId ?? ''}`}
         pending={pauseActivity.isPending}
         error={pauseActivity.isError ? pauseActivity.error?.message : undefined}

@@ -33,21 +33,41 @@ export const ACTIVITY_PIECES_QUALIFIER: Record<ActivityType, string> = {
   additional: 'con trabajo de taller',
 }
 
-// Why an activity in progress stops, in the order the dialog offers them. Any of the three is
-// valid for any activity: the canteador runs out of pieces when the saw runs out of boards.
-export const PAUSE_REASONS: PauseReason[] = ['no_boards', 'no_edge_banding', 'machine_failure']
+// What an API that does not say yet (`pauseReasons` missing) used to take for any activity. Only a
+// bridge for the deploy window: the reasons an activity may pause for are the API's to decide, and
+// this goes in the release after.
+const LEGACY_PAUSE_REASONS: PauseReason[] = ['no_boards', 'no_edge_banding', 'machine_failure']
+
+/**
+ * The reasons to offer for pausing this activity, in order. The API bounds them to the activity
+ * and to its pieces — the canteador is never out of boards, and nobody waits for pieces that are
+ * all cut — so the dialog renders this list and nothing else.
+ */
+export const pauseReasonsOf = (activity: OrderActivity | undefined): PauseReason[] =>
+  activity?.pauseReasons ?? LEGACY_PAUSE_REASONS
 
 export const PAUSE_REASON_LABEL: Record<PauseReason, string> = {
   no_boards: 'Sin tableros',
   no_edge_banding: 'Sin canto',
   machine_failure: 'Daño de máquina',
+  waiting_for_pieces: 'Esperando piezas',
 }
 
 export const PAUSE_REASON_ICON: Record<PauseReason, IconName> = {
   no_boards: 'board',
   no_edge_banding: 'edgeBand',
   machine_failure: 'machine',
+  waiting_for_pieces: 'waitingPieces',
 }
+
+/**
+ * What the dialog promises under the reasons. A wait is not the office's to fix and the API tells
+ * nobody; what the worker needs to know instead is that it ends by itself.
+ */
+export const pauseReasonNote = (reason: PauseReason | null): string =>
+  reason === 'waiting_for_pieces'
+    ? 'El tiempo en pausa no cuenta para quien hace el trabajo. Se reanuda sola cuando llegue la siguiente pieza.'
+    : 'El tiempo en pausa no cuenta para quien hace el trabajo, y la oficina recibe el aviso.'
 
 /**
  * Whether the activity is paused right now. A pause is a property of work under way: the status

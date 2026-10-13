@@ -175,8 +175,11 @@ export const ICONS = {
   cut: SawBlade,
   offcut: Offcut,
   grain: Grain,
-  // Why work stops: with `board` and `edgeBand`, the three reasons of a pause.
+  // Why work stops: with `board` and `edgeBand`, the reasons of a pause.
   machine: Wrench,
+  // The fourth: the station before has not handed over more pieces. The hourglass of an order in
+  // the queue — the same fact, waiting on somebody else — and the two never meet in one dialog.
+  waitingPieces: Hourglass,
   // The shop's consumables (`features/consumables`): the entry is a blade beside a drop of glue,
   // and each one is drawn as the thing it is. The saw blade is the cut's own glyph: it IS the blade.
   consumables: Consumables,

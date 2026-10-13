@@ -3,13 +3,20 @@ import type { ComponentProps, ReactNode } from 'react'
 import { CFormLabel, CFormTextarea } from '@coreui/react'
 import Icon from 'src/shared/icons/Icon'
 import ConfirmDialog from 'src/shared/components/ConfirmDialog'
-import { ACTIVITY_LABEL, PAUSE_REASONS, PAUSE_REASON_ICON, PAUSE_REASON_LABEL } from './activities'
+import {
+  ACTIVITY_LABEL,
+  PAUSE_REASON_ICON,
+  PAUSE_REASON_LABEL,
+  pauseReasonNote,
+} from './activities'
 import type { ActivityType, PauseActivityPayload, PauseReason } from './types'
 
 interface PauseDialogProps {
   visible: boolean
   // What is being paused: «Pausar corte de ORD-000131».
   activity: ActivityType
+  // What can stop THAT activity right now (`pauseReasonsOf`): the API's list, in its order.
+  reasons: PauseReason[]
   orderCode: string
   pending?: boolean
   error?: ReactNode
@@ -19,14 +26,16 @@ interface PauseDialogProps {
   onClose: () => void
 }
 
-// Why the work stops, asked on the shop floor: three targets a gloved hand can hit, each with its
-// own drawing so it is picked by shape from where the operator stands, and the verb on the button.
+// Why the work stops, asked on the shop floor: two or three targets a gloved hand can hit, each with
+// its own drawing so it is picked by shape from where the operator stands, and the verb on the
+// button. Only what can stop THIS activity is offered — the canteador is not asked about boards.
 // The reason is the point — a pause takes its stretch out of the worker's time and tells the office
 // what to fix — so the button stays held back until one is chosen. The detail is optional and folded
 // away: typing on that panel is the last thing anybody wants to do with the saw stopped.
 const PauseDialog = ({
   visible,
   activity,
+  reasons,
   orderCode,
   pending,
   error,
@@ -61,7 +70,7 @@ const PauseDialog = ({
       disabled={!reason}
       pending={pending}
       error={error}
-      note="El tiempo en pausa no cuenta para quien hace el trabajo, y la oficina recibe el aviso."
+      note={pauseReasonNote(reason)}
       onConfirm={() => {
         if (reason) onConfirm({ reason, note: note.trim() || undefined })
       }}
@@ -69,7 +78,7 @@ const PauseDialog = ({
     >
       <p className="mb-2">¿Por qué se detiene?</p>
       <div className="pause-reasons" role="radiogroup" aria-label="Motivo de la pausa">
-        {PAUSE_REASONS.map((value) => (
+        {reasons.map((value) => (
           <button
             key={value}
             type="button"
