@@ -12,10 +12,14 @@ interface UIState {
   navSheetShow: boolean
   // The open record's code, for the trail and the tab's title (`useRecordLabel`).
   recordLabel: RecordLabel | null
+  // Where a workspace's screen puts a control of its own in the workspace's header
+  // (`WorkspaceActions`). Null outside a workspace, and on a screen that brings its own bar.
+  workspaceActionsEl: HTMLElement | null
   theme: Theme
   setNavSheetShow: (value: boolean) => void
   setSidebarNarrow: (value: boolean) => void
   setRecordLabel: (value: RecordLabel | null) => void
+  setWorkspaceActionsEl: (value: HTMLElement | null) => void
   setTheme: (value: Theme) => void
 }
 
@@ -26,6 +30,7 @@ const useUIStore = create<UIState>((set) => ({
   sidebarNarrow: localStorage.getItem(SIDEBAR_NARROW_KEY) === 'true',
   navSheetShow: false,
   recordLabel: null,
+  workspaceActionsEl: null,
   // Not persisted here: CoreUI already stores the color mode itself, under
   // 'coreui-free-react-admin-template-theme' (see App.tsx).
   theme: 'light',
@@ -38,6 +43,8 @@ const useUIStore = create<UIState>((set) => ({
   },
 
   setRecordLabel: (value) => set({ recordLabel: value }),
+
+  setWorkspaceActionsEl: (value) => set({ workspaceActionsEl: value }),
 
   setTheme: (value) => set({ theme: value }),
 }))

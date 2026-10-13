@@ -16,6 +16,9 @@ import AppToaster from 'src/shared/components/AppToaster'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
 import { clientName } from 'src/shared/utils/format'
 import { fmtLocalTime } from 'src/features/analytics/format'
+import ConsumablesButton from 'src/features/consumables/ConsumablesButton'
+import ConsumablesSheet from 'src/features/consumables/ConsumablesSheet'
+import { CONSUMABLE_USER_ROLES } from 'src/features/consumables/consumables'
 import OrderStatusBadge from './OrderStatusBadge'
 import ActivityBadge from './ActivityBadge'
 import PauseDialog from './PauseDialog'
@@ -47,6 +50,9 @@ const WorkshopPage = () => {
   // order for the office, the queue for the operador, who cannot open `/orders`.
   const back = useBack()
   const isAdminOrOperator = useHasRole('administrador', 'operador')
+  // A blade is changed with an order on the saw, so the way into «Insumos» is here too. Not for
+  // the seller, who opens the canvas to look.
+  const usesConsumables = useHasRole(...CONSUMABLE_USER_ROLES)
 
   const { data: plan, isLoading, isError, error } = useCuttingPlan(id, !!id)
   const markPiece = useMarkPiece(id ?? '')
@@ -58,6 +64,7 @@ const WorkshopPage = () => {
   const [cutModal, setCutModal] = useState(false)
   const [pauseModal, setPauseModal] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [consumablesOpen, setConsumablesOpen] = useState(false)
   // Board currently on screen (one at a time). Identified by persistent id to survive refetches.
   const [selectedBoardId, setSelectedBoardId] = useState<number | null>(null)
 
@@ -175,6 +182,14 @@ const WorkshopPage = () => {
   const shell = (children: ReactNode) => (
     <div ref={containerRef} className="workshop-shell">
       {children}
+      {/* In place, not portalled: inside the shell it also opens over the canvas in fullscreen. */}
+      {usesConsumables && (
+        <ConsumablesSheet
+          visible={consumablesOpen}
+          branchId={plan?.branchId}
+          onClose={() => setConsumablesOpen(false)}
+        />
+      )}
       {/* Fullscreen renders only this subtree, and the layout's toaster sits outside it. */}
       {isFullscreen && <AppToaster />}
     </div>
@@ -310,6 +325,14 @@ const WorkshopPage = () => {
           <CProgressBar value={cutPct(plan.progress)} color={cutBarColor(plan.progress)} />
         </CProgress>
       </div>
+
+      {usesConsumables && (
+        <ConsumablesButton
+          iconOnly
+          className="workshop-consumables"
+          onClick={() => setConsumablesOpen(true)}
+        />
+      )}
 
       {fullscreenSupported && (
         <CButton

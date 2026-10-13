@@ -5,6 +5,7 @@ import BrandMark from 'src/shared/icons/BrandMark'
 import Icon from 'src/shared/icons/Icon'
 import { stateFor } from 'src/shared/hooks/useShellNav'
 import type { Back, Workspace } from 'src/shared/navigation'
+import useUIStore from 'src/shared/store/uiStore'
 
 import ShellHeader from './ShellHeader'
 
@@ -15,6 +16,10 @@ import ShellHeader from './ShellHeader'
 //
 // The same height as the office's header: the first row of the queue's cards has to fit under it
 // on the 960×544 panel.
+//
+// The screen's own controls go in `.workspace-actions`, before the bell: the header publishes the
+// element and the screen portals into it (`WorkspaceActions`), since `shared` cannot import a
+// feature. There, a control stays within reach however far the queue is scrolled.
 interface WorkspaceHeaderProps {
   workspace: Workspace
   exit: Back | null
@@ -22,6 +27,7 @@ interface WorkspaceHeaderProps {
 
 const WorkspaceHeader = ({ workspace, exit }: WorkspaceHeaderProps) => {
   const navigate = useNavigate()
+  const setActionsEl = useUIStore((state) => state.setWorkspaceActionsEl)
 
   return (
     <ShellHeader>
@@ -45,6 +51,7 @@ const WorkspaceHeader = ({ workspace, exit }: WorkspaceHeaderProps) => {
         <BrandMark mark="sygnet" height={28} />
         {workspace.name}
       </div>
+      <div className="workspace-actions" ref={setActionsEl} />
     </ShellHeader>
   )
 }

@@ -58,6 +58,10 @@ interface Events {
     diagram_opened: boolean
     editor_opened: boolean
   }
+  // The shop floor's consumables. `early`: the change came under four working hours of the last
+  // one and carried a reason.
+  consumable_changed: { type: 'saw_blade' | 'scoring_blade' | 'glue'; early: boolean }
+  consumable_change_undone: { type: 'saw_blade' | 'scoring_blade' | 'glue' }
 }
 
 type EventName = keyof Events

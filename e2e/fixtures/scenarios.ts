@@ -11,6 +11,7 @@ import {
   branch,
   branchComparison,
   client,
+  consumableReport,
   edgeBandingProduct,
   lowStockReport,
   minutesAgo,
@@ -205,4 +206,5 @@ export const stubReports = (api: MockApi) => {
   api.get('/analytics/productivity/banders', banderReport())
   api.get(/^\/analytics\/productivity\/banders\/\d+\/orders$/, banderOrders())
   api.get('/analytics/attendance', attendanceReport())
+  api.get('/analytics/consumables', consumableReport())
 }

@@ -28,6 +28,39 @@ export const SawBlade = createLucideIcon('saw-blade', [
   ['circle', { cx: '12', cy: '12', r: '2.4', key: 'arbor' }],
 ])
 
+// The scoring blade: the small disc that runs ahead of the saw and nicks the face of the board, so
+// the main blade does not chip it. The same teeth at two thirds the size, over the board it scores.
+export const ScoringBlade = createLucideIcon('scoring-blade', [
+  [
+    'path',
+    {
+      d: 'M12 4.92L12.79 3.25L15.45 6.35L17.19 5.73L16.88 9.8L18.55 10.59L15.45 13.25L16.07 14.99L12 14.68L11.21 16.35L8.55 13.25L6.81 13.87L7.12 9.8L5.45 9.01L8.55 6.35L7.93 4.61Z',
+      key: 'teeth',
+    },
+  ],
+  ['circle', { cx: '12', cy: '9.8', r: '1.6', key: 'arbor' }],
+  ['path', { d: 'M3 20.5H21', key: 'board' }],
+])
+
+// What the machines wear out: a blade and, beside it, a drop of glue. The way into «Insumos».
+export const Consumables = createLucideIcon('consumables', [
+  [
+    'path',
+    {
+      d: 'M8.8 4.37L9.62 2.65L12.36 5.84L14.15 5.2L13.83 9.4L15.55 10.22L12.36 12.96L13 14.75L8.8 14.43L7.98 16.15L5.24 12.96L3.45 13.6L3.77 9.4L2.05 8.58L5.24 5.84L4.6 4.05Z',
+      key: 'blade',
+    },
+  ],
+  ['circle', { cx: '8.8', cy: '9.4', r: '1.5', key: 'arbor' }],
+  [
+    'path',
+    {
+      d: 'M18 13.2C18 13.2 14.9 16.4 14.9 18.8A3.1 3.1 0 0 0 21.1 18.8C21.1 16.4 18 13.2 18 13.2Z',
+      key: 'drop',
+    },
+  ],
+])
+
 // What is left of a board once a corner is cut away: the piece that left is dashed.
 export const Offcut = createLucideIcon('offcut', [
   ['path', { d: 'M3 4H21V20H12V12H3Z', key: 'remnant' }],

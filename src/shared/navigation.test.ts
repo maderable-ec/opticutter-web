@@ -80,6 +80,7 @@ describe('the menu by role', () => {
       matches: [
         '/analytics/summary',
         '/analytics/production',
+        '/analytics/consumables',
         '/analytics/productivity',
         '/analytics/bottlenecks',
         '/analytics/attendance',
@@ -133,6 +134,7 @@ describe('the hubs', () => {
     expect(tabs('/analytics/bottlenecks', ['administrador'])).toEqual([
       'Resumen',
       'Producción',
+      'Insumos',
       'Productividad',
       'Cuellos de botella',
       'Asistencia',

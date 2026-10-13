@@ -56,6 +56,8 @@ export const HUBS: Hub[] = [
     tabs: [
       { to: '/analytics/summary' },
       { to: '/analytics/production' },
+      // What the workday wears out, right after the workday itself.
+      { to: '/analytics/consumables' },
       { to: '/analytics/productivity' },
       { to: '/analytics/bottlenecks' },
       { to: '/analytics/attendance' },

@@ -2,6 +2,8 @@ import { httpClient } from 'src/shared/api/httpClient'
 import type {
   CompanyPayload,
   CompanySettings,
+  ConsumablePayload,
+  ConsumableSettings,
   CuttingPayload,
   CuttingSettings,
   PreorderPayload,
@@ -29,6 +31,9 @@ export const settingsApi = {
   getStock: () => httpClient.get<StockSettings>(`${BASE}/stock`),
   updateStock: (data: StockPayload) => httpClient.patch<StockSettings>(`${BASE}/stock`, data),
   updateTaxes: (data: TaxPayload) => httpClient.patch<TaxSettings>(`${BASE}/taxes`, data),
+  getConsumables: () => httpClient.get<ConsumableSettings>(`${BASE}/consumables`),
+  updateConsumables: (data: ConsumablePayload) =>
+    httpClient.patch<ConsumableSettings>(`${BASE}/consumables`, data),
   // The shop's working hours. Replaced whole: the PATCH is one value, not seven.
   getWorkSchedule: () => httpClient.get<WorkSchedule>(`${BASE}/work-schedule`),
   updateWorkSchedule: (data: WorkSchedule) =>
