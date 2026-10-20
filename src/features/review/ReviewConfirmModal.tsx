@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { CAlert, CButton, CFormCheck, CModalBody, CModalFooter, CModalHeader } from '@coreui/react'
+import { CButton, CModalBody, CModalFooter, CModalHeader } from '@coreui/react'
 
 import { fmtMoney } from './format'
 import Spinner from 'src/shared/components/Spinner'
@@ -17,8 +16,13 @@ interface ReviewConfirmModalProps {
   error?: string | null
 }
 
-// Confirming is irreversible — it mints the order — so it asks for an explicit acknowledgement
-// instead of firing on a single tap, which on a phone is easy to do by accident.
+// Confirming is irreversible — it mints the order — so it is a second tap, never the bar's button
+// on its own. Clients kept closing this dialog believing the first tap had already confirmed: the
+// title echoed the button they had just pressed, a blue alert told them what happens to "tu pedido"
+// next, and the only action was disabled until a checkbox nobody noticed was ticked. So the dialog
+// is now a question that says the order is not confirmed yet, the declaration rides on the button
+// (tapping it is the acceptance), and what happens afterwards is plain text in the future tense.
+// The static backdrop keeps a stray tap outside from dismissing a decision that is still open.
 const ReviewConfirmModal = ({
   visible,
   onClose,
@@ -29,66 +33,50 @@ const ReviewConfirmModal = ({
   totalPieces,
   isPending,
   error,
-}: ReviewConfirmModalProps) => {
-  const [accepted, setAccepted] = useState(false)
+}: ReviewConfirmModalProps) => (
+  <Modal visible={visible} onClose={onClose} alignment="center" backdrop="static">
+    <CModalHeader>
+      <ModalTitle>¿Confirmas tu pedido?</ModalTitle>
+    </CModalHeader>
+    <CModalBody>
+      <p className="mb-3">
+        Tu pedido <strong>aún no está confirmado</strong>: falta este último paso.
+      </p>
 
-  // Reopening must start unchecked: the declaration is per confirmation, not per session. Adjusted
-  // during render rather than in an effect, which is React's recommended way to reset state on a
-  // prop change and avoids the extra render pass an effect would cost.
-  const [wasVisible, setWasVisible] = useState(visible)
-  if (visible !== wasVisible) {
-    setWasVisible(visible)
-    if (visible) setAccepted(false)
-  }
+      <div className="d-flex justify-content-between align-items-baseline">
+        <span className="text-body-secondary">Total a pagar</span>
+        <span className="fs-4 fw-semibold">{fmtMoney(total, currency)}</span>
+      </div>
+      <div className="text-body-secondary small mb-3">
+        {totalBoards} {totalBoards === 1 ? 'tablero' : 'tableros'} · {totalPieces}{' '}
+        {totalPieces === 1 ? 'pieza' : 'piezas'}
+      </div>
 
-  return (
-    <Modal visible={visible} onClose={onClose} alignment="center">
-      <CModalHeader>
-        <ModalTitle>Confirmar pedido</ModalTitle>
-      </CModalHeader>
-      <CModalBody>
-        <div className="d-flex justify-content-between align-items-baseline">
-          <span className="text-body-secondary">Total a pagar</span>
-          <span className="fs-4 fw-semibold">{fmtMoney(total, currency)}</span>
-        </div>
-        <div className="text-body-secondary small mb-3">
-          {totalBoards} {totalBoards === 1 ? 'tablero' : 'tableros'} · {totalPieces}{' '}
-          {totalPieces === 1 ? 'pieza' : 'piezas'}
-        </div>
+      {/* The order is born `confirmed` but only enters the cutting queue once someone registers
+          the payment. Said before the decision so nobody expects the saw to start, but as plain
+          text: as an alert it was the loudest thing in the dialog and read like a receipt. */}
+      <p className="text-body-secondary small mb-3">
+        <strong>Después de confirmar</strong>, coordina el pago con tu asesor: el corte empieza
+        cuando se registra.
+      </p>
 
-        {/* The order is born `confirmed` but only enters the cutting queue once someone registers
-            the payment, so the note that used to say "pasa a producción" was telling the client the
-            opposite of what happens. It is an alert, not muted small print: a client who believes
-            the saw is already running is the one who calls the shop the next day. */}
-        <CAlert color="info" className="small py-2">
-          <strong>Confirmar no inicia el corte.</strong> Tu pedido entra a la cola de producción una
-          vez registrado el pago: comunícate con tu asesor para coordinarlo y lo atendemos cuanto
-          antes.
-        </CAlert>
+      {/* Right above the button it describes: tapping it is the acceptance. */}
+      <p className="small mb-0">
+        Al tocar «Sí, confirmar pedido» declaras que revisaste las medidas, los cantos y los
+        materiales, y autorizas la producción. Después ya no podrás modificarlo desde este enlace.
+      </p>
 
-        <CFormCheck
-          id="review-declaration"
-          checked={accepted}
-          onChange={(e) => setAccepted(e.target.checked)}
-          label="Declaro haber revisado las medidas, los cantos y los materiales, y autorizo la producción de este pedido."
-        />
-
-        <div className="text-body-secondary small mt-3">
-          Una vez confirmado, el pedido queda en firme y ya no se puede modificar desde este enlace.
-        </div>
-
-        {error && <div className="text-danger small mt-2">{error}</div>}
-      </CModalBody>
-      <CModalFooter>
-        <CButton color="secondary" variant="outline" onClick={onClose} disabled={isPending}>
-          Cancelar
-        </CButton>
-        <CButton color="primary" disabled={!accepted || isPending} onClick={onConfirm}>
-          {isPending ? <Spinner size="sm" /> : 'Confirmar pedido'}
-        </CButton>
-      </CModalFooter>
-    </Modal>
-  )
-}
+      {error && <div className="text-danger small mt-2">{error}</div>}
+    </CModalBody>
+    <CModalFooter className="review-confirm__footer">
+      <CButton color="secondary" variant="outline" onClick={onClose} disabled={isPending}>
+        Volver a revisar
+      </CButton>
+      <CButton color="primary" disabled={isPending} onClick={onConfirm}>
+        {isPending ? <Spinner size="sm" /> : 'Sí, confirmar pedido'}
+      </CButton>
+    </CModalFooter>
+  </Modal>
+)
 
 export default ReviewConfirmModal
