@@ -1090,6 +1090,49 @@ const SCENARIOS: Scenario[] = [
     },
   },
   {
+    // The second tap: a question that says the order is not confirmed yet, and its acceptance.
+    name: 'review-confirmar',
+    path: '/review/e2e-token',
+    ready: 'h1',
+    setup: (api) => {
+      api.get('/public/review/e2e-token', reviewPreOrder())
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Confirmar/ }).click()
+      await modalSettled(page)
+    },
+  },
+  {
+    // Closed without confirming: the bar keeps saying so.
+    name: 'review-sin-confirmar',
+    path: '/review/e2e-token',
+    ready: 'h1',
+    setup: (api) => {
+      api.get('/public/review/e2e-token', reviewPreOrder())
+    },
+    act: async (page) => {
+      await page.getByRole('button', { name: /^Confirmar/ }).click()
+      await modalSettled(page)
+      await page.getByRole('button', { name: 'Volver a revisar' }).click()
+      await page.locator('.modal').waitFor({ state: 'detached' })
+    },
+  },
+  {
+    name: 'review-confirmada',
+    path: '/review/e2e-token',
+    ready: 'h1',
+    setup: (api) => {
+      api.get(
+        '/public/review/e2e-token',
+        reviewPreOrder({
+          status: 'confirmed',
+          orderCode: 'ORD-000200',
+          confirmedAt: new Date().toISOString(),
+        }),
+      )
+    },
+  },
+  {
     // A board of the plan, enlarged: the client's viewer, with the `Pager` in its header.
     name: 'review-hoja',
     path: '/review/e2e-token',

@@ -20,22 +20,28 @@ import { fmtMoney, reviewErrorMessage } from './format'
 import type { ReviewPreOrder } from './types'
 import Spinner from 'src/shared/components/Spinner'
 import { Modal, ModalTitle } from 'src/shared/components/Modal'
+import Icon from 'src/shared/icons/Icon'
 
 interface ReviewActionsProps {
   token: string
   data: ReviewPreOrder
+  // Once the order exists: the page brings its confirmation into view.
+  onConfirmed: () => void
 }
 
 // The decision bar. It sticks to the bottom of the viewport so the primary action stays within
 // thumb reach no matter how long the piece list is; the two destructive/slow paths sit behind an
 // overflow menu so they never compete with it.
-const ReviewActions = ({ token, data }: ReviewActionsProps) => {
+const ReviewActions = ({ token, data, onConfirmed }: ReviewActionsProps) => {
   const qc = useQueryClient()
   const confirm = useConfirmReview(token)
   const reject = useRejectReview(token)
   const requestChanges = useRequestChangesReview(token)
 
   const [confirmModal, setConfirmModal] = useState(false)
+  // The client opened the confirmation and left without confirming: from then on the bar says the
+  // order is still pending, because the page around it looks exactly as it did before.
+  const [dismissed, setDismissed] = useState(false)
   const [rejectModal, setRejectModal] = useState(false)
   const [changesModal, setChangesModal] = useState(false)
   const [rejectNote, setRejectNote] = useState('')
@@ -44,6 +50,7 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
   const closeConfirm = () => {
     const hadError = !!confirm.error
     setConfirmModal(false)
+    setDismissed(true)
     confirm.reset()
     if (hadError) void qc.invalidateQueries({ queryKey: ['review', token] })
   }
@@ -76,6 +83,16 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
           zIndex: 1020,
         }}
       >
+        {/* The live region is always there and only its content comes and goes: a region inserted
+            together with its text is not announced. */}
+        <div role="status">
+          {dismissed && data.status === 'sent' && (
+            <CContainer className="review-pending" style={{ maxWidth: 1280 }}>
+              <Icon name="pending" />
+              Tu pedido aún no está confirmado
+            </CContainer>
+          )}
+        </div>
         {/* The bar spans the full width so its background reaches both edges, but its contents line
             up with the page container above it. */}
         <CContainer
@@ -127,7 +144,14 @@ const ReviewActions = ({ token, data }: ReviewActionsProps) => {
       <ReviewConfirmModal
         visible={confirmModal}
         onClose={closeConfirm}
-        onConfirm={() => confirm.mutate(undefined, { onSuccess: () => setConfirmModal(false) })}
+        onConfirm={() =>
+          confirm.mutate(undefined, {
+            onSuccess: () => {
+              setConfirmModal(false)
+              onConfirmed()
+            },
+          })
+        }
         total={data.total}
         currency={data.currency ?? 'USD'}
         totalBoards={data.totalBoardsUsed}

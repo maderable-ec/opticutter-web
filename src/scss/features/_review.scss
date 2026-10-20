@@ -12,3 +12,56 @@
     scrollbar-gutter: stable;
   }
 }
+
+// The confirmation dialog's buttons: stacked to the full width on a phone, the confirmation on top
+// where the thumb lands; in a row from `sm`. Side by side at 360 px the two labels did not fit.
+.review-confirm__footer {
+  flex-direction: column-reverse;
+  align-items: stretch;
+
+  @media (min-width: 576px) {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
+}
+
+// The action bar after the client closed the confirmation without confirming: its own line above the
+// total, in the tone of something still waiting on them.
+.review-pending {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding-bottom: 0.375rem;
+  color: var(--mb-tone-progress-fg);
+  font-size: var(--mb-text-sm);
+  font-weight: 500;
+}
+
+// What the client sees once the order exists: in the success tone and larger than any alert, so its
+// absence says the confirmation did not happen.
+.review-confirmed {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--mb-tone-success-mark);
+  border-radius: var(--cui-border-radius-lg);
+  background-color: var(--mb-tone-success-bg);
+  color: var(--mb-tone-success-fg);
+
+  // Focused by script right after confirming, so a screen reader reads it; not a control.
+  &:focus {
+    outline: 0;
+  }
+
+  > .mb-icon {
+    flex-shrink: 0;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .h4 {
+    color: inherit;
+  }
+}

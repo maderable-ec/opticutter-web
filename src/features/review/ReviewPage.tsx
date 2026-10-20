@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { CAlert, CBadge, CButton, CCard, CCardBody, CCol, CContainer, CRow } from '@coreui/react'
+import { CAlert, CButton, CCard, CCardBody, CCol, CContainer, CRow } from '@coreui/react'
 import BrandMark from 'src/shared/icons/BrandMark'
+import Icon from 'src/shared/icons/Icon'
 
 import { ApiError } from 'src/shared/api/types'
 import ReferenceNote from 'src/shared/components/ReferenceNote'
+import StatusBadge from 'src/shared/components/StatusBadge'
+import type { StatusConfigEntry } from 'src/shared/components/StatusBadge'
 import { useReview } from './useReview'
 import ReviewPlan from './ReviewPlan'
 import ReviewPieces from './ReviewPieces'
@@ -57,6 +60,15 @@ const InfoView = ({ title, children }: { title: ReactNode; children?: ReactNode 
   </Shell>
 )
 
+// The states the client sees with the quote open, in the client's words. «Por confirmar» is the one
+// that was missing: without it, a client who closed the confirmation found the page exactly as
+// before and nothing saying the order was still theirs to confirm.
+const REVIEW_STATUS: Record<string, StatusConfigEntry> = {
+  sent: { label: 'Por confirmar', tone: 'progress', icon: 'pending' },
+  changes_requested: { label: 'Cambios pedidos', tone: 'info', icon: 'changesRequested' },
+  confirmed: { label: 'Confirmada', tone: 'success', icon: 'confirmed' },
+}
+
 const Header = ({ data }: { data: ReviewPreOrder }) => (
   <CCard className="mb-3">
     <CCardBody className="py-3">
@@ -64,8 +76,9 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
         <div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
             <h1 className="h5 mb-0">Cotización {data.reference}</h1>
-            {data.status === 'changes_requested' && <CBadge color="info">Cambios pedidos</CBadge>}
-            {data.status === 'confirmed' && <CBadge color="success">Confirmada</CBadge>}
+            {REVIEW_STATUS[data.status] && (
+              <StatusBadge config={REVIEW_STATUS} value={data.status} />
+            )}
           </div>
           <div className="text-body-secondary small">Cliente: {data.clientName}</div>
           {/* Commercial reference (project/site), the same text printed on the order document. */}
@@ -89,6 +102,41 @@ const Header = ({ data }: { data: ReviewPreOrder }) => (
     </CCardBody>
   </CCard>
 )
+
+interface ConfirmedPanelProps {
+  data: ReviewPreOrder
+  // Right after confirming: the client was scrolled down by the action bar, and the message used to
+  // land at the top of the page, out of sight.
+  focus: boolean
+}
+
+// The confirmation, unmistakable, so a client who never gets to see it knows they did not finish.
+// Its title is not a heading because it sits above the page's `h1`.
+const ConfirmedPanel = ({ data, focus }: ConfirmedPanelProps) => {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!focus) return
+    window.scrollTo({ top: 0 })
+    ref.current?.focus({ preventScroll: true })
+  }, [focus])
+
+  return (
+    <div ref={ref} tabIndex={-1} className="review-confirmed mb-3">
+      <Icon name="confirmed" />
+      <div>
+        <p className="h4 mb-1">¡Pedido confirmado!</p>
+        {/* The date and time are in the header right below («Confirmada el …»). */}
+        <p className="mb-2">
+          Tu pedido <strong className="text-nowrap">{data.orderCode}</strong> quedó en firme.
+        </p>
+        <p className="small mb-0">
+          <strong>Siguiente paso:</strong> comunícate con tu asesor para coordinar el pago. El corte
+          empieza cuando se registra.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 const Tab = ({
   active,
@@ -156,6 +204,7 @@ const ReviewPage = () => {
   // The plan leads on mobile: it's the one thing the client can't see anywhere else.
   const [view, setView] = useState<MobileView>('plan')
   const [railTab, setRailTab] = useState<RailTab>('pieces')
+  const [justConfirmed, setJustConfirmed] = useState(false)
   const openRail = (t: RailTab) => {
     setRailTab(t)
     setView('rail')
@@ -246,7 +295,14 @@ const ReviewPage = () => {
   const mobileOnly = (v: MobileView) => (view === v ? '' : 'd-none d-lg-block')
 
   return (
-    <Shell wide footer={open ? <ReviewActions token={token} data={data} /> : undefined}>
+    <Shell
+      wide
+      footer={
+        open ? (
+          <ReviewActions token={token} data={data} onConfirmed={() => setJustConfirmed(true)} />
+        ) : undefined
+      }
+    >
       {status === 'changes_requested' && (
         <CAlert color="info" className="mb-3">
           <strong>Pediste cambios — el taller está ajustando tu cotización.</strong>
@@ -255,19 +311,7 @@ const ReviewPage = () => {
           )}
         </CAlert>
       )}
-      {status === 'confirmed' && (
-        <CAlert color="success">
-          Tu pedido <strong>{data.orderCode}</strong> está confirmado
-          {data.confirmedAt ? ` (${fmtDateTime(data.confirmedAt)})` : ''}.
-          {/* Repeated here on purpose: the modal that carried this message is gone by now, and this
-              banner is the whole page the client sees after confirming. */}
-          <div className="mt-1 small">
-            El corte todavía no inicia: tu pedido entra a la cola de producción una vez registrado
-            el pago. <strong>Comunícate con tu asesor</strong> para coordinarlo y lo atendemos
-            cuanto antes.
-          </div>
-        </CAlert>
-      )}
+      {status === 'confirmed' && <ConfirmedPanel data={data} focus={justConfirmed} />}
 
       <Header data={data} />
 
