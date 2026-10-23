@@ -25,9 +25,18 @@ interface UserFormProps {
   onCancel: () => void
   isSubmitting: boolean
   error: Error | null
+  // Editing your own user: the server refuses deactivating yourself, so the check is held.
+  isSelf?: boolean
 }
 
-const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormProps) => {
+const UserForm = ({
+  user,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  error,
+  isSelf = false,
+}: UserFormProps) => {
   const isEdit = user !== null
 
   const [email, setEmail] = useState(user?.email ?? '')
@@ -167,8 +176,9 @@ const UserForm = ({ user, onSubmit, onCancel, isSubmitting, error }: UserFormPro
               label="Cuenta activa"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSelf}
             />
+            {isSelf && <div className="form-text">No puedes desactivar tu propio usuario.</div>}
           </div>
         )}
       </CModalBody>
