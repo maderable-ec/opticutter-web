@@ -12,7 +12,8 @@ import {
 import Icon from 'src/shared/icons/Icon'
 
 import UserForm from './UserForm'
-import { useUsers, useCreateUser, useDeleteUser, useUpdateUser } from './useUsers'
+import { useUsers, useCreateUser, useUpdateUser } from './useUsers'
+import { useCurrentUser } from 'src/features/auth/useAuth'
 import { useBranches } from 'src/features/branches/useBranches'
 import UsersFilters, {
   activeCount,
@@ -32,6 +33,7 @@ import FilterChips from 'src/shared/components/FilterChips'
 import Pagination from 'src/shared/components/Pagination'
 import QueryState from 'src/shared/components/QueryState'
 import ConfirmDialog from 'src/shared/components/ConfirmDialog'
+import { apiErrorMessage } from 'src/shared/api/errors'
 import type { ListSort } from 'src/shared/components/FilterSortSection'
 import { useListParams } from 'src/shared/hooks/useListParams'
 import { FILTER_SHEET_PARAM } from 'src/shared/hooks/useFilterSheet'
@@ -85,7 +87,7 @@ const UsersPage = () => {
   const isFiltered = activeCount(values) > 0 || search !== ''
 
   const [formModal, setFormModal] = useState<ModalState>({ visible: false, user: null })
-  const [deleteModal, setDeleteModal] = useState<ModalState>({ visible: false, user: null })
+  const [deactivateModal, setDeactivateModal] = useState<ModalState>({ visible: false, user: null })
 
   // Built inline, not memoised: React Query hashes the query key structurally, so a fresh object
   // with the same contents is the same key and does not refetch.
@@ -106,7 +108,9 @@ const UsersPage = () => {
   )
   const createMutation = useCreateUser()
   const updateMutation = useUpdateUser()
-  const deleteMutation = useDeleteUser()
+  // Its own mutation, so a refusal in the row's dialog never shows up in the form's banner.
+  const activeMutation = useUpdateUser()
+  const currentUser = useCurrentUser()
 
   const openCreate = () => setFormModal({ visible: true, user: null })
   const openEdit = (user: User) => setFormModal({ visible: true, user })
@@ -115,8 +119,11 @@ const UsersPage = () => {
     createMutation.reset()
     updateMutation.reset()
   }
-  const openDelete = (user: User) => setDeleteModal({ visible: true, user })
-  const closeDelete = () => setDeleteModal({ visible: false, user: null })
+  const openDeactivate = (user: User) => setDeactivateModal({ visible: true, user })
+  const closeDeactivate = () => {
+    setDeactivateModal({ visible: false, user: null })
+    activeMutation.reset()
+  }
 
   const handleSubmit = (data: UserPayload | UserUpdatePayload) => {
     const { user } = formModal
@@ -127,9 +134,12 @@ const UsersPage = () => {
     }
   }
 
-  const handleDelete = () => {
-    if (!deleteModal.user) return
-    deleteMutation.mutate(deleteModal.user.id, { onSuccess: closeDelete })
+  const handleDeactivate = () => {
+    if (!deactivateModal.user) return
+    activeMutation.mutate(
+      { id: deactivateModal.user.id, data: { isActive: false } },
+      { onSuccess: closeDeactivate },
+    )
   }
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending
@@ -159,22 +169,44 @@ const UsersPage = () => {
     <EmptyState title="Aún no hay usuarios." />
   )
 
-  // The row opens the editor, so only the destructive action keeps a button — and it must not also
-  // open it on the way. In the last column from `md`, beside the card on a phone.
-  const deleteButton = (u: User) => (
-    <CButton
-      variant="ghost"
-      color="danger"
-      size="sm"
-      aria-label={`Eliminar ${u.fullName ?? u.email}`}
-      onClick={(e) => {
-        e.stopPropagation()
-        openDelete(u)
-      }}
-    >
-      <Icon name="delete" />
-    </CButton>
-  )
+  // The row opens the editor, so only taking someone out (or back in) keeps a button — and it must
+  // not also open it on the way. In the last column from `md`, beside the card on a phone. A user is
+  // never deleted: their name signs the pieces, activities and payments they left behind. Nobody
+  // gets the button on their own row: the server refuses locking yourself out.
+  const activeButton = (u: User) => {
+    if (u.id === currentUser?.id) return null
+    const name = u.fullName ?? u.email
+    return u.isActive ? (
+      <CButton
+        variant="ghost"
+        color="danger"
+        size="sm"
+        aria-label={`Desactivar ${name}`}
+        title="Desactivar"
+        onClick={(e) => {
+          e.stopPropagation()
+          openDeactivate(u)
+        }}
+      >
+        <Icon name="inactive" />
+      </CButton>
+    ) : (
+      <CButton
+        variant="ghost"
+        color="success"
+        size="sm"
+        aria-label={`Reactivar ${name}`}
+        title="Reactivar"
+        disabled={activeMutation.isPending}
+        onClick={(e) => {
+          e.stopPropagation()
+          activeMutation.mutate({ id: u.id, data: { isActive: true } })
+        }}
+      >
+        <Icon name="active" />
+      </CButton>
+    )
+  }
 
   return (
     <>
@@ -226,7 +258,7 @@ const UsersPage = () => {
                         <span>{branchOf(u)}</span>
                       </>
                     }
-                    action={deleteButton(u)}
+                    action={activeButton(u)}
                   />
                 ))}
               </div>
@@ -275,7 +307,7 @@ const UsersPage = () => {
                         <ActiveBadge active={u.isActive} />
                       </CTableDataCell>
                       <CTableDataCell className="text-end text-nowrap">
-                        {deleteButton(u)}
+                        {activeButton(u)}
                       </CTableDataCell>
                     </CTableRow>
                   ))
@@ -305,20 +337,23 @@ const UsersPage = () => {
           onCancel={closeForm}
           isSubmitting={isSubmitting}
           error={formError}
+          isSelf={formModal.user != null && formModal.user.id === currentUser?.id}
         />
       </Modal>
 
       <ConfirmDialog
-        visible={deleteModal.visible}
-        title="Eliminar usuario"
-        confirmLabel="Eliminar"
+        visible={deactivateModal.visible}
+        title="Desactivar usuario"
+        confirmLabel="Desactivar"
         tone="danger"
-        onClose={closeDelete}
-        onConfirm={handleDelete}
-        pending={deleteMutation.isPending}
+        onClose={closeDeactivate}
+        onConfirm={handleDeactivate}
+        pending={activeMutation.isPending}
+        error={apiErrorMessage(activeMutation.error)}
+        note="Su historial se conserva y puedes reactivarlo cuando quieras."
       >
-        ¿Eliminar a <strong>{deleteModal.user?.fullName ?? deleteModal.user?.email}</strong>? Esta
-        acción no se puede deshacer.
+        <strong>{deactivateModal.user?.fullName ?? deactivateModal.user?.email}</strong> no podrá
+        entrar y se cerrarán sus sesiones abiertas.
       </ConfirmDialog>
     </>
   )
