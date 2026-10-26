@@ -4,11 +4,25 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { optimizerApi } from './optimizerApi'
 import { productsApi } from 'src/features/products/productsApi'
 import { REFERENCE_STALE_TIME } from 'src/shared/constants'
+import { DEFAULT_CUT_RULES, type CutRules } from 'src/shared/utils/cutRules'
 
 export const useOptimize = () =>
   useMutation({
     mutationFn: optimizerApi.optimize,
   })
+
+export const CUT_RULES_KEY = ['cut-rules']
+
+// The millimetres the next optimization cuts with (`shared/utils/cutRules.ts`). The defaults until
+// they arrive, or if the read fails: the hint is a preview, the API cuts with the settings anyway.
+export const useCutRules = (): CutRules => {
+  const { data } = useQuery({
+    queryKey: CUT_RULES_KEY,
+    queryFn: optimizerApi.cutRules,
+    staleTime: REFERENCE_STALE_TIME,
+  })
+  return data ?? DEFAULT_CUT_RULES
+}
 
 // Every active catalog board (products type=board). Pages through the whole list for the same
 // reason the edge bandings below do, and it is not optional: the picker, the CSV import matcher

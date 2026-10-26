@@ -18,7 +18,28 @@ const MM_FIELDS = [
   ['rightTrim', 'Recorte derecho'],
 ] as const
 
-type FormKey = (typeof MM_FIELDS)[number][0] | 'edgeBandingWasteFactor' | 'halfBoardMarkupPct'
+// The cut rules (`shared/utils/cutRules.ts`): whole millimetres, bounded as the API bounds them.
+const RULE_FIELDS = [
+  [
+    'hardEdgeCutMm',
+    'Canto duro: corte por lado',
+    3,
+    'Se corta esto menos por cada lado con canto duro, para que la pieza quede a la medida final.',
+  ],
+  [
+    'assemblyAllowanceMm',
+    'Ensamble: margen por medida',
+    20,
+    'Cada capa de un ensamble se corta esto más en largo y en ancho, para rectificarla.',
+  ],
+] as const
+
+type RuleKey = (typeof RULE_FIELDS)[number][0]
+type FormKey =
+  | (typeof MM_FIELDS)[number][0]
+  | RuleKey
+  | 'edgeBandingWasteFactor'
+  | 'halfBoardMarkupPct'
 type FormState = Record<FormKey, string>
 
 // Round to drop floating-point noise from the percent<->fraction conversion.
@@ -35,7 +56,14 @@ const toForm = (s: CuttingSettings): FormState => ({
   rightTrim: String(s.rightTrim),
   edgeBandingWasteFactor: String(fractionToPercent(s.edgeBandingWasteFactor)),
   halfBoardMarkupPct: String(fractionToPercent(s.halfBoardMarkupPct)),
+  hardEdgeCutMm: String(s.hardEdgeCutMm),
+  assemblyAllowanceMm: String(s.assemblyAllowanceMm),
 })
+
+const RULE_MAX: Record<RuleKey, number> = Object.fromEntries(
+  RULE_FIELDS.map(([key, , max]) => [key, max]),
+) as Record<RuleKey, number>
+const isRuleKey = (key: FormKey): key is RuleKey => key in RULE_MAX
 
 const parseNum = (raw: string): number | null => {
   const t = raw.trim()
@@ -80,6 +108,7 @@ const CuttingSettingsCard = () => {
     ...MM_FIELDS.map(([k]) => k),
     'edgeBandingWasteFactor',
     'halfBoardMarkupPct',
+    ...RULE_FIELDS.map(([k]) => k),
   ]
 
   // A field is dirty when its parsed value differs from the loaded server value.
@@ -98,6 +127,9 @@ const CuttingSettingsCard = () => {
       const num = parseNum(f[key])
       if (num === null) errors[key] = 'Ingresa un número válido.'
       else if (num < 0) errors[key] = 'No puede ser negativo.'
+      else if (isRuleKey(key) && !Number.isInteger(num)) errors[key] = 'En milímetros enteros.'
+      else if (isRuleKey(key) && num > RULE_MAX[key])
+        errors[key] = `No puede pasar de ${RULE_MAX[key]} mm.`
     }
     return errors
   }
@@ -135,7 +167,7 @@ const CuttingSettingsCard = () => {
   return (
     <SettingsSection
       title="Parámetros de corte"
-      description="Cambiar estos parámetros afecta futuras optimizaciones y cotizaciones. Las órdenes ya confirmadas conservan su precio."
+      description="Cambiar estos parámetros afecta futuras optimizaciones y cotizaciones. Las órdenes ya confirmadas conservan su precio y sus medidas de corte."
       ready={!isLoading && !!form}
       isError={isError}
       onRetry={() => void refetch()}
@@ -205,6 +237,27 @@ const CuttingSettingsCard = () => {
               Ej.: 15 % = el medio tablero cuesta 50 % + 15 % adicional del precio completo.
             </div>
           </CCol>
+
+          {RULE_FIELDS.map(([key, label, max, help]) => (
+            <CCol xs={6} md={4} key={key}>
+              <CFormLabel htmlFor={fieldId(key)}>{label}</CFormLabel>
+              <CInputGroup>
+                <CFormInput
+                  id={fieldId(key)}
+                  type="number"
+                  min={0}
+                  max={max}
+                  step={1}
+                  value={form[key]}
+                  onChange={onChange(key)}
+                  invalid={!!fieldErrors[key]}
+                />
+                <CInputGroupText>mm</CInputGroupText>
+              </CInputGroup>
+              <FieldError name={key} errors={fieldErrors} />
+              <div className="form-text">{help}</div>
+            </CCol>
+          ))}
         </CRow>
       )}
     </SettingsSection>

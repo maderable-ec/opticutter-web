@@ -51,6 +51,7 @@ import {
   House,
   Inbox,
   KeyRound,
+  LayersPlus,
   Link,
   Lock,
   LogOut,
@@ -200,6 +201,8 @@ export const ICONS = {
   addClient: UserPlus,
   edit: Pencil,
   copy: Copy,
+  // «+ capa»: another layer of an assembly (the ensamble rule).
+  addLayer: LayersPlus,
   delete: Trash2,
   save: Save,
   check: Check,

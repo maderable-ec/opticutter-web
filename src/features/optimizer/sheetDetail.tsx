@@ -13,7 +13,7 @@ import {
 } from 'src/shared/utils/cutDrawing'
 import type { SideLine } from 'src/shared/utils/cutDrawing'
 import { groupByTape, sidesNotation } from 'src/shared/utils/specialEdges'
-import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
+import { isEnlarged, isResized, placedCut } from 'src/shared/utils/hardEdges'
 import type { EdgeSide, Layout, PlacedPiece } from './types'
 import { fmtM2, fmtMeters, fmtPercent } from 'src/shared/utils/format'
 
@@ -191,11 +191,17 @@ export const PieceDetailCard = ({
               label="Medida final"
               value={`${piece.originalWidth}×${piece.originalHeight} mm`}
             />
-            {/* The size the saw cuts, when a hard tape makes it smaller than the one ordered. */}
-            {cut && isCutShort(cut) && (
+            {/* The size the saw cuts, when it is not the one ordered: a hard tape makes it smaller,
+                a layer of an assembly larger. Read off the plan's own two sizes, so a frozen plan
+                says what it was cut at whatever the settings say today. */}
+            {cut && isResized(cut) && (
               <Detail
                 label="Corte"
-                value={`${cut.width}×${cut.height} mm · −${cut.heightOff + cut.widthOff} mm canto duro`}
+                value={`${cut.width}×${cut.height} mm · ${
+                  isEnlarged(cut)
+                    ? 'ensamble, para rectificar'
+                    : `−${cut.heightOff + cut.widthOff} mm canto duro`
+                }`}
               />
             )}
             {piece.rotated && (

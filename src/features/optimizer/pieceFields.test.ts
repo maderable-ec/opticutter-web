@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EdgeBandingProduct } from 'src/features/products/types'
+import { DEFAULT_CUT_RULES } from 'src/shared/utils/cutRules'
 import { emptyRequirement, sidesFromNotation } from './optimizerForm'
 import type { EdgeBandingForm, RequirementForm } from './optimizerForm'
 import {
@@ -31,6 +32,8 @@ const tape = (id: string, alias: string, bandType: 'Soft' | 'Hard'): EdgeBanding
 const COORD = [tape('1', 'BLN', 'Soft'), tape('2', 'BLN', 'Hard')]
 const CATALOG = [...COORD, tape('3', 'CHM', 'Soft'), tape('4', 'CHM', 'Hard')]
 const BY_ID = bandingLookup(COORD, CATALOG)
+// The default millimetres per hard side (the setting, `shared/utils/cutRules.ts`).
+const MM = DEFAULT_CUT_RULES.hardEdgeCutMm
 
 const banding = (over: Partial<EdgeBandingForm> = {}): EdgeBandingForm => ({
   productId: '',
@@ -134,7 +137,7 @@ describe('pieceReadout', () => {
       label: ' Lateral ',
       edgeBanding: banding({ productId: '2', sides: sidesFromNotation('1L1C') }),
     })
-    expect(pieceReadout(r, BY_ID)).toMatchObject({
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM))).toMatchObject({
       label: 'Lateral',
       dims: '720 × 560',
       quantity: 2,
@@ -144,13 +147,17 @@ describe('pieceReadout', () => {
 
   it('says what is missing instead of inventing it', () => {
     const r = req({ height: 720, width: '', quantity: '' })
-    expect(pieceReadout(r, BY_ID)).toMatchObject({ dims: '720 × ?', quantity: null, canto: null })
-    expect(pieceReadout(req(), BY_ID).dims).toBe('')
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM))).toMatchObject({
+      dims: '720 × ?',
+      quantity: null,
+      canto: null,
+    })
+    expect(pieceReadout(req(), BY_ID, pieceCutSize(req(), BY_ID, MM)).dims).toBe('')
   })
 
   it('leaves the type out when neither the piece nor its tape states one', () => {
     const r = req({ edgeBanding: banding({ sides: sidesFromNotation('2L') }) })
-    expect(pieceReadout(r, BY_ID).canto).toBe('2L')
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM)).canto).toBe('2L')
   })
 
   it('counts special edges per tape and prints the codes with their service', () => {
@@ -163,7 +170,10 @@ describe('pieceReadout', () => {
       hingingCode: 'B2',
       groovingCode: ' R1 ',
     })
-    expect(pieceReadout(r, BY_ID)).toMatchObject({ specialTapes: 2, codes: 'Abis B2 · Ran R1' })
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM))).toMatchObject({
+      specialTapes: 2,
+      codes: 'Abis B2 · Ran R1',
+    })
   })
 })
 
@@ -178,8 +188,13 @@ describe('pieceCutSize', () => {
   it('takes 1 mm off per side whose tape is hard, across that side', () => {
     // Tape 2 is hard: 2L takes the two millimetres off the width.
     const r = req({ edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }) })
-    expect(pieceCutSize(r, BY_ID)).toEqual({ height: 600, width: 398, heightOff: 0, widthOff: 2 })
-    expect(pieceReadout(r, BY_ID).cutDims).toBe('600 × 398')
+    expect(pieceCutSize(r, BY_ID, MM)).toEqual({
+      height: 600,
+      width: 398,
+      heightOff: 0,
+      widthOff: 2,
+    })
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM)).cutDims).toBe('600 × 398')
   })
 
   it('reads a canto especial off its own tape', () => {
@@ -188,7 +203,7 @@ describe('pieceCutSize', () => {
       edgeBanding: banding({ productId: '1', sides: sidesFromNotation('2L') }),
       specialEdges: [{ side: 'top', productId: '4' }],
     })
-    expect(pieceCutSize(r, BY_ID)).toMatchObject({ height: 599, width: 400 })
+    expect(pieceCutSize(r, BY_ID, MM)).toMatchObject({ height: 599, width: 400 })
   })
 
   it('follows the tape, not the Tipo toggle', () => {
@@ -196,12 +211,12 @@ describe('pieceCutSize', () => {
     const r = req({
       edgeBanding: banding({ productId: '1', bandType: 'Hard', sides: sidesFromNotation('2L') }),
     })
-    expect(pieceCutSize(r, BY_ID)).toMatchObject({ heightOff: 0, widthOff: 0 })
-    expect(pieceReadout(r, BY_ID).cutDims).toBeNull()
+    expect(pieceCutSize(r, BY_ID, MM)).toMatchObject({ heightOff: 0, widthOff: 0 })
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM)).cutDims).toBeNull()
   })
 
   it('waits for both measures', () => {
-    expect(pieceCutSize(req({ width: '' }), BY_ID)).toBeNull()
+    expect(pieceCutSize(req({ width: '' }), BY_ID, MM)).toBeNull()
   })
 
   it('cuts at the final size once «✂ CD» is unticked, and the ✂ goes', () => {
@@ -209,10 +224,15 @@ describe('pieceCutSize', () => {
       edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }),
       hardEdgeCut: false,
     })
-    expect(pieceCutSize(r, BY_ID)).toEqual({ height: 600, width: 400, heightOff: 0, widthOff: 0 })
-    expect(pieceReadout(r, BY_ID).cutDims).toBeNull()
+    expect(pieceCutSize(r, BY_ID, MM)).toEqual({
+      height: 600,
+      width: 400,
+      heightOff: 0,
+      widthOff: 0,
+    })
+    expect(pieceReadout(r, BY_ID, pieceCutSize(r, BY_ID, MM)).cutDims).toBeNull()
     // The tape is still hard: the tick still applies, it is just off.
-    expect(hasHardCut(r, BY_ID)).toBe(true)
+    expect(hasHardCut(r, BY_ID, MM)).toBe(true)
   })
 
   it('reads a row saved before the column existed as cut under the rule', () => {
@@ -220,13 +240,13 @@ describe('pieceCutSize', () => {
       edgeBanding: banding({ productId: '2', sides: sidesFromNotation('2L') }),
     })
     delete legacy.hardEdgeCut
-    expect(pieceCutSize(legacy as RequirementForm, BY_ID)).toMatchObject({ width: 398 })
+    expect(pieceCutSize(legacy as RequirementForm, BY_ID, MM)).toMatchObject({ width: 398 })
   })
 
   it('greys the tick out where no hard tape would cut anything', () => {
     const soft = req({ edgeBanding: banding({ productId: '1', sides: sidesFromNotation('2L') }) })
-    expect(hasHardCut(soft, BY_ID)).toBe(false)
-    expect(hasHardCut(req(), BY_ID)).toBe(false)
+    expect(hasHardCut(soft, BY_ID, MM)).toBe(false)
+    expect(hasHardCut(req(), BY_ID, MM)).toBe(false)
   })
 })
 

@@ -140,12 +140,17 @@ export const withBandingProduct = (
 
 // --- The cut size ---------------------------------------------------------------------------------
 
-// The size the rule WOULD cut a piece at: its final size minus 1 mm per side with a hard tape
-// (`shared/utils/hardEdges.ts`), whatever «✂ CD» says. Each side's type is read off the PRODUCT it
-// gets — the Canto's tape on its sides, a canto especial's own on its side — exactly as the API
-// reads it; the Tipo toggle is not sent, so a CD with no hard tape behind it takes nothing off there
-// either. null while a measure is not a positive number.
-const ruleCutSize = (r: RequirementForm, byId: Map<string, EdgeBandingProduct>): CutSize | null => {
+// The size the rule WOULD cut a piece at: its final size minus `hardMm` (the setting,
+// `CutRules.hardEdgeCutMm`) per side with a hard tape (`shared/utils/hardEdges.ts`), whatever «✂ CD»
+// says. Each side's type is read off the PRODUCT it gets — the Canto's tape on its sides, a canto
+// especial's own on its side — exactly as the API reads it; the Tipo toggle is not sent, so a CD
+// with no hard tape behind it takes nothing off there either. null while a measure is not a
+// positive number.
+const ruleCutSize = (
+  r: RequirementForm,
+  byId: Map<string, EdgeBandingProduct>,
+  hardMm: number,
+): CutSize | null => {
   const height = Number(r.height)
   const width = Number(r.width)
   if (!(height > 0) || !(width > 0)) return null
@@ -153,13 +158,17 @@ const ruleCutSize = (r: RequirementForm, byId: Map<string, EdgeBandingProduct>):
   const auto = byId.get(String(r.edgeBanding.productId))?.attributes.bandType
   for (const side of selectedSides(r.edgeBanding)) types[side] = auto
   for (const e of r.specialEdges ?? []) types[e.side] = byId.get(e.productId)?.attributes.bandType
-  return cutSize(height, width, types)
+  return cutSize(height, width, types, hardMm)
 }
 
 // Whether «✂ CD» means anything for this piece: some hard tape would cut it short. A piece with no
 // hard tape is cut at its final size either way, so the grid shows the tick greyed out.
-export const hasHardCut = (r: RequirementForm, byId: Map<string, EdgeBandingProduct>): boolean => {
-  const cut = ruleCutSize(r, byId)
+export const hasHardCut = (
+  r: RequirementForm,
+  byId: Map<string, EdgeBandingProduct>,
+  hardMm: number,
+): boolean => {
+  const cut = ruleCutSize(r, byId, hardMm)
   return !!cut && cut.heightOff + cut.widthOff > 0
 }
 
@@ -169,20 +178,22 @@ export const hasHardCut = (r: RequirementForm, byId: Map<string, EdgeBandingProd
 export const pieceCutSize = (
   r: RequirementForm,
   byId: Map<string, EdgeBandingProduct>,
+  hardMm: number,
 ): CutSize | null => {
-  if (r.hardEdgeCut !== false) return ruleCutSize(r, byId)
+  if (r.hardEdgeCut !== false) return ruleCutSize(r, byId, hardMm)
   const height = Number(r.height)
   const width = Number(r.width)
-  return height > 0 && width > 0 ? cutSize(height, width, {}) : null
+  return height > 0 && width > 0 ? cutSize(height, width, {}, hardMm) : null
 }
 
 // Some row is cut short by a hard tape: the group explains the ✂ once, above its pieces.
 export const anyHardCut = (
   rows: RequirementForm[],
   byId: Map<string, EdgeBandingProduct>,
+  hardMm: number,
 ): boolean =>
   rows.some((r) => {
-    const cut = pieceCutSize(r, byId)
+    const cut = pieceCutSize(r, byId, hardMm)
     return !!cut && cut.heightOff + cut.widthOff > 0
   })
 
@@ -201,20 +212,23 @@ export interface PieceReadout {
   specialTapes: number
   // Workshop codes with the service word ("Abis B2 · Ran R1"); '' for none.
   codes: string
-  // "600 × 398" when a hard tape cuts the piece short; null when it is cut at its final size.
+  // "600 × 398" when a hard tape cuts the piece short (or "605 × 403", a layer of an assembly); null
+  // when it is cut at its final size.
   cutDims: string | null
 }
 
+// `cut` is the row's cut over the whole despiece (`assemblyRowCuts`): a layer of an assembly is not
+// cut at the size its own row alone would give.
 export const pieceReadout = (
   r: RequirementForm,
   byId: Map<string, EdgeBandingProduct>,
+  cut: CutSize | null,
 ): PieceReadout => {
   const h = String(r.height ?? '').trim()
   const w = String(r.width ?? '').trim()
   const qty = Number(r.quantity)
   const notation = notationFromSides(r.edgeBanding.sides)
   const bandType = displayedBandType(r.edgeBanding, byId)
-  const cut = pieceCutSize(r, byId)
   return {
     label: r.label.trim(),
     dims: h || w ? `${h || '?'} × ${w || '?'}` : '',

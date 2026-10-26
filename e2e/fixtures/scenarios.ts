@@ -2,6 +2,7 @@ import type { Page, Request } from '@playwright/test'
 import type { MaterialForm, RequirementForm } from 'src/features/optimizer/optimizerForm'
 import type { OptimizerAutosave } from 'src/features/optimizer/optimizerStorage'
 import type { Product } from 'src/features/products/types'
+import type { CutRules } from 'src/shared/utils/cutRules'
 import type { MockApi } from './api'
 import {
   attendanceReport,
@@ -69,6 +70,7 @@ export const piece = (
   groovingCode: '',
   assemblyCode: '',
   divisionCode: '',
+  assemblyAllowance: false,
 })
 
 /**
@@ -107,6 +109,8 @@ export const stubOptimizer = (api: MockApi) =>
     .get(`/products/${BOARD.id}/edge-bandings`, [TAPE])
     // The Costos step's service picker.
     .list('/additional-services/', [])
+    // The cutting settings' millimetres, for the despiece's ✂ hints: the defaults.
+    .get<CutRules>('/optimize/cut-rules', { hardEdgeCutMm: 1, assemblyAllowanceMm: 5 })
 
 const DAY_MS = 24 * 60 * 60_000
 const inDays = (days: number) => new Date(Date.now() + days * DAY_MS).toISOString()

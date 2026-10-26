@@ -8,6 +8,8 @@ import {
 } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import { seatSpecialEdges } from './specialEdges'
+import { layerTwin, spreadAssemblyMark, withAssemblyCode } from './assemblyRows'
+import { nextAssemblyCode } from 'src/shared/utils/assembly'
 
 // Campos que admiten "rellenar hacia abajo" (aplicar de una fila a varias).
 export type FillableField =
@@ -160,6 +162,7 @@ export const applyField = (
     // Read as the rest of the editor reads it: a row from before the column has no key and is on.
     return { ...r, hardEdgeCut: src.hardEdgeCut !== false }
   }
+  if (field === 'assemblyCode') return withAssemblyCode(r, src.assemblyCode ?? '')
   return { ...r, [field]: src[field] }
 }
 
@@ -235,9 +238,11 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
   const clearFocus = useCallback(() => setFocusRow(null), [])
 
   // Saves current state to history then applies the updater. Do not use in `update` (keystroke).
+  // Every structural edit ends with the assembly marks spread (`spreadAssemblyMark`): a fill or a
+  // paste that writes an Ens code joins the unmarked rows sharing it.
   const applyWithHistory = (updater: (rs: RequirementForm[]) => RequirementForm[]) => {
     setHistory((h) => [...h.slice(-(MAX_HISTORY - 1)), requirements])
-    setRequirements(updater)
+    setRequirements((rs) => spreadAssemblyMark(updater(rs)))
   }
 
   const undo = useCallback(() => {
@@ -323,11 +328,38 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     setSelected(new Set())
   }
 
+  // «+ capa»: makes row `i` a layer of an assembly (the next free E-code when it has none) and adds
+  // its bare twin right below, selected — so the selection bar's «Mover a» is one click away when
+  // the other layer is another board.
+  const addLayer = (i: number) => {
+    const src = requirements[i]
+    if (!src) return
+    applyWithHistory((rs) => {
+      const row = rs[i]
+      if (!row) return rs
+      const code = row.assemblyCode?.trim() || nextAssemblyCode(rs.map((r) => r.assemblyCode ?? ''))
+      const marked = withAssemblyCode(row, code)
+      return [...rs.slice(0, i), marked, layerTwin(marked, code), ...rs.slice(i + 1)]
+    })
+    setSelected(new Set([i + 1]))
+  }
+
   const update = <K extends keyof RequirementForm>(
     i: number,
     field: K,
     value: RequirementForm[K],
-  ) => setRequirements((rs) => rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)))
+  ) =>
+    setRequirements((rs) => {
+      if (field !== 'assemblyCode') {
+        return rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r))
+      }
+      // The Ens code marks its row as a layer and joins the old rows already sharing it.
+      return spreadAssemblyMark(
+        rs.map((r, idx) =>
+          idx === i ? withAssemblyCode(r, typeof value === 'string' ? value : '') : r,
+        ),
+      )
+    })
 
   // Flat table: applies the value from the source row (first, or first selected) to the scope.
   // Every fill returns how many rows could not take the value (see `applyField`).
@@ -508,10 +540,14 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
       rawValues.forEach((val, i) => {
         const target = startIndex + i
         const existing = result[target]
+        const write = (r: RequirementForm): RequirementForm =>
+          field === 'assemblyCode'
+            ? withAssemblyCode(r, String(toValue(val)))
+            : { ...r, [field]: toValue(val) }
         if (existing) {
-          result[target] = { ...existing, [field]: toValue(val) }
+          result[target] = write(existing)
         } else {
-          result.push({ ...cloneRequirement(src), [field]: toValue(val) })
+          result.push(write(cloneRequirement(src)))
         }
       })
       return clusterByMaterial(result)
@@ -568,6 +604,7 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     removeSelected,
     duplicate,
     duplicateSelected,
+    addLayer,
     update,
     fillDown,
     fillDownGroup,

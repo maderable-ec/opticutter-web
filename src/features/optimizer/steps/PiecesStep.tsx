@@ -7,6 +7,8 @@ import type { PiecesEditor } from '../usePiecesEditor'
 import type { PiecesNavigation } from '../usePiecesNavigation'
 import MaterialGroups from '../MaterialGroups'
 import PiecesNav from '../PiecesNav'
+import AssemblyIssuesAlert from '../AssemblyIssuesAlert'
+import type { AssemblyIssue } from 'src/shared/utils/assembly'
 
 // Step 1. The pieces editor at full page width — the whole point of the wizard: PieceRowsTable is a
 // 12-column grid and used to live in 58% of the viewport next to the diagrams.
@@ -45,6 +47,8 @@ interface PiecesStepProps {
   // Indexes of pieces with banding sides but no tapacanto product. Only a warning here — it blocks
   // the Cotización step, not this one, because the geometry optimizes fine without it.
   missingBanding: number[]
+  // Assemblies whose layers disagree. Like `missingBanding`, it blocks the Cotización step only.
+  assemblyIssues: AssemblyIssue[]
   // Folded groups: owned by the page, because the actions menu toggles them all at once.
   collapsed: Set<string>
   onToggleGroup: (uid: string) => void
@@ -69,6 +73,7 @@ const PiecesStep = ({
   issues,
   onDismissIssues,
   missingBanding,
+  assemblyIssues,
   collapsed,
   onToggleGroup,
   onAddMaterial,
@@ -136,6 +141,12 @@ const PiecesStep = ({
         Puedes optimizar igual, pero hará falta para crear la cotización.
       </CAlert>
     )}
+
+    <AssemblyIssuesAlert
+      issues={assemblyIssues}
+      onGo={nav.revealPiece}
+      blocks="Puedes optimizar igual, pero no podrás crear la cotización hasta corregirlo."
+    />
   </>
 )
 

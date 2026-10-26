@@ -19,10 +19,11 @@ import {
   validOffcuts,
 } from './optimizerForm'
 import type { PiecesEditor } from './usePiecesEditor'
-import { useBoardEdgeBandings } from './useOptimizer'
+import { useBoardEdgeBandings, useCutRules } from './useOptimizer'
 import PieceRowsTable from './PieceRowsTable'
 import PiecesMobileList from './PiecesMobileList'
 import { anyHardCut, bandingLookup } from './pieceFields'
+import { anyAssembly, assemblyRowCuts } from './assemblyRows'
 import { reresolveSpecialEdges } from './specialEdges'
 
 // Short forms for the summary line; the modal spells them out in full.
@@ -211,7 +212,17 @@ const MaterialGroupCard = ({
     () => bandingLookup(boardEdgeBandings, edgeBandings),
     [boardEdgeBandings, edgeBandings],
   )
-  const hardCut = useMemo(() => anyHardCut(rows, bandingById), [rows, bandingById])
+  const cutRules = useCutRules()
+  const hardCut = useMemo(
+    () => anyHardCut(rows, bandingById, cutRules.hardEdgeCutMm),
+    [rows, bandingById, cutRules],
+  )
+  const assembly = useMemo(() => anyAssembly(rows), [rows])
+  // The phone's list shows the cut too, and a layer's depends on rows of other materials.
+  const cuts = useMemo(
+    () => assemblyRowCuts(editor.requirements, bandingById, cutRules),
+    [editor.requirements, bandingById, cutRules],
+  )
   const prevSpecialBoardId = useRef(boardId)
   useEffect(() => {
     if (prevSpecialBoardId.current === boardId || edgeBandings.length === 0) return
@@ -453,7 +464,16 @@ const MaterialGroupCard = ({
           {hardCut && (
             <div className="small text-body-secondary mb-2">
               <span className="text-tech">✂</span> Escribe la medida final. Donde hay canto duro el
-              corte se descuenta solo: 1 mm por lado.
+              corte se descuenta solo: {cutRules.hardEdgeCutMm} mm por lado.
+            </div>
+          )}
+          {/* Same for an assembly: each layer is a row with the same Ens code, and the allowance
+              the shop squares off is added here, never typed. */}
+          {assembly && (
+            <div className="small text-body-secondary mb-2">
+              <span className="text-tech">✂</span> Ensamble: cada capa es una fila con el mismo
+              código Ens. Se corta {cutRules.assemblyAllowanceMm} mm más por medida para rectificar;
+              el cliente ve la medida final.
             </div>
           )}
           {/* The grid is for typing a despiece, the list for reading one on a phone and correcting it
@@ -479,6 +499,7 @@ const MaterialGroupCard = ({
               startIndex={startIndex}
               materialValid={materialValid}
               byId={bandingById}
+              cuts={cuts}
               matches={matches}
               activeMatch={activeMatch}
               onOpen={onOpenPiece}

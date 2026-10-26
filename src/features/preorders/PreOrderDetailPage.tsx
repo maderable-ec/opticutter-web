@@ -92,6 +92,8 @@ import CutListCards from 'src/shared/components/CutListCards'
 import Segments, { segmentClass, useSegmentParam } from 'src/shared/components/Segments'
 import { requirementCutList } from 'src/features/optimizer/cutList'
 import { bandingLookup } from 'src/features/optimizer/pieceFields'
+import { assemblyRowIssues } from 'src/features/optimizer/assemblyRows'
+import AssemblyIssuesAlert from 'src/features/optimizer/AssemblyIssuesAlert'
 import { Modal, ModalTitle } from 'src/shared/components/Modal'
 
 // The quote on a phone, in three parts, the way the client's own review splits it: the money
@@ -226,6 +228,8 @@ function formFromPreOrderData(
     groovingCode: r.groovingCode ?? '',
     assemblyCode: r.assemblyCode ?? '',
     divisionCode: r.divisionCode ?? '',
+    // Absent on a quote saved before the ensamble rule: its codes stay unmarked, and its plan.
+    assemblyAllowance: r.assemblyAllowance === true,
   }))
   return { materials: matForms, requirements: reqForms }
 }
@@ -625,12 +629,17 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
   const canSave = summary.pieces > 0
   // Pieces with banding sides but no tapacanto: block updating the quote until resolved.
   const missingBanding = piecesMissingBandingProduct(editor.requirements)
+  // Assemblies whose layers disagree: the API refuses the update (422 ASSEMBLY_MISMATCH).
+  const assemblyIssues = assemblyRowIssues(editor.requirements)
+  const blocksSave = missingBanding.length > 0 || assemblyIssues.length > 0
   const saveDisabledHint =
     missingBanding.length > 0
       ? 'Falta seleccionar el tapacanto'
-      : canSave && !isDirty
-        ? 'Sin cambios por guardar'
-        : undefined
+      : assemblyIssues.length > 0
+        ? 'Hay ensambles que no coinciden'
+        : canSave && !isDirty
+          ? 'Sin cambios por guardar'
+          : undefined
 
   // Preventive twin of the 400 below: `require_phone` is a hard backend rule (a quote is not sent to
   // someone who cannot be invoiced), and finding that out by clicking is a wasted round trip.
@@ -773,7 +782,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
             // The footer's «Otra alternativa», in here on a phone only (the menu hides it from
             // `md`): at 360px the bar's two buttons each broke onto two lines.
             onAlternative={canEdit && optimization ? handleAlternative : undefined}
-            alternativeDisabled={!canSave || missingBanding.length > 0 || updatePreOrder.isPending}
+            alternativeDisabled={!canSave || blocksSave || updatePreOrder.isPending}
             variant={variant}
           />
         </div>
@@ -973,9 +982,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
           backInHeader
           onNext={handleSave}
           nextLabel="Actualizar cotización"
-          nextDisabled={
-            !canSave || !isDirty || missingBanding.length > 0 || updatePreOrder.isPending
-          }
+          nextDisabled={!canSave || !isDirty || blocksSave || updatePreOrder.isPending}
           nextHint={saveDisabledHint}
           // No running totals and no selection bar here any more: both belong to the pieces list,
           // which now lives in its panel, and the Despiece row above already carries the counts.
@@ -987,7 +994,7 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               type="button"
               // From `md`; on a phone it is in the ⋮ (see the menu above).
               className="d-none d-md-inline-flex align-items-center"
-              disabled={!canSave || missingBanding.length > 0 || updatePreOrder.isPending}
+              disabled={!canSave || blocksSave || updatePreOrder.isPending}
               onClick={handleAlternative}
               title="Genera una distribución alternativa con las mismas piezas"
             >
@@ -1037,6 +1044,11 @@ const PreOrderView = ({ preOrder }: { preOrder: PreOrder }) => {
               Selecciona el tapacanto para poder actualizar la cotización.
             </CAlert>
           )}
+          <AssemblyIssuesAlert
+            issues={assemblyIssues}
+            onGo={nav.revealPiece}
+            blocks="Corrígelo para poder actualizar la cotización."
+          />
           <PiecesNav
             nav={nav}
             materials={materials}

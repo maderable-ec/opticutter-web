@@ -34,6 +34,7 @@ import {
 import { fmtMoney } from 'src/features/review/format'
 import { downloadCsv, requirementsToCsv } from './piecesCsv'
 import { usePiecesEditor } from './usePiecesEditor'
+import { assemblyRowIssues } from './assemblyRows'
 import { useCollapsedGroups } from './useCollapsedGroups'
 import { usePiecesNavigation } from './usePiecesNavigation'
 import { useEditorShortcuts } from './useEditorShortcuts'
@@ -209,6 +210,12 @@ const OptimizerPage = () => {
   const canOptimize = built.validCount > 0
   // Pieces with banding sides but no tapacanto: fine to optimize (geometry), but block quoting.
   const missingBanding = piecesMissingBandingProduct(pieces.requirements)
+  // Assemblies whose layers disagree: fine to optimize (each layer grows from its own size), but
+  // the API refuses to save them, so they block quoting like a missing tapacanto.
+  const assemblyIssues = useMemo(
+    () => assemblyRowIssues(pieces.requirements),
+    [pieces.requirements],
+  )
 
   const hasPieceData = pieces.requirements.some((r) => !isRequirementEmpty(r))
   // Optimizing stays available as soon as any row has data, even when none is valid yet: gating it
@@ -247,8 +254,13 @@ const OptimizerPage = () => {
   const wizard = useOptimizerWizard({
     hasPieceData,
     hasResult,
-    canQuote: hasResult && missingBanding.length === 0 && unplacedCount === 0,
+    canQuote:
+      hasResult &&
+      missingBanding.length === 0 &&
+      unplacedCount === 0 &&
+      assemblyIssues.length === 0,
     unplacedCount,
+    assemblyIssueCount: new Set(assemblyIssues.map((it) => it.key)).size,
   })
   const onPieces = wizard.step === 'pieces'
   // «Crear cotización» rides in the action bar like every step's next move, so the page owns it.
@@ -851,6 +863,7 @@ const OptimizerPage = () => {
               issues={issues}
               onDismissIssues={() => setIssues([])}
               missingBanding={missingBanding}
+              assemblyIssues={assemblyIssues}
               collapsed={groups.collapsed}
               onToggleGroup={groups.toggle}
               onAddMaterial={addMaterial}
@@ -867,6 +880,7 @@ const OptimizerPage = () => {
               error={optimize.error}
               isStale={isStale}
               missingBanding={missingBanding}
+              assemblyIssues={assemblyIssues}
               priceLevel={priceLevel}
               onPriceLevelChange={handlePriceLevelChange}
               isPending={optimize.isPending || recalcScheduled}

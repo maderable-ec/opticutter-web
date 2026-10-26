@@ -29,7 +29,6 @@ import {
   bandingLookup,
   cantoOptions,
   hasHardCut,
-  pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
@@ -38,8 +37,9 @@ import {
 import { cantoLimit, specialEdgeTags, specialSidesOf } from './specialEdges'
 import type { ModalContainer } from './types'
 import type { PiecesEditor } from './usePiecesEditor'
-import { useBoardEdgeBandings } from './useOptimizer'
+import { useBoardEdgeBandings, useCutRules } from './useOptimizer'
 import EdgeBandingPickerModal from './EdgeBandingPickerModal'
+import { assemblyRowCuts } from './assemblyRows'
 
 // One piece of the despiece, corrected on a phone. The grid has thirteen columns and a laptop is
 // where a long despiece gets typed; on a phone the seller reads the list and fixes what the client
@@ -93,6 +93,7 @@ const PieceEditSheet = ({
     () => bandingLookup(boardEdgeBandings, edgeBandings),
     [boardEdgeBandings, edgeBandings],
   )
+  const cutRules = useCutRules()
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const ids = { height: useId(), width: useId(), quantity: useId(), label: useId(), canto: useId() }
@@ -125,17 +126,21 @@ const PieceEditSheet = ({
   const issue = requirementIssues([req], materials)[0]
   const specialTags = specialEdgeTags(req.specialEdges ?? [], byId)
   const codes = workshopCodesLine(req)
-  // The seller types the final size; a hard tape cuts it short, said under the measure it shortens.
-  // Short, in the shop's own CD: the measures share one row of three narrow columns on a phone.
-  const cut = pieceCutSize(req, byId)
+  // The seller types the final size; a hard tape cuts it short and an assembly adds its allowance,
+  // said under the measure it moves. Short, in the shop's own CD: the measures share one row of three
+  // narrow columns on a phone. Over the whole despiece, since a layer takes its assembly's discount.
+  const cut = assemblyRowCuts(editor.requirements, byId, cutRules)[flat] ?? null
   // Greyed out where no hard tape would cut anything, as in the grid.
-  const hardCutApplies = hasHardCut(req, byId)
-  const cutLine = (off: number, size: number) =>
-    off > 0 ? (
+  const hardCutApplies = hasHardCut(req, byId, cutRules.hardEdgeCutMm)
+  const cutLine = (off: number, size: number, hard: number) =>
+    off === 0 ? null : (
       <div className="form-text mt-1 text-tech">
-        ✂ Corte {size} mm (−{off} por CD)
+        ✂ Corte {size} mm
+        {cut?.allowance
+          ? ` (+${cut.allowance} ens.${hard > 0 ? ` −${hard} CD` : ''})`
+          : ` (−${off} por CD)`}
       </div>
-    ) : null
+    )
 
   return (
     <BottomSheet
@@ -200,7 +205,7 @@ const PieceEditSheet = ({
             onChange={(e) => update('height', e.target.value)}
             onKeyDown={onEnter(0)}
           />
-          {cut && cutLine(cut.heightOff, cut.height)}
+          {cut && cutLine(cut.heightOff, cut.height, cut.heightHard)}
         </div>
         <div>
           <CFormLabel htmlFor={ids.width}>Ancho (mm)</CFormLabel>
@@ -217,7 +222,7 @@ const PieceEditSheet = ({
             onChange={(e) => update('width', e.target.value)}
             onKeyDown={onEnter(1)}
           />
-          {cut && cutLine(cut.widthOff, cut.width)}
+          {cut && cutLine(cut.widthOff, cut.width, cut.widthHard)}
         </div>
         <div>
           <CFormLabel htmlFor={ids.quantity}>Cant.</CFormLabel>
@@ -265,7 +270,7 @@ const PieceEditSheet = ({
         id={`piece-hard-cut-${flat}`}
         label={
           hardCutApplies
-            ? '✂ CD: cortar 1 mm menos por lado con canto duro'
+            ? `✂ CD: cortar ${cutRules.hardEdgeCutMm} mm menos por lado con canto duro`
             : '✂ CD: sin canto duro, se corta a la medida final'
         }
         checked={!hardCutApplies || req.hardEdgeCut !== false}
