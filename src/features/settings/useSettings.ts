@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { REFERENCE_STALE_TIME } from 'src/shared/constants'
+import { CUT_RULES_KEY } from 'src/features/optimizer/useOptimizer'
 import { settingsApi } from './settingsApi'
 import type {
   CompanyPayload,
@@ -43,8 +44,12 @@ export const useUpdateCuttingSettings = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: CuttingPayload) => settingsApi.updateCutting(data),
-    // The PATCH response is the server's source of truth; cache it directly.
-    onSuccess: (data: CuttingSettings) => qc.setQueryData(CUTTING_KEY, data),
+    // The PATCH response is the server's source of truth; cache it directly. The despiece reads
+    // the cut rules' millimetres through its own query, which goes stale with it.
+    onSuccess: (data: CuttingSettings) => {
+      qc.setQueryData(CUTTING_KEY, data)
+      void qc.invalidateQueries({ queryKey: CUT_RULES_KEY })
+    },
   })
 }
 

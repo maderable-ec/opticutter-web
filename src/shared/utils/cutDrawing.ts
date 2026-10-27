@@ -230,14 +230,21 @@ export interface StackLine {
   y: number
 }
 
-// The text stacked over a piece's centre, top to bottom: its edge-banding notation and, under it,
-// its workshop codes (`codes`, bare: "B2 · R1"). Worked out here once for both renderers — the
-// operator's canvas (`WorkshopBoardSvg`) and the seller's diagram (`SheetSvg`) — so the seller sees
-// on the sheet exactly what the shop will. `hidden` empties it (a piece the operator already cut
-// belongs to its ✓). Both draw the board through `boardRotation`, so the frame below holds in both.
+// The text stacked over a piece's centre, top to bottom: its edge-banding notation, under it its
+// workshop codes (`codes`, bare: "B2 · R1") and, right under the codes, the final size of a layer of
+// an assembly (`mf`, "MF:600x400", from `assembly.assemblyFinalLabel`). Worked out here once for
+// both renderers — the operator's canvas (`WorkshopBoardSvg`) and the seller's diagram (`SheetSvg`)
+// — so the seller sees on the sheet exactly what the shop will. `hidden` empties it (a piece the
+// operator already cut belongs to its ✓). Both draw the board through `boardRotation`, so the frame
+// below holds in both.
 export const pieceTextStack = (
   piece: Pick<DrawablePiece, 'x' | 'y' | 'width' | 'height' | 'edges'>,
-  { scale, codes, hidden = false }: { scale: number; codes: string; hidden?: boolean },
+  {
+    scale,
+    codes,
+    mf = '',
+    hidden = false,
+  }: { scale: number; codes: string; mf?: string; hidden?: boolean },
 ): { cx: number; cy: number; lines: StackLine[] } => {
   const minSide = Math.min(piece.width, piece.height)
   // Edge-banding notation, printed VERBATIM: the server computes it from the piece's nominal
@@ -300,9 +307,14 @@ export const pieceTextStack = (
           showNote ? { key: 'note', text: notation, size: noteSize } : null,
           showBandNote ? { key: 'band', text: bandNote, size: noteSize * 0.75 } : null,
         ]
+  // The final size of an assembly's layer, under its codes and sized like them: the cutter squares
+  // the glued block to it, and the bander checks against it. Sized off its own length too, so a
+  // narrow piece shrinks it rather than letting it spill.
+  const mfSize = clamp(Math.min(minSide / 7, piece.height / Math.max(mf.length * 0.58, 1)), 12, 44)
   const stack = [
     ...bandingLines,
     roomy && codes ? { key: 'codes', text: codes, size: codesSize } : null,
+    roomy && mf ? { key: 'mf', text: mf, size: mfSize } : null,
   ].filter((line): line is { key: string; text: string; size: number } => !!line)
   const LINE_PITCH = 1.1
   const stackHeight = stack.reduce((h, line) => h + line.size * LINE_PITCH, 0)

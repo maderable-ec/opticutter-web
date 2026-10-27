@@ -107,6 +107,11 @@ export interface RequirementForm {
   groovingCode: string
   assemblyCode: string
   divisionCode: string
+  // The ensamble rule (`shared/utils/assembly.ts`): this row is a layer of the assembly its Ens code
+  // names, cut 5 mm large and alike its other layers. Set by the grid whenever it writes the code
+  // (`assemblyRows.withAssemblyCode`); a quote or an autosave from before the rule comes back
+  // without it and keeps its plan. Read as truthy.
+  assemblyAllowance: boolean
 }
 
 export const SOURCE_LABELS: Record<MaterialSourceKind, string> = {
@@ -240,6 +245,7 @@ export const emptyRequirement = (materialUid = ''): RequirementForm => ({
   groovingCode: '',
   assemblyCode: '',
   divisionCode: '',
+  assemblyAllowance: false,
 })
 
 // A starter group the user never touched: nothing filled in at all. Used after a
@@ -584,6 +590,9 @@ export const buildPayload = (
       ...(edgeBanding ? { edgeBanding } : {}),
       ...(specialEdges.length ? { specialEdges } : {}),
       ...codes,
+      // Only on a layer of an assembly: off is the API's default, so every other piece ships — and
+      // signs the staleness check — exactly as it did before the column existed.
+      ...(r.assemblyAllowance && codes.assemblyCode ? { assemblyAllowance: true } : {}),
     }
   })
 

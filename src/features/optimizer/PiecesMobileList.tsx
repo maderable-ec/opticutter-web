@@ -5,6 +5,7 @@ import type { EdgeBandingProduct } from 'src/features/products/types'
 import type { RequirementForm } from './optimizerForm'
 import { isRequirementEmpty, needsBandingProduct } from './optimizerForm'
 import { pieceReadout } from './pieceFields'
+import type { CutSize } from 'src/shared/utils/hardEdges'
 
 // The pieces of one material on a phone: a list to read, where the grid (`PieceRowsTable`) is a
 // sheet to type in. Thirteen columns do not fit 390px, and scrolling a grid sideways to find which
@@ -22,6 +23,8 @@ interface PiecesMobileListProps {
   materialValid: boolean
   // Every tapacanto a row might name, to read its band type off the assigned tape.
   byId: Map<string, EdgeBandingProduct>
+  // The cut of every row of the despiece, by flat index (`assemblyRowCuts`).
+  cuts: (CutSize | null)[]
   matches?: Set<number>
   activeMatch?: number | null
   onOpen: (flat: number) => void
@@ -32,6 +35,7 @@ const PiecesMobileList = ({
   startIndex,
   materialValid,
   byId,
+  cuts,
   matches,
   activeMatch,
   onOpen,
@@ -48,7 +52,7 @@ const PiecesMobileList = ({
     <ul className="piece-list">
       {rows.map((req, local) => {
         const flat = startIndex + local
-        const r = pieceReadout(req, byId)
+        const r = pieceReadout(req, byId, cuts[flat] ?? null)
         const incomplete =
           !isRequirementEmpty(req) &&
           !(materialValid && Number(req.height) > 0 && Number(req.width) > 0 && r.quantity)

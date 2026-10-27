@@ -439,6 +439,9 @@ export interface RequirementInput {
   groovingCode?: string
   assemblyCode?: string
   divisionCode?: string
+  // A layer of the assembly `assemblyCode` names: cut 5 mm large and alike its other layers. Sent
+  // only when true (the API's default is false).
+  assemblyAllowance?: boolean
 }
 
 // Billed additional service on a quote (qty × editable unit price). Not cut

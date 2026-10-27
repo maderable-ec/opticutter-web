@@ -1,11 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { cutHint, cutSize, HARD_EDGE_CUT_MM, isCutShort, placedCut } from './hardEdges'
+import { DEFAULT_CUT_RULES } from './cutRules'
+import {
+  cutHint,
+  cutSize as cutSizeAt,
+  isCutShort,
+  placedCut,
+  type SideBandTypes,
+} from './hardEdges'
 
-// Mirrors `tests/unit/test_hard_edges.py` in the API: same rule, same cases.
+// Mirrors `tests/unit/test_hard_edges.py` in the API: same rule, same cases, at the default 1 mm
+// unless a case says otherwise.
+
+const MM = DEFAULT_CUT_RULES.hardEdgeCutMm
+const cutSize = (height: number, width: number, types: SideBandTypes) =>
+  cutSizeAt(height, width, types, MM)
 
 describe('hard edge cut size', () => {
-  it('takes one millimetre per hard side', () => {
-    expect(HARD_EDGE_CUT_MM).toBe(1)
+  it('takes one millimetre per hard side by default', () => {
+    expect(MM).toBe(1)
+  })
+
+  it('takes the millimetres of the settings', () => {
+    const three = { left: 'Hard', right: 'Hard', top: 'Hard' } as const
+    expect(cutSizeAt(600, 400, three, 2)).toMatchObject({ height: 598, width: 396 })
+    expect(cutSizeAt(600, 400, three, 0)).toMatchObject({ height: 600, width: 400 })
   })
 
   it('shortens the width for a long side and the height for a short one', () => {
@@ -38,10 +56,12 @@ describe('hard edge cut size', () => {
   })
 
   it('explains the cut in words', () => {
-    expect(cutHint(400, 398)).toBe(
+    expect(cutHint(400, 398, MM)).toBe(
       'Se corta a 398 mm: 400 − 2 mm por 2 cantos duros. Escribe siempre la medida final.',
     )
-    expect(cutHint(600, 599)).toContain('600 − 1 mm por 1 canto duro')
+    expect(cutHint(600, 599, MM)).toContain('600 − 1 mm por 1 canto duro')
+    // At 2 mm a side, 4 mm off is still two tapes.
+    expect(cutHint(400, 396, 2)).toContain('400 − 4 mm por 2 cantos duros')
   })
 
   it('reads a placed piece in its own frame, rotated or not', () => {

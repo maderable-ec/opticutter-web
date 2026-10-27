@@ -23,6 +23,17 @@ describe('pieceTextStack', () => {
     expect([...ys].sort((a, b) => a - b)).toEqual(ys)
   })
 
+  it("prints an assembly layer's final size right under its codes", () => {
+    const stack = pieceTextStack(piece('2L CD BLN'), { scale: 1, codes: 'E1', mf: 'MF:600x400' })
+    expect(stack.lines.map((l) => l.key)).toEqual(['note', 'band', 'codes', 'mf'])
+    expect(texts(stack).slice(-2)).toEqual(['E1', 'MF:600x400'])
+    // Nothing when there is no final size to print, and nothing on a piece already cut.
+    expect(texts(pieceTextStack(piece(null), { scale: 1, codes: 'E1' }))).toEqual(['E1'])
+    expect(
+      pieceTextStack(piece(null), { scale: 1, codes: 'E1', mf: 'MF:600x400', hidden: true }).lines,
+    ).toEqual([])
+  })
+
   it('gives every tape a line of its own', () => {
     const stack = pieceTextStack(piece('1L CS BLN · 1L CS CHM'), { scale: 1, codes: '' })
     expect(texts(stack)).toEqual(['1L CS BLN', '1L CS CHM'])

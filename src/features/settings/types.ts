@@ -11,6 +11,10 @@ export interface CuttingSettings {
   edgeBandingWasteFactor: number
   /** Half-board markup as a fraction (0.15 = +15%). Shown to the user as a percentage. */
   halfBoardMarkupPct: number
+  /** Whole mm the saw cuts short per side with a hard tape (0–3). */
+  hardEdgeCutMm: number
+  /** Whole mm every layer of an assembly is cut larger on each measure (0–20). */
+  assemblyAllowanceMm: number
 }
 
 export interface Branch {

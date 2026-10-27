@@ -28,7 +28,8 @@ import {
   uprightText,
 } from 'src/shared/utils/cutDrawing'
 import type { DrawableLayout, DrawableRemainder, DrawnPiece } from 'src/shared/utils/cutDrawing'
-import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
+import { isEnlarged, isResized, placedCut } from 'src/shared/utils/hardEdges'
+import { assemblyFinalLabel } from 'src/shared/utils/assembly'
 import { workshopCodesBare } from 'src/shared/utils/workshopCodes'
 
 interface SheetSvgProps<P extends DrawnPiece> {
@@ -86,10 +87,13 @@ interface SheetSvgProps<P extends DrawnPiece> {
 const defaultLabel = (p: DrawnPiece) =>
   `${p.originalWidth}×${p.originalHeight}${p.rotated ? ' ↻' : ''}`
 
-// The ordered size, and the cut one when a hard tape makes it smaller («✂ corte 400×598»).
+// The ordered size, and the cut one when it differs: a hard tape makes it smaller («✂ corte
+// 400×598»), a layer of an assembly larger.
 const defaultTitle = (p: DrawnPiece) => {
   const cut = placedCut(p)
-  const cutText = isCutShort(cut) ? ` · ✂ corte ${cut.width}×${cut.height} mm` : ''
+  const cutText = isResized(cut)
+    ? ` · ✂ corte ${cut.width}×${cut.height} mm${isEnlarged(cut) ? ' (ensamble)' : ''}`
+    : ''
   return `${p.originalWidth}×${p.originalHeight} mm${p.rotated ? ' (rotada 90°)' : ''}${cutText}`
 }
 
@@ -307,7 +311,11 @@ const SheetSvg = <P extends DrawnPiece>({
             // The workshop canvas's stack, in its plain text: same colour and weight as the
             // measurements, no halo — the hierarchy is position (canto in the middle, measurements
             // on the edges), not size.
-            const { cx, cy, lines } = pieceTextStack(p, { scale, codes: workshopCodesBare(p) })
+            const { cx, cy, lines } = pieceTextStack(p, {
+              scale,
+              codes: workshopCodesBare(p),
+              mf: assemblyFinalLabel(p),
+            })
             if (lines.length === 0) return null
             return (
               <text

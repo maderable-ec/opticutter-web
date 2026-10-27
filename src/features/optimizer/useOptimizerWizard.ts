@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { track } from 'src/shared/analytics'
 import { WORKSHOP_CODES } from 'src/shared/utils/workshopCodes'
+import { assemblyKey } from 'src/shared/utils/assembly'
 import type { LayoutAdjustment, MaterialInput, RequirementInput } from './types'
 
 // The wizard's current step lives in a SEARCH PARAM, not a sub-route. `AppContent` keys its
@@ -55,7 +56,14 @@ export interface WizardGates {
   // Pieces the result on screen does NOT cut (sum of `unplaced[].quantity`). A quote may never go
   // out with one: pre-order 157 did, behind a warning nobody read, so this is a wall, not a notice.
   unplacedCount: number
+  // Assemblies whose layers disagree (`assemblyRowIssues`). The API refuses to save them, so the
+  // Cotización step is a wall for them too.
+  assemblyIssueCount?: number
 }
+
+// "Un ensamble no coincide" / "2 ensambles no coinciden".
+export const assemblyReason = (count: number): string =>
+  count === 1 ? 'Un ensamble no coincide' : `${count} ensambles no coinciden`
 
 // "Una pieza no entra" / "3 piezas no entran": the reason the Cotización step gives while the plan
 // leaves pieces out. Exported so the Cotización step itself says the same words.
@@ -68,9 +76,13 @@ export const unplacedReason = (count: number): string =>
 // The workshop codes are left out: they move no piece and no price (the API keeps them out of its
 // hash too), so typing one must not turn the result stale and send the next step back through the
 // search overlay. They still ride in the payload, which is what the quote and the order read.
-const withoutWorkshopCodes = (r: RequirementInput): RequirementInput => {
-  const geometry = { ...r }
+//
+// Except on a layer of an assembly: there the Ens code says which rows are cut alike, so it moves
+// geometry. What signs is the code normalized, the way the rule groups rows (`assemblyKey`).
+const withoutWorkshopCodes = (r: RequirementInput): Record<string, unknown> => {
+  const geometry: Record<string, unknown> = { ...r }
   for (const { field } of WORKSHOP_CODES) delete geometry[field]
+  if (r.assemblyAllowance) geometry.assemblyGroup = assemblyKey(r.assemblyCode)
   return geometry
 }
 
@@ -96,6 +108,7 @@ export const useOptimizerWizard = ({
   hasResult,
   canQuote,
   unplacedCount,
+  assemblyIssueCount = 0,
 }: WizardGates) => {
   const [params, setParams] = useSearchParams()
 
@@ -141,9 +154,10 @@ export const useOptimizerWizard = ({
     (id: StepId): string => {
       if (id === 'quote' && !hasResult) return 'Primero hay que optimizar'
       if (id === 'quote' && unplacedCount > 0) return unplacedReason(unplacedCount)
+      if (id === 'quote' && assemblyIssueCount > 0) return assemblyReason(assemblyIssueCount)
       return STEPS[STEP_IDS.indexOf(id)]?.blockedReason ?? ''
     },
-    [hasResult, unplacedCount],
+    [hasResult, unplacedCount, assemblyIssueCount],
   )
 
   const goTo = useCallback(

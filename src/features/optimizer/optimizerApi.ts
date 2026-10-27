@@ -1,4 +1,5 @@
 import { httpClient } from 'src/shared/api/httpClient'
+import type { CutRules } from 'src/shared/utils/cutRules'
 import type {
   LayoutCandidatesPayload,
   LayoutCandidatesResponse,
@@ -15,4 +16,6 @@ export const optimizerApi = {
     httpClient.post<LayoutEvaluateResponse>('/api/v1/optimize/layout/evaluate', data),
   layoutCandidates: (data: LayoutCandidatesPayload) =>
     httpClient.post<LayoutCandidatesResponse>('/api/v1/optimize/layout/candidates', data),
+  // The cut rules' millimetres (cutting settings), for the despiece's live cut size.
+  cutRules: () => httpClient.get<CutRules>('/api/v1/optimize/cut-rules'),
 }

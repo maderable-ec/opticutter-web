@@ -31,7 +31,6 @@ import {
   bandingLookup,
   cantoOptions,
   hasHardCut,
-  pieceCutSize,
   tapacantoOptions,
   withBandTypeToggle,
   withBandingProduct,
@@ -53,6 +52,9 @@ import type {
 } from './usePiecesEditor'
 import { WORKSHOP_CODES, WORKSHOP_CODE_MAX_LENGTH } from 'src/shared/utils/workshopCodes'
 import { cutHint } from 'src/shared/utils/hardEdges'
+import { assemblyCutHint } from 'src/shared/utils/assembly'
+import { assemblyRowCuts, assemblyRowIssues } from './assemblyRows'
+import { useCutRules } from './useOptimizer'
 import { parsePieces } from './piecesCsv'
 import { rowsToRequirements } from './piecesImport'
 
@@ -156,8 +158,8 @@ const CODE_COL_W = 64
 // ✂ CD, Cantos especiales, one per workshop code, and the actions gutter. Derived so the
 // empty-group row keeps spanning the whole table when a code is added.
 const COLUMN_COUNT = 12 + WORKSHOP_CODES.length + 1
-// What «✂ CD» does, on its header and on every tick.
-const HARD_EDGE_CUT_TITLE = 'Cortar 1 mm menos por lado con canto duro'
+// What «✂ CD» does, on its header and on every tick, by the setting's millimetres.
+const hardEdgeCutTitle = (mm: number) => `Cortar ${mm} mm menos por lado con canto duro`
 // Cols whose control owns Enter and the vertical arrows itself: only the Canto notation, now that
 // Tipo is a pair of buttons that should move rows like every other cell.
 const SELECT_COLS = new Set([4])
@@ -217,6 +219,7 @@ const PieceRowsTable = ({
     remove,
     removeSelected,
     duplicate,
+    addLayer,
     update,
     fillDownGroup,
     fillRange,
@@ -234,6 +237,22 @@ const PieceRowsTable = ({
     () => bandingLookup(boardEdgeBandings, edgeBandings),
     [boardEdgeBandings, edgeBandings],
   )
+  // The size the saw cuts each row at, over EVERY row (by flat index): a layer of an assembly takes
+  // its assembly's hard-tape discount, and its other layers may sit in another material's table.
+  const cutRules = useCutRules()
+  const cuts = useMemo(
+    () => assemblyRowCuts(editor.requirements, byId, cutRules),
+    [editor.requirements, byId, cutRules],
+  )
+  const HARD_EDGE_CUT_TITLE = hardEdgeCutTitle(cutRules.hardEdgeCutMm)
+  // What is wrong with each row's assembly, by flat index: shown on its Ens cell.
+  const assemblyProblems = useMemo(() => {
+    const byRow = new Map<number, string[]>()
+    for (const issue of assemblyRowIssues(editor.requirements)) {
+      for (const row of issue.rows) byRow.set(row, [...(byRow.get(row) ?? []), issue.message])
+    }
+    return byRow
+  }, [editor.requirements])
 
   const containerRef = useRef<HTMLDivElement>(null)
   // Cell showing the fill handle (follows focus, like Excel's "active cell"). Local row index.
@@ -610,11 +629,13 @@ const PieceRowsTable = ({
             const isError = bandingMissing || (!rowValid && !isRequirementEmpty(req))
             const cantoNotation = notationFromSides(req.edgeBanding.sides)
             const cantoBandType = displayedBandType(req.edgeBanding, byId)
-            // The seller types the final size; a hard tape cuts it short, shown under the measure.
-            const cut = pieceCutSize(req, byId)
+            // The seller types the final size; a hard tape cuts it short and an assembly adds its
+            // allowance, shown under the measure.
+            const cut = cuts[i] ?? null
+            const problems = assemblyProblems.get(i)
             // «✂ CD» only means something where a hard tape would cut the piece short; elsewhere
             // the tick is shown on and greyed out, since the piece is cut at its final size anyway.
-            const hardCutApplies = hasHardCut(req, byId)
+            const hardCutApplies = hasHardCut(req, byId, cutRules.hardEdgeCutMm)
             // Coordinated with the board and narrowed to the displayed type (see `tapacantoOptions`).
             const options = tapacantoOptions(
               req.edgeBanding,
@@ -678,8 +699,20 @@ const PieceRowsTable = ({
                     onChange={(e) => update(i, 'height', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, local, 0)}
                   />
-                  {cut && cut.heightOff > 0 && (
-                    <div className="piece-cut-hint" title={cutHint(Number(req.height), cut.height)}>
+                  {cut && cut.heightOff !== 0 && (
+                    <div
+                      className="piece-cut-hint"
+                      title={
+                        cut.allowance
+                          ? assemblyCutHint(
+                              Number(req.height),
+                              cut.height,
+                              cut.heightHard,
+                              cutRules,
+                            )
+                          : cutHint(Number(req.height), cut.height, cutRules.hardEdgeCutMm)
+                      }
+                    >
                       ✂ {cut.height}
                     </div>
                   )}
@@ -699,8 +732,15 @@ const PieceRowsTable = ({
                     onChange={(e) => update(i, 'width', e.target.value)}
                     onKeyDown={(e) => handleKeyDown(e, local, 1)}
                   />
-                  {cut && cut.widthOff > 0 && (
-                    <div className="piece-cut-hint" title={cutHint(Number(req.width), cut.width)}>
+                  {cut && cut.widthOff !== 0 && (
+                    <div
+                      className="piece-cut-hint"
+                      title={
+                        cut.allowance
+                          ? assemblyCutHint(Number(req.width), cut.width, cut.widthHard, cutRules)
+                          : cutHint(Number(req.width), cut.width, cutRules.hardEdgeCutMm)
+                      }
+                    >
                       ✂ {cut.width}
                     </div>
                   )}
@@ -913,6 +953,14 @@ const PieceRowsTable = ({
                 </CTableDataCell>
                 {WORKSHOP_CODES.map(({ field, label }, k) => {
                   const col = CODE_COL_START + k
+                  // The Ens cell names the assembly the row is a layer of, and what is wrong with it.
+                  const isAssembly = field === 'assemblyCode'
+                  const title =
+                    isAssembly && problems
+                      ? problems.join('\n')
+                      : isAssembly && req.assemblyAllowance && req.assemblyCode.trim()
+                        ? `Ensamble: capa que se corta ${cutRules.assemblyAllowanceMm} mm más para rectificar`
+                        : label
                   return (
                     <CTableDataCell key={field} style={cellStyle(col, local, CODE_COL_W)}>
                       <CFormInput
@@ -922,7 +970,8 @@ const PieceRowsTable = ({
                         data-field={field}
                         maxLength={WORKSHOP_CODE_MAX_LENGTH}
                         value={req[field] ?? ''}
-                        title={label}
+                        invalid={isAssembly && !!problems}
+                        title={title}
                         aria-label={`${label} (código del taller)`}
                         style={{ width: CODE_COL_W }}
                         onFocus={() => setActiveCell({ row: local, col })}
@@ -943,6 +992,18 @@ const PieceRowsTable = ({
                     onClick={() => duplicate(i)}
                   >
                     <Icon name="copy" />
+                  </CButton>
+                  {/* Another layer of this piece's assembly: the bare twin goes right below, selected,
+                      so «Mover a» moves it when that layer is another board. */}
+                  <CButton
+                    size="sm"
+                    variant="ghost"
+                    color="secondary"
+                    type="button"
+                    title="Agregar capa de ensamble (misma medida, sin canto)"
+                    onClick={() => addLayer(i)}
+                  >
+                    <Icon name="addLayer" />
                   </CButton>
                   <CButton
                     size="sm"

@@ -21,14 +21,18 @@ import { workshopCodesBare, workshopCodesLine } from 'src/shared/utils/workshopC
 import BoardDimensions from 'src/shared/components/BoardDimensions'
 import BoardGrain from 'src/shared/components/BoardGrain'
 import EdgeDimensions from 'src/shared/components/EdgeDimensions'
-import { isCutShort, placedCut } from 'src/shared/utils/hardEdges'
+import { isEnlarged, isResized, placedCut } from 'src/shared/utils/hardEdges'
+import { assemblyFinalLabel } from 'src/shared/utils/assembly'
 import type { CutBoard, CutPiece } from './types'
 
-// The cut size beside the ordered one, when a hard tape makes it smaller: the edges already show the
-// cut (what the operator measures), and the title says it is not the size the client ordered.
+// The cut size beside the ordered one, when they differ (a hard tape makes it smaller, a layer of an
+// assembly larger): the edges already show the cut (what the operator measures), and the title says
+// it is not the size the client ordered.
 const cutTitle = (p: CutPiece) => {
   const cut = placedCut(p)
-  return isCutShort(cut) ? ` · ✂ corte ${cut.width}×${cut.height} mm` : ''
+  return isResized(cut)
+    ? ` · ✂ corte ${cut.width}×${cut.height} mm${isEnlarged(cut) ? ' (ensamble)' : ''}`
+    : ''
 }
 
 interface WorkshopBoardSvgProps {
@@ -94,6 +98,7 @@ const WorkshopBoardSvg = ({
     const { cx, cy, lines } = pieceTextStack(piece, {
       scale,
       codes: workshopCodesBare(piece),
+      mf: assemblyFinalLabel(piece),
       hidden: piece.cut,
     })
     return {

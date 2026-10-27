@@ -13,6 +13,8 @@ import { useServices } from 'src/features/services/useServices'
 import { KEY } from 'src/shared/utils/platform'
 import type { ModalContainer, OptimizeResponse } from '../types'
 import UnplacedPiecesAlert from '../UnplacedPiecesAlert'
+import AssemblyIssuesAlert from '../AssemblyIssuesAlert'
+import type { AssemblyIssue } from 'src/shared/utils/assembly'
 import { EdgeBandingSummaryTable, Kpi, MaterialsSummaryTable } from '../summaryTables'
 import Spinner from 'src/shared/components/Spinner'
 
@@ -38,6 +40,8 @@ interface CostsStepProps {
   // Pieces with banding sides but no tapacanto product: their cost is missing from these tables,
   // which is exactly why they block the quote.
   missingBanding: number[]
+  // Assemblies whose layers disagree: the quote is blocked until they are fixed in Despiece.
+  assemblyIssues?: AssemblyIssue[]
   priceLevel: number
   // Recomputes the quote. Cheap despite being a round trip: `/optimize` is cached by input hash, so
   // changing only the level re-prices the same cut plan instead of searching again.
@@ -69,6 +73,7 @@ const CostsStep = ({
   error,
   isStale,
   missingBanding,
+  assemblyIssues = [],
   priceLevel,
   onPriceLevelChange,
   isPending,
@@ -128,6 +133,11 @@ const CostsStep = ({
               vuelve al paso Despiece.
             </CAlert>
           )}
+
+          <AssemblyIssuesAlert
+            issues={assemblyIssues}
+            blocks="No podrás crear la cotización hasta corregirlo — vuelve al paso Despiece."
+          />
 
           <CRow className="g-2 mb-3">
             <Kpi label="Tableros" value={fmtMoney(boardsCost)} />
