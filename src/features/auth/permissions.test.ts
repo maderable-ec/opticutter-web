@@ -39,6 +39,11 @@ describe('toggleRole', () => {
     expect(toggleRole(['vendedor'], 'operador', true)).toEqual(['operador'])
   })
 
+  it('keeps the designer exclusive, like a global role', () => {
+    expect(toggleRole(['operador', 'canteador'], 'proyectista', true)).toEqual(['proyectista'])
+    expect(toggleRole(['proyectista'], 'canteador', true)).toEqual(['canteador'])
+  })
+
   it('unticks only the role given', () => {
     expect(toggleRole(['operador', 'canteador'], 'operador', false)).toEqual(['canteador'])
   })
@@ -51,6 +56,7 @@ describe('homePathForRoles', () => {
     expect(homePathForRoles(['operador'])).toBe('/workshop')
     expect(homePathForRoles(['canteador'])).toBe('/workshop')
     expect(homePathForRoles(['operador', 'canteador'])).toBe('/workshop')
+    expect(homePathForRoles(['proyectista'])).toBe('/projects')
   })
 
   it('falls back to the profile, the one route everybody reaches', () => {

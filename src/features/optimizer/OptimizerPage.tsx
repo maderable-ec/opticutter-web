@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CButton } from '@coreui/react'
 import Icon from 'src/shared/icons/Icon'
 
-import { resetOptimizerSession, track } from 'src/shared/analytics'
+import { MASK, resetOptimizerSession, track } from 'src/shared/analytics'
+import { apiErrorMessage } from 'src/shared/api/errors'
 import useFullscreen from 'src/shared/hooks/useFullscreen'
 import AppToaster from 'src/shared/components/AppToaster'
 import { useToastStore } from 'src/shared/store/toastStore'
@@ -23,7 +25,8 @@ import {
 import type { MaterialForm, RequirementForm, RequirementIssue } from './optimizerForm'
 import type { LayoutAdjustment, OptimizeResponse, OptimizerDraftPayload } from './types'
 import { clearAutosave, loadAutosave, saveAutosave } from './optimizerStorage'
-import { DISCARD_ADJUSTMENTS, DISCARD_WORK } from './confirmations'
+import type { OptimizerScope, ProjectRef } from './optimizerStorage'
+import { DISCARD_ADJUSTMENTS, DISCARD_PROJECT_WORK, DISCARD_WORK } from './confirmations'
 import { useConfirm } from 'src/shared/hooks/useConfirm'
 import {
   buildServiceLines,
@@ -40,7 +43,12 @@ import { usePiecesNavigation } from './usePiecesNavigation'
 import { useEditorShortcuts } from './useEditorShortcuts'
 import { useQuoteDraft } from './useQuoteDraft'
 import { useCreateQuote } from './useCreateQuote'
-import { signatureOf, useOptimizerWizard } from './useOptimizerWizard'
+import {
+  assemblyReason,
+  signatureOf,
+  unplacedReason,
+  useOptimizerWizard,
+} from './useOptimizerWizard'
 import type { StepId } from './useOptimizerWizard'
 import WizardSteps from './WizardSteps'
 import ActionBar from 'src/shared/components/ActionBar'
@@ -61,6 +69,10 @@ import OptimizingOverlay from './OptimizingOverlay'
 import { PlanFacts } from './CutLayoutDiagram'
 import Spinner from 'src/shared/components/Spinner'
 import { fmtMeters } from 'src/shared/utils/format'
+import { useSaveProject, useSetProjectStatus } from 'src/features/projects/useProjects'
+import SaveProjectModal from 'src/features/projects/SaveProjectModal'
+import type { ProjectDetails } from 'src/features/projects/SaveProjectModal'
+import { PROJECTS_PATH } from 'src/features/projects/paths'
 
 // One-line summary of the blocked rows, for the toast. The per-row reasons stay in the alert.
 const issuesSummary = (issues: RequirementIssue[]): string => {
@@ -70,17 +82,27 @@ const issuesSummary = (issues: RequirementIssue[]): string => {
     : `No se optimizó: ${issues.length} piezas incompletas (filas ${rows}).`
 }
 
+interface OptimizerWorkspaceProps {
+  // `quote`: «Cotizar», the wizard that ends in a pre-order. `project`: «Diseñar», the designer's —
+  // the same three steps up to Costos, saved to a project and handed to the sellers instead of
+  // quoted. A project's work has its own autosave, and no services (the seller bills them).
+  mode: 'quote' | 'project'
+}
+
 // Shell of the cut wizard: it owns every piece of workspace state and hands it to whichever step is
 // active. The steps themselves are presentational. Nothing lives in a store because the step lives
 // in a search param, which never changes `location.pathname` — so this component is never remounted
 // and plain `useState` survives the whole flow.
-const OptimizerPage = () => {
+export const OptimizerWorkspace = ({ mode }: OptimizerWorkspaceProps) => {
+  const isProject = mode === 'project'
+  const scope: OptimizerScope = isProject ? 'project' : 'quote'
   // Safety net: read the previous session's autosave ONCE (lazy initializer) and use it
   // to hydrate the initial state, instead of a mount effect with setState.
-  const [bootstrap] = useState(loadAutosave)
+  const [bootstrap] = useState(() => loadAutosave(scope))
+  const navigate = useNavigate()
 
   const [materials, setMaterials] = useState<MaterialForm[]>(() =>
-    bootstrap?.materials ? normalizeMaterials(bootstrap.materials) : [emptyMaterial()],
+    bootstrap?.materials?.length ? normalizeMaterials(bootstrap.materials) : [emptyMaterial()],
   )
   const [showImport, setShowImport] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<MaterialForm | null>(null)
@@ -102,6 +124,11 @@ const OptimizerPage = () => {
   // The sheet the diagram viewer was showing when "Ajustar distribución" was pressed.
   const [editorFocus, setEditorFocus] = useState<EditorFocus | null>(null)
   const [loadingDraftId, setLoadingDraftId] = useState<number | null>(null)
+  // The designer's project this work is saved to («Diseñar»), or the one a seller is quoting
+  // («Cotizar» from the projects listing, whose id rides on the quote).
+  const [project, setProject] = useState<ProjectRef | null>(bootstrap?.project ?? null)
+  // The first save of a project asks for its name; `ready` hands it to the sellers right after.
+  const [saveProjectIntent, setSaveProjectIntent] = useState<'save' | 'ready' | null>(null)
   const [savedFlash, setSavedFlash] = useState(false)
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // The per-board level mark re-prices on the server (same cached cut plan, only the `pricing`
@@ -141,8 +168,11 @@ const OptimizerPage = () => {
   // Client, branch and reference of the Cotización step. Workspace state for the same reason the
   // services are: only the active step is mounted, so holding it inside `QuoteStep` meant one
   // "Atrás" emptied the form.
-  const quote = useQuoteDraft()
+  // A quote made from a project starts with its name as the reference.
+  const quote = useQuoteDraft(isProject ? '' : (bootstrap?.project?.name ?? ''))
   const saveDraft = useSaveDraft()
+  const saveProject = useSaveProject()
+  const setProjectStatus = useSetProjectStatus()
   const groups = useCollapsedGroups(materials)
   // Finding a piece and getting to it. A view over the editor, never a filter — see the note in the
   // hook: every index in `pieces` is positional, so hiding a row would repoint the selection.
@@ -261,6 +291,7 @@ const OptimizerPage = () => {
       assemblyIssues.length === 0,
     unplacedCount,
     assemblyIssueCount: new Set(assemblyIssues.map((it) => it.key)).size,
+    withQuote: !isProject,
   })
   const onPieces = wizard.step === 'pieces'
   // «Crear cotización» rides in the action bar like every step's next move, so the page owns it.
@@ -273,8 +304,10 @@ const OptimizerPage = () => {
     layoutAdjustments,
     services: services.lines,
     draft: quote.draft,
-    onCreated: clearAutosave,
+    projectId: isProject ? null : project?.id,
+    onCreated: () => clearAutosave('quote'),
   })
+  const savingProject = saveProject.isPending || setProjectStatus.isPending
   // The two steps that read the plan; the run and "Volver a optimizar" belong to them.
   const onPlan = wizard.step === 'layout' || wizard.step === 'costs'
 
@@ -290,18 +323,22 @@ const OptimizerPage = () => {
   useEffect(() => {
     const t = setTimeout(() => {
       if (hasWork) {
-        saveAutosave({
-          version: 1,
-          savedAt: Date.now(),
-          draftId,
-          draftName,
-          materials,
-          requirements: pieces.requirements,
-          services: buildServiceLines(services.lines),
-          layoutAdjustments,
-        })
+        saveAutosave(
+          {
+            version: 1,
+            savedAt: Date.now(),
+            draftId,
+            draftName,
+            materials,
+            requirements: pieces.requirements,
+            services: buildServiceLines(services.lines),
+            layoutAdjustments,
+            project,
+          },
+          scope,
+        )
       } else {
-        clearAutosave()
+        clearAutosave(scope)
       }
     }, 800)
     return () => clearTimeout(t)
@@ -313,6 +350,8 @@ const OptimizerPage = () => {
     draftName,
     hasWork,
     layoutAdjustments,
+    project,
+    scope,
   ])
 
   // Clean up the "Guardado" flash and pending-recompute timers on unmount.
@@ -327,16 +366,22 @@ const OptimizerPage = () => {
   // The restored-session notice is a toast, not a banner: it is read once and never acted on, so a
   // permanent strip above the editor was paying page height for it forever. Discarding the restored
   // work is what "Nuevo" already does, so the notice needs no action of its own.
+  // A project just opened from the listing says so instead (`opened`, written only by the listing).
   useEffect(() => {
     if (!bootstrap) return
-    addToast(
-      bootstrap.draftName
-        ? `Restauramos tu trabajo de la sesión anterior. Borrador: ${bootstrap.draftName}.`
-        : 'Restauramos tu trabajo de la sesión anterior.',
-      'info',
-      { mask: !!bootstrap.draftName },
-    )
-  }, [bootstrap, addToast])
+    const projectName = bootstrap.project?.name
+    const message =
+      bootstrap.opened && projectName
+        ? isProject
+          ? `Abriste el proyecto «${projectName}».`
+          : `Cotizando el proyecto «${projectName}». Elige el cliente en Cotización.`
+        : projectName
+          ? `Restauramos tu trabajo de la sesión anterior. Proyecto: ${projectName}.`
+          : bootstrap.draftName
+            ? `Restauramos tu trabajo de la sesión anterior. Borrador: ${bootstrap.draftName}.`
+            : 'Restauramos tu trabajo de la sesión anterior.'
+    addToast(message, 'info', { mask: !!(projectName || bootstrap.draftName) })
+  }, [bootstrap, addToast, isProject])
 
   const flashSaved = () => {
     setSavedFlash(true)
@@ -359,6 +404,7 @@ const OptimizerPage = () => {
     quote.reset()
     setDraftId(null)
     setDraftName('')
+    setProject(null)
     setVariant(0)
     setLayoutAdjustments(null)
     setIssues([])
@@ -366,13 +412,13 @@ const OptimizerPage = () => {
     setLastResult(undefined)
     setResultSignature(null)
     attemptedSignature.current = null
-    clearAutosave()
+    clearAutosave(scope)
     resetOptimizerSession()
     wizard.goTo('pieces')
   }
 
   const newJob = async () => {
-    if (hasWork && !(await confirm(DISCARD_WORK))) return
+    if (hasWork && !(await confirm(isProject ? DISCARD_PROJECT_WORK : DISCARD_WORK))) return
     resetWorkspace()
   }
   const handleNew = () => void newJob()
@@ -403,6 +449,67 @@ const OptimizerPage = () => {
     )
   }
 
+  // --- The designer's project («Diseñar») ---
+
+  // What a project stores: the form as it stands, like a draft, without services.
+  const projectPayload = (): OptimizerDraftPayload => ({
+    version: 1,
+    materials,
+    requirements: pieces.requirements,
+    layoutAdjustments,
+  })
+
+  const projectFailed = (error: Error) =>
+    addToast(apiErrorMessage(error, 'No se pudo guardar el proyecto.') ?? '', 'danger')
+
+  // Hands the saved project to the sellers, and leaves: the work is theirs now, so the optimizer's
+  // copy goes and the designer lands back on their projects.
+  const markReady = (saved: ProjectRef) =>
+    setProjectStatus.mutate(
+      { id: saved.id, status: 'ready' },
+      {
+        onSuccess: () => {
+          addToast(`«${saved.name}» quedó listo para cotizar.`, 'success', { mask: true })
+          clearAutosave('project')
+          resetOptimizerSession()
+          void navigate(PROJECTS_PATH)
+        },
+        onError: projectFailed,
+      },
+    )
+
+  // «Guardar proyecto»: writes the despiece to the project; the first time, asks what it is called.
+  // With `thenReady`, «Marcar como listo»: saves it and hands it over.
+  const handleSaveProject = (thenReady = false) => {
+    if (!project) {
+      setSaveProjectIntent(thenReady ? 'ready' : 'save')
+      return
+    }
+    saveProject.mutate(
+      { id: project.id, data: { payload: projectPayload() } },
+      {
+        onSuccess: () => (thenReady ? markReady(project) : flashSaved()),
+        onError: projectFailed,
+      },
+    )
+  }
+
+  const handleCreateProject = (details: ProjectDetails) => {
+    const andReady = saveProjectIntent === 'ready'
+    saveProject.mutate(
+      { data: { ...details, payload: projectPayload() } },
+      {
+        onSuccess: (created) => {
+          const saved = { id: created.id, name: created.name }
+          setProject(saved)
+          setSaveProjectIntent(null)
+          if (andReady) markReady(saved)
+          else flashSaved()
+        },
+      },
+    )
+  }
+
   // Load a draft from the server: fetches its detail and rebuilds the form exactly.
   const handleLoadDraft = async (id: number) => {
     setLoadingDraftId(id)
@@ -421,6 +528,8 @@ const OptimizerPage = () => {
       quote.reset()
       setDraftId(d.id)
       setDraftName(d.name)
+      // A draft is another job: it is no longer the project that was being quoted.
+      setProject(null)
       setShowDrafts(false)
       // A loaded draft describes a different job: the result on screen is not its.
       optimize.reset()
@@ -703,8 +812,14 @@ const OptimizerPage = () => {
     onImport: onPieces ? () => setShowImport(true) : undefined,
     onExport: onPieces && hasPieceData ? () => handleExport() : undefined,
     onNew: handleNew,
-    onOpenDrafts: () => setShowDrafts(true),
-    onSaveDraft: saveDraft.isPending ? undefined : handleSaveDraft,
+    onOpenDrafts: isProject ? undefined : () => setShowDrafts(true),
+    onSaveDraft: isProject
+      ? savingProject
+        ? undefined
+        : () => handleSaveProject()
+      : saveDraft.isPending
+        ? undefined
+        : handleSaveDraft,
     onPrevStep: wizard.index > 0 ? wizard.back : undefined,
     // Through `handleNext`, never `wizard.next`: leaving Despiece has to run the same half-filled-row
     // validation the "Siguiente" button runs.
@@ -730,47 +845,79 @@ const OptimizerPage = () => {
   const handleExport = () =>
     downloadCsv('piezas.csv', requirementsToCsv(pieces.requirements, materials, boards))
 
+  // What «Marcar como listo» waits for on a project: the plan a seller can quote as it stands. The
+  // same walls as the Cotización step, since the seller's quote would hit them next. Down here, after
+  // `runOptimize`, on purpose: reading `isStale` above it made the React Compiler give up that
+  // callback's memoization (react-hooks/preserve-manual-memoization).
+  const assemblyCount = new Set(assemblyIssues.map((it) => it.key)).size
+  const readyBlockedReason = !hasResult
+    ? 'Primero hay que optimizar.'
+    : isStale
+      ? 'Cambiaste el despiece: vuelve a optimizar.'
+      : unplacedCount > 0
+        ? `${unplacedReason(unplacedCount)}.`
+        : missingBanding.length > 0
+          ? 'Falta elegir el tapacanto de algunas piezas.'
+          : assemblyCount > 0
+            ? `${assemblyReason(assemblyCount)}.`
+            : undefined
+
   // The step trail with the actions menu at the end of its row: one compact line above the work, and
   // the only thing there is — no title, no toolbar. It stays inside the workspace so it survives
   // element fullscreen, where the app header is not painted.
   const stepBar = (
     <WizardSteps
+      steps={wizard.steps}
       index={wizard.index}
       maxIndex={wizard.maxIndex}
       blockedReasonFor={wizard.blockedReasonFor}
       onSelect={handleSelectStep}
       actions={
-        <OptimizerActionsMenu
-          onFind={onPieces ? nav.focusSearch : undefined}
-          onImport={onPieces ? () => setShowImport(true) : undefined}
-          onExport={onPieces ? handleExport : undefined}
-          exportDisabled={!hasPieceData}
-          onClear={
-            onPieces
-              ? () => {
-                  pieces.clear()
-                  setMaterials([emptyMaterial()])
-                }
-              : undefined
-          }
-          clearsMaterials
-          onOptimize={onPlan ? handleRun : undefined}
-          hasResult={hasResult}
-          optimizeDisabled={!canRunOptimize}
-          isOptimizing={optimize.isPending}
-          variant={variant}
-          onToggleCollapseAll={onPieces ? groups.toggleAll : undefined}
-          allCollapsed={groups.allCollapsed}
-          collapseDisabled={materials.length === 0}
-          onToggleFullscreen={canFullscreen ? toggle : undefined}
-          isFullscreen={isFullscreen}
-          onNew={handleNew}
-          onOpenDrafts={() => setShowDrafts(true)}
-          onSaveDraft={handleSaveDraft}
-          isSavingDraft={saveDraft.isPending}
-          savedFlash={savedFlash}
-          container={modalContainer}
-        />
+        <div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
+          {/* Whose work this is: the project being drawn, or the one being quoted. Its name may
+              be a client's, so it is masked. Not on a phone: the trail and the menu fill the row. */}
+          {project && (
+            <span
+              className="d-none d-md-inline-block small text-body-secondary text-truncate"
+              style={{ maxWidth: '20rem' }}
+              {...MASK}
+            >
+              {isProject ? 'Proyecto' : 'Cotizando el proyecto'} <strong>{project.name}</strong>
+            </span>
+          )}
+          <OptimizerActionsMenu
+            onFind={onPieces ? nav.focusSearch : undefined}
+            onImport={onPieces ? () => setShowImport(true) : undefined}
+            onExport={onPieces ? handleExport : undefined}
+            exportDisabled={!hasPieceData}
+            onClear={
+              onPieces
+                ? () => {
+                    pieces.clear()
+                    setMaterials([emptyMaterial()])
+                  }
+                : undefined
+            }
+            clearsMaterials
+            onOptimize={onPlan ? handleRun : undefined}
+            hasResult={hasResult}
+            optimizeDisabled={!canRunOptimize}
+            isOptimizing={optimize.isPending}
+            variant={variant}
+            onToggleCollapseAll={onPieces ? groups.toggleAll : undefined}
+            allCollapsed={groups.allCollapsed}
+            collapseDisabled={materials.length === 0}
+            onToggleFullscreen={canFullscreen ? toggle : undefined}
+            isFullscreen={isFullscreen}
+            onNew={handleNew}
+            onOpenDrafts={isProject ? undefined : () => setShowDrafts(true)}
+            onSaveDraft={isProject ? () => handleSaveProject() : handleSaveDraft}
+            saveDraftLabel={isProject ? 'Guardar proyecto' : undefined}
+            isSavingDraft={isProject ? savingProject : saveDraft.isPending}
+            savedFlash={savedFlash}
+            container={modalContainer}
+          />
+        </div>
       }
     />
   )
@@ -892,6 +1039,8 @@ const OptimizerPage = () => {
               onAddService={services.add}
               onUpdateService={services.update}
               onRemoveService={services.remove}
+              withServices={!isProject}
+              blockedAction={isProject ? 'marcar el proyecto como listo' : undefined}
               container={modalContainer}
             />
           )}
@@ -932,10 +1081,44 @@ const OptimizerPage = () => {
         nextDisabled={!wizard.canGoNext || optimize.isPending}
         nextHint={wizard.nextBlockedReason}
         hint={
-          wizard.step === 'quote' && !createQuote.isPending ? createQuote.blockedReason : undefined
+          isProject
+            ? wizard.isLast && !savingProject
+              ? readyBlockedReason
+              : undefined
+            : wizard.step === 'quote' && !createQuote.isPending
+              ? createQuote.blockedReason
+              : undefined
         }
         left={footerLeft}
       >
+        {/* A project ends at Costos: saved, and handed to the sellers when its plan can be quoted. */}
+        {isProject && wizard.isLast && (
+          <>
+            <CButton
+              color="secondary"
+              variant="outline"
+              type="button"
+              disabled={savingProject}
+              onClick={() => handleSaveProject()}
+            >
+              <Icon name={savedFlash ? 'check' : 'save'} className="me-1" />
+              {savedFlash ? 'Guardado' : 'Guardar'}
+            </CButton>
+            <CButton
+              color="primary"
+              type="button"
+              disabled={!!readyBlockedReason || savingProject}
+              onClick={() => handleSaveProject(true)}
+            >
+              {savingProject ? (
+                <Spinner size="sm" className="me-1" />
+              ) : (
+                <Icon name="projectReady" className="me-1" />
+              )}
+              Marcar como listo
+            </CButton>
+          </>
+        )}
         {wizard.step === 'quote' && (
           <CButton
             color="primary"
@@ -977,22 +1160,38 @@ const OptimizerPage = () => {
         onClose={() => setShowImport(false)}
       />
 
-      <DraftsModal
-        visible={showDrafts}
-        loadingId={loadingDraftId}
-        onLoad={(id) => void handleLoadDraft(id)}
-        container={modalContainer}
-        onClose={() => setShowDrafts(false)}
-      />
+      {/* The drafts are the branch's quote work: the designer has projects instead, and no
+          permission to list the drafts (the modal asks for them as soon as it mounts). */}
+      {isProject ? (
+        <SaveProjectModal
+          visible={saveProjectIntent !== null}
+          andReady={saveProjectIntent === 'ready'}
+          isSaving={savingProject}
+          onSave={handleCreateProject}
+          container={modalContainer}
+          onClose={() => setSaveProjectIntent(null)}
+          error={saveProject.error}
+        />
+      ) : (
+        <>
+          <DraftsModal
+            visible={showDrafts}
+            loadingId={loadingDraftId}
+            onLoad={(id) => void handleLoadDraft(id)}
+            container={modalContainer}
+            onClose={() => setShowDrafts(false)}
+          />
 
-      <SaveDraftModal
-        visible={showSaveDraft}
-        isSaving={saveDraft.isPending}
-        onSave={handleSaveNewDraft}
-        container={modalContainer}
-        onClose={() => setShowSaveDraft(false)}
-        error={saveDraft.error}
-      />
+          <SaveDraftModal
+            visible={showSaveDraft}
+            isSaving={saveDraft.isPending}
+            onSave={handleSaveNewDraft}
+            container={modalContainer}
+            onClose={() => setShowSaveDraft(false)}
+            error={saveDraft.error}
+          />
+        </>
+      )}
 
       {confirmDialog}
 
@@ -1003,5 +1202,9 @@ const OptimizerPage = () => {
     </div>
   )
 }
+
+// «Cotizar» (`/preorders/new`): the optimizer that ends in a quote. «Diseñar» mounts the workspace in
+// its project mode (`features/projects`).
+const OptimizerPage = () => <OptimizerWorkspace mode="quote" />
 
 export default OptimizerPage

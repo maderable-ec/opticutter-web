@@ -28,7 +28,8 @@ interface AppSidebarProps {
 //
 // «Cotizar» on top as the coral button (the entry marked `action`), the one thing that starts work
 // rather than going somewhere: the optimizer as it was left, like the phone's disc. Its icon is the
-// one the entry had as a row, with a small «+».
+// one the entry had as a row, with a small «+». The designer's is «Diseñar», the same optimizer
+// working on a project.
 const AppSidebar = ({ sections }: AppSidebarProps) => {
   const narrow = useUIStore((state) => state.sidebarNarrow)
   const setNarrow = useUIStore((state) => state.setSidebarNarrow)
@@ -50,7 +51,7 @@ const AppSidebar = ({ sections }: AppSidebarProps) => {
           className="btn btn-primary side-nav__create"
           aria-label={actionName}
         >
-          <Icon name="quoteAction" size="lg" />
+          <Icon name={action.actionIcon ?? action.icon ?? 'quoteAction'} size="lg" />
           <span className="side-nav__wide">{action.name}</span>
         </NavLink>
       )}

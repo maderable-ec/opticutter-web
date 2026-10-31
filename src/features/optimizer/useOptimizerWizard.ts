@@ -59,6 +59,8 @@ export interface WizardGates {
   // Assemblies whose layers disagree (`assemblyRowIssues`). The API refuses to save them, so the
   // Cotización step is a wall for them too.
   assemblyIssueCount?: number
+  // False on a designer's project («Diseñar»): it is quoted by a seller, so its trail ends at Costos.
+  withQuote?: boolean
 }
 
 // "Un ensamble no coincide" / "2 ensambles no coinciden".
@@ -109,20 +111,22 @@ export const useOptimizerWizard = ({
   canQuote,
   unplacedCount,
   assemblyIssueCount = 0,
+  withQuote = true,
 }: WizardGates) => {
   const [params, setParams] = useSearchParams()
+  const ids = useMemo(() => (withQuote ? STEP_IDS : STEP_IDS.slice(0, 3)), [withQuote])
 
   // Furthest step the current data allows. Backwards is always free; forwards is gated.
   const maxIndex = useMemo(() => {
-    if (canQuote) return 3
+    if (withQuote && canQuote) return 3
     if (hasPieceData) return 2
     return 0
-  }, [hasPieceData, canQuote])
+  }, [hasPieceData, canQuote, withQuote])
 
   const raw = params.get(STEP_PARAM)
-  const requested = raw == null ? 0 : STEP_IDS.indexOf(raw as StepId)
+  const requested = raw == null ? 0 : ids.indexOf(raw as StepId)
   const index = Math.min(Math.max(requested, 0), maxIndex)
-  const step = STEP_IDS[index] ?? 'pieces'
+  const step = ids[index] ?? 'pieces'
 
   // Clamp the URL back to what the data allows: a refresh restores pieces from the autosave but
   // never the result, so `?step=quote` in a fresh tab has to fall back. `replace` so the bogus
@@ -162,7 +166,7 @@ export const useOptimizerWizard = ({
 
   const goTo = useCallback(
     (target: StepId) => {
-      const i = STEP_IDS.indexOf(target)
+      const i = ids.indexOf(target)
       if (i < 0 || i > maxIndex) return
       setParams((prev) => {
         const next = new URLSearchParams(prev)
@@ -170,32 +174,34 @@ export const useOptimizerWizard = ({
         return next
       })
     },
-    [maxIndex, setParams],
+    [ids, maxIndex, setParams],
   )
 
   const back = useCallback(() => {
-    const prev = STEP_IDS[index - 1]
+    const prev = ids[index - 1]
     if (prev) goTo(prev)
-  }, [index, goTo])
+  }, [ids, index, goTo])
 
-  const isLast = index === STEP_IDS.length - 1
+  const isLast = index === ids.length - 1
   const canGoNext = !isLast && index + 1 <= maxIndex
   // Why "Siguiente" is disabled, taken from the step it would lead to.
-  const nextStep = STEP_IDS[index + 1]
+  const nextStep = ids[index + 1]
   const nextBlockedReason =
     isLast || canGoNext || !nextStep ? undefined : blockedReasonFor(nextStep)
 
   const next = useCallback(() => {
-    const target = STEP_IDS[index + 1]
+    const target = ids[index + 1]
     if (target) goTo(target)
-  }, [index, goTo])
+  }, [ids, index, goTo])
 
   // The footer names where each button goes ("‹ Despiece", "Costos ›") instead of "Atrás" and
   // "Siguiente": the seller sees what comes next without looking up at the trail.
   const prevLabel = STEPS[index - 1]?.label
-  const nextLabel = STEPS[index + 1]?.label
+  const nextLabel = isLast ? undefined : STEPS[index + 1]?.label
 
   return {
+    // The trail's steps: all four, or three on a project.
+    steps: STEPS.slice(0, ids.length),
     step,
     index,
     maxIndex,

@@ -7,6 +7,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   vendedor: 'Vendedor',
   operador: 'Operador',
   canteador: 'Canteador',
+  proyectista: 'Proyectista',
 }
 
 /** Every role of a user, spelled out: «Operador · Canteador». */
@@ -19,6 +20,7 @@ export const ROLE_SHORT_LABELS: Record<Role, string> = {
   vendedor: 'Vendedor',
   operador: 'Operador',
   canteador: 'Canteador',
+  proyectista: 'Proyectista',
 }
 
 /**
@@ -30,4 +32,5 @@ export const ROLE_BADGE_CONFIG: Record<Role, StatusConfigEntry> = {
   vendedor: { tone: 'info', label: ROLE_SHORT_LABELS.vendedor },
   operador: { tone: 'neutral', label: ROLE_SHORT_LABELS.operador },
   canteador: { tone: 'neutral', label: ROLE_SHORT_LABELS.canteador },
+  proyectista: { tone: 'info', label: ROLE_SHORT_LABELS.proyectista },
 }

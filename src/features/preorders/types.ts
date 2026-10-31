@@ -53,6 +53,8 @@ export interface PreOrderSummary {
   // Code of the order this quote became. The id routes, the code labels: naming it in the sentence
   // is what makes "Se generó la orden ORD-2026-0042" possible without a second request.
   orderCode: string | null
+  // The designer's project the quote was made from, if any.
+  projectId?: number | null
   createdAt: string
   updatedAt: string
   expiresAt: string | null
@@ -105,6 +107,9 @@ export interface PreOrderCreate {
   // Operador: omitted (backend uses their branch). Vendedor: optional (backend uses home branch if omitted).
   // Admin: required.
   branchId?: number
+  // The designer's project this quote is made from: it must be ready (or quoted already), and the
+  // API marks it quoted. Only on creation.
+  projectId?: number
 }
 
 export interface ReviewLink {

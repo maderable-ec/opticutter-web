@@ -4,7 +4,7 @@ import { CCloseButton } from '@coreui/react'
 import Icon from 'src/shared/icons/Icon'
 
 import { STEPS } from './useOptimizerWizard'
-import type { StepId } from './useOptimizerWizard'
+import type { StepDef, StepId } from './useOptimizerWizard'
 
 // Step indicator. Built from plain buttons rather than CoreUI's CTabs: a tab has two states and a
 // step has three (done / current / locked), and CoreUI free ships no stepper.
@@ -29,6 +29,8 @@ interface WizardStepsProps {
   // was a toolbar of its own, which is exactly what the redesign removed. It has to stay inside the
   // page: the app header sits outside the fullscreen element and is never painted there.
   actions?: ReactNode
+  // The steps to draw: a designer's project ends at Costos (`useOptimizerWizard`'s `steps`).
+  steps?: readonly StepDef[]
 }
 
 const WizardSteps = ({
@@ -37,12 +39,13 @@ const WizardSteps = ({
   blockedReasonFor,
   onSelect,
   actions,
+  steps = STEPS,
 }: WizardStepsProps) => {
   // The locked step last tapped, and the step the seller was on then. The line only speaks while
   // both still hold — moving to another step, or the step opening up, retires it with no effect.
   const [tapped, setTapped] = useState<{ id: StepId; at: number } | null>(null)
   const noticeId = useId()
-  const tappedIndex = tapped ? STEPS.findIndex((s) => s.id === tapped.id) : -1
+  const tappedIndex = tapped ? steps.findIndex((s) => s.id === tapped.id) : -1
   const notice =
     tapped && tapped.at === index && tappedIndex > maxIndex ? blockedReasonFor(tapped.id) : null
 
@@ -51,7 +54,7 @@ const WizardSteps = ({
       <div className="wizard-bar">
         <nav aria-label="Pasos del optimizador" style={{ minWidth: 0 }}>
           <ol className="wizard-steps">
-            {STEPS.map((s, i) => {
+            {steps.map((s, i) => {
               const state = i < index ? 'done' : i === index ? 'current' : 'todo'
               const locked = i > maxIndex
               return (
@@ -102,7 +105,7 @@ const WizardSteps = ({
         <div id={noticeId} className="wizard-notice" role="status">
           <Icon name="lock" className="flex-shrink-0" />
           <span>
-            <strong>{STEPS[tappedIndex]?.label}:</strong> {notice}.
+            <strong>{steps[tappedIndex]?.label}:</strong> {notice}.
           </span>
           <CCloseButton
             className="ms-auto flex-shrink-0"

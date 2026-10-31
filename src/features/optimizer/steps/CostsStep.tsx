@@ -64,7 +64,45 @@ interface CostsStepProps {
     value: ServiceLineForm[K],
   ) => void
   onRemoveService: (uid: string) => void
+  // False on a designer's project: services are the seller's to bill when quoting it, and their
+  // catalog is not the designer's to read.
+  withServices?: boolean
+  // What a missing tapacanto or a mismatched assembly holds back, said where it is held back.
+  blockedAction?: string
   container?: ModalContainer
+}
+
+type ServicesSectionProps = Pick<
+  CostsStepProps,
+  'services' | 'onAddService' | 'onUpdateService' | 'onRemoveService' | 'container'
+>
+
+// Apart so the catalog is asked for only where services are billed: the designer's optimizer has no
+// services, and no permission to read their catalog.
+const ServicesSection = ({
+  services,
+  onAddService,
+  onUpdateService,
+  onRemoveService,
+  container,
+}: ServicesSectionProps) => {
+  // Queried here rather than in the page: this is server state, and the request should not go out
+  // until someone actually reaches the step that spends it.
+  const { data: catalogData } = useServices({ isActive: true, limit: 100 })
+  const catalog = catalogData?.items ?? []
+  return (
+    <>
+      <div className="eyebrow mb-2">Servicios adicionales</div>
+      <ServiceLines
+        services={services}
+        catalog={catalog}
+        onAdd={onAddService}
+        onUpdate={onUpdateService}
+        onRemove={onRemoveService}
+        container={container}
+      />
+    </>
+  )
 }
 
 const CostsStep = ({
@@ -85,17 +123,16 @@ const CostsStep = ({
   onAddService,
   onUpdateService,
   onRemoveService,
+  withServices = true,
+  blockedAction = 'crear la cotización',
   container,
 }: CostsStepProps) => {
   const boardsCost = result?.totalBoardsCost ?? 0
   const bandingCost = result?.totalEdgeBandingCost ?? 0
 
-  // Queried here rather than in the page: this is server state, and the request should not go out
-  // until someone actually reaches the step that spends it.
-  const { data: catalogData } = useServices({ isActive: true, limit: 100 })
-  const catalog = catalogData?.items ?? []
-
   const pricing = result?.pricing ? pricingWithServices(result.pricing, services) : undefined
+  // Four tiles to a row, or three without the services one.
+  const kpiMd = withServices ? 3 : 4
 
   // No card and no "Costos" heading: the step trail says it. The KPI tiles and the tables carry
   // their own borders, so wrapping them in one more box only added a frame.
@@ -129,29 +166,32 @@ const CostsStep = ({
                 : `Hay ${missingBanding.length} piezas con canto definido pero sin tapacanto (#${missingBanding
                     .map((i) => i + 1)
                     .join(', #')}).`}{' '}
-              Su tapacanto no está costeado y no podrás crear la cotización hasta seleccionarlo —
-              vuelve al paso Despiece.
+              Su tapacanto no está costeado y no podrás {blockedAction} hasta seleccionarlo — vuelve
+              al paso Despiece.
             </CAlert>
           )}
 
           <AssemblyIssuesAlert
             issues={assemblyIssues}
-            blocks="No podrás crear la cotización hasta corregirlo — vuelve al paso Despiece."
+            blocks={`No podrás ${blockedAction} hasta corregirlo — vuelve al paso Despiece.`}
           />
 
           <CRow className="g-2 mb-3">
-            <Kpi label="Tableros" value={fmtMoney(boardsCost)} />
-            <Kpi label="Tapacanto" value={fmtMoney(bandingCost)} />
+            <Kpi label="Tableros" md={kpiMd} value={fmtMoney(boardsCost)} />
+            <Kpi label="Tapacanto" md={kpiMd} value={fmtMoney(bandingCost)} />
             {/* Net, like the two tiles beside it: they are the three parts of the
                 subtotal, and a tile with tax inside would not add up to it. The
                 services are typed tax-included below, which is exactly why this
                 one has to say which number it is showing. */}
-            <Kpi
-              label="Servicios (sin IVA)"
-              value={fmtMoney(servicesNetTotal(services, result.pricing?.taxRate ?? 0))}
-            />
+            {withServices && (
+              <Kpi
+                label="Servicios (sin IVA)"
+                value={fmtMoney(servicesNetTotal(services, result.pricing?.taxRate ?? 0))}
+              />
+            )}
             <Kpi
               label="Total"
+              md={kpiMd}
               emphasis
               value={pricing ? fmtMoney(pricing.total) : fmtMoney(boardsCost + bandingCost)}
             />
@@ -180,15 +220,15 @@ const CostsStep = ({
             </>
           )}
 
-          <div className="eyebrow mb-2">Servicios adicionales</div>
-          <ServiceLines
-            services={services}
-            catalog={catalog}
-            onAdd={onAddService}
-            onUpdate={onUpdateService}
-            onRemove={onRemoveService}
-            container={container}
-          />
+          {withServices && (
+            <ServicesSection
+              services={services}
+              onAddService={onAddService}
+              onUpdateService={onUpdateService}
+              onRemoveService={onRemoveService}
+              container={container}
+            />
+          )}
 
           {/* The level picker sits WITH the totals, not on a toolbar above the tables. It is the one
               control that moves these numbers, and up there the user had to scroll past the whole

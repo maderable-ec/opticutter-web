@@ -17,6 +17,7 @@ import { settingsRoutes } from 'src/features/settings/routes'
 import { usersRoutes } from 'src/features/users/routes'
 import { branchesRoutes } from 'src/features/branches/routes'
 import { profileRoutes } from 'src/features/profile/routes'
+import { projectsRoutes } from 'src/features/projects/routes'
 import { HUBS } from './hubs'
 
 // The places with a shell of their own (see `AppRoute.workspace`).
@@ -55,6 +56,7 @@ const screens: AppRoute[] = [
   ...ordersRoutes,
   ...optimizerRoutes,
   ...preordersRoutes,
+  ...projectsRoutes,
   ...productsRoutes,
   ...productFamiliesRoutes,
   ...servicesRoutes,

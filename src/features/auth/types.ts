@@ -1,4 +1,4 @@
-export type Role = 'administrador' | 'vendedor' | 'operador' | 'canteador'
+export type Role = 'administrador' | 'vendedor' | 'operador' | 'canteador' | 'proyectista'
 
 export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -11,7 +11,8 @@ export interface User {
   roles: Role[]
   isActive: boolean
   createdAt: string
-  // Staff branch. Required for vendedor/operador/canteador; null for administrador (global role).
+  // Staff branch. Required for vendedor/operador/canteador/proyectista; null for administrador
+  // (global role).
   branchId: number | null
 }
 
