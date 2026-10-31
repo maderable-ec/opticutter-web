@@ -46,7 +46,8 @@ const UserForm = ({
   const [password, setPassword] = useState('')
   const [branchId, setBranchId] = useState<number | null>(user?.branchId ?? null)
 
-  // Admin is global: branch only applies (and is required) for vendedor/operador/canteador.
+  // Admin is global: branch only applies (and is required) for every other role. The designer's
+  // is only a base: their projects are scoped by owner, not by branch.
   const isStaff = !roles.includes('administrador')
   const { data: branches = [] } = useActiveBranches()
 

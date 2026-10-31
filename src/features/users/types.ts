@@ -8,7 +8,7 @@ export interface UserPayload {
   // Only operador + canteador combine; the backend answers 422 on `roles` otherwise.
   roles: import('src/features/auth/types').Role[]
   fullName?: string
-  // Required for vendedor/operador/canteador; ignored by the backend for administrador.
+  // Required for vendedor/operador/canteador/proyectista; ignored by the backend for administrador.
   branchId?: number | null
 }
 

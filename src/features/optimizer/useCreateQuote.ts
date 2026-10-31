@@ -25,6 +25,8 @@ interface CreateQuoteInput {
   layoutAdjustments: LayoutAdjustment[] | null
   services: ServiceLineForm[]
   draft: QuoteDraft
+  // The designer's project being quoted, if the work came from one (`useOpenProject`).
+  projectId?: number | null
   // After the pre-order exists (the page clears its autosave).
   onCreated?: () => void
 }
@@ -38,6 +40,7 @@ export const useCreateQuote = ({
   layoutAdjustments,
   services,
   draft,
+  projectId,
   onCreated,
 }: CreateQuoteInput) => {
   const navigate = useNavigate()
@@ -78,6 +81,7 @@ export const useCreateQuote = ({
         requirements,
         additionalServices: buildServiceLines(services),
         branchId: isGlobalBranch && draft.branchId ? Number(draft.branchId) : undefined,
+        projectId: projectId ?? undefined,
       },
       {
         onSuccess: (preOrder) => {

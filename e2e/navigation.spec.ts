@@ -93,6 +93,7 @@ test('el menú del vendedor son sus dos secciones, sin nada que administrar', as
   await expect(page.locator('.side-nav__create')).toHaveAccessibleName('Cotizar')
   await expect(page.locator('.side-nav__link')).toHaveText([
     'Inicio',
+    'Proyectos',
     'Cotizaciones',
     'Órdenes',
     'Clientes',
@@ -122,7 +123,7 @@ test.describe('el menú desde md', () => {
 
     await page.goto('/clients')
     const links = menu(page).locator('.side-nav__link')
-    await expect(links).toHaveCount(8)
+    await expect(links).toHaveCount(9)
     for (const link of await links.all()) {
       await expect(link.locator('.side-nav__label')).toBeVisible()
     }
@@ -301,6 +302,7 @@ test.describe('en el celular', { tag: '@movil' }, () => {
     await expect(more).toHaveAttribute('aria-expanded', 'true')
     await expect(sheet(page).getByRole('heading')).toHaveText(['Menú', 'Ventas', 'Gestión'])
     await expect(sheet(page).getByRole('link')).toHaveText([
+      'Proyectos',
       'Clientes',
       'CatálogoProductos · Familias · Servicios',
     ])
@@ -360,6 +362,7 @@ test.describe('en el celular', { tag: '@movil' }, () => {
     await expect(sheet(page).getByRole('link')).toHaveText([
       'Inicio',
       'Cotizar',
+      'Proyectos',
       'Cotizaciones',
       'Órdenes',
       'Clientes',
@@ -505,7 +508,7 @@ test.describe('los hubs', () => {
     stubReports(api)
 
     await page.goto('/analytics/summary?period=90d&branchId=2')
-    await expect(page.locator('.side-nav__link')).toHaveCount(8)
+    await expect(page.locator('.side-nav__link')).toHaveCount(9)
     await expect(tabs(page, 'Estadísticas').getByRole('link')).toHaveText([
       'Resumen',
       'Producción',

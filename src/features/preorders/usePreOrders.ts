@@ -35,7 +35,11 @@ export const useCreatePreOrder = () => {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: PreOrderCreate) => preordersApi.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['preorders'] }),
+    onSuccess: (_quote, data) => {
+      void qc.invalidateQueries({ queryKey: ['preorders'] })
+      // A quote made from a project marks it quoted and lists itself on it.
+      if (data.projectId) void qc.invalidateQueries({ queryKey: ['projects'] })
+    },
   })
 }
 

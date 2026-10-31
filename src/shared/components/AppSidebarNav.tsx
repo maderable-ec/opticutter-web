@@ -25,9 +25,12 @@ export interface NavItem {
   tabs?: string[]
   // The workspace the entry leads into; `sectionsForRoles` fills it in from the route.
   workspace?: WorkspaceId
-  // The menu's one action («Cotizar»): the sidebar draws it as the button on top instead of a row,
-  // as the phone's bar draws it as its disc (`BottomNavItem.primary`). The phone's sheet lists it.
+  // The menu's one action («Cotizar»; the designer's «Diseñar»): the sidebar draws it as the button
+  // on top instead of a row, as the phone's bar draws it as its disc (`BottomNavItem.primary`). The
+  // phone's sheet lists it.
   action?: boolean
+  // The button's icon, when it is not the row's (`icon`): «Cotizar» adds a «+» to its plan.
+  actionIcon?: IconName
   [key: string]: unknown
 }
 

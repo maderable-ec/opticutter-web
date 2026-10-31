@@ -25,7 +25,8 @@ export interface QuoteDraftState {
   reset: () => void
 }
 
-export const useQuoteDraft = (): QuoteDraftState => {
+// `initialNotes` seeds the reference: a quote made from a designer's project starts with its name.
+export const useQuoteDraft = (initialNotes = ''): QuoteDraftState => {
   const user = useCurrentUser()
   const isAdmin = useHasRole('administrador')
 
@@ -42,7 +43,7 @@ export const useQuoteDraft = (): QuoteDraftState => {
     [isAdmin, user],
   )
 
-  const [draft, setDraft] = useState<QuoteDraft>(initial)
+  const [draft, setDraft] = useState<QuoteDraft>(() => ({ ...initial(), notes: initialNotes }))
 
   const setField = useCallback(
     <K extends keyof QuoteDraft>(key: K, value: QuoteDraft[K]) =>
