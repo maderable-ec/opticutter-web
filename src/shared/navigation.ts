@@ -8,6 +8,7 @@ import { homeNav } from 'src/features/home/nav'
 import { optimizerNav } from 'src/features/optimizer/nav'
 import { ordersNav, workshopNav } from 'src/features/orders/nav'
 import { preordersNav } from 'src/features/preorders/nav'
+import { projectsNav } from 'src/features/projects/nav'
 
 import type { NavItem } from './components/AppSidebarNav'
 import { HUBS } from './hubs'
@@ -131,7 +132,12 @@ const hubEntry = (hub: Hub): NavItem => ({
 // how it went and run the place. The daily work is one tap away; the rest is a hub each.
 export const NAV_SECTIONS: NavSection[] = [
   { items: homeNav },
-  { title: 'Ventas', items: [...optimizerNav, ...preordersNav, ...ordersNav, ...clientsNav] },
+  // Proyectos is the sellers' queue of what the designers hand over, beside their own quotes; for the
+  // designer it is their desk, with «Diseñar» as the button on top.
+  {
+    title: 'Ventas',
+    items: [...optimizerNav, ...projectsNav, ...preordersNav, ...ordersNav, ...clientsNav],
+  },
   { title: 'Producción', items: workshopNav },
   { title: 'Gestión', items: HUBS.map(hubEntry) },
 ]

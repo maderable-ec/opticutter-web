@@ -8,7 +8,13 @@ export const hasAnyRole = (
 ): boolean => !!userRoles && userRoles.some((role) => allowed.includes(role))
 
 // Canonical order, the backend's `UserRole` declaration order: the API returns `roles` in it.
-export const ROLE_ORDER: readonly Role[] = ['administrador', 'vendedor', 'operador', 'canteador']
+export const ROLE_ORDER: readonly Role[] = [
+  'administrador',
+  'vendedor',
+  'operador',
+  'canteador',
+  'proyectista',
+]
 
 // Roles that see and operate across all branches (global branch axis).
 export const GLOBAL_BRANCH_ROLES = ['administrador', 'vendedor'] as const
@@ -31,10 +37,12 @@ export const toggleRole = (current: readonly Role[], role: Role, checked: boolea
 
 // Landing path for a set of roles: each user lands on a route they can open, which is also what
 // keeps `/` from bouncing between guards. The office starts on Inicio (what needs doing today); the
-// shop floor on its board. `/profile` is the one route every authenticated user reaches.
+// shop floor on its board; the designer on their projects. `/profile` is the one route every
+// authenticated user reaches.
 export const homePathForRoles = (roles: readonly Role[] | undefined): string => {
   if (hasAnyRole(roles, ['administrador', 'vendedor'])) return '/home'
   // The shop floor's only shared view, for the operator and the bander alike.
   if (hasAnyRole(roles, WORKSHOP_ROLES)) return '/workshop'
+  if (hasAnyRole(roles, ['proyectista'])) return '/projects'
   return '/profile'
 }

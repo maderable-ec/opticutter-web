@@ -51,6 +51,8 @@ interface OptimizerActionsMenuProps {
   onNew?: () => void
   onOpenDrafts?: () => void
   onSaveDraft?: () => void
+  // What saving is called: a draft in the quote's optimizer, the project in the designer's.
+  saveDraftLabel?: string
   isSavingDraft?: boolean
   savedFlash?: boolean
   // --- Distribución (the pre-order, on a phone only) ---
@@ -98,6 +100,7 @@ const OptimizerActionsMenu = ({
   onNew,
   onOpenDrafts,
   onSaveDraft,
+  saveDraftLabel = 'Guardar borrador',
   isSavingDraft,
   savedFlash,
   onAlternative,
@@ -291,7 +294,7 @@ const OptimizerActionsMenu = ({
                   ) : (
                     <Icon name={savedFlash ? 'check' : 'save'} className="me-2" />
                   )}
-                  {savedFlash ? 'Guardado' : 'Guardar borrador'}
+                  {savedFlash ? 'Guardado' : saveDraftLabel}
                   <Hint>{`${KEY.mod}+S`}</Hint>
                 </CDropdownItem>
               )}

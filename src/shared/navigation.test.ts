@@ -37,11 +37,12 @@ describe('the menu by role', () => {
     expect(titles(['administrador'])).toEqual(['(sin título)', 'Ventas', 'Producción', 'Gestión'])
   })
 
-  it('gives the admin nine entries: the daily work, the workshop and a hub per rare task', () => {
+  it('gives the admin ten entries: the daily work, the workshop and a hub per rare task', () => {
     // Eighteen before the hubs.
     expect(names(['administrador'])).toEqual([
       'Inicio',
       'Cotizar',
+      'Proyectos',
       'Cotizaciones',
       'Órdenes',
       'Clientes',
@@ -58,11 +59,21 @@ describe('the menu by role', () => {
     expect(names(['vendedor'])).toEqual([
       'Inicio',
       'Cotizar',
+      'Proyectos',
       'Cotizaciones',
       'Órdenes',
       'Clientes',
       'Catálogo',
     ])
+  })
+
+  it('gives the designer their button and their projects, and nothing of sales', () => {
+    expect(names(['proyectista'])).toEqual(['Diseñar', 'Proyectos'])
+    const action = sectionsForRoles(['proyectista'])
+      .flatMap((s) => s.items)
+      .find((item) => item.action)
+    expect(action).toMatchObject({ name: 'Diseñar', to: '/projects/new' })
+    expect(hasMenu(sectionsForRoles(['proyectista']))).toBe(true)
   })
 
   it('opens a hub on its first tab the role may open, and lights it on every one', () => {
@@ -225,19 +236,19 @@ describe('the phone’s menu sheet', () => {
 
   it('holds under «Más» only what the bar lacks, by section', () => {
     expect(entries('/clients', ['administrador'])).toEqual([
-      ['Ventas', ['Clientes']],
+      ['Ventas', ['Proyectos', 'Clientes']],
       ['Producción', ['Taller']],
       ['Gestión', ['Catálogo', 'Estadísticas', 'Empresa']],
     ])
     expect(entries('/preorders', ['vendedor'])).toEqual([
-      ['Ventas', ['Clientes']],
+      ['Ventas', ['Proyectos', 'Clientes']],
       ['Gestión', ['Catálogo']],
     ])
   })
 
   it('is the whole menu where there is no bar: the optimizer’s only way around', () => {
     expect(sheet('/preorders/new', ['vendedor'])).toEqual(sectionsForRoles(['vendedor']))
-    expect(sheet('/preorders/new', ['administrador']).flatMap((s) => s.items)).toHaveLength(9)
+    expect(sheet('/preorders/new', ['administrador']).flatMap((s) => s.items)).toHaveLength(10)
   })
 
   it('says what is in each hub, in the role’s tabs', () => {

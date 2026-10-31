@@ -3,6 +3,7 @@ import path from 'node:path'
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import type { Role } from 'src/features/auth/types'
+import type { ProjectSummary } from 'src/features/projects/types'
 import type { MockApi } from '../fixtures/api'
 import {
   boardProduct,
@@ -82,6 +83,21 @@ const DESPIECE = [
     ? { ...p, edgeBanding: { ...p.edgeBanding, productId: TAPE.id } }
     : p,
 )
+
+const project = (overrides: Partial<ProjectSummary> = {}): ProjectSummary => ({
+  id: 7,
+  name: 'Cocina con isla',
+  clientName: 'Sra. Pérez',
+  notes: null,
+  status: 'in_progress',
+  ownerId: 1,
+  ownerName: 'Pía Proyectista',
+  readyAt: null,
+  quotes: [],
+  createdAt: minutesAgo(60 * 24),
+  updatedAt: minutesAgo(30),
+  ...overrides,
+})
 
 const seedDespiece = async (api: MockApi, page: Page) => {
   stubCatalog(api)
@@ -348,6 +364,70 @@ const SCENARIOS: Scenario[] = [
         .getByRole('button', { name: /Cotización/ })
         .click()
       await page.getByText('Crear cotización').first().waitFor()
+    },
+  },
+  {
+    // The designer's desk: their projects in progress and ready, «Nuevo proyecto» on top.
+    name: 'projects-proyectista',
+    path: '/projects',
+    roles: ['proyectista'],
+    ready: '.surface',
+    setup: (api) => {
+      api.list('/projects/', [
+        project({ id: 7, name: 'Cocina con isla', clientName: 'Sra. Pérez' }),
+        project({
+          id: 8,
+          name: 'Clóset dormitorio principal',
+          clientName: null,
+          notes: 'Puertas corredizas, sin tiradores',
+          status: 'ready',
+          readyAt: minutesAgo(90),
+        }),
+      ])
+    },
+  },
+  {
+    // The sellers' queue: who drew each one, and the quotes already made from it.
+    name: 'projects-vendedor',
+    path: '/projects',
+    roles: ['vendedor'],
+    ready: '.surface',
+    setup: (api) => {
+      api.list('/projects/', [
+        project({ id: 8, status: 'ready', readyAt: minutesAgo(90) }),
+        project({
+          id: 9,
+          name: 'Biblioteca de pared',
+          status: 'quoted',
+          quotes: [{ id: 123, code: 'PRE-2026-0123', status: 'sent' }],
+        }),
+      ])
+    },
+  },
+  {
+    // «Diseñar» at its last step: no services, and «Marcar como listo» in the bar.
+    name: 'project-costs',
+    path: '/projects/new?step=costs',
+    roles: ['proyectista'],
+    ready: '.action-bar',
+    setup: async (api, page) => {
+      stubCatalog(api)
+      api.post('/optimize/', planResponse())
+      await page.addInitScript(
+        (data) => {
+          localStorage.setItem('cutter:projects:autosave:v1', data)
+        },
+        JSON.stringify({
+          version: 1,
+          savedAt: Date.now(),
+          draftId: null,
+          draftName: '',
+          materials: [boardMaterial()],
+          requirements: DESPIECE,
+          services: [],
+          project: { id: 7, name: 'Cocina con isla' },
+        }),
+      )
     },
   },
   {

@@ -1,4 +1,5 @@
 import {
+  Archive,
   ArrowDown,
   ArrowDownToLine,
   ArrowDownWideNarrow,
@@ -28,11 +29,13 @@ import {
   CircleMinus,
   CirclePause,
   CircleX,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   Compass,
   Copy,
   Download,
+  DraftingCompass,
   Droplet,
   DropletOff,
   EllipsisVertical,
@@ -43,7 +46,11 @@ import {
   FilePlus,
   FileText,
   Focus,
+  FolderArchive,
+  FolderCheck,
   FolderOpen,
+  FolderPen,
+  Folders,
   Funnel,
   FunnelX,
   GripVertical,
@@ -68,6 +75,7 @@ import {
   PanelRight,
   Pause,
   Pencil,
+  PencilRuler,
   Play,
   Plus,
   Printer,
@@ -132,6 +140,10 @@ export const ICONS = {
   // «Cotizar» as the sidebar's button: the menu's own plan, with a «+».
   quoteAction: CutPlanPlus,
   orders: ClipboardList,
+  // The designer's projects, and the designer's button on top of the menu (a drafting compass: the
+  // projects are drawn, not quoted).
+  projects: Folders,
+  designAction: DraftingCompass,
   clients: Users,
   workshop: SquareKanban,
   // The hubs (`HUBS`): one entry each for the screens they hold, whose tabs are words alone.
@@ -169,6 +181,12 @@ export const ICONS = {
   ok: CircleCheck,
   branchArrived: CircleArrowRight,
   branchLeft: CircleArrowLeft,
+  // A designer's project (`features/projects`): on the drawing board, handed to the sellers, quoted,
+  // shelved.
+  designing: PencilRuler,
+  projectReady: FolderCheck,
+  projectQuoted: ClipboardCheck,
+  archived: Archive,
 
   // --- The trade ---
   board: Board,
@@ -207,6 +225,8 @@ export const ICONS = {
   save: Save,
   check: Check,
   open: FolderOpen,
+  reopenProject: FolderPen,
+  archiveProject: FolderArchive,
   download: Download,
   upload: Upload,
   link: Link,
