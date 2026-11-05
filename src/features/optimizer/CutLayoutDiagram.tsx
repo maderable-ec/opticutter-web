@@ -165,6 +165,8 @@ interface SheetDetailModalProps {
   // is here, and it opens the editor on the sheet on screen. `adjustDisabledReason` greys it out.
   onAdjust?: (focus: EditorFocus) => void
   adjustDisabledReason?: string
+  // The plan reads `L` off each piece's longer measure (`OptimizeResponse.edgeNotationByLength`).
+  edgeNotationByLength?: boolean
 }
 
 const SheetDetailModal = ({
@@ -177,6 +179,7 @@ const SheetDetailModal = ({
   onClose,
   onAdjust,
   adjustDisabledReason,
+  edgeNotationByLength,
 }: SheetDetailModalProps) => {
   const group = index == null ? null : (groups[index] ?? null)
   const { hoverPiece, hoverSig, setHoverSig, inspect, leave } = useSheetHover(group)
@@ -275,6 +278,7 @@ const SheetDetailModal = ({
                 hoverPiece={hoverPiece}
                 hoverSig={hoverSig}
                 onHoverSig={setHoverSig}
+                edgeNotationByLength={edgeNotationByLength}
               />
             </CCol>
           </CRow>
@@ -302,6 +306,9 @@ interface CutLayoutDiagramProps {
   adjustDisabledReason?: string
   // What the seller's hand adjustments changed, when the plan carries any.
   adjustment?: AdjustmentSummary | null
+  // The plan reads `L` off each piece's longer measure (`OptimizeResponse.edgeNotationByLength`);
+  // false on an order frozen before that rule.
+  edgeNotationByLength?: boolean
 }
 
 // "3 piezas movidas · 1 tablero menos · −$42.10": what a hand adjustment did, in one line. Only the
@@ -334,6 +341,7 @@ const CutLayoutDiagram = ({
   onAdjust,
   adjustDisabledReason,
   adjustment,
+  edgeNotationByLength,
 }: CutLayoutDiagramProps) => {
   // The open sheet is held as an INDEX, not the group object, so the modal can page to the next one.
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
@@ -387,6 +395,7 @@ const CutLayoutDiagram = ({
         materialNameFor={materialName}
         colorFor={colorFor}
         container={modalContainer}
+        edgeNotationByLength={edgeNotationByLength}
         onClose={() => closeViewer('close')}
         onAdjust={
           onAdjust

@@ -14,6 +14,7 @@ import {
   sidesFromNotation,
 } from './optimizerForm'
 import { cantoFits, seatSpecialEdges } from './specialEdges'
+import type { PieceMeasures } from 'src/shared/utils/specialEdges'
 
 // A piece's banding fields as the despiece edits them, and the piece as a list reads it. Two call
 // sites edit the same three fields — the grid on a laptop (`PieceRowsTable`) and the sheet on a
@@ -68,14 +69,16 @@ export const tapacantoOptions = (
   return options
 }
 
-// Canto: the sides named by the notation. The first time a piece gets any side, it also gets the
-// board's coordinated tapacanto for its type — a banded piece with no tape cannot be quoted.
+// Canto: the sides named by the notation, on a piece of these measures (`L` is the pair along the
+// longer one). The first time a piece gets any side, it also gets the board's coordinated tapacanto
+// for its type — a banded piece with no tape cannot be quoted.
 export const withCantoNotation = (
   eb: EdgeBandingForm,
   notation: string,
   boardEdgeBandings: EdgeBandingProduct[],
+  m?: PieceMeasures | null,
 ): EdgeBandingForm => {
-  const sides = sidesFromNotation(notation)
+  const sides = sidesFromNotation(notation, m)
   const next = { ...eb, sides }
   if (Object.values(sides).some(Boolean) && !next.productId) {
     next.productId = inferBandingProductId(boardEdgeBandings, next.bandType)
@@ -92,7 +95,7 @@ export const withCanto = (
   notation: string,
   boardEdgeBandings: EdgeBandingProduct[],
 ): RequirementForm | null => {
-  const edgeBanding = withCantoNotation(r.edgeBanding, notation, boardEdgeBandings)
+  const edgeBanding = withCantoNotation(r.edgeBanding, notation, boardEdgeBandings, r)
   const specialEdges = seatSpecialEdges(edgeBanding.sides, r.specialEdges ?? [])
   return specialEdges ? { ...r, edgeBanding, specialEdges } : null
 }
@@ -108,7 +111,7 @@ export interface CantoOption {
 // the select names "no Canto" ('—' in the grid, 'Sin canto' on the phone).
 export const cantoOptions = (r: RequirementForm, blank = '—'): CantoOption[] =>
   CANTO_NOTATIONS.map((n) => {
-    const disabled = !cantoFits(n, r.specialEdges ?? [])
+    const disabled = !cantoFits(n, r.specialEdges ?? [], r)
     const label = n === '—' ? blank : n
     return { value: n, label: disabled ? `${label} — ocupado por canto especial` : label, disabled }
   })
@@ -227,7 +230,7 @@ export const pieceReadout = (
   const h = String(r.height ?? '').trim()
   const w = String(r.width ?? '').trim()
   const qty = Number(r.quantity)
-  const notation = notationFromSides(r.edgeBanding.sides)
+  const notation = notationFromSides(r.edgeBanding.sides, r)
   const bandType = displayedBandType(r.edgeBanding, byId)
   return {
     label: r.label.trim(),

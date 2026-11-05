@@ -207,6 +207,10 @@ export interface Order {
   branch: BranchRef
   lines: OrderLine[]
   pieces?: OrderPiece[]
+  // The pieces' edge notation reads `L` off their LONGER measure (`longSides`). False on an order
+  // made before that rule, whose `L` is the pair along the height: it keeps printing what the shop
+  // already read. Absent from an older API, read as false.
+  edgeNotationByLength?: boolean
   history?: OrderHistoryEntry[]
   createdAt: string
   // The seller the order belongs to: who raised the quote. The name is null when that user is gone.

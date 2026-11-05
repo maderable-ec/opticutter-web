@@ -132,6 +132,7 @@ const OptimizationPreview = ({
               onAdjust={onAdjustLayout}
               adjustDisabledReason={adjustDisabledReason}
               adjustment={result.adjustmentSummary}
+              edgeNotationByLength={result.edgeNotationByLength}
             />
           </div>
 

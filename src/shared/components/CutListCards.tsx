@@ -1,3 +1,4 @@
+import type { PieceMeasures } from 'src/shared/utils/specialEdges'
 import CantoPreview, { type CantoSides } from './CantoPreview'
 
 // A cut list you can read on a phone: one card per piece, grouped by material. «Lateral ×2 /
@@ -21,6 +22,9 @@ export interface CutListPiece {
   quantity: number
   // Every banded side, auto and special alike, for the thumbnail.
   sides: CantoSides
+  // The measures that decide which sides the thumbnail draws long (`CantoPreview`); null where the
+  // notation reads `L` off the height (an order made before the rule).
+  measures?: PieceMeasures | null
   // The Canto column's own tape, on the sides no canto especial took; null when it has none.
   canto: CutListEdge | null
   // One per special tape.
@@ -74,7 +78,7 @@ const CutListCards = ({ groups, className = '' }: CutListCardsProps) => (
                 </div>
                 {edges.length > 0 && (
                   <div className="cut-piece__edges">
-                    <CantoPreview sides={p.sides} />
+                    <CantoPreview sides={p.sides} measures={p.measures} />
                     {/* One tape per line: the auto banding and a special one in a single run read
                         as one tape with two names. */}
                     <span className="d-flex flex-column">

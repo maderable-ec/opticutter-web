@@ -1,3 +1,4 @@
+import { EDGE_NOTATION_BY_LENGTH, requirementsByLength } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import type { AdditionalServiceInput, LayoutAdjustment } from './types'
 
@@ -42,6 +43,9 @@ export interface OptimizerAutosave {
   // «restored from the last session». Never written by the optimizer itself: a refresh after that
   // is a restore again.
   opened?: boolean
+  // As on `OptimizerDraftPayload`: absent on an autosave written before `L` was the longer side.
+  // `loadAutosave` hands its rows back moved (`requirementsByLength`) and marked.
+  edgeNotation?: typeof EDGE_NOTATION_BY_LENGTH
 }
 
 export const loadAutosave = (scope: OptimizerScope = 'quote'): OptimizerAutosave | null => {
@@ -49,7 +53,12 @@ export const loadAutosave = (scope: OptimizerScope = 'quote'): OptimizerAutosave
     const raw = localStorage.getItem(KEYS[scope])
     if (!raw) return null
     const data = JSON.parse(raw) as OptimizerAutosave
-    return data.version === 1 && Array.isArray(data.materials) ? data : null
+    if (data.version !== 1 || !Array.isArray(data.materials)) return null
+    return {
+      ...data,
+      requirements: requirementsByLength(data.requirements ?? [], data.edgeNotation),
+      edgeNotation: EDGE_NOTATION_BY_LENGTH,
+    }
   } catch {
     return null
   }

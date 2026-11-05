@@ -273,7 +273,8 @@ const MaterialGroupCard = ({
         inferBandingProductId(boardEdgeBandings, bandType) || lastEb?.productId || ''
       req.edgeBanding = {
         productId,
-        sides: sidesFromNotation(parsed.notation),
+        // `L` is the pair along the piece's longer measure: on 300×600 a `1L` is `top`.
+        sides: sidesFromNotation(parsed.notation, parsed),
         bandType,
       }
     }

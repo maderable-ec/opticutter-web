@@ -6,9 +6,11 @@
 // its mirror, only so the despiece can show the cut size live, before anything is optimized. Keep
 // the two in step.
 //
-// The axis is the physical one: a tape on a long side (`left`/`right`, the `L` of the notation)
-// adds across the WIDTH, one on a short side (`top`/`bottom`, `C`) across the HEIGHT. At 1 mm,
-// 600×400 with `2L CD` is cut 600×398; with `1C CD`, 599×400. What makes a side hard is the tape's PRODUCT
+// The axis is the physical one: a tape on a side along the height (`left`/`right`) adds across the
+// WIDTH, one along the width (`top`/`bottom`) across the HEIGHT. The `L` of the notation is the
+// pair along the longer measure (`longSides`), so the long sides always shorten the short measure:
+// at 1 mm, 600×400 with `2L CD` is cut 600×398 (with `1C CD`, 599×400), and 400×600 with `2L CD`
+// 398×600. What makes a side hard is the tape's PRODUCT
 // (`attributes.bandType`), the same thing the API reads — never the grid's CS/CD toggle, which is
 // not sent.
 

@@ -627,7 +627,7 @@ const PieceRowsTable = ({
             // Edge banding sides defined but no tapacanto picked: valid to optimize, invalid to quote.
             const bandingMissing = needsBandingProduct(req)
             const isError = bandingMissing || (!rowValid && !isRequirementEmpty(req))
-            const cantoNotation = notationFromSides(req.edgeBanding.sides)
+            const cantoNotation = notationFromSides(req.edgeBanding.sides, req)
             const cantoBandType = displayedBandType(req.edgeBanding, byId)
             // The seller types the final size; a hard tape cuts it short and an assembly adds its
             // allowance, shown under the measure.
@@ -796,6 +796,7 @@ const PieceRowsTable = ({
                     <CantoPreview
                       sides={req.edgeBanding.sides}
                       special={specialSidesOf(req.specialEdges ?? [])}
+                      measures={req}
                     />
                     {/* A Canto that would share a side with a canto especial is listed but off,
                         saying why: the special edges add to it (`cantoOptions`). */}
@@ -804,7 +805,7 @@ const PieceRowsTable = ({
                       className="flex-grow-1"
                       style={{ minWidth: 0 }}
                       value={cantoNotation}
-                      title={cantoLimit(req.specialEdges ?? [])}
+                      title={cantoLimit(req.specialEdges ?? [], req)}
                       aria-label={`Canto de la pieza ${i + 1}`}
                       data-row={local}
                       data-col={4}
@@ -943,6 +944,7 @@ const PieceRowsTable = ({
                       thickness={boardThickness}
                       inheritedBandType={cantoBandType}
                       autoSides={selectedSides(req.edgeBanding)}
+                      measures={req}
                       row={local}
                       col={SPECIAL_COL}
                       onFocus={() => setActiveCell({ row: local, col: SPECIAL_COL })}

@@ -21,7 +21,13 @@ const Detail = ({ label, value }: { label: string; value: string }) => (
 
 // Detail of the tapped piece. Tap — not hover — because this view is opened on a phone more often
 // than not, and there is no cursor to hover with.
-const PieceDetail = ({ piece }: { piece: ReviewPlacedPiece | null }) => {
+const PieceDetail = ({
+  piece,
+  byLength,
+}: {
+  piece: ReviewPlacedPiece | null
+  byLength: boolean
+}) => {
   if (!piece) {
     return (
       <div className="border rounded p-3 text-body-secondary small text-center">
@@ -37,30 +43,35 @@ const PieceDetail = ({ piece }: { piece: ReviewPlacedPiece | null }) => {
   const edges = piece.edges
     ? { ...piece.edges, sides: piece.edges.nominalSides ?? piece.edges.sides }
     : null
+  // Its own measures decide which pair is `L`, on a plan that reads it so.
+  const measures = byLength ? { height: piece.originalHeight, width: piece.originalWidth } : null
   return (
     <div className="border rounded p-3">
       <div className="d-flex align-items-center justify-content-between gap-2 mb-2">
         <strong>{label || 'Pieza'}</strong>
-        {edges?.sides?.length ? <CantoPreview sides={cantoSides(edges)} /> : null}
+        {edges?.sides?.length ? (
+          <CantoPreview sides={cantoSides(edges)} measures={measures} />
+        ) : null}
       </div>
-      {/* Largo first, as the cut list prints it: `left`/`right` are the sides of the
-          piece's height, and those are the ones the notation counts as L (largo). */}
+      {/* Largo first, as the cut list prints it: `left`/`right` are the sides of the piece's
+          height; the notation counts as L the pair along the longer measure. */}
       <Detail label="Medida" value={`${piece.originalHeight} × ${piece.originalWidth} mm`} />
       <Detail label="Cantos" value={edgesLabel(edges)} />
       {edges?.sides?.length ? (
         // The server already computes the notation from the unrotated sides; recomputing it here
         // is only a fallback for a payload that predates the field.
-        <Detail label="Notación" value={edges.notation || cantoNotation(edges)} />
+        <Detail label="Notación" value={edges.notation || cantoNotation(edges, measures)} />
       ) : null}
       {edges?.productName && <Detail label="Tapacanto" value={edges.productName} />}
       {/* One row per special tape, its sides counted in the piece's own frame (`2L`). */}
       {groupByTape(
         (edges?.special ?? []).map((e) => ({ ...e, side: e.nominalSide })),
         (e) => `${e.productName ?? ''}|${e.bandType ?? ''}`,
+        measures,
       ).map(({ tape, sides, first }) => (
         <Detail
           key={tape}
-          label={`Canto especial ${sidesNotation(sides)}`}
+          label={`Canto especial ${sidesNotation(sides, measures)}`}
           value={first.productName ?? '—'}
         />
       ))}
@@ -84,6 +95,8 @@ interface ReviewSheetModalProps {
   colorFor: (sig: string) => string
   sheetTitleFor: (index: number) => string
   onClose: () => void
+  // `ReviewPreOrder.edgeNotationByLength`.
+  byLength?: boolean
 }
 
 const ReviewSheetModal = ({
@@ -93,6 +106,7 @@ const ReviewSheetModal = ({
   colorFor,
   sheetTitleFor,
   onClose,
+  byLength = false,
 }: ReviewSheetModalProps) => {
   const [selected, setSelected] = useState<ReviewPlacedPiece | null>(null)
   const group = index == null ? null : (groups[index] ?? null)
@@ -169,7 +183,7 @@ const ReviewSheetModal = ({
               </div>
             </CCol>
             <CCol xs={12} lg={5}>
-              <PieceDetail piece={selected} />
+              <PieceDetail piece={selected} byLength={byLength} />
             </CCol>
           </CRow>
         )}

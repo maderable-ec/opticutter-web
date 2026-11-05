@@ -1,6 +1,12 @@
 import type { BoardProduct } from 'src/features/products/types'
 import { normalizeText } from 'src/shared/utils/text'
-import { emptyMaterial, emptyRequirement, isMaterialValid, materialLabel } from './optimizerForm'
+import {
+  emptyMaterial,
+  emptyRequirement,
+  isMaterialValid,
+  materialLabel,
+  sidesFromNotation,
+} from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import type { CsvMaterialText, RawPieceRow } from './piecesCsv'
 
@@ -147,9 +153,14 @@ const rowToRequirement = (row: RawPieceRow, materialUid: string): RequirementFor
   req.canRotate = row.canRotate
   // Sides and soft/hard come from the file's Etiqueta; the tapacanto PRODUCT does not — it depends
   // on the catalog, so it is left empty and filled in by the group once its board is known
-  // (MaterialGroupCard). That also keeps this function pure and catalog-free.
+  // (MaterialGroupCard). That also keeps this function pure and catalog-free. The notation lands on
+  // the row's own long sides: the shop's `90×1200 1L CS` is banded along the 1200.
   if (row.canto && row.canto.notation !== '—') {
-    req.edgeBanding = { productId: '', sides: { ...row.canto.sides }, bandType: row.canto.bandType }
+    req.edgeBanding = {
+      productId: '',
+      sides: sidesFromNotation(row.canto.notation, row),
+      bandType: row.canto.bandType,
+    }
   }
   return req
 }

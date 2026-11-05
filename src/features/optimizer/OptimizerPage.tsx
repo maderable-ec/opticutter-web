@@ -12,6 +12,7 @@ import { useBoards, useEdgeBandings, useOptimize } from './useOptimizer'
 import { useSaveDraft } from './useDrafts'
 import { draftsApi } from './draftsApi'
 import {
+  EDGE_NOTATION_BY_LENGTH,
   buildPayload,
   canonicalMaterialKeys,
   cloneMaterial,
@@ -21,6 +22,7 @@ import {
   isRequirementEmpty,
   piecesMissingBandingProduct,
   requirementIssues,
+  requirementsByLength,
 } from './optimizerForm'
 import type { MaterialForm, RequirementForm, RequirementIssue } from './optimizerForm'
 import type { LayoutAdjustment, OptimizeResponse, OptimizerDraftPayload } from './types'
@@ -326,6 +328,7 @@ export const OptimizerWorkspace = ({ mode }: OptimizerWorkspaceProps) => {
         saveAutosave(
           {
             version: 1,
+            edgeNotation: EDGE_NOTATION_BY_LENGTH,
             savedAt: Date.now(),
             draftId,
             draftName,
@@ -391,6 +394,7 @@ export const OptimizerWorkspace = ({ mode }: OptimizerWorkspaceProps) => {
 
   const draftPayload = (): OptimizerDraftPayload => ({
     version: 1,
+    edgeNotation: EDGE_NOTATION_BY_LENGTH,
     materials,
     requirements: pieces.requirements,
     additionalServices: buildServiceLines(services.lines),
@@ -454,6 +458,7 @@ export const OptimizerWorkspace = ({ mode }: OptimizerWorkspaceProps) => {
   // What a project stores: the form as it stands, like a draft, without services.
   const projectPayload = (): OptimizerDraftPayload => ({
     version: 1,
+    edgeNotation: EDGE_NOTATION_BY_LENGTH,
     materials,
     requirements: pieces.requirements,
     layoutAdjustments,
@@ -517,7 +522,8 @@ export const OptimizerWorkspace = ({ mode }: OptimizerWorkspaceProps) => {
       const d = await draftsApi.get(id)
       // Drafts saved before the material modal carry the old shape.
       setMaterials(normalizeMaterials(d.payload.materials))
-      pieces.addMany(d.payload.requirements, true)
+      // A draft saved before `L` was the longer side comes back with its wider rows moved.
+      pieces.addMany(requirementsByLength(d.payload.requirements, d.payload.edgeNotation), true)
       // Optional: drafts saved before services existed have no such key.
       services.set((d.payload.additionalServices ?? []).map(serviceLineFromApi))
       // Keyed by the form uids the draft restores, so they still name the same materials.

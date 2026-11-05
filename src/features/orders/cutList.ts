@@ -1,7 +1,7 @@
 import type { CutListEdge, CutListGroup } from 'src/shared/components/CutListCards'
 import type { CantoSides } from 'src/shared/components/CantoPreview'
 import { bandingName, cantoNotation, cantoSides } from 'src/features/review/format'
-import { groupByTape, specialEdgeNotation } from 'src/shared/utils/specialEdges'
+import { groupByTape, specialEdgeNotation, type PieceMeasures } from 'src/shared/utils/specialEdges'
 import { workshopCodesLine } from 'src/shared/utils/workshopCodes'
 import type { OrderPiece, OrderPieceEdges } from './types'
 
@@ -53,6 +53,8 @@ export const isUnnamed = (groups: MaterialGroup[]): boolean =>
 export interface PieceEdges {
   // Every banded side, for the thumbnail.
   sides: CantoSides
+  // The measures the notation was read with, for the thumbnail too.
+  measures: PieceMeasures | null
   canto: CutListEdge | null
   specials: CutListEdge[]
 }
@@ -64,10 +66,14 @@ export interface PieceEdges {
  * The tape's NAME is not in the frozen `edges` (only its id), so `bandingNames` — built by the page
  * from the order's banding lines, which bill every tape it uses — supplies it, shortened the way
  * the review shortens it (no catalogue «TAPACANTO» prefix).
+ *
+ * `measures` are the piece's own, on an order that reads `L` off the longer measure
+ * (`Order.edgeNotationByLength`); null on one made before, which reads it off the height.
  */
 export const pieceEdges = (
   edges: OrderPieceEdges | null | undefined,
   bandingNames?: Map<number, string>,
+  measures: PieceMeasures | null = null,
 ): PieceEdges => {
   const special = edges?.special_edges ?? []
   const taken = new Set<string>(special.map((e) => e.side))
@@ -75,24 +81,28 @@ export const pieceEdges = (
   const nameOf = (id?: number | null) => bandingName({ productName: bandingNames?.get(id ?? -1) })
   return {
     sides: cantoSides({ sides: [...autoSides, ...special.map((e) => e.side)] }),
+    measures,
     canto:
       edges && autoSides.length > 0
         ? {
-            notation: cantoNotation({ ...edges, sides: autoSides }),
+            notation: cantoNotation({ ...edges, sides: autoSides }, measures),
             tape: nameOf(edges.product_id),
           }
         : null,
-    specials: groupByTape(special, (e) => String(e.product_id)).map(({ sides, first }) => ({
-      notation: specialEdgeNotation(sides, first.band_type, first.alias),
-      tape: nameOf(first.product_id),
-    })),
+    specials: groupByTape(special, (e) => String(e.product_id), measures).map(
+      ({ sides, first }) => ({
+        notation: specialEdgeNotation(sides, first.band_type, first.alias, measures),
+        tape: nameOf(first.product_id),
+      }),
+    ),
   }
 }
 
-// The cards' groups (`CutListCards`).
+// The cards' groups (`CutListCards`). `byLength` as `Order.edgeNotationByLength`.
 export const orderCutList = (
   pieces: OrderPiece[],
   bandingNames?: Map<number, string>,
+  byLength = false,
 ): CutListGroup[] => {
   const groups = groupByMaterial(pieces)
   const unnamed = isUnnamed(groups)
@@ -107,7 +117,7 @@ export const orderCutList = (
       height: p.height ?? '—',
       width: p.width ?? '—',
       quantity: p.quantity ?? 0,
-      ...pieceEdges(p.edges, bandingNames),
+      ...pieceEdges(p.edges, bandingNames, byLength ? p : null),
       codes: workshopCodesLine(p),
     })),
   }))

@@ -119,12 +119,12 @@ const PieceEditSheet = ({
   const update = <K extends keyof RequirementForm>(field: K, value: RequirementForm[K]) =>
     editor.update(flat, field, value)
 
-  const notation = notationFromSides(req.edgeBanding.sides)
+  const notation = notationFromSides(req.edgeBanding.sides, req)
   const bandType = displayedBandType(req.edgeBanding, byId)
   const banded = notation !== '—'
   const bandingMissing = needsBandingProduct(req)
   const issue = requirementIssues([req], materials)[0]
-  const specialTags = specialEdgeTags(req.specialEdges ?? [], byId)
+  const specialTags = specialEdgeTags(req.specialEdges ?? [], byId, req)
   const codes = workshopCodesLine(req)
   // The seller types the final size; a hard tape cuts it short and an assembly adds its allowance,
   // said under the measure it moves. Short, in the shop's own CD: the measures share one row of three
@@ -285,6 +285,7 @@ const PieceEditSheet = ({
         <CantoPreview
           sides={req.edgeBanding.sides}
           special={specialSidesOf(req.specialEdges ?? [])}
+          measures={req}
         />
         <CFormSelect
           id={ids.canto}
@@ -333,10 +334,10 @@ const PieceEditSheet = ({
       </div>
 
       {/* The special edges are read-only here, so the way to free a side is said in words. */}
-      {cantoLimit(req.specialEdges ?? []) && (
+      {cantoLimit(req.specialEdges ?? [], req) && (
         <div className="form-text mt-1">
-          {cantoLimit(req.specialEdges ?? [])}. Para subir el Canto, quita el canto especial en la
-          computadora.
+          {cantoLimit(req.specialEdges ?? [], req)}. Para subir el Canto, quita el canto especial en
+          la computadora.
         </div>
       )}
 

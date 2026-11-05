@@ -2,9 +2,11 @@ import { useCallback, useState } from 'react'
 
 import {
   additiveSpecialEdges,
+  bandingFor,
   cloneRequirement,
   emptyRequirement,
   isRequirementEmpty,
+  withMeasure,
 } from './optimizerForm'
 import type { MaterialForm, RequirementForm } from './optimizerForm'
 import { seatSpecialEdges } from './specialEdges'
@@ -111,7 +113,9 @@ const withCopiedCanto = (
 
 // Applies a single field value from `src` onto `r`. Edge-banding sub-fields are copied immutably.
 // null when the row cannot take it: its Canto and its special edges would share a side, which the
-// row's own controls never allow either. The fill leaves that row as it was and says so.
+// row's own controls never allow either. The fill leaves that row as it was and says so. The banding
+// travels as its notation (`bandingFor`): a `1L` copied onto a piece whose other measure is the
+// longer one lands on that piece's long side.
 export const applyField = (
   r: RequirementForm,
   src: RequirementForm,
@@ -120,12 +124,15 @@ export const applyField = (
   if (field === 'edgeBanding') {
     return withCopiedCanto(r, {
       productId: src.edgeBanding.productId,
-      sides: { ...src.edgeBanding.sides },
+      sides: bandingFor(src, r, src.edgeBanding.sides).sides,
       bandType: src.edgeBanding.bandType ?? '',
     })
   }
   if (field === 'edgeBandingSides') {
-    return withCopiedCanto(r, { ...r.edgeBanding, sides: { ...src.edgeBanding.sides } })
+    return withCopiedCanto(r, {
+      ...r.edgeBanding,
+      sides: bandingFor(src, r, src.edgeBanding.sides).sides,
+    })
   }
   if (field === 'edgeBandingProductId') {
     // A row with no canto keeps its disabled cell empty: a product stored there would beat the
@@ -143,7 +150,8 @@ export const applyField = (
   }
   if (field === 'specialEdges') {
     // Re-seated around this row's own Canto: the source's sides mean a count per kind, not a place.
-    const specialEdges = seatSpecialEdges(r.edgeBanding.sides, src.specialEdges ?? [])
+    const { special } = bandingFor(src, r, src.edgeBanding.sides, src.specialEdges ?? [])
+    const specialEdges = seatSpecialEdges(r.edgeBanding.sides, special)
     return specialEdges ? { ...r, specialEdges } : null
   }
   if (field === 'edgeBandingBandType') {
@@ -163,6 +171,7 @@ export const applyField = (
     return { ...r, hardEdgeCut: src.hardEdgeCut !== false }
   }
   if (field === 'assemblyCode') return withAssemblyCode(r, src.assemblyCode ?? '')
+  if (field === 'height' || field === 'width') return withMeasure(r, field, src[field])
   return { ...r, [field]: src[field] }
 }
 
@@ -350,6 +359,12 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
     value: RequirementForm[K],
   ) =>
     setRequirements((rs) => {
+      if (field === 'height' || field === 'width') {
+        // Its banding keeps the notation typed when the longer measure changes (`withMeasure`).
+        return rs.map((r, idx) =>
+          idx === i ? withMeasure(r, field, value as RequirementForm['height']) : r,
+        )
+      }
       if (field !== 'assemblyCode') {
         return rs.map((r, idx) => (idx === i ? { ...r, [field]: value } : r))
       }
@@ -543,7 +558,9 @@ export const usePiecesEditor = (materials: MaterialForm[], initial?: Requirement
         const write = (r: RequirementForm): RequirementForm =>
           field === 'assemblyCode'
             ? withAssemblyCode(r, String(toValue(val)))
-            : { ...r, [field]: toValue(val) }
+            : field === 'height' || field === 'width'
+              ? withMeasure(r, field, toValue(val))
+              : { ...r, [field]: toValue(val) }
         if (existing) {
           result[target] = write(existing)
         } else {

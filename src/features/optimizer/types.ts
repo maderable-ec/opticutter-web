@@ -1,3 +1,4 @@
+import type { EDGE_NOTATION_BY_LENGTH } from './optimizerForm'
 import type { Client } from 'src/features/clients/types'
 import type { BranchRef } from 'src/features/branches/types'
 import type { EdgeSide } from 'src/shared/utils/cutDrawing'
@@ -217,6 +218,10 @@ export interface OptimizeResponse {
   adjustmentSummary?: AdjustmentSummary | null
   // The hand adjustments actually applied to this plan (empty sheets left out); null without any.
   layoutAdjustments?: LayoutAdjustment[] | null
+  // The plan's edge notation reads `L` off each piece's LONGER measure where that differs from
+  // reading it off the height (`shared/utils/specialEdges.ts` `longSides`). False where both agree,
+  // and on an order frozen before the rule: pass a piece's measures to the notation only when true.
+  edgeNotationByLength?: boolean
 }
 
 // --- Hand adjustments to the plan (the layout editor) ---
@@ -478,6 +483,10 @@ export interface LayoutCandidatesPayload extends OptimizePayload {
 // The backend treats `payload` as opaque JSON; `version` allows future migrations.
 export interface OptimizerDraftPayload {
   version: 1
+  // `EDGE_NOTATION_BY_LENGTH` (`optimizerForm.ts`): the rows' sides read `L` off the longer measure.
+  // Absent on a draft or a project saved before, whose rows move when it is opened
+  // (`requirementsByLength`). Additive, like the keys below, so an older payload still loads.
+  edgeNotation?: typeof EDGE_NOTATION_BY_LENGTH
   materials: MaterialForm[]
   requirements: RequirementForm[]
   // Billed additional services. Optional because drafts saved before the wizard had a services step

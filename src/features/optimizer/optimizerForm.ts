@@ -1,6 +1,12 @@
 import type { BoardProduct, EdgeBandingProduct } from 'src/features/products/types'
 import { WORKSHOP_CODES, hasWorkshopCodes } from 'src/shared/utils/workshopCodes'
-import { sortBySide } from 'src/shared/utils/specialEdges'
+import {
+  OTHER_PAIR,
+  longSides,
+  sortBySide,
+  widthIsLonger,
+  type PieceMeasures,
+} from 'src/shared/utils/specialEdges'
 import type {
   EdgeSide,
   InlineMaterialInput,
@@ -609,12 +615,17 @@ export const buildPayload = (
 }
 
 // --- Edge banding notation (business domain) ---
-// L = long side = left/right (sides running along the length of the piece)
-// C = short side = top/bottom (sides running along the width of the piece)
+// L = the two sides along the piece's LONGER measure, C = the two along the shorter one
+// (`shared/utils/specialEdges.ts` `longSides`). The sides themselves are physical: `left`/`right`
+// run along the height, `top`/`bottom` along the width. So the notation needs the piece's measures:
+// on 600×300 a `1L` is `left`, on 300×600 it is `top`. Without them (a row with no measures yet),
+// `left`/`right` are the L, as on a square piece.
 
 export const CANTO_NOTATIONS = ['—', '1L', '2L', '1C', '2C', '1L1C', '1L2C', '2L1C', '4L'] as const
 export type CantoNotation = (typeof CANTO_NOTATIONS)[number]
 
+// Each notation on a piece whose height is the longer measure; `sidesFromNotation` moves it to the
+// other pair when the width is.
 const NOTATION_TO_SIDES: Record<CantoNotation, Record<EdgeSide, boolean>> = {
   '—': { top: false, bottom: false, left: false, right: false },
   '1L': { top: false, bottom: false, left: true, right: false },
@@ -627,9 +638,14 @@ const NOTATION_TO_SIDES: Record<CantoNotation, Record<EdgeSide, boolean>> = {
   '4L': { top: true, bottom: true, left: true, right: true },
 }
 
-export function notationFromSides(sides: Record<EdgeSide, boolean>): CantoNotation {
-  const l = (sides.left ? 1 : 0) + (sides.right ? 1 : 0)
-  const c = (sides.top ? 1 : 0) + (sides.bottom ? 1 : 0)
+export function notationFromSides(
+  sides: Record<EdgeSide, boolean>,
+  m?: PieceMeasures | null,
+): CantoNotation {
+  const long = longSides(m)
+  const banded = (Object.keys(sides) as EdgeSide[]).filter((s) => sides[s])
+  const l = banded.filter((s) => long.includes(s)).length
+  const c = banded.length - l
   if (l === 0 && c === 0) return '—'
   if (l === 2 && c === 2) return '4L'
   let key = ''
@@ -638,9 +654,73 @@ export function notationFromSides(sides: Record<EdgeSide, boolean>): CantoNotati
   return (key as CantoNotation) ?? '—'
 }
 
-export function sidesFromNotation(n: string): Record<EdgeSide, boolean> {
-  return NOTATION_TO_SIDES[n as CantoNotation] ?? NOTATION_TO_SIDES['—']
+// The sides a notation names on a piece of these measures. Always a fresh record: each piece owns
+// its sides.
+export function sidesFromNotation(n: string, m?: PieceMeasures | null): Record<EdgeSide, boolean> {
+  const byHeight = NOTATION_TO_SIDES[n as CantoNotation] ?? NOTATION_TO_SIDES['—']
+  return widthIsLonger(m) ? transposeSides(byHeight) : { ...byHeight }
 }
+
+// The same sides on the other pair (`OTHER_PAIR`).
+export const transposeSides = (sides: Record<EdgeSide, boolean>): Record<EdgeSide, boolean> => ({
+  top: sides.left,
+  bottom: sides.right,
+  left: sides.top,
+  right: sides.bottom,
+})
+
+// A row's Canto and special edges moved to the other pair: what keeps them saying what the seller
+// typed when the row's longer measure changes.
+export const transposeBanding = (r: RequirementForm): RequirementForm => ({
+  ...r,
+  edgeBanding: { ...r.edgeBanding, sides: transposeSides(r.edgeBanding.sides) },
+  ...(r.specialEdges?.length
+    ? { specialEdges: sortBySide(r.specialEdges.map((e) => ({ ...e, side: OTHER_PAIR[e.side] }))) }
+    : {}),
+})
+
+// A row with one of its measures set. When the edit turns the other measure into the longer one, its
+// banding moves to the other pair (`transposeBanding`) so its notation stays the one the seller
+// typed: `2L` on 600×300 is `left`+`right`, and still `2L` — `top`+`bottom` — once it reads 300×600.
+export const withMeasure = (
+  r: RequirementForm,
+  field: 'height' | 'width',
+  value: RequirementForm['height'],
+): RequirementForm => {
+  const next = { ...r, [field]: value }
+  return widthIsLonger(r) === widthIsLonger(next) ? next : transposeBanding(next)
+}
+
+// Saved form state (an autosave, a draft, a project) says it reads `L` off the longer measure with
+// this mark. Without it, it was saved before: its rows' sides were picked as if the height were
+// always the longer measure.
+export const EDGE_NOTATION_BY_LENGTH = 'byLength' as const
+
+// The rows of saved form state as this editor reads them: on one saved before the mark, each row
+// whose width is the longer measure moves its banding to the other pair, so it keeps the notation
+// the seller typed and saw. The API did the same to the saved quotes (its migration 022).
+export const requirementsByLength = (
+  rows: RequirementForm[],
+  edgeNotation?: string | null,
+): RequirementForm[] =>
+  edgeNotation === EDGE_NOTATION_BY_LENGTH
+    ? rows
+    : rows.map((r) => (widthIsLonger(r) ? transposeBanding(r) : r))
+
+// `src`'s banding as `r` would write it: the same sides when the two pieces have the same longer
+// measure, the other pair when not — a `1L` copied onto a piece of the other shape stays a `1L`.
+export const bandingFor = <T extends { side: EdgeSide }>(
+  src: PieceMeasures,
+  r: PieceMeasures,
+  sides: Record<EdgeSide, boolean>,
+  special: T[] = [],
+): { sides: Record<EdgeSide, boolean>; special: T[] } =>
+  widthIsLonger(src) === widthIsLonger(r)
+    ? { sides: { ...sides }, special: [...special] }
+    : {
+        sides: transposeSides(sides),
+        special: sortBySide(special.map((e) => ({ ...e, side: OTHER_PAIR[e.side] }))),
+      }
 
 export const CANTO_NOTATION_RE = /^(?:4[Ll]|[12][Ll](?:[12][Cc])?|[12][Cc])$/
 

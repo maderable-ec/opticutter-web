@@ -186,6 +186,35 @@ test('«✂ CD» apaga el descuento de canto duro de una pieza', async ({ page, 
   expect(payload.requirements[1]).not.toHaveProperty('hardEdgeCut')
 })
 
+// `L` is the pair of sides along the piece's LONGER measure: a `1L` on 300×600 is banded along the
+// 600 (`top`). Changing the measures so the other one is longer keeps the `1L` the seller chose.
+test('el Canto 1L va en el lado más largo de la pieza', async ({ page, api }) => {
+  api.post('/optimize/', planResponse())
+  await seedOptimizer(
+    page,
+    [boardMaterial()],
+    [piece(300, 600, 1, 'Repisa'), piece(300, 600, 1, 'Costado')],
+  )
+
+  await page.goto('/preorders/new')
+  await page.getByLabel('Canto de la pieza 1').selectOption('1L')
+  await page.getByLabel('Canto de la pieza 2').selectOption('1L')
+  // The second one turns out to be 900 tall: its long side is now along the height.
+  await page.getByLabel('Largo de la pieza 2').fill('900')
+  await expect(page.getByLabel('Canto de la pieza 2')).toHaveValue('1L')
+
+  await page
+    .locator('.action-bar')
+    .getByRole('button', { name: /Optimización/ })
+    .click()
+  await expect.poll(() => api.requests('POST', '/optimize/').length).toBe(1)
+  const payload = api.requests('POST', '/optimize/')[0]?.postDataJSON() as OptimizePayload
+  expect(payload.requirements.map((r) => [r.height, r.width, r.edgeBanding?.sides])).toEqual([
+    [300, 600, ['top']],
+    [900, 600, ['left']],
+  ])
+})
+
 // On a phone the despiece is a list to read, and a piece is corrected in a sheet. The edits are the
 // grid's own (`usePiecesEditor`), so they reach the search exactly as typed.
 test('en el celular, una pieza se corrige en su hoja', { tag: '@movil' }, async ({ page, api }) => {

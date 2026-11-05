@@ -246,6 +246,7 @@ const LayoutStep = ({
               hoverSig={hoverSig}
               onHoverSig={setHoverSig}
               emptyHint="Pasa el cursor o toca una pieza del diagrama para ver su detalle."
+              edgeNotationByLength={result?.edgeNotationByLength}
             />
           </aside>
         </div>

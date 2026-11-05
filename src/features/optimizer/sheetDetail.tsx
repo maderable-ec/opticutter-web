@@ -170,6 +170,8 @@ interface PieceDetailCardProps {
   colorFor: ColorFor
   // Empty-state wording: the wizard's viewer accepts taps too, the modal is hover-only.
   emptyHint?: string
+  // The plan reads `L` off each piece's longer measure (`OptimizeResponse.edgeNotationByLength`).
+  edgeNotationByLength?: boolean
 }
 
 // Panel replacing the per-piece table: shows the piece under the cursor with all its data.
@@ -177,8 +179,14 @@ export const PieceDetailCard = ({
   piece,
   colorFor,
   emptyHint = 'Pasa el cursor sobre una pieza del diagrama para ver su detalle.',
+  edgeNotationByLength,
 }: PieceDetailCardProps) => {
   const sides = piece ? bandedSides(piece) : []
+  // The piece's own measures decide which pair is `L`, on a plan that reads it so.
+  const measures =
+    piece && edgeNotationByLength
+      ? { height: piece.originalHeight, width: piece.originalWidth }
+      : null
   const cut = piece ? placedCut(piece) : null
   return (
     <div className="border rounded p-2 mb-3">
@@ -238,10 +246,11 @@ export const PieceDetailCard = ({
             {groupByTape(
               (piece.edges?.special ?? []).map((e) => ({ ...e, side: e.nominal_side })),
               (e) => String(e.product_id),
+              measures,
             ).map(({ tape, sides, first }) => (
               <Detail
                 key={tape}
-                label={`Canto especial ${sidesNotation(sides)}`}
+                label={`Canto especial ${sidesNotation(sides, measures)}`}
                 value={[first.code, first.color].filter(Boolean).join(' · ') || '—'}
               />
             ))}
@@ -350,6 +359,7 @@ interface SheetInspectorProps {
   hoverSig: string | null
   onHoverSig: (sig: string | null) => void
   emptyHint?: string
+  edgeNotationByLength?: boolean
 }
 
 export const SheetInspector = ({
@@ -359,10 +369,16 @@ export const SheetInspector = ({
   hoverSig,
   onHoverSig,
   emptyHint,
+  edgeNotationByLength,
 }: SheetInspectorProps) => (
   <>
     <SheetStats layout={layout} />
-    <PieceDetailCard piece={hoverPiece} colorFor={colorFor} emptyHint={emptyHint} />
+    <PieceDetailCard
+      piece={hoverPiece}
+      colorFor={colorFor}
+      emptyHint={emptyHint}
+      edgeNotationByLength={edgeNotationByLength}
+    />
     <GroupedPiecesList
       pieces={layout.placedPieces}
       colorFor={colorFor}

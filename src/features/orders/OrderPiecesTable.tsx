@@ -39,9 +39,16 @@ interface OrderPiecesTableProps {
   // Scroll box for the rows. The panel hands it the dialog's height so a long list scrolls inside
   // the dialog rather than inside a short box with the rest of the screen left empty.
   maxHeight?: string
+  // `Order.edgeNotationByLength`: the notation reads `L` off each piece's longer measure.
+  byLength?: boolean
 }
 
-const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableProps) => {
+const OrderPiecesTable = ({
+  pieces,
+  bandingNames,
+  maxHeight,
+  byLength = false,
+}: OrderPiecesTableProps) => {
   if (pieces.length === 0) return null
 
   // Grouped rather than carrying a "Material" column on every row: a real order runs to a couple of
@@ -56,7 +63,7 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
 
   return (
     <>
-      <CutListCards className="d-md-none" groups={orderCutList(pieces, bandingNames)} />
+      <CutListCards className="d-md-none" groups={orderCutList(pieces, bandingNames, byLength)} />
       <div className="d-none d-md-block" style={{ maxHeight, overflow: 'auto' }}>
         <CTable small responsive hover className="summary-table mb-0">
           <CTableHead>
@@ -106,7 +113,11 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
                   </CTableRow>
                 )}
                 {group.pieces.map((p, i) => {
-                  const { sides, canto, specials } = pieceEdges(p.edges, bandingNames)
+                  const { sides, measures, canto, specials } = pieceEdges(
+                    p.edges,
+                    bandingNames,
+                    byLength ? p : null,
+                  )
                   return (
                     // `OrderPiece.id` is optional in the API contract, and the index is stable
                     // here: the list is read-only and never reordered.
@@ -118,7 +129,7 @@ const OrderPiecesTable = ({ pieces, bandingNames, maxHeight }: OrderPiecesTableP
                       <CTableDataCell>
                         {canto || specials.length > 0 ? (
                           <span className="d-inline-flex flex-wrap align-items-center gap-2">
-                            <CantoPreview sides={sides} />
+                            <CantoPreview sides={sides} measures={measures} />
                             {canto && <span className="text-nowrap">{canto.notation}</span>}
                             {canto?.tape && (
                               <span className="text-body-secondary">{canto.tape}</span>
