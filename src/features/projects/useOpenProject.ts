@@ -63,6 +63,8 @@ export const useOpenProject = () => {
           layoutAdjustments: payload.layoutAdjustments ?? null,
           project: { id: project.id, name: project.name },
           opened: true,
+          // The project's own mark: `loadAutosave` moves the rows of one saved before it.
+          edgeNotation: payload.edgeNotation,
         },
         scope,
       )

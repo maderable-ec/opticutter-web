@@ -52,6 +52,8 @@ export const requirementCutList = (
       height: r.height === '' ? '?' : r.height,
       width: r.width === '' ? '?' : r.width,
       quantity,
+      // The despiece reads `L` off the piece's longer measure, always.
+      measures: r,
       sides: {
         top: auto.includes('top') || special.some((e) => e.side === 'top'),
         bottom: auto.includes('bottom') || special.some((e) => e.side === 'bottom'),
@@ -61,11 +63,16 @@ export const requirementCutList = (
       canto:
         auto.length > 0
           ? {
-              notation: specialEdgeNotation(auto, displayedBandType(r.edgeBanding, byId)),
+              notation: specialEdgeNotation(
+                auto,
+                displayedBandType(r.edgeBanding, byId),
+                undefined,
+                r,
+              ),
               tape: tapeName(autoProduct),
             }
           : null,
-      specials: specialEdgeTags(special, byId).map((t) => ({
+      specials: specialEdgeTags(special, byId, r).map((t) => ({
         notation: t.label,
         tape: tapeName(t.product),
       })),

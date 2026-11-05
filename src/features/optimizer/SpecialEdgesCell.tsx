@@ -14,7 +14,7 @@ import {
   specialEdgeFits,
   specialEdgeTags,
 } from './specialEdges'
-import { sidesDescription } from 'src/shared/utils/specialEdges'
+import { sidesDescription, type PieceMeasures } from 'src/shared/utils/specialEdges'
 
 interface SpecialEdgesCellProps {
   value: SpecialEdgeForm[]
@@ -29,6 +29,8 @@ interface SpecialEdgesCellProps {
   inheritedBandType: BandType | ''
   // The sides the Canto column bands: an entry only takes the other ones.
   autoSides: EdgeSide[]
+  // The piece's measures, which decide which pair the counts call long (`longSides`).
+  measures: PieceMeasures
   // Grid wiring, as on every other input of the table.
   row: number
   col: number
@@ -51,6 +53,7 @@ const SpecialEdgesCell = ({
   thickness,
   inheritedBandType,
   autoSides,
+  measures,
   row,
   col,
   onFocus,
@@ -66,6 +69,7 @@ const SpecialEdgesCell = ({
       thickness,
       bandType: inheritedBandType,
       autoSides,
+      measures,
     })
     for (const m of messages) addToast(m.message, m.color)
     if (next.length !== value.length) onChange(next)
@@ -86,14 +90,14 @@ const SpecialEdgesCell = ({
   }
 
   const remove = (productId: string) => onChange(value.filter((e) => e.productId !== productId))
-  const free = freeSidesNotation(autoSides, value)
+  const free = freeSidesNotation(autoSides, value, measures)
 
   return (
     <div className="d-flex flex-wrap align-items-center gap-1">
-      {specialEdgeTags(value, byId).map(({ productId, sides, label, product }) => {
+      {specialEdgeTags(value, byId, measures).map(({ productId, sides, label, product }) => {
         const fits = specialEdgeFits(product, thickness)
         const title = product
-          ? `${product.name} (${product.code}) en ${sidesDescription(sides)}` +
+          ? `${product.name} (${product.code}) en ${sidesDescription(sides, measures)}` +
             (fits ? '' : ' · no cubre el espesor del tablero')
           : 'Tapacanto fuera del catálogo activo'
         return (

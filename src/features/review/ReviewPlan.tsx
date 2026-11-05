@@ -30,11 +30,13 @@ const boardTitle = (from: number, to: number, totalBoards: number) =>
 interface ReviewPlanProps {
   groups: ReviewLayoutGroup[]
   totalBoards: number
+  // `ReviewPreOrder.edgeNotationByLength`.
+  byLength?: boolean
 }
 
 // The client's view of how their boards get cut. Deliberately without the shop's metrics
 // (efficiency, linear cut, waste): what matters here is that every piece they ordered is there.
-const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
+const ReviewPlan = ({ groups, totalBoards, byLength = false }: ReviewPlanProps) => {
   // Index rather than the group itself, so the expanded view can page to the next board.
   const [detailIndex, setDetailIndex] = useState<number | null>(null)
   const [showLegend, setShowLegend] = useState(false)
@@ -216,6 +218,7 @@ const ReviewPlan = ({ groups, totalBoards }: ReviewPlanProps) => {
         colorFor={colorFor}
         sheetTitleFor={titleAt}
         onClose={() => setDetailIndex(null)}
+        byLength={byLength}
       />
     </div>
   )

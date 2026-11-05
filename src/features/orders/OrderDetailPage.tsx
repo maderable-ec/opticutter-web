@@ -631,7 +631,7 @@ const OrderDetailPage = () => {
         {pieces.length > 0 && (
           <div className={`${segmentClass(part, 'work')} d-md-none mb-3`}>
             <div className="eyebrow mb-2">Lista de corte</div>
-            <CutListCards groups={orderCutList(pieces, bandingNames)} />
+            <CutListCards groups={orderCutList(pieces, bandingNames, order.edgeNotationByLength)} />
           </div>
         )}
         {pieces.length > 0 && (
@@ -885,6 +885,7 @@ const OrderDetailPage = () => {
             <OrderPiecesTable
               pieces={pieces}
               bandingNames={bandingNames}
+              byLength={order.edgeNotationByLength}
               maxHeight="calc(100dvh - 12rem)"
             />
           </div>

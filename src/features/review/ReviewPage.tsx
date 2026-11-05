@@ -319,7 +319,11 @@ const ReviewPage = () => {
 
       <CRow className="g-3">
         <CCol lg={7} className={mobileOnly('plan')}>
-          <ReviewPlan groups={data.layoutGroups ?? []} totalBoards={data.totalBoardsUsed} />
+          <ReviewPlan
+            groups={data.layoutGroups ?? []}
+            totalBoards={data.totalBoardsUsed}
+            byLength={data.edgeNotationByLength}
+          />
         </CCol>
         <CCol lg={5} className={mobileOnly('rail')}>
           {/* `review-rail` pins this column from `lg` up (see scss) so the piece list stays on
@@ -329,7 +333,7 @@ const ReviewPage = () => {
             {railTab === 'quote' ? (
               <ReviewQuote data={data} />
             ) : (
-              <ReviewPieces pieces={data.pieces ?? []} />
+              <ReviewPieces pieces={data.pieces ?? []} byLength={data.edgeNotationByLength} />
             )}
           </div>
         </CCol>

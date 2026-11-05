@@ -29,8 +29,18 @@ import type { ReviewPiece } from './types'
 // Both the phone cards and the desktop table render this, which is the point:
 // there is no hover on a phone, so the full name in `title` cannot be the only
 // place the tape is named.
-const Cantos = ({ piece, align = 'start' }: { piece: ReviewPiece; align?: 'start' | 'end' }) => {
+const Cantos = ({
+  piece,
+  align = 'start',
+  byLength,
+}: {
+  piece: ReviewPiece
+  align?: 'start' | 'end'
+  byLength: boolean
+}) => {
   if (!piece.edges?.sides?.length) return <span className="text-body-secondary">—</span>
+  // The piece's own measures decide which pair is `L`, on a plan that reads it so.
+  const measures = byLength ? piece : null
   // One line per tape: the auto one, then each special tape with the sides it takes (`2L: …`),
   // counted the way the notation above counts them.
   const special = piece.edges.special ?? []
@@ -39,9 +49,10 @@ const Cantos = ({ piece, align = 'start' }: { piece: ReviewPiece; align?: 'start
     ...groupByTape(
       special.map((e) => ({ ...e, side: e.nominalSide })),
       (e) => `${e.productName ?? ''}|${e.bandType ?? ''}`,
+      measures,
     ).map(({ sides, first }) => {
       const name = bandingName(first)
-      return name && `${sidesNotation(sides)}: ${name}`
+      return name && `${sidesNotation(sides, measures)}: ${name}`
     }),
   ].filter(Boolean)
   const title = [
@@ -54,8 +65,10 @@ const Cantos = ({ piece, align = 'start' }: { piece: ReviewPiece; align?: 'start
   return (
     <div className={align === 'end' ? 'text-end' : undefined} title={title}>
       <div className={`d-flex align-items-center gap-2 justify-content-${align}`}>
-        <CantoPreview sides={cantoSides(piece.edges)} />
-        <span className="text-nowrap">{piece.edges.notation || cantoNotation(piece.edges)}</span>
+        <CantoPreview sides={cantoSides(piece.edges)} measures={measures} />
+        <span className="text-nowrap">
+          {piece.edges.notation || cantoNotation(piece.edges, measures)}
+        </span>
       </div>
       {names.map((name) => (
         <div key={name} className="text-body-secondary small text-break">
@@ -81,12 +94,14 @@ interface MaterialGroup {
 
 interface ReviewPiecesProps {
   pieces: ReviewPiece[]
+  // `ReviewPreOrder.edgeNotationByLength`.
+  byLength?: boolean
 }
 
 // The cut list, one collapsible card per board. The material moved out of a repeated column and
 // into each card's title, which also fixes losing track of which board you're reading once the list
 // scrolls past its heading on a phone — and lets you fold away the boards you're not checking.
-const ReviewPieces = ({ pieces }: ReviewPiecesProps) => {
+const ReviewPieces = ({ pieces, byLength = false }: ReviewPiecesProps) => {
   const baseId = useId().replace(/:/g, '')
 
   const groups = useMemo(() => {
@@ -157,7 +172,7 @@ const ReviewPieces = ({ pieces }: ReviewPiecesProps) => {
                           {piece.height} × {piece.width}{' '}
                           <span className="text-body-secondary small">mm</span>
                         </span>
-                        <Cantos piece={piece} align="end" />
+                        <Cantos piece={piece} align="end" byLength={byLength} />
                       </div>
                     </div>
                   ))}
@@ -191,7 +206,7 @@ const ReviewPieces = ({ pieces }: ReviewPiecesProps) => {
                           </CTableDataCell>
                           <CTableDataCell className="text-end">{piece.quantity}</CTableDataCell>
                           <CTableDataCell>
-                            <Cantos piece={piece} />
+                            <Cantos piece={piece} byLength={byLength} />
                           </CTableDataCell>
                         </CTableRow>
                       ))}

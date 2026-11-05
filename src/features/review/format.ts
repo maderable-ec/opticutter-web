@@ -1,15 +1,17 @@
 // Format helpers for the public review page.
 // Money/date formatting is shared app-wide; `edgesLabel` is review-specific.
 //
-// The three edge helpers below read `sides` in the piece's NOMINAL frame — that's what
-// `notationFromSides` counts as L (left/right) and C (top/bottom). The cut list's edges are
-// nominal already, but a placed piece's `sides` come rotated into the frame of the drawing, so
-// pass its `nominalSides` instead: otherwise every rotated piece reads its 1L as a 1C.
+// The three edge helpers below read `sides` in the piece's NOMINAL frame — the one
+// `notationFromSides` counts L and C in (L = the pair along the piece's longer measure, given its
+// measures). The cut list's edges are nominal already, but a placed piece's `sides` come rotated
+// into the frame of the drawing, so pass its `nominalSides` instead: otherwise every rotated piece
+// reads its 1L as a 1C.
 
 import { apiErrorMessage } from 'src/shared/api/errors'
 import { stripBandingPrefix } from 'src/shared/utils/text'
 import { notationFromSides } from 'src/features/optimizer/optimizerForm'
 import type { CantoSides } from 'src/shared/components/CantoPreview'
+import type { PieceMeasures } from 'src/shared/utils/specialEdges'
 
 export { fmtMoney, fmtDate, fmtDateTime } from 'src/shared/utils/format'
 
@@ -64,10 +66,11 @@ export const cantoSides = (edges?: AnyEdges): CantoSides => ({
 })
 
 // Business notation shown next to the figure, e.g. "2L1C CD" (2 long + 1 short sides, canto duro).
-// Reuses the optimizer's canonical L/C notation so it matches the quote view exactly.
-export const cantoNotation = (edges?: AnyEdges): string => {
+// Reuses the optimizer's canonical L/C notation so it matches the quote view exactly. `measures`:
+// the piece's own, where the notation reads `L` off the longer one.
+export const cantoNotation = (edges?: AnyEdges, measures?: PieceMeasures | null): string => {
   if (!edges || !edges.sides?.length) return '—'
-  const notation = notationFromSides(cantoSides(edges))
+  const notation = notationFromSides(cantoSides(edges), measures)
   const bandType = bandTypeOf(edges)
   const band = bandType ? BAND_ABBR[bandType.toLowerCase()] : ''
   return band ? `${notation} ${band}` : notation

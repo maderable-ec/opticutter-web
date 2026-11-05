@@ -96,7 +96,7 @@ const PiecesMobileList = ({
                     )}
                     {r.canto && (
                       <span className="badge status-pill status-pill--neutral">
-                        <CantoPreview sides={req.edgeBanding.sides} />
+                        <CantoPreview sides={req.edgeBanding.sides} measures={req} />
                         {r.canto}
                       </span>
                     )}

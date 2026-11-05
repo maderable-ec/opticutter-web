@@ -303,7 +303,7 @@ const csvCell = (v: string | number): string => {
 // re-importing keeps the banding instead of dropping it. The tapacanto product stays out — it is
 // re-inferred from the board.
 const etiquetaFor = (r: RequirementForm): string => {
-  const notation = notationFromSides(r.edgeBanding.sides)
+  const notation = notationFromSides(r.edgeBanding.sides, r)
   if (notation === '—') return r.label
   const abbr = r.edgeBanding.bandType ? BANDTYPE_ABBR[r.edgeBanding.bandType] : ''
   return [notation, abbr, r.label].filter(Boolean).join(' ')

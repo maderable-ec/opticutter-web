@@ -1,13 +1,13 @@
-import type { EdgeSide } from './types'
 import type { BandType, CantoNotation } from './optimizerForm'
-import { CS_CD_TO_BANDTYPE, sidesFromNotation } from './optimizerForm'
+import { CS_CD_TO_BANDTYPE } from './optimizerForm'
 
 // Reads the "Etiqueta" column of an imported cut list as EDGE BANDING (canto), which is what the
 // workshop's commercial cutting program puts there: its own <edge_band> block always ships empty and
 // the banding travels in the free-text label ('1L CS', '4L CD BL', 'NO', '1L CS DIV 1/60 1/35').
 //
-// The notation is the same one this app prints: L = long side (left/right), C = short side
-// (top/bottom), CS = canto suave, CD = canto duro. A trailing code ('BL', 'JAP') names the design
+// The notation is the same one this app prints: L = long side, C = short side, CS = canto suave,
+// CD = canto duro. Which sides are long is the piece's (its longer measure, `longSides`), so this
+// reads only the notation and the row places it on its sides (`piecesImport.rowToRequirement`). A trailing code ('BL', 'JAP') names the design
 // FAMILY of the tapacanto, which is only meaningful against the catalog — so it is reported, never
 // resolved here (the piece gets its board's coordinated tapacanto and the import warns about it).
 //
@@ -29,7 +29,6 @@ const FAMILY_RE = /^[A-Z]{1,4}$/
 
 export interface ParsedCanto {
   notation: CantoNotation
-  sides: Record<EdgeSide, boolean>
   // '' when the label states sides but not the type (e.g. a bare '1L') — the row still imports, and
   // the tapacanto inference then just takes the first coordinated one.
   bandType: '' | BandType
@@ -53,8 +52,6 @@ const notationFromCounts = (long: number, short: number): CantoNotation => {
 
 const noBanding = (leftover = ''): ParsedCanto => ({
   notation: '—',
-  // Copied: sidesFromNotation hands back a shared lookup entry, and each piece owns its sides.
-  sides: { ...sidesFromNotation('—') },
   bandType: '',
   familyTokens: [],
   mixed: false,
@@ -135,8 +132,6 @@ export const parseCantoLabel = (text: string): ParsedCanto | null => {
   const mixed = bandTokens > 1 || segments > 1
   return {
     notation,
-    // Copied: sidesFromNotation hands back a shared lookup entry, and each piece owns its sides.
-    sides: { ...sidesFromNotation(notation) },
     bandType,
     familyTokens,
     mixed,

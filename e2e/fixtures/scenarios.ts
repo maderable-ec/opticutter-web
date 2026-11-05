@@ -85,6 +85,8 @@ export const seedOptimizer = async (
 ) => {
   const autosave: OptimizerAutosave = {
     version: 1,
+    // What the optimizer writes: the rows read `L` off their longer measure as given.
+    edgeNotation: 'byLength',
     savedAt: Date.now(),
     draftId: null,
     draftName: '',

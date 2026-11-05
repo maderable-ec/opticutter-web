@@ -147,4 +147,7 @@ export interface ReviewPreOrder {
   additionalServices?: ReviewService[]
   pieces: ReviewPiece[]
   layoutGroups: ReviewLayoutGroup[]
+  // The edge notation reads `L` off each piece's LONGER measure where that differs from reading it
+  // off the height; false where both agree and on an order frozen before the rule (`longSides`).
+  edgeNotationByLength?: boolean
 }
