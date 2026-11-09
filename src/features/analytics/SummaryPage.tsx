@@ -7,7 +7,7 @@ import BranchComparisonTable from './components/BranchComparisonTable'
 import ReportFilters from './components/ReportFilters'
 import ReportSection from './components/ReportSection'
 import { SUMMARY_GROUPS } from './comparisonRows'
-import { fmtDecimal, fmtInt } from './format'
+import { fmtDecimal, fmtInt, fmtSheets } from './format'
 import { useBranchComparison } from './useAnalytics'
 import { useReportFilters } from './useReportFilters'
 
@@ -53,7 +53,7 @@ const SummaryPage = () => {
               <StatTile
                 label="Tableros procesados"
                 value={fmtNumber(total.production.boards, 1, 0)}
-                hint="Medio tablero = 0,5"
+                hint={fmtSheets(total.production.sheets) ?? 'Medio tablero = 0,5'}
               />
               <StatTile label="Metros de corte" value={fmtMeters(total.production.cutLinearM, 0)} />
               <StatTile

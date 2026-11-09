@@ -368,6 +368,16 @@
   font-size: var(--mb-text-sm);
 }
 
+// The same quiet line under a figure in a report's table: what a board count is made of. It wraps
+// inside a `text-nowrap` table, so a long one breaks its line instead of pushing the table sideways.
+.figure-detail {
+  display: block;
+  color: var(--cui-secondary-color);
+  font-size: var(--mb-text-sm);
+  font-weight: 400;
+  white-space: normal;
+}
+
 .comparison__legend {
   margin: 0.5rem 0 0;
   color: var(--cui-secondary-color);

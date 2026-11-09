@@ -613,6 +613,7 @@ const branchFigures = (overrides: Partial<BranchFigures> = {}): BranchFigures =>
   orders: { entered: 44, finished: 39 },
   production: {
     boards: 118.5,
+    sheets: { whole: 110, half: 17, offcut: 21 },
     cutLinearM: 3310,
     bandedLinearM: 2210.6,
     ordersBanded: 33,
@@ -650,6 +651,7 @@ export const branchComparison = (): BranchComparison => ({
       orders: { entered: 25, finished: 21 },
       production: {
         boards: 96,
+        sheets: { whole: 90, half: 12, offcut: 9 },
         cutLinearM: 2760.4,
         bandedLinearM: 1874.2,
         ordersBanded: 28,
@@ -681,6 +683,7 @@ export const branchComparison = (): BranchComparison => ({
     orders: { entered: 69, finished: 60 },
     production: {
       boards: 214.5,
+      sheets: { whole: 200, half: 29, offcut: 30 },
       cutLinearM: 6070.4,
       bandedLinearM: 4084.8,
       ordersBanded: 61,
@@ -727,6 +730,7 @@ export const productionReport = (days = 5): ProductionReport => {
         sawingHours: 4.1 + (i % 3) * 0.6,
         pausedHours: (i % 2) * 1.5,
         boards: 9.5 + i,
+        sheets: { whole: 9 + i, half: 1, offcut: i % 3 },
         cutLinearM: 260 + i * 18,
         bandedLinearM: 180 + i * 12,
         ordersBanded: 4 + (i % 2),
@@ -985,6 +989,7 @@ export const operatorReport = (): OperatorReport => ({
       branchName: 'Matriz',
       piecesCut: 412,
       boards: 118.5,
+      sheets: { whole: 110, half: 17, offcut: 21 },
       cutLinearM: 3310,
       workHours: 61.4,
       loadingHours: 13.5,
@@ -1001,6 +1006,7 @@ export const operatorReport = (): OperatorReport => ({
       branchName: 'Norte',
       piecesCut: 288,
       boards: 96,
+      sheets: { whole: 90, half: 12, offcut: 9 },
       cutLinearM: 2760.4,
       workHours: 55.1,
       loadingHours: 12.1,
@@ -1018,6 +1024,7 @@ export const operatorReport = (): OperatorReport => ({
       branchName: null,
       piecesCut: 0,
       boards: 0,
+      sheets: { whole: 0, half: 0, offcut: 0 },
       cutLinearM: 0,
       workHours: 0,
       loadingHours: 0,
@@ -1032,6 +1039,7 @@ export const operatorReport = (): OperatorReport => ({
   total: {
     piecesCut: 700,
     boards: 214.5,
+    sheets: { whole: 200, half: 29, offcut: 30 },
     cutLinearM: 6070.4,
     workHours: 116.5,
     loadingHours: 25.6,
@@ -1076,6 +1084,7 @@ export const operatorBoards = (): OperatorBoardsReport => {
     userId: 3,
     fullName: 'Carlos Guamán',
     boards: 1.5,
+    sheetCounts: { whole: 1, half: 1, offcut: 0 },
     creditedCount: 2,
     piecesCut: 29,
     sheets: [

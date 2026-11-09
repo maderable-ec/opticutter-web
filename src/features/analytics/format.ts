@@ -3,7 +3,7 @@
 // e.g. "2026-06-15T08:05:00") → must be treated as UTC and displayed in local time.
 
 import { fmtNumber, fmtPercent } from 'src/shared/utils/format'
-import type { Granularity } from './types'
+import type { Granularity, SheetCounts } from './types'
 
 // The reports' precisions over the app's figures (`shared/utils/format.ts`, es-EC like the money).
 // A money axis: whole dollars, the cents would only crowd the ticks.
@@ -98,3 +98,20 @@ export const fmtWeekday = (day: string): string => {
 // One part of a whole as a percentage with no decimals («58 %»); nothing when the whole is zero.
 export const fmtShare = (part: number, whole: number): string | undefined =>
   whole > 0 ? fmtPercent((part / whole) * 100, 0) : undefined
+
+// What a board count is made of: «11 enteros · 3 medios · 4 retazos». A kind with none is left out,
+// and nothing at all when no sheet was processed (or the API predates the field). A part never
+// splits («29 / medios» read as two figures): a narrow cell breaks the line between parts only.
+export const fmtSheets = (sheets?: SheetCounts | null): string | undefined => {
+  if (!sheets) return undefined
+  const parts = [
+    [sheets.whole, 'entero', 'enteros'],
+    [sheets.half, 'medio', 'medios'],
+    [sheets.offcut, 'retazo', 'retazos'],
+  ] as const
+  const text = parts
+    .filter(([n]) => n > 0)
+    .map(([n, one, many]) => `${fmtInt(n)}\u00a0${n === 1 ? one : many}`)
+    .join(' · ')
+  return text || undefined
+}

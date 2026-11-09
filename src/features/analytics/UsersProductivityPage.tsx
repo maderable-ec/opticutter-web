@@ -6,7 +6,7 @@ import RankTable, { type RankColumn } from './components/RankTable'
 import ReportFilters from './components/ReportFilters'
 import ReportSection from './components/ReportSection'
 import Segmented from './components/Segmented'
-import { fmtDecimal, fmtInt, fmtRate } from './format'
+import { fmtDecimal, fmtInt, fmtRate, fmtSheets } from './format'
 import BanderOrdersModal from './BanderOrdersModal'
 import OperatorBoardsModal from './OperatorBoardsModal'
 import SellerOrdersModal from './SellerOrdersModal'
@@ -100,11 +100,14 @@ const OPERATOR_COLUMNS: RankColumn<OperatorFigures>[] = [
     unit: count('pieza', 'piezas'),
   },
   {
+    // The equivalent (a half board is half), which ranks and is what «Tabl/h» divides; under it,
+    // the sheets it is made of.
     id: 'boards',
     label: 'Tableros',
     value: (r) => r.boards,
     format: (n) => fmtNumber(n, 1, 0),
     unit: (n) => `${fmtNumber(n, 1, 0)} tableros`,
+    detail: (r) => fmtSheets(r.sheets),
     highlight: true,
   },
   {

@@ -1,6 +1,6 @@
 import { fmtMeters, fmtMoney, fmtNumber } from 'src/shared/utils/format'
 import type { ComparisonGroup, ComparisonRow } from './components/BranchComparisonTable'
-import { fmtDecimal, fmtInt, fmtMinuteOfDay, fmtRate, fmtShare } from './format'
+import { fmtDecimal, fmtInt, fmtMinuteOfDay, fmtRate, fmtShare, fmtSheets } from './format'
 import type { BranchFigures } from './types'
 
 // The rows of the branch comparison, once each: the Resumen and Producción pick from these, so a
@@ -81,10 +81,13 @@ const ROWS = {
     format: fmtInt,
     better: 'higher',
   },
+  // The equivalent (a half board is half) compares the branches and is what «Tableros por hora»
+  // divides; under it, the sheets it is made of, retazos included.
   boards: {
     label: 'Tableros procesados',
     value: (f) => f.production.boards,
     format: fmtBoards,
+    detail: (f) => fmtSheets(f.production.sheets),
     better: 'higher',
   },
   meters: {
