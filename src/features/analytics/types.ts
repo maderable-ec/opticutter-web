@@ -28,7 +28,16 @@ export interface OrderFigures {
   finished: number
 }
 
-// The shop's work. `boards` weighs a whole board 1, a half 0.5 and a retazo 0; `bandedLinearM` is the
+// The sheets behind a board count, one by one. `boards` is their equivalent, `whole + half / 2` (a
+// retazo weighs 0); this says what it is made of, retazos included — the saw cuts them too.
+export interface SheetCounts {
+  whole: number
+  half: number
+  offcut: number
+}
+
+// The shop's work. `boards` weighs a whole board 1, a half 0.5 and a retazo 0 — the equivalent the
+// rates divide — and `sheets` counts them by kind; `bandedLinearM` is the
 // net tape of every banding closed (no waste factor); `ordersBanded`/`ordersAdditional` count the
 // bandings and additional works closed in range.
 //
@@ -40,6 +49,7 @@ export interface OrderFigures {
 // 0 when there is no day.
 export interface ProductionFigures {
   boards: number
+  sheets: SheetCounts
   cutLinearM: number
   bandedLinearM: number
   ordersBanded: number
@@ -82,6 +92,7 @@ export interface ProductionDay {
   sawingHours: number
   pausedHours: number // working time in a registered pause of the cut
   boards: number
+  sheets: SheetCounts
   cutLinearM: number
   bandedLinearM: number // bandings closed that day
   ordersBanded: number // bandings closed that day
@@ -274,6 +285,7 @@ export interface SellerOrdersReport {
 export interface OperatorFigures {
   piecesCut: number
   boards: number
+  sheets: SheetCounts
   cutLinearM: number
   workHours: number
   loadingHours: number
@@ -353,6 +365,7 @@ export interface OperatorBoardsReport {
   userId: number
   fullName: string
   boards: number
+  sheetCounts: SheetCounts // the row's `sheets`: here that name is the ledger's list
   creditedCount: number
   piecesCut: number
   sheets: OperatorBoard[]

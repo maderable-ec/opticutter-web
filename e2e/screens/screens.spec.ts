@@ -1063,6 +1063,14 @@ const SCENARIOS: Scenario[] = [
     setup: stubReports,
   },
   {
+    // The operators' ranking: the board count's equivalent, with the sheets it is made of under it.
+    name: 'productivity-operators',
+    path: '/analytics/productivity?role=operador',
+    roles: ['administrador'],
+    ready: '.list-card:visible, .list-table tbody tr:visible',
+    setup: stubReports,
+  },
+  {
     // The banders' report: what was registered after the work carries no time.
     name: 'productivity-banders',
     path: '/analytics/productivity?role=canteador',

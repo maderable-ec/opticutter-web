@@ -131,11 +131,17 @@ test('un operador abre sus tableros, hoja por hoja, para validar la cifra', asyn
   const table = page.locator('.list-table')
   await expect(table.getByRole('row', { name: /Sin usuario/ })).toBeVisible()
   await expect(table.getByRole('button', { name: 'Sin usuario' })).toHaveCount(0)
+  // The equivalent, and under it the sheets it is made of.
+  await expect(table.getByRole('row', { name: /Carlos Guamán/ })).toContainText(
+    '110 enteros · 17 medios · 21 retazos',
+  )
 
   await table.getByRole('button', { name: 'Carlos Guamán' }).click()
   await expect(page).toHaveURL(/[?&]user=3(&|$)/)
   const dialog = page.getByRole('dialog', { name: 'Tableros de Carlos Guamán' })
-  await expect(dialog).toContainText('Cuentan 1,5 tableros en 2 hojas · 29 piezas marcadas')
+  await expect(dialog).toContainText(
+    'Cuentan 1,5 tableros en 2 hojas (1 entero · 1 medio) · 29 piezas marcadas',
+  )
   await expect(dialog).toContainText('La cerró Luis Morocho Tenesaca')
   await expect(dialog).toContainText('Faltan 9 piezas')
   await expect(dialog).toContainText('8 de 12 piezas suyas · 4 de Luis Morocho Tenesaca')

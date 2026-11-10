@@ -24,8 +24,29 @@ export interface RankColumn<T> {
   value: (row: T) => number
   format: (value: number, row: T) => string
   unit: (value: number, row: T) => string
+  // A second, quieter line under the figure (what a board count is made of); on a phone it follows
+  // the figure in parentheses. It never sorts: `value` does.
+  detail?: (row: T) => string | undefined
   // The figures somebody ranks people by: bold.
   highlight?: boolean
+}
+
+// The figure as a phone's line, with its detail after it.
+const unitLine = <T,>(c: RankColumn<T>, row: T): string => {
+  const detail = c.detail?.(row)
+  const unit = c.unit(c.value(row), row)
+  return detail ? `${unit} (${detail})` : unit
+}
+
+// The figure as a table's cell, with its detail under it.
+const cellFigure = <T,>(c: RankColumn<T>, row: T): ReactNode => {
+  const detail = c.detail?.(row)
+  return (
+    <>
+      {c.format(c.value(row), row)}
+      {detail && <span className="figure-detail">{detail}</span>}
+    </>
+  )
 }
 
 interface Person {
@@ -119,7 +140,7 @@ const RankTable = <R extends Person, T>({
             >
               <div className="list-card__meta">
                 {columns.map((c) => (
-                  <span key={c.id}>{c.unit(c.value(row), row)}</span>
+                  <span key={c.id}>{unitLine(c, row)}</span>
                 ))}
               </div>
             </ListCard>
@@ -127,7 +148,7 @@ const RankTable = <R extends Person, T>({
           <ListCard title="Total">
             <div className="list-card__meta">
               {columns.map((c) => (
-                <span key={c.id}>{c.unit(c.value(total), total)}</span>
+                <span key={c.id}>{unitLine(c, total)}</span>
               ))}
             </div>
           </ListCard>
@@ -195,7 +216,7 @@ const RankTable = <R extends Person, T>({
                         // A zero is work the person did not do: quiet, not bold.
                         className={`text-end${value === 0 ? ' text-body-secondary' : c.highlight ? ' fw-semibold' : ''}`}
                       >
-                        {c.format(value, row)}
+                        {cellFigure(c, row)}
                       </CTableDataCell>
                     )
                   })}
@@ -208,7 +229,7 @@ const RankTable = <R extends Person, T>({
               <CTableHeaderCell scope="row">Total</CTableHeaderCell>
               {columns.map((c) => (
                 <CTableDataCell key={c.id} className="text-end">
-                  {c.format(c.value(total), total)}
+                  {cellFigure(c, total)}
                 </CTableDataCell>
               ))}
             </CTableRow>

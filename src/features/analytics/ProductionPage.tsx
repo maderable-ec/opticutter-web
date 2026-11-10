@@ -20,7 +20,15 @@ import BranchComparisonTable from './components/BranchComparisonTable'
 import ReportFilters from './components/ReportFilters'
 import ReportSection from './components/ReportSection'
 import { PRODUCTION_GROUPS } from './comparisonRows'
-import { fmtDecimal, fmtHours, fmtInt, fmtLocalTime, fmtRate, fmtWeekday } from './format'
+import {
+  fmtDecimal,
+  fmtHours,
+  fmtInt,
+  fmtLocalTime,
+  fmtRate,
+  fmtSheets,
+  fmtWeekday,
+} from './format'
 import type { ProductionDay, ProductionPause } from './types'
 import { useBranchComparison, useProduction } from './useAnalytics'
 import { useReportFilters } from './useReportFilters'
@@ -45,6 +53,8 @@ const DAY_COLUMNS: {
   head?: ReactNode
   from?: keyof typeof FROM_CLASS
   value: (d: ProductionDay) => string
+  // A second, quieter line under the figure.
+  detail?: (d: ProductionDay) => string | undefined
 }[] = [
   // The cut's time — what the rates at the end divide by — and, of it, the load. The sawing is
   // the rest, so it and the pauses (which have their own section below) wait for a wide screen:
@@ -57,7 +67,8 @@ const DAY_COLUMNS: {
     from: 'xxl',
     value: (d) => (d.pausedHours > 0 ? fmtH(d.pausedHours) : '—'),
   },
-  { label: 'Tableros', value: (d) => fmtBoards(d.boards) },
+  // The equivalent, and under it the sheets it is made of.
+  { label: 'Tableros', value: (d) => fmtBoards(d.boards), detail: (d) => fmtSheets(d.sheets) },
   // «Metros»: «Corte» beside «Tiempo de corte» read as the same thing in two units.
   { label: 'Metros de corte', head: 'Metros', value: (d) => fmtMeters(d.cutLinearM, 0) },
   // The tape and, beside it, how many orders it took: «180 m (4)».
@@ -161,7 +172,10 @@ const ProductionPage = () => {
                           {fmtH(d.loadingHours)} de carga · {fmtH(d.sawingHours)} de sierra
                         </span>
                         {d.pausedHours > 0 && <span>{fmtH(d.pausedHours)} en pausa</span>}
-                        <span>{fmtBoards(d.boards)} tableros</span>
+                        <span>
+                          {fmtBoards(d.boards)} tableros
+                          {fmtSheets(d.sheets) && ` (${fmtSheets(d.sheets)})`}
+                        </span>
                         <span>{fmtMeters(d.cutLinearM, 0)} de corte</span>
                         <span>{fmtMeters(d.bandedLinearM, 0)} de canteo</span>
                         <span>{fmtInt(d.ordersBanded)} canteadas</span>
@@ -200,14 +214,18 @@ const ProductionPage = () => {
                           <CTableDataCell>{fmtWeekday(d.date)}</CTableDataCell>
                           <CTableDataCell>{d.branchName}</CTableDataCell>
                           <CTableDataCell>{span(d)}</CTableDataCell>
-                          {DAY_COLUMNS.map((c) => (
-                            <CTableDataCell
-                              key={c.label}
-                              className={`text-end${c.from ? FROM_CLASS[c.from] : ''}`}
-                            >
-                              {c.value(d)}
-                            </CTableDataCell>
-                          ))}
+                          {DAY_COLUMNS.map((c) => {
+                            const detail = c.detail?.(d)
+                            return (
+                              <CTableDataCell
+                                key={c.label}
+                                className={`text-end${c.from ? FROM_CLASS[c.from] : ''}`}
+                              >
+                                {c.value(d)}
+                                {detail && <span className="figure-detail">{detail}</span>}
+                              </CTableDataCell>
+                            )
+                          })}
                         </CTableRow>
                       ))}
                     </CTableBody>

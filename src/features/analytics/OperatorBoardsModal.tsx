@@ -1,7 +1,7 @@
 import EmptyState from 'src/shared/components/EmptyState'
 import StatusBadge from 'src/shared/components/StatusBadge'
 import { LedgerItem, LedgerModal, LedgerSection, LedgerSummary } from './components/Ledger'
-import { fmtInt, fmtWeekday } from './format'
+import { fmtInt, fmtSheets, fmtWeekday } from './format'
 import { groupByDay } from './ledger'
 import {
   SHEET_KIND_LABEL,
@@ -50,7 +50,8 @@ const OperatorBoardsModal = ({ userId, from, to, branchId, onClose }: OperatorBo
         <>
           <LedgerSummary rule="Una hoja cuenta cuando todas sus piezas están marcadas, el día de su última marca y para quien marcó esa última pieza. Un entero vale 1, un medio 0,5 y un retazo 0.">
             Cuentan <strong>{fmtWeight(data.boards)} tableros</strong> en{' '}
-            {fmtInt(data.creditedCount)} {data.creditedCount === 1 ? 'hoja' : 'hojas'} ·{' '}
+            {fmtInt(data.creditedCount)} {data.creditedCount === 1 ? 'hoja' : 'hojas'}
+            {fmtSheets(data.sheetCounts) && ` (${fmtSheets(data.sheetCounts)})`} ·{' '}
             {fmtInt(data.piecesCut)} piezas marcadas
           </LedgerSummary>
           {data.sheets.length === 0 ? (
